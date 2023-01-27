@@ -14,6 +14,9 @@ import (
 	prefixed "github.com/matterbridge/logrus-prefixed-formatter"
 	"github.com/sirupsen/logrus"
 
+	"github.com/infracloudio/msbotbuilder-go/core"
+
+	"github.com/mattermost/mattermost-plugin-matterbridge/server/bmsteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -37,11 +40,14 @@ type Plugin struct {
 
 	clusterMutex *Mutex
 
-	starting sync.Mutex
+	starting    sync.Mutex
+	httpHandler *HTTPHandler
 }
 
 // ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	p.API.LogError("RECEIVING REQUEST")
+	p.httpHandler.processMessage(w, r)
 }
 
 func (p *Plugin) start() error {
@@ -60,10 +66,13 @@ func (p *Plugin) start() error {
 			PrefixPadding: 13,
 			DisableColors: true,
 		},
-		Level: logrus.InfoLevel,
+		Level: logrus.DebugLevel,
 	}
 
 	p.matterbridgeConfig = config.NewConfigFromString(logger, []byte(p.configuration.Config))
+	bridgemap.FullMap["msteams"] = func(cfg *bridge.Config) bridge.Bridger {
+		return bmsteams.New(cfg, p.API)
+	}
 
 	var err error
 	p.matterbridgeRouter, err = gateway.NewRouter(logger, p.matterbridgeConfig, bridgemap.FullMap)
@@ -78,6 +87,7 @@ func (p *Plugin) start() error {
 
 	go func() {
 		for msg := range p.matterbridgeRouter.MattermostPlugin {
+			p.API.LogError("MESSAGE RECEIVED", "msg", msg)
 			if err != nil {
 				p.API.LogError("Error processing message: unable to get the user")
 				continue
@@ -89,11 +99,44 @@ func (p *Plugin) start() error {
 			}
 			teamName := splittedName[0]
 			channelName := splittedName[1]
-			channel, _ := p.API.GetChannelByNameForTeamName(teamName, channelName, false)
+			channel, err := p.API.GetChannelByNameForTeamName(teamName, channelName, false)
+			if err != nil {
+				p.API.LogError("Unable to get the channel", "error", err)
+				continue
+			}
 			props := make(map[string]interface{})
-			props["matterbridge_"+p.userID] = true
-			post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: msg.Username + msg.Text, Props: props}
-			p.API.CreatePost(post)
+			rootID := []byte{}
+			if id, ok := msg.Extra["ParentID"]; ok {
+				if len(id) == 1 && id[0].(string) != "" {
+					msg.ParentID = id[0].(string)
+				}
+			}
+			if msg.ParentID != "" {
+				rootID, _ = p.API.KVGet("teams_mattermost_" + msg.ParentID)
+			}
+
+			if id, ok := msg.Extra["OriginalID"]; ok {
+				if len(id) == 1 && id[0].(string) != "" {
+					msg.ID = id[0].(string)
+				}
+			}
+
+			post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: msg.Username + msg.Text, Props: props, RootId: string(rootID)}
+			p.API.LogError("Creating new post with original id", "msgId", msg.ID)
+			p.API.LogError("Creating new post with original id", "msg", msg)
+			post.AddProp("matterbridge_"+p.userID, true)
+			post.AddProp("override_username", msg.Username)
+			post.AddProp("from_webhook", "true")
+			p.API.LogError("creating post", "post", post)
+			newPost, err := p.API.CreatePost(post)
+			if err != nil {
+				p.API.LogError("Unable to create post", "error", err)
+				continue
+			}
+			if newPost != nil && newPost.Id != "" && msg.ID != "" {
+				p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(msg.ID))
+				p.API.KVSet("teams_mattermost_"+msg.ID, []byte(newPost.Id))
+			}
 		}
 	}()
 	return nil
@@ -149,6 +192,18 @@ func (p *Plugin) OnActivate() error {
 		return nil
 	}
 
+	setting := core.AdapterSetting{
+		AppID:       "",
+		AppPassword: "",
+	}
+
+	adapter, err := core.NewBotAdapter(setting)
+	if err != nil {
+		return err
+	}
+
+	p.httpHandler = &HTTPHandler{Adapter: adapter, p: p}
+
 	go p.start()
 	return nil
 }
@@ -162,7 +217,26 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	channel, _ := p.API.GetChannel(post.ChannelId)
 	team, _ := p.API.GetTeam(channel.TeamId)
 	u, _ := p.API.GetUser(post.UserId)
-	msg := config.Message{Username: u.Username, UserID: post.UserId, Channel: team.Name + ":" + channel.Name, Text: post.Message, ID: post.Id, Account: "mattermost.plugin", Protocol: "mattermost", Gateway: "plugin"}
+	parentID := []byte{}
+	if post.RootId != "" {
+		parentID, _ = p.API.KVGet("mattermost_teams_" + post.RootId)
+	}
+
+	msg := config.Message{
+		Username: u.Username,
+		UserID:   post.UserId,
+		Channel:  team.Name + ":" + channel.Name,
+		Text:     post.Message,
+		ParentID: string(parentID),
+		ID:       post.Id,
+		Account:  "mattermost.plugin",
+		Protocol: "mattermost",
+		Gateway:  "plugin",
+		Extra: map[string][]interface{}{
+			"ParentID":   {string(parentID)},
+			"OriginalID": {post.Id},
+		},
+	}
 	if p.connected {
 		p.matterbridgeRouter.Message <- msg
 	} else {
