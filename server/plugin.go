@@ -1,24 +1,25 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
+	"time"
 
-	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/42wim/matterbridge/gateway"
-	"github.com/42wim/matterbridge/gateway/bridgemap"
-	prefixed "github.com/matterbridge/logrus-prefixed-formatter"
-	"github.com/sirupsen/logrus"
+	msgraph "github.com/yaegashi/msgraph.go/beta"
+	"github.com/yaegashi/msgraph.go/msauth"
+	"golang.org/x/oauth2"
 
-	"github.com/infracloudio/msbotbuilder-go/core"
-
-	"github.com/mattermost/mattermost-plugin-matterbridge/server/bmsteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+)
+
+// TODO: Move this to settings somehow
+const (
+	msteamsTeamID    = "277ab716-6e73-4b88-bb1e-1151b8b2ebb0"
+	msteamsChannelID = "19:f_1Tc7ppcOQtbauWM4eqoiB7gY1t-AUIJ3-OJJMqjhk1@thread.tacv2"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -32,147 +33,133 @@ type Plugin struct {
 	// setConfiguration for usage.
 	configuration *configuration
 
-	matterbridgeRouter *gateway.Router
-	matterbridgeConfig config.Config
-
-	userID    string
-	connected bool
-
-	clusterMutex *Mutex
-
-	starting    sync.Mutex
-	httpHandler *HTTPHandler
+	matterbridgeRouter    *gateway.Router
+	matterbridgeConfig    config.Config
+	msteamsAppClientMutex sync.Mutex
+	msteamsAppClient      *msgraph.GraphServiceRequestBuilder
+	msteamsAppClientCtx   context.Context
+	msteamsBotClientMutex sync.Mutex
+	msteamsBotClient      *msgraph.GraphServiceRequestBuilder
+	msteamsBotClientCtx   context.Context
+	botID                 string
+	userID                string
 }
 
 // ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	p.API.LogError("RECEIVING REQUEST")
-	p.httpHandler.processMessage(w, r)
+	p.processMessage(w, r)
 }
 
-func (p *Plugin) start() error {
-	p.starting.Lock()
-	defer p.starting.Unlock()
-
-	if p.matterbridgeRouter != nil {
+func (p *Plugin) connectTeamsAppClient() error {
+	scopes := []string{"https://graph.microsoft.com/.default"}
+	p.msteamsAppClientMutex.Lock()
+	defer p.msteamsAppClientMutex.Unlock()
+	if p.msteamsAppClient != nil {
 		return nil
 	}
 
-	p.clusterMutex.Lock()
-
-	logger := &logrus.Logger{
-		Out: os.Stdout,
-		Formatter: &prefixed.TextFormatter{
-			PrefixPadding: 13,
-			DisableColors: true,
-		},
-		Level: logrus.DebugLevel,
+	p.API.LogInfo("Connecting")
+	ctx := context.Background()
+	m := msauth.NewManager()
+	sessionInfo, _ := p.API.KVGet("appSessionCache")
+	if len(sessionInfo) > 0 {
+		m.LoadBytes(sessionInfo)
 	}
-
-	p.matterbridgeConfig = config.NewConfigFromString(logger, []byte(p.configuration.Config))
-	bridgemap.FullMap["msteams"] = func(cfg *bridge.Config) bridge.Bridger {
-		return bmsteams.New(cfg, p.API)
-	}
-
-	var err error
-	p.matterbridgeRouter, err = gateway.NewRouter(logger, p.matterbridgeConfig, bridgemap.FullMap)
+	ts, err := m.ClientCredentialsGrant(
+		ctx,
+		p.configuration.TenantId,
+		p.configuration.ClientId,
+		p.configuration.ClientSecret,
+		scopes,
+	)
 	if err != nil {
+		p.API.LogError("Couldn't start the session", "error", err)
 		return err
 	}
-
-	if err = p.matterbridgeRouter.Start(); err != nil {
-		return err
+	sessionInfo, err = m.SaveBytes()
+	if err != nil {
+		p.API.LogError("Couldn't save the session", "error", err)
 	}
-	p.connected = true
+	err = p.API.KVSet("appSessionCache", sessionInfo)
+	if err != nil {
+		p.API.LogError("Couldn't save the session", "error", err)
+	}
 
-	go func() {
-		for msg := range p.matterbridgeRouter.MattermostPlugin {
-			p.API.LogError("MESSAGE RECEIVED", "msg", msg)
-			if err != nil {
-				p.API.LogError("Error processing message: unable to get the user")
-				continue
-			}
-			splittedName := strings.Split(msg.Channel, ":")
-			if len(splittedName) != 2 {
-				p.API.LogError("Error processing message: unable get the team/channel name")
-				continue
-			}
-			teamName := splittedName[0]
-			channelName := splittedName[1]
-			channel, err := p.API.GetChannelByNameForTeamName(teamName, channelName, false)
-			if err != nil {
-				p.API.LogError("Unable to get the channel", "error", err)
-				continue
-			}
-			props := make(map[string]interface{})
-			rootID := []byte{}
-			if id, ok := msg.Extra["ParentID"]; ok {
-				if len(id) == 1 && id[0].(string) != "" {
-					msg.ParentID = id[0].(string)
-				}
-			}
-			if msg.ParentID != "" {
-				rootID, _ = p.API.KVGet("teams_mattermost_" + msg.ParentID)
-			}
+	httpClient := oauth2.NewClient(ctx, ts)
+	graphClient := msgraph.NewClient(httpClient)
+	p.msteamsAppClient = graphClient
+	p.msteamsAppClientCtx = ctx
 
-			if id, ok := msg.Extra["OriginalID"]; ok {
-				if len(id) == 1 && id[0].(string) != "" {
-					msg.ID = id[0].(string)
-				}
-			}
-
-			post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: msg.Username + msg.Text, Props: props, RootId: string(rootID)}
-			p.API.LogError("Creating new post with original id", "msgId", msg.ID)
-			p.API.LogError("Creating new post with original id", "msg", msg)
-			post.AddProp("matterbridge_"+p.userID, true)
-			post.AddProp("override_username", msg.Username)
-			post.AddProp("from_webhook", "true")
-			p.API.LogError("creating post", "post", post)
-			newPost, err := p.API.CreatePost(post)
-			if err != nil {
-				p.API.LogError("Unable to create post", "error", err)
-				continue
-			}
-			if newPost != nil && newPost.Id != "" && msg.ID != "" {
-				p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(msg.ID))
-				p.API.KVSet("teams_mattermost_"+msg.ID, []byte(newPost.Id))
-			}
-		}
-	}()
+	p.API.LogInfo("Connection succeeded")
 	return nil
 }
 
-func (p *Plugin) stop() {
-	if p == nil || p.matterbridgeRouter == nil {
-		return
+func (p *Plugin) connectTeamsBotClient() error {
+	scopes := []string{"https://graph.microsoft.com/.default"}
+	p.msteamsBotClientMutex.Lock()
+	defer p.msteamsBotClientMutex.Unlock()
+	if p.msteamsBotClient != nil {
+		return nil
 	}
-	m := make(map[string]*bridge.Bridge)
-	for _, gw := range p.matterbridgeRouter.Gateways {
-		for _, br := range gw.Bridges {
-			m[br.Account] = br
-		}
-	}
-	for _, br := range m {
-		br.Disconnect()
-	}
-	close(p.matterbridgeRouter.MattermostPlugin)
-	close(p.matterbridgeRouter.Message)
-	p.matterbridgeRouter = nil
-	p.clusterMutex.Unlock()
-}
 
-func (p *Plugin) restart() error {
-	p.stop()
-	return p.start()
-}
-
-func (p *Plugin) OnActivate() error {
-	mutex, err := NewMutex(p.API, "matterbridge-cluster-mutex")
+	ctx := context.Background()
+	m := msauth.NewManager()
+	sessionInfo, _ := p.API.KVGet("botSessionCache")
+	if len(sessionInfo) > 0 {
+		m.LoadBytes(sessionInfo)
+	}
+	ts, err := m.ResourceOwnerPasswordGrant(
+		ctx,
+		p.configuration.TenantId,
+		p.configuration.ClientId,
+		p.configuration.ClientSecret,
+		p.configuration.BotUsername,
+		p.configuration.BotPassword,
+		scopes,
+	)
 	if err != nil {
 		return err
 	}
-	p.clusterMutex = mutex
 
+	sessionInfo, err = m.SaveBytes()
+	if err != nil {
+		p.API.LogError("Couldn't save the session", "error", err)
+	}
+	err = p.API.KVSet("botSessionCache", sessionInfo)
+	if err != nil {
+		p.API.LogError("Couldn't save the session", "error", err)
+	}
+
+	httpClient := oauth2.NewClient(ctx, ts)
+	graphClient := msgraph.NewClient(httpClient)
+	p.msteamsBotClient = graphClient
+	p.msteamsBotClientCtx = ctx
+
+	req := graphClient.Me().Request()
+	r, err := req.Get(ctx)
+	if err != nil {
+		return err
+	}
+	p.botID = *r.ID
+
+	p.API.LogInfo("Connection succeeded")
+	return nil
+}
+
+func (p *Plugin) start() {
+	p.connectTeamsAppClient()
+	p.connectTeamsBotClient()
+	go p.subscribeToChannel(msteamsTeamID, msteamsChannelID)
+}
+
+func (p *Plugin) stop() {
+}
+
+func (p *Plugin) restart() {
+}
+
+func (p *Plugin) OnActivate() error {
 	bot, appErr := p.API.CreateBot(&model.Bot{
 		Username:    "matterbridge",
 		DisplayName: "MatterBridge",
@@ -192,19 +179,10 @@ func (p *Plugin) OnActivate() error {
 		return nil
 	}
 
-	setting := core.AdapterSetting{
-		AppID:       "",
-		AppPassword: "",
-	}
+	p.API.RegisterCommand(createMsteamsSyncCommand())
 
-	adapter, err := core.NewBotAdapter(setting)
-	if err != nil {
-		return err
-	}
+	p.start()
 
-	p.httpHandler = &HTTPHandler{Adapter: adapter, p: p}
-
-	go p.start()
 	return nil
 }
 
@@ -237,32 +215,8 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			"OriginalID": {post.Id},
 		},
 	}
-	if p.connected {
-		p.matterbridgeRouter.Message <- msg
-	} else {
-		data, err := json.Marshal(msg)
-		if err != nil {
-			p.API.LogError("Error processing message: unable to generate cluster message")
-		}
-		event := model.PluginClusterEvent{
-			Id:   post.Id,
-			Data: data,
-		}
-		if err := p.API.PublishPluginClusterEvent(event, model.PluginClusterEventSendOptions{}); err != nil {
-			p.API.LogError("Error processing message: unable to deliver cluster message")
-		}
-	}
-}
-
-func (p *Plugin) OnPluginClusterEvent(c *plugin.Context, ev model.PluginClusterEvent) {
-	if p.connected {
-		var msg config.Message
-		err := json.Unmarshal(ev.Data, &msg)
-		if err != nil {
-			p.API.LogError("Error processing message: unable to unmarshal cluster message")
-		}
-		p.matterbridgeRouter.Message <- msg
-	}
+	// p.matterbridgeRouter.Message <- msg
+	go p.Send(msg)
 }
 
 func (p *Plugin) OnDeactivate() error {
@@ -270,4 +224,91 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
+func (p *Plugin) Send(msg config.Message) (string, error) {
+	p.API.LogDebug("\n\n\n=> Receiving message", "msg", msg)
+	// TODO: Replace this with a template
+	text := msg.Username + "@mattermost: " + msg.Text
+	content := &msgraph.ItemBody{Content: &text}
+	rmsg := &msgraph.ChatMessage{Body: content}
+
+	var res *msgraph.ChatMessage
+	if msg.ParentID != "" {
+		var err error
+		// TODO: Change the TEAMID and the CHANNELID for something that comes from the config somehow
+		ct := p.msteamsBotClient.Teams().ID(msteamsTeamID).Channels().ID(msteamsChannelID).Messages().ID(msg.ParentID).Replies().Request()
+		res, err = ct.Add(p.msteamsBotClientCtx, rmsg)
+		if err != nil {
+			p.API.LogError("Error creating reply", "error", err)
+			return "", err
+		}
+	} else {
+		var err error
+		// TODO: Change the TEAMID and the CHANNELID for something that comes from the config somehow
+		ct := p.msteamsBotClient.Teams().ID(msteamsTeamID).Channels().ID(msteamsChannelID).Messages().Request()
+		res, err = ct.Add(p.msteamsBotClientCtx, rmsg)
+		if err != nil {
+			p.API.LogError("Error creating message", "error", err)
+			return "", err
+		}
+	}
+	if msg.ID != "" && *res.ID != "" {
+		p.API.KVSet("mattermost_teams_"+msg.ID, []byte(*res.ID))
+		p.API.KVSet("teams_mattermost_"+*res.ID, []byte(msg.ID))
+	}
+	return *res.ID, nil
+}
+
 // See https://developers.mattermost.com/extend/plugins/server/reference/
+
+func (p *Plugin) subscribeToChannel(teamId, channelId string) error {
+	// TODO: This should be done once on connect, not on every single case
+	p.API.LogError("Startig the subscriptions")
+	subscriptionsCt := p.msteamsAppClient.Subscriptions().Request()
+	subscriptionsRes, err := subscriptionsCt.Get(p.msteamsAppClientCtx)
+	if err != nil {
+		p.API.LogError("subscription creation failed", "error", err)
+		return err
+	}
+	for _, subscription := range subscriptionsRes {
+		deleteSubCt := p.msteamsAppClient.Subscriptions().ID(*subscription.ID).Request()
+		err := deleteSubCt.Delete(p.msteamsAppClientCtx)
+		if err != nil {
+			p.API.LogError("subscription creation failed", "error", err)
+			return err
+		}
+	}
+	resource := "teams/" + teamId + "/channels/" + channelId + "/messages"
+	expirationDateTime := time.Now().Add(60 * time.Minute)
+	notificationURL := "https://matterbridge-jespino.eu.ngrok.io/plugins/com.mattermost.matterbridge-plugin/"
+	clientState := "secret"
+	changeType := "created"
+	subscription := msgraph.Subscription{
+		Resource:           &resource,
+		ExpirationDateTime: &expirationDateTime,
+		NotificationURL:    &notificationURL,
+		ClientState:        &clientState,
+		ChangeType:         &changeType,
+	}
+	ct := p.msteamsAppClient.Subscriptions().Request()
+	res, err := ct.Add(p.msteamsAppClientCtx, &subscription)
+	if err != nil {
+		p.API.LogError("subscription creation failed", "error", err)
+		return err
+	}
+	p.API.LogError("subscription created", "subscription", res)
+
+	for {
+		time.Sleep(time.Minute)
+
+		expirationDateTime := time.Now().Add(10 * time.Minute)
+		updatedSubscription := msgraph.Subscription{
+			ExpirationDateTime: &expirationDateTime,
+		}
+		ct := p.msteamsAppClient.Subscriptions().ID(*res.ID).Request()
+		err := ct.Update(p.msteamsAppClientCtx, &updatedSubscription)
+		if err != nil {
+			p.API.LogError("error updating subscription", "error", err)
+			return err
+		}
+	}
+}

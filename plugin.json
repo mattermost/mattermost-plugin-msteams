@@ -29,6 +29,36 @@
           "type": "longtext",
           "help_text": "MatterBridge config",
           "default": ""
+        },{
+          "key": "tenantId",
+          "display_name": "Tenant ID",
+          "type": "text",
+          "help_text": "Microsoft Teams Tenant ID",
+          "default": ""
+        },{
+          "key": "clientId",
+          "display_name": "Client ID",
+          "type": "text",
+          "help_text": "Microsoft Teams Client ID",
+          "default": ""
+        },{
+          "key": "clientSecret",
+          "display_name": "Client Secret",
+          "type": "text",
+          "help_text": "Microsoft Teams Client Secret",
+          "default": ""
+        },{
+          "key": "botUsername",
+          "display_name": "Config",
+          "type": "text",
+          "help_text": "Microsoft Teams Bot Username",
+          "default": ""
+        },{
+          "key": "botPassword",
+          "display_name": "Config",
+          "type": "text",
+          "help_text": "Microsoft Teams Bot Password",
+          "default": ""
         }]
     }
 }
