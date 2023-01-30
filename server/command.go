@@ -59,13 +59,6 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	return linkError(args.ChannelId, fmt.Sprintf("getUser() threw error: %s", errors.New("you need at least one command")))
 }
 
-type ChannelLink struct {
-	MattermostTeam    string
-	MattermostChannel string
-	MSTeamsTeam       string
-	MSTeamsChannel    string
-}
-
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	if len(parameters) < 2 {
 		return linkError(args.ChannelId, fmt.Sprintf("getUser() threw error: %s", errors.New("you need at least two parameters")))
@@ -86,7 +79,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	if appErr != nil {
 		return linkError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
 	}
-	var channelsLinked map[string]ChannelLink
+	channelsLinked := map[string]ChannelLink{}
 	json.Unmarshal(channelsLinkedData, &channelsLinked)
 	_, ok := channelsLinked[channel.TeamId+":"+channel.Id]
 	if ok {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -21,6 +22,13 @@ const (
 	msteamsTeamID    = "277ab716-6e73-4b88-bb1e-1151b8b2ebb0"
 	msteamsChannelID = "19:f_1Tc7ppcOQtbauWM4eqoiB7gY1t-AUIJ3-OJJMqjhk1@thread.tacv2"
 )
+
+type ChannelLink struct {
+	MattermostTeam    string
+	MattermostChannel string
+	MSTeamsTeam       string
+	MSTeamsChannel    string
+}
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
 type Plugin struct {
@@ -43,6 +51,8 @@ type Plugin struct {
 	msteamsBotClientCtx   context.Context
 	botID                 string
 	userID                string
+	subscriptionsToLinks  map[string]ChannelLink
+	channelsLinked        map[string]ChannelLink
 }
 
 // ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
@@ -150,7 +160,24 @@ func (p *Plugin) connectTeamsBotClient() error {
 func (p *Plugin) start() {
 	p.connectTeamsAppClient()
 	p.connectTeamsBotClient()
-	go p.subscribeToChannel(msteamsTeamID, msteamsChannelID)
+
+	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
+	if appErr != nil {
+		p.API.LogError("Error getting the channels linked", "error", appErr)
+		return
+	}
+	channelsLinked := map[string]ChannelLink{}
+	err := json.Unmarshal(channelsLinkedData, &channelsLinked)
+	if err != nil {
+		p.API.LogError("Error getting the channels linked", "error", err)
+		return
+	}
+
+	p.channelsLinked = channelsLinked
+	p.subscriptionsToLinks = map[string]ChannelLink{}
+	for _, link := range channelsLinked {
+		go p.subscribeToChannel(link)
+	}
 }
 
 func (p *Plugin) stop() {
@@ -192,7 +219,14 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			return
 		}
 	}
+
 	channel, _ := p.API.GetChannel(post.ChannelId)
+
+	link, ok := p.channelsLinked[channel.TeamId+":"+post.ChannelId]
+	if !ok {
+		return
+	}
+
 	team, _ := p.API.GetTeam(channel.TeamId)
 	u, _ := p.API.GetUser(post.UserId)
 	parentID := []byte{}
@@ -216,7 +250,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		},
 	}
 	// p.matterbridgeRouter.Message <- msg
-	go p.Send(msg)
+	go p.Send(link, msg)
 }
 
 func (p *Plugin) OnDeactivate() error {
@@ -224,7 +258,7 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
-func (p *Plugin) Send(msg config.Message) (string, error) {
+func (p *Plugin) Send(link ChannelLink, msg config.Message) (string, error) {
 	p.API.LogDebug("\n\n\n=> Receiving message", "msg", msg)
 	// TODO: Replace this with a template
 	text := msg.Username + "@mattermost: " + msg.Text
@@ -235,7 +269,7 @@ func (p *Plugin) Send(msg config.Message) (string, error) {
 	if msg.ParentID != "" {
 		var err error
 		// TODO: Change the TEAMID and the CHANNELID for something that comes from the config somehow
-		ct := p.msteamsBotClient.Teams().ID(msteamsTeamID).Channels().ID(msteamsChannelID).Messages().ID(msg.ParentID).Replies().Request()
+		ct := p.msteamsBotClient.Teams().ID(link.MSTeamsTeam).Channels().ID(link.MSTeamsChannel).Messages().ID(msg.ParentID).Replies().Request()
 		res, err = ct.Add(p.msteamsBotClientCtx, rmsg)
 		if err != nil {
 			p.API.LogError("Error creating reply", "error", err)
@@ -244,7 +278,7 @@ func (p *Plugin) Send(msg config.Message) (string, error) {
 	} else {
 		var err error
 		// TODO: Change the TEAMID and the CHANNELID for something that comes from the config somehow
-		ct := p.msteamsBotClient.Teams().ID(msteamsTeamID).Channels().ID(msteamsChannelID).Messages().Request()
+		ct := p.msteamsBotClient.Teams().ID(link.MSTeamsTeam).Channels().ID(link.MSTeamsChannel).Messages().Request()
 		res, err = ct.Add(p.msteamsBotClientCtx, rmsg)
 		if err != nil {
 			p.API.LogError("Error creating message", "error", err)
@@ -260,7 +294,10 @@ func (p *Plugin) Send(msg config.Message) (string, error) {
 
 // See https://developers.mattermost.com/extend/plugins/server/reference/
 
-func (p *Plugin) subscribeToChannel(teamId, channelId string) error {
+func (p *Plugin) subscribeToChannel(link ChannelLink) error {
+	teamId := link.MSTeamsTeam
+	channelId := link.MSTeamsChannel
+
 	// TODO: This should be done once on connect, not on every single case
 	p.API.LogError("Startig the subscriptions")
 	subscriptionsCt := p.msteamsAppClient.Subscriptions().Request()
@@ -295,7 +332,9 @@ func (p *Plugin) subscribeToChannel(teamId, channelId string) error {
 		p.API.LogError("subscription creation failed", "error", err)
 		return err
 	}
-	p.API.LogError("subscription created", "subscription", res)
+	p.API.LogError("subscription created", "subscription", *res.ID)
+
+	p.subscriptionsToLinks[*res.ID] = link
 
 	for {
 		time.Sleep(time.Minute)

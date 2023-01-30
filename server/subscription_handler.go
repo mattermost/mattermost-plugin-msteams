@@ -13,7 +13,8 @@ import (
 
 type Activities struct {
 	Value []struct {
-		Resource string
+		Resource       string
+		SubscriptionId string
 	}
 }
 
@@ -46,7 +47,7 @@ func convertToMD(text string) string {
 	return sb.String()
 }
 
-func (p *Plugin) msgToPost(msg *msgraph.ChatMessage) (*model.Post, error) {
+func (p *Plugin) msgToPost(link ChannelLink, msg *msgraph.ChatMessage) (*model.Post, error) {
 	text := convertToMD(*msg.Body.Content)
 
 	// TODO: Fix attachments
@@ -129,7 +130,13 @@ func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
 		}
 
 		p.API.LogInfo("Post info", "post_info", rct, "error", err)
-		post, err := p.msgToPost(rct)
+		channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
+		if !ok {
+			p.API.LogError("Unable to find the subscription")
+			continue
+		}
+
+		post, err := p.msgToPost(channelLink, rct)
 		if err != nil {
 			p.API.LogError("Unable to transform teams post in mattermost post", "post", rct, "error", err)
 			continue
