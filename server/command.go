@@ -110,8 +110,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", errors.New("already exiting link, please unlink and link again")))
 	}
 
-	ct := p.msteamsAppClient.Teams().ID(parameters[0]).Channels().ID(parameters[1]).Request()
-	_, err := ct.Get(p.msteamsAppClientCtx)
+	_, err := p.msteamsAppClient.GetChannel(parameters[0], parameters[1])
 	if err != nil {
 		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
 	}
@@ -210,24 +209,22 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", errors.New("the link doesnt exists")))
 	}
 
-	ctTeam := p.msteamsAppClient.Teams().ID(link.MSTeamsTeam).Request()
-	msteamsTeam, err := ctTeam.Get(p.msteamsAppClientCtx)
+	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
 	if err != nil {
 		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
 	}
 
-	ctChannel := p.msteamsAppClient.Teams().ID(link.MSTeamsTeam).Channels().ID(link.MSTeamsChannel).Request()
-	msteamsChannel, err := ctChannel.Get(p.msteamsAppClientCtx)
+	msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
 		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
 	}
 
 	text := fmt.Sprintf(
 		"This channel is linked to the MS Teams Channel \"%s\" (with id: %s) in the Team \"%s\" (with the id: %s).",
-		*msteamsTeam.DisplayName,
-		*msteamsTeam.ID,
-		*msteamsChannel.DisplayName,
-		*msteamsChannel.ID,
+		msteamsTeam.DisplayName,
+		msteamsTeam.ID,
+		msteamsChannel.DisplayName,
+		msteamsChannel.ID,
 	)
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
