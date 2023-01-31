@@ -24,12 +24,6 @@
         "header": "",
         "footer": "",
         "settings": [{
-          "key": "config",
-          "display_name": "Config",
-          "type": "longtext",
-          "help_text": "MatterBridge config",
-          "default": ""
-        },{
           "key": "tenantId",
           "display_name": "Tenant ID",
           "type": "text",

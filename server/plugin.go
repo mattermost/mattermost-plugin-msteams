@@ -7,8 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/42wim/matterbridge/bridge/config"
-	"github.com/42wim/matterbridge/gateway"
+	"github.com/gorilla/mux"
 	msgraph "github.com/yaegashi/msgraph.go/beta"
 	"github.com/yaegashi/msgraph.go/msauth"
 	"golang.org/x/oauth2"
@@ -41,24 +40,29 @@ type Plugin struct {
 	// setConfiguration for usage.
 	configuration *configuration
 
-	matterbridgeRouter    *gateway.Router
-	matterbridgeConfig    config.Config
 	msteamsAppClientMutex sync.Mutex
 	msteamsAppClient      *msgraph.GraphServiceRequestBuilder
 	msteamsAppClientCtx   context.Context
 	msteamsBotClientMutex sync.Mutex
 	msteamsBotClient      *msgraph.GraphServiceRequestBuilder
 	msteamsBotClientCtx   context.Context
-	botID                 string
-	userID                string
-	subscriptionsToLinks  map[string]ChannelLink
-	channelsLinked        map[string]ChannelLink
+
+	botID  string
+	userID string
+
+	subscriptionsToLinksMutex sync.Mutex
+	subscriptionsToLinks      map[string]ChannelLink
+	channelsLinked            map[string]ChannelLink
+
+	stopSubscriptions func()
 }
 
 // ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	p.API.LogError("RECEIVING REQUEST")
-	p.processMessage(w, r)
+	router := mux.NewRouter()
+	router.HandleFunc("/avatar/{userId:.*}", p.getAvatar).Methods("GET")
+	router.HandleFunc("/", p.processMessage).Methods("GET", "POST")
+	router.ServeHTTP(w, r)
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -175,18 +179,31 @@ func (p *Plugin) start() {
 
 	p.channelsLinked = channelsLinked
 	p.subscriptionsToLinks = map[string]ChannelLink{}
+	ctx, stop := context.WithCancel(context.Background())
+	p.stopSubscriptions = stop
+	err = p.clearSubscriptions()
+	if err != nil {
+		p.API.LogError("Unable to clear all subscriptions", "error", err)
+	}
 	for _, link := range channelsLinked {
-		go p.subscribeToChannel(link)
+		go p.subscribeToChannel(ctx, link)
 	}
 }
 
 func (p *Plugin) stop() {
+	if p.stopSubscriptions != nil {
+		p.stopSubscriptions()
+	}
 }
 
 func (p *Plugin) restart() {
+	p.stop()
+	p.start()
 }
 
 func (p *Plugin) OnActivate() error {
+	p.stopSubscriptions = func() {}
+
 	bot, appErr := p.API.CreateBot(&model.Bot{
 		Username:    "matterbridge",
 		DisplayName: "MatterBridge",
@@ -227,30 +244,9 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		return
 	}
 
-	team, _ := p.API.GetTeam(channel.TeamId)
-	u, _ := p.API.GetUser(post.UserId)
-	parentID := []byte{}
-	if post.RootId != "" {
-		parentID, _ = p.API.KVGet("mattermost_teams_" + post.RootId)
-	}
+	user, _ := p.API.GetUser(post.UserId)
 
-	msg := config.Message{
-		Username: u.Username,
-		UserID:   post.UserId,
-		Channel:  team.Name + ":" + channel.Name,
-		Text:     post.Message,
-		ParentID: string(parentID),
-		ID:       post.Id,
-		Account:  "mattermost.plugin",
-		Protocol: "mattermost",
-		Gateway:  "plugin",
-		Extra: map[string][]interface{}{
-			"ParentID":   {string(parentID)},
-			"OriginalID": {post.Id},
-		},
-	}
-	// p.matterbridgeRouter.Message <- msg
-	go p.Send(link, msg)
+	go p.Send(link, user, post)
 }
 
 func (p *Plugin) OnDeactivate() error {
@@ -258,18 +254,24 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
-func (p *Plugin) Send(link ChannelLink, msg config.Message) (string, error) {
-	p.API.LogDebug("\n\n\n=> Receiving message", "msg", msg)
+func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (string, error) {
+	p.API.LogDebug("\n\n\n=> Receiving message", "post", post)
+
 	// TODO: Replace this with a template
-	text := msg.Username + "@mattermost: " + msg.Text
+	text := user.Username + "@mattermost: " + post.Message
 	content := &msgraph.ItemBody{Content: &text}
 	rmsg := &msgraph.ChatMessage{Body: content}
 
+	parentID := []byte{}
+	if post.RootId != "" {
+		parentID, _ = p.API.KVGet("mattermost_teams_" + post.RootId)
+	}
+
 	var res *msgraph.ChatMessage
-	if msg.ParentID != "" {
+	if len(parentID) > 0 {
 		var err error
 		// TODO: Change the TEAMID and the CHANNELID for something that comes from the config somehow
-		ct := p.msteamsBotClient.Teams().ID(link.MSTeamsTeam).Channels().ID(link.MSTeamsChannel).Messages().ID(msg.ParentID).Replies().Request()
+		ct := p.msteamsBotClient.Teams().ID(link.MSTeamsTeam).Channels().ID(link.MSTeamsChannel).Messages().ID(string(parentID)).Replies().Request()
 		res, err = ct.Add(p.msteamsBotClientCtx, rmsg)
 		if err != nil {
 			p.API.LogError("Error creating reply", "error", err)
@@ -285,21 +287,14 @@ func (p *Plugin) Send(link ChannelLink, msg config.Message) (string, error) {
 			return "", err
 		}
 	}
-	if msg.ID != "" && *res.ID != "" {
-		p.API.KVSet("mattermost_teams_"+msg.ID, []byte(*res.ID))
-		p.API.KVSet("teams_mattermost_"+*res.ID, []byte(msg.ID))
+	if post.Id != "" && *res.ID != "" {
+		p.API.KVSet("mattermost_teams_"+post.Id, []byte(*res.ID))
+		p.API.KVSet("teams_mattermost_"+*res.ID, []byte(post.Id))
 	}
 	return *res.ID, nil
 }
 
-// See https://developers.mattermost.com/extend/plugins/server/reference/
-
-func (p *Plugin) subscribeToChannel(link ChannelLink) error {
-	teamId := link.MSTeamsTeam
-	channelId := link.MSTeamsChannel
-
-	// TODO: This should be done once on connect, not on every single case
-	p.API.LogError("Startig the subscriptions")
+func (p *Plugin) clearSubscriptions() error {
 	subscriptionsCt := p.msteamsAppClient.Subscriptions().Request()
 	subscriptionsRes, err := subscriptionsCt.Get(p.msteamsAppClientCtx)
 	if err != nil {
@@ -314,6 +309,13 @@ func (p *Plugin) subscribeToChannel(link ChannelLink) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error {
+	teamId := link.MSTeamsTeam
+	channelId := link.MSTeamsChannel
+
 	resource := "teams/" + teamId + "/channels/" + channelId + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
 	notificationURL := "https://matterbridge-jespino.eu.ngrok.io/plugins/com.mattermost.matterbridge-plugin/"
@@ -334,20 +336,25 @@ func (p *Plugin) subscribeToChannel(link ChannelLink) error {
 	}
 	p.API.LogError("subscription created", "subscription", *res.ID)
 
+	p.subscriptionsToLinksMutex.Lock()
 	p.subscriptionsToLinks[*res.ID] = link
+	p.subscriptionsToLinksMutex.Unlock()
 
 	for {
-		time.Sleep(time.Minute)
-
-		expirationDateTime := time.Now().Add(10 * time.Minute)
-		updatedSubscription := msgraph.Subscription{
-			ExpirationDateTime: &expirationDateTime,
-		}
-		ct := p.msteamsAppClient.Subscriptions().ID(*res.ID).Request()
-		err := ct.Update(p.msteamsAppClientCtx, &updatedSubscription)
-		if err != nil {
-			p.API.LogError("error updating subscription", "error", err)
-			return err
+		select {
+		case <-time.After(time.Minute):
+			expirationDateTime := time.Now().Add(10 * time.Minute)
+			updatedSubscription := msgraph.Subscription{
+				ExpirationDateTime: &expirationDateTime,
+			}
+			ct := p.msteamsAppClient.Subscriptions().ID(*res.ID).Request()
+			err := ct.Update(p.msteamsAppClientCtx, &updatedSubscription)
+			if err != nil {
+				p.API.LogError("error updating subscription", "error", err)
+				return err
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }

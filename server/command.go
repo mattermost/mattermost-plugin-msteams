@@ -103,6 +103,8 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return linkError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
 	}
 
+	p.restart()
+
 	return &model.CommandResponse{}, nil
 }
 
@@ -139,6 +141,8 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	if appErr != nil {
 		return linkError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
 	}
+
+	p.restart()
 
 	return &model.CommandResponse{}, nil
 }

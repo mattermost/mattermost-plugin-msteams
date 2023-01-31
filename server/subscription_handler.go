@@ -2,20 +2,24 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
 	"github.com/pkg/errors"
 	msgraph "github.com/yaegashi/msgraph.go/beta"
 )
 
+type Activity struct {
+	Resource       string
+	SubscriptionId string
+}
+
 type Activities struct {
-	Value []struct {
-		Resource       string
-		SubscriptionId string
-	}
+	Value []Activity
 }
 
 // HTTPHandler handles the HTTP requests from then connector service
@@ -55,16 +59,7 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msgraph.ChatMessage) (*model.P
 	// b.Log.Debugf("<= Message is %#v", rmsg)
 	// b.Remote <- rmsg
 
-	// TODO: Pick the channel name from the right place
-	channelTeamName := "test:off-topic"
-	splittedName := strings.Split(channelTeamName, ":")
-	if len(splittedName) != 2 {
-		return nil, errors.New("Invalid channel name")
-	}
-
-	teamName := splittedName[0]
-	channelName := splittedName[1]
-	channel, err := p.API.GetChannelByNameForTeamName(teamName, channelName, false)
+	channel, err := p.API.GetChannel(link.MattermostChannel)
 	if err != nil {
 		p.API.LogError("Unable to get the channel", "error", err)
 		return nil, err
@@ -81,9 +76,112 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msgraph.ChatMessage) (*model.P
 	p.API.LogError("Creating new post with original id", "msg", msg)
 	post.AddProp("matterbridge_"+p.userID, true)
 	post.AddProp("override_username", *msg.From.User.DisplayName)
+	// TODO: Make this more robust
+	post.AddProp("override_icon_url", "https://matterbridge-jespino.eu.ngrok.io/plugins/com.mattermost.matterbridge-plugin/avatar/"+*msg.From.User.ID)
 	post.AddProp("from_webhook", "true")
 	p.API.LogError("creating post", "post", post)
 	return post, nil
+}
+
+func (p *Plugin) getMSTeamsUserAvatar(userID string) ([]byte, error) {
+	ctb := p.msteamsAppClient.Users().ID(userID).Photo()
+	ctb.SetURL(ctb.URL() + "/$value")
+	ct := ctb.Request()
+	req, err := ct.NewRequest("GET", "", nil)
+	if err != nil {
+		p.API.LogError("Unable to generate avatar request", "error", err)
+		return nil, err
+	}
+	res, err := ct.Client().Do(req)
+	if err != nil {
+		p.API.LogError("Unable to get user avatar", "error", err)
+		return nil, err
+	}
+	photo, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		p.API.LogError("Unable to read avatar response body", "error", err)
+		return nil, err
+	}
+
+	return photo, nil
+}
+
+func (p *Plugin) getAvatar(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	userID := params["userId"]
+	photo, appErr := p.API.KVGet("avatar_" + userID)
+	if appErr != nil || len(photo) == 0 {
+		var err error
+		photo, err = p.getMSTeamsUserAvatar(userID)
+		if err != nil {
+			p.API.LogError("Unable to read avatar", "error", err)
+			return
+		}
+
+		appErr := p.API.KVSetWithExpiry("avatar_"+userID, photo, 300)
+		if appErr != nil {
+			p.API.LogError("Unable to cache the new avatar", "error", appErr)
+			return
+		}
+	}
+	w.Write(photo)
+}
+
+func (p *Plugin) processActivity(activity Activity) error {
+	p.API.LogInfo("Activity", "activity", activity)
+	urlData := parseResourceFields(activity.Resource)
+	p.API.LogInfo("URLDATA", "urlData", urlData)
+	ct := p.msteamsBotClient.Teams().ID(urlData["team"]).Channels().ID(urlData["channel"]).Messages().ID(urlData["message"])
+	var rct *msgraph.ChatMessage
+	if reply, ok := urlData["reply"]; ok {
+		var err error
+		rct, err = ct.Replies().ID(reply).Request().Get(p.msteamsBotClientCtx)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	} else {
+		var err error
+		rct, err = ct.Request().Get(p.msteamsBotClientCtx)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	}
+
+	if rct.From == nil || rct.From.User == nil || rct.From.User.ID == nil {
+		p.API.LogDebug("Skipping not user event")
+		return nil
+	}
+
+	if *rct.From.User.ID == p.botID {
+		p.API.LogDebug("Skipping messages from bot user")
+		return nil
+	}
+
+	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
+	if !ok {
+		p.API.LogError("Unable to find the subscription")
+		return errors.New("Unable to find the subscription")
+	}
+
+	post, err := p.msgToPost(channelLink, rct)
+	if err != nil {
+		p.API.LogError("Unable to transform teams post in mattermost post", "post", rct, "error", err)
+		return err
+	}
+
+	newPost, appErr := p.API.CreatePost(post)
+	if appErr != nil {
+		p.API.LogError("Unable to create post", "post", post, "error", appErr)
+		return appErr
+	}
+
+	if newPost != nil && newPost.Id != "" && rct.ID != nil && *rct.ID != "" {
+		p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(*rct.ID))
+		p.API.KVSet("teams_mattermost_"+*rct.ID, []byte(newPost.Id))
+	}
+	return nil
 }
 
 func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
@@ -104,53 +202,9 @@ func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
 	p.API.LogInfo("Activities", "activities", activities)
 
 	for _, activity := range activities.Value {
-		p.API.LogInfo("Activity", "activity", activity)
-		urlData := parseResourceFields(activity.Resource)
-		p.API.LogInfo("URLDATA", "urlData", urlData)
-		ct := p.msteamsBotClient.Teams().ID(urlData["team"]).Channels().ID(urlData["channel"]).Messages().ID(urlData["message"])
-		var rct *msgraph.ChatMessage
-		if reply, ok := urlData["reply"]; ok {
-			var err error
-			rct, err = ct.Replies().ID(reply).Request().Get(p.msteamsBotClientCtx)
-			if err != nil {
-				p.API.LogError("Unable to get original post", "error", err)
-				continue
-			}
-		} else {
-			var err error
-			rct, err = ct.Request().Get(p.msteamsBotClientCtx)
-			if err != nil {
-				p.API.LogError("Unable to get original post", "error", err)
-				continue
-			}
-		}
-		if rct.From.User.ID != nil && *rct.From.User.ID == p.botID {
-			p.API.LogInfo("Skipping messages from bot user")
-			continue
-		}
-
-		p.API.LogInfo("Post info", "post_info", rct, "error", err)
-		channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
-		if !ok {
-			p.API.LogError("Unable to find the subscription")
-			continue
-		}
-
-		post, err := p.msgToPost(channelLink, rct)
+		err := p.processActivity(activity)
 		if err != nil {
-			p.API.LogError("Unable to transform teams post in mattermost post", "post", rct, "error", err)
-			continue
+			p.API.LogError("Unable to process activity", "activity", activity, "error", err)
 		}
-		newPost, appErr := p.API.CreatePost(post)
-		if appErr != nil {
-			p.API.LogError("Unable to create post", "post", post, "error", appErr)
-			continue
-		}
-		p.API.LogError("Storing new post metadata", "newPostId", newPost.Id, "msteamsPostId", *rct.ID)
-		if newPost != nil && newPost.Id != "" && rct.ID != nil && *rct.ID != "" {
-			p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(*rct.ID))
-			p.API.KVSet("teams_mattermost_"+*rct.ID, []byte(newPost.Id))
-		}
-		p.API.LogError("POST CREATED")
 	}
 }
