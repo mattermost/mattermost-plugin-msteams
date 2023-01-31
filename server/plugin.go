@@ -16,10 +16,9 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
-// TODO: Move this to settings somehow
 const (
-	msteamsTeamID    = "277ab716-6e73-4b88-bb1e-1151b8b2ebb0"
-	msteamsChannelID = "19:f_1Tc7ppcOQtbauWM4eqoiB7gY1t-AUIJ3-OJJMqjhk1@thread.tacv2"
+	botUsername    = "msteams"
+	botDisplayName = "MS Teams"
 )
 
 type ChannelLink struct {
@@ -205,12 +204,12 @@ func (p *Plugin) OnActivate() error {
 	p.stopSubscriptions = func() {}
 
 	bot, appErr := p.API.CreateBot(&model.Bot{
-		Username:    "matterbridge",
-		DisplayName: "MatterBridge",
-		Description: "Created by the MatterBridge plugin.",
+		Username:    botUsername,
+		DisplayName: botDisplayName,
+		Description: "Created by the MS Teams Sync plugin.",
 	})
 	if appErr != nil {
-		bot, err := p.API.GetUserByUsername("matterbridge")
+		bot, err := p.API.GetUserByUsername(botUsername)
 		if err != nil {
 			return err
 		}

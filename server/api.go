@@ -72,8 +72,6 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msgraph.ChatMessage) (*model.P
 	}
 
 	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: string(rootID)}
-	p.API.LogError("Creating new post with original id", "msgId", msg.ID)
-	p.API.LogError("Creating new post with original id", "msg", msg)
 	post.AddProp("matterbridge_"+p.userID, true)
 	post.AddProp("override_username", *msg.From.User.DisplayName)
 	// TODO: Make this more robust
