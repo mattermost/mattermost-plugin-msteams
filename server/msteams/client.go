@@ -3,6 +3,7 @@ package msteams
 import (
 	"context"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	msgraph "github.com/yaegashi/msgraph.go/beta"
@@ -41,6 +42,18 @@ type Message struct {
 	Subject         string
 	ReplyToID       string
 	Attachments     []Attachment
+}
+
+type Activity struct {
+	Resource       string
+	SubscriptionId string
+}
+
+type ActivityIds struct {
+	TeamID    string
+	ChannelID string
+	MessageID string
+	ReplyID   string
 }
 
 const teamsDefaultScope = "https://graph.microsoft.com/.default"
@@ -351,4 +364,16 @@ func (tc *Client) GetCodeSnippet(url string) (string, error) {
 		return "", err
 	}
 	return string(res), nil
+}
+
+func (tc *Client) GetActivityIds(activity Activity) ActivityIds {
+	result := ActivityIds{}
+	data := strings.Split(activity.Resource, "/")
+	result.TeamID = data[0][7 : len(data[0])-2]
+	result.ChannelID = data[1][10 : len(data[1])-2]
+	result.MessageID = data[2][10 : len(data[2])-2]
+	if len(data) > 3 {
+		result.ReplyID = data[3][9 : len(data[3])-2]
+	}
+	return result
 }

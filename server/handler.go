@@ -10,6 +10,8 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattn/godown"
+	"github.com/pkg/errors"
 )
 
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
@@ -85,4 +87,106 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	}
 	newText := text + "\n```" + content.Language + "\n" + codeSnippetText + "\n```\n"
 	return newText
+}
+
+func (p *Plugin) handleActivity(activity msteams.Activity) error {
+	activityIds := p.msteamsBotClient.GetActivityIds(activity)
+	var msg *msteams.Message
+	if activityIds.ReplyID != "" {
+		var err error
+		msg, err = p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	} else {
+		var err error
+		msg, err = p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	}
+
+	if msg.UserID == "" {
+		p.API.LogDebug("Skipping not user event", "msg", msg)
+		return nil
+	}
+
+	if msg.UserID == p.botID {
+		p.API.LogDebug("Skipping messages from bot user")
+		return nil
+	}
+
+	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
+	if !ok {
+		p.API.LogError("Unable to find the subscription")
+		return errors.New("Unable to find the subscription")
+	}
+
+	post, err := p.msgToPost(channelLink, msg)
+	if err != nil {
+		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+		return err
+	}
+
+	// Avoid possible duplication
+	data, _ := p.API.KVGet("teams_mattermost_" + msg.ID)
+	if len(data) != 0 {
+		return nil
+	}
+
+	newPost, appErr := p.API.CreatePost(post)
+	if appErr != nil {
+		p.API.LogError("Unable to create post", "post", post, "error", appErr)
+		return appErr
+	}
+
+	if newPost != nil && newPost.Id != "" && msg.ID != "" {
+		p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(msg.ID))
+		p.API.KVSet("teams_mattermost_"+msg.ID, []byte(newPost.Id))
+	}
+	return nil
+}
+
+func (p *Plugin) msgToPost(link ChannelLink, msg *msteams.Message) (*model.Post, error) {
+	text := convertToMD(msg.Text)
+
+	channel, err := p.API.GetChannel(link.MattermostChannel)
+	if err != nil {
+		p.API.LogError("Unable to get the channel", "error", err)
+		return nil, err
+	}
+	props := make(map[string]interface{})
+	rootID := []byte{}
+
+	if msg.ReplyToID != "" {
+		rootID, _ = p.API.KVGet("teams_mattermost_" + msg.ReplyToID)
+	}
+
+	newText, attachments := p.handleAttachments(channel.Id, text, msg)
+	text = newText
+
+	if len(rootID) == 0 && msg.Subject != "" {
+		text = "## " + msg.Subject + "\n" + text
+	}
+
+	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: string(rootID), FileIds: attachments}
+	post.AddProp("matterbridge_"+p.userID, true)
+	post.AddProp("override_username", msg.UserDisplayName)
+	post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
+	post.AddProp("from_webhook", "true")
+	return post, nil
+}
+
+func convertToMD(text string) string {
+	if !strings.Contains(text, "<div>") {
+		return text
+	}
+	var sb strings.Builder
+	err := godown.Convert(&sb, strings.NewReader(text), nil)
+	if err != nil {
+		return text
+	}
+	return sb.String()
 }
