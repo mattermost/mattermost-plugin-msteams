@@ -192,7 +192,12 @@ func (tc *Client) GetTeam(teamID string) (*Team, error) {
 		return nil, err
 	}
 
-	return &Team{ID: *res.ID, DisplayName: *res.DisplayName}, nil
+	displayName := ""
+	if res.DisplayName != nil {
+		displayName = *res.DisplayName
+	}
+
+	return &Team{ID: teamID, DisplayName: displayName}, nil
 }
 
 func (tc *Client) GetChannel(teamID, channelID string) (*Channel, error) {
@@ -202,7 +207,80 @@ func (tc *Client) GetChannel(teamID, channelID string) (*Channel, error) {
 		return nil, err
 	}
 
-	return &Channel{ID: *res.ID, DisplayName: *res.DisplayName}, nil
+	displayName := ""
+	if res.DisplayName != nil {
+		displayName = *res.DisplayName
+	}
+
+	return &Channel{ID: channelID, DisplayName: displayName}, nil
+}
+
+func converToMessage(msg *msgraph.ChatMessage) *Message {
+	userID := ""
+	if msg.From != nil && msg.From.User != nil && msg.From.User.ID != nil {
+		userID = *msg.From.User.ID
+	}
+	userDisplayName := ""
+	if msg.From != nil && msg.From.User != nil && msg.From.User.DisplayName != nil {
+		userDisplayName = *msg.From.User.DisplayName
+	}
+
+	replyTo := ""
+	if msg.ReplyToID != nil {
+		replyTo = *msg.ReplyToID
+	}
+
+	text := ""
+	if msg.Body != nil && msg.Body.Content != nil {
+		text = *msg.Body.Content
+	}
+
+	msgID := ""
+	if msg.ID != nil {
+		msgID = *msg.ID
+	}
+
+	subject := ""
+	if msg.Subject != nil {
+		subject = *msg.Subject
+	}
+
+	attachments := []Attachment{}
+	for _, attachment := range msg.Attachments {
+		contentType := ""
+		if attachment.ContentType != nil {
+			contentType = *attachment.ContentType
+		}
+		content := ""
+		if attachment.Content != nil {
+			content = *attachment.Content
+		}
+		name := ""
+		if attachment.Name != nil {
+			name = *attachment.Name
+		}
+		contentURL := ""
+		if attachment.ContentURL != nil {
+			contentURL = *attachment.ContentURL
+		}
+		attachments = append(attachments, Attachment{
+			ContentType: contentType,
+			Content:     content,
+			Name:        name,
+			ContentURL:  contentURL,
+		})
+	}
+
+	return &Message{
+		ID:              msgID,
+		UserID:          userID,
+		UserDisplayName: userDisplayName,
+		Text:            text,
+		ReplyToID:       replyTo,
+		Subject:         subject,
+		Attachments:     attachments,
+	}
+
 }
 
 func (tc *Client) GetMessage(teamID, channelID, messageID string) (*Message, error) {
@@ -211,25 +289,7 @@ func (tc *Client) GetMessage(teamID, channelID, messageID string) (*Message, err
 	if err != nil {
 		return nil, err
 	}
-
-	userID := ""
-	if res.From == nil || res.From.User == nil || res.From.User.ID == nil {
-		userID = *res.From.User.ID
-	}
-	userDisplayName := ""
-	if res.From == nil || res.From.User == nil || res.From.User.DisplayName == nil {
-		userDisplayName = *res.From.User.ID
-	}
-
-	msg := &Message{
-		ID:              *res.ID,
-		UserID:          userID,
-		UserDisplayName: userDisplayName,
-		Text:            *res.Body.Content,
-		ReplyToID:       *res.ReplyToID,
-	}
-
-	return msg, nil
+	return converToMessage(res), nil
 }
 
 func (tc *Client) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
@@ -239,24 +299,7 @@ func (tc *Client) GetReply(teamID, channelID, messageID, replyID string) (*Messa
 		return nil, err
 	}
 
-	userID := ""
-	if res.From == nil || res.From.User == nil || res.From.User.ID == nil {
-		userID = *res.From.User.ID
-	}
-	userDisplayName := ""
-	if res.From == nil || res.From.User == nil || res.From.User.DisplayName == nil {
-		userDisplayName = *res.From.User.ID
-	}
-
-	msg := &Message{
-		ID:              *res.ID,
-		UserID:          userID,
-		UserDisplayName: userDisplayName,
-		Text:            *res.Body.Content,
-		ReplyToID:       *res.ReplyToID,
-	}
-
-	return msg, nil
+	return converToMessage(res), nil
 }
 
 func (tc *Client) GetUserAvatar(userID string) ([]byte, error) {

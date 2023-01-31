@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -16,6 +17,7 @@ import (
 const (
 	botUsername    = "msteams"
 	botDisplayName = "MS Teams"
+	pluginID       = "com.mattermost.matterbridge-plugin"
 )
 
 type ChannelLink struct {
@@ -57,6 +59,14 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 	router.HandleFunc("/avatar/{userId:.*}", p.getAvatar).Methods("GET")
 	router.HandleFunc("/", p.processMessage).Methods("GET", "POST")
 	router.ServeHTTP(w, r)
+}
+
+func (p *Plugin) getURL() string {
+	config := p.API.GetConfig()
+	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
+		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
+	}
+	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -163,8 +173,7 @@ func (p *Plugin) OnActivate() error {
 
 	p.API.RegisterCommand(createMsteamsSyncCommand())
 
-	p.start()
-
+	go p.start()
 	return nil
 }
 
@@ -228,8 +237,7 @@ func (p *Plugin) clearSubscriptions() error {
 func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error {
 	teamId := link.MSTeamsTeam
 	channelId := link.MSTeamsChannel
-	// TODO: Move this to the config or automatically generate it
-	notificationURL := "https://matterbridge-jespino.eu.ngrok.io/plugins/com.mattermost.matterbridge-plugin/"
+	notificationURL := p.getURL() + "/"
 
 	subscriptionID, err := p.msteamsAppClient.SubscribeToChannel(teamId, channelId, notificationURL)
 	if err != nil {

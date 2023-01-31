@@ -75,10 +75,8 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msteams.Message) (*model.Post,
 	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: string(rootID), FileIds: attachments}
 	post.AddProp("matterbridge_"+p.userID, true)
 	post.AddProp("override_username", msg.UserDisplayName)
-	// TODO: Make this more robust
-	post.AddProp("override_icon_url", "https://matterbridge-jespino.eu.ngrok.io/plugins/com.mattermost.matterbridge-plugin/avatar/"+msg.UserID)
+	post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
 	post.AddProp("from_webhook", "true")
-	p.API.LogError("creating post", "post", post)
 	return post, nil
 }
 
@@ -104,9 +102,7 @@ func (p *Plugin) getAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) processActivity(activity Activity) error {
-	p.API.LogInfo("Activity", "activity", activity)
 	urlData := parseResourceFields(activity.Resource)
-	p.API.LogInfo("URLDATA", "urlData", urlData)
 	var msg *msteams.Message
 	if reply, ok := urlData["reply"]; ok {
 		var err error
@@ -125,7 +121,7 @@ func (p *Plugin) processActivity(activity Activity) error {
 	}
 
 	if msg.UserID == "" {
-		p.API.LogDebug("Skipping not user event")
+		p.API.LogDebug("Skipping not user event", "msg", msg)
 		return nil
 	}
 
@@ -166,8 +162,6 @@ func (p *Plugin) processActivity(activity Activity) error {
 }
 
 func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
-	p.API.LogError("PROCCESING MESSAGE")
-
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.Write([]byte(validationToken))
