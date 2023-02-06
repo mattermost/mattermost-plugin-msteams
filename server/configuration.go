@@ -18,7 +18,6 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	Config       string
 	TenantId     string
 	ClientId     string
 	ClientSecret string
