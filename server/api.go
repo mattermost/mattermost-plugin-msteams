@@ -8,36 +8,47 @@ import (
 	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
 )
 
+type API struct {
+	p      *Plugin
+	router *mux.Router
+}
+
 type Activities struct {
 	Value []msteams.Activity
 }
 
-/////////////////////////////////////////////////////////
-// Handlers
-/////////////////////////////////////////////////////////
+func NewAPI(p *Plugin) *API {
+	router := mux.NewRouter()
+	api := &API{p: p, router: router}
 
-func (p *Plugin) getAvatar(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
+	router.HandleFunc("/", api.processMessage).Methods("GET", "POST")
+
+	return api
+}
+
+func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userID := params["userId"]
-	photo, appErr := p.API.KVGet("avatar_" + userID)
+	photo, appErr := a.p.API.KVGet("avatar_" + userID)
 	if appErr != nil || len(photo) == 0 {
 		var err error
-		photo, err = p.msteamsAppClient.GetUserAvatar(userID)
+		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			p.API.LogError("Unable to read avatar", "error", err)
+			a.p.API.LogError("Unable to read avatar", "error", err)
 			return
 		}
 
-		appErr := p.API.KVSetWithExpiry("avatar_"+userID, photo, 300)
+		appErr := a.p.API.KVSetWithExpiry("avatar_"+userID, photo, 300)
 		if appErr != nil {
-			p.API.LogError("Unable to cache the new avatar", "error", appErr)
+			a.p.API.LogError("Unable to cache the new avatar", "error", appErr)
 			return
 		}
 	}
 	w.Write(photo)
 }
 
-func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
+func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.Write([]byte(validationToken))
@@ -50,12 +61,16 @@ func (p *Plugin) processMessage(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	p.API.LogInfo("Activities", "activities", activities)
+	a.p.API.LogInfo("Activities", "activities", activities)
 
 	for _, activity := range activities.Value {
-		err := p.handleActivity(activity)
+		err := a.p.handleActivity(activity)
 		if err != nil {
-			p.API.LogError("Unable to process activity", "activity", activity, "error", err)
+			a.p.API.LogError("Unable to process activity", "activity", activity, "error", err)
 		}
 	}
+}
+
+func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.router.ServeHTTP(w, r)
 }

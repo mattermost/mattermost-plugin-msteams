@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gorilla/mux"
-
 	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -53,12 +51,9 @@ type Plugin struct {
 	stopSubscriptions func()
 }
 
-// ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	router := mux.NewRouter()
-	router.HandleFunc("/avatar/{userId:.*}", p.getAvatar).Methods("GET")
-	router.HandleFunc("/", p.processMessage).Methods("GET", "POST")
-	router.ServeHTTP(w, r)
+	api := NewAPI(p)
+	api.ServeHTTP(w, r)
 }
 
 func (p *Plugin) getURL() string {
