@@ -37,9 +37,9 @@ type Plugin struct {
 	configuration *configuration
 
 	msteamsAppClientMutex sync.Mutex
-	msteamsAppClient      *msteams.Client
+	msteamsAppClient      msteams.Client
 	msteamsBotClientMutex sync.Mutex
-	msteamsBotClient      *msteams.Client
+	msteamsBotClient      msteams.Client
 
 	botID  string
 	userID string
@@ -66,32 +66,36 @@ func (p *Plugin) getURL() string {
 
 func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
-	botClient, err := msteams.NewApp(
-		p.configuration.TenantId,
-		p.configuration.ClientId,
-		p.configuration.ClientSecret,
-	)
+	if p.msteamsAppClient == nil {
+		p.msteamsAppClient = msteams.NewApp(
+			p.configuration.TenantId,
+			p.configuration.ClientId,
+			p.configuration.ClientSecret,
+		)
+	}
+	err := p.msteamsAppClient.Connect()
 	if err != nil {
 		return err
 	}
-	p.msteamsAppClient = botClient
 	p.msteamsAppClientMutex.Unlock()
 	return nil
 }
 
 func (p *Plugin) connectTeamsBotClient() error {
 	p.msteamsBotClientMutex.Lock()
-	botClient, err := msteams.NewBot(
-		p.configuration.TenantId,
-		p.configuration.ClientId,
-		p.configuration.ClientSecret,
-		p.configuration.BotUsername,
-		p.configuration.BotPassword,
-	)
+	if p.msteamsBotClient == nil {
+		p.msteamsBotClient = msteams.NewBot(
+			p.configuration.TenantId,
+			p.configuration.ClientId,
+			p.configuration.ClientSecret,
+			p.configuration.BotUsername,
+			p.configuration.BotPassword,
+		)
+	}
+	err := p.msteamsBotClient.Connect()
 	if err != nil {
 		return err
 	}
-	p.msteamsBotClient = botClient
 	p.msteamsBotClientMutex.Unlock()
 	return nil
 }
@@ -153,20 +157,19 @@ func (p *Plugin) OnActivate() error {
 		Description: "Created by the MS Teams Sync plugin.",
 	})
 	if appErr != nil {
-		bot, err := p.API.GetUserByUsername(botUsername)
-		if err != nil {
-			return err
+		bot, appErr := p.API.GetUserByUsername(botUsername)
+		if appErr != nil {
+			return appErr
 		}
 		p.userID = bot.Id
 	} else {
 		p.userID = bot.UserId
 	}
 
-	if p.configuration.Config == "" {
-		return nil
+	err := p.API.RegisterCommand(createMsteamsSyncCommand())
+	if err != nil {
+		return err
 	}
-
-	p.API.RegisterCommand(createMsteamsSyncCommand())
 
 	go p.start()
 	return nil

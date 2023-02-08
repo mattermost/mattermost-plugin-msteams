@@ -22,7 +22,8 @@ func NewAPI(p *Plugin) *API {
 	api := &API{p: p, router: router}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/", api.processMessage).Methods("GET", "POST")
+	router.HandleFunc("/", api.processSubscriptionValidation).Methods("GET")
+	router.HandleFunc("/", api.processMessage).Methods("POST")
 
 	return api
 }
@@ -36,6 +37,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
 			a.p.API.LogError("Unable to read avatar", "error", err)
+			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
 
@@ -49,26 +51,34 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
+	activities := Activities{}
+	err := json.NewDecoder(req.Body).Decode(&activities)
+	if err != nil {
+		http.Error(w, "unable to get the activities from the message", http.StatusBadRequest)
+		return
+	}
+
+	errors := ""
+	for _, activity := range activities.Value {
+		err := a.p.handleActivity(activity)
+		if err != nil {
+			a.p.API.LogError("Unable to process activity", "activity", activity, "error", err)
+			errors = errors + err.Error() + "\n"
+		}
+	}
+	if errors != "" {
+		http.Error(w, errors, http.StatusBadRequest)
+		return
+	}
+}
+
+func (a *API) processSubscriptionValidation(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.Write([]byte(validationToken))
 		return
 	}
-
-	activities := Activities{}
-	err := json.NewDecoder(req.Body).Decode(&activities)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	a.p.API.LogInfo("Activities", "activities", activities)
-
-	for _, activity := range activities.Value {
-		err := a.p.handleActivity(activity)
-		if err != nil {
-			a.p.API.LogError("Unable to process activity", "activity", activity, "error", err)
-		}
-	}
+	http.Error(w, "validation token not received", http.StatusBadRequest)
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

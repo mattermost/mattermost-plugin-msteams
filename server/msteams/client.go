@@ -1,3 +1,4 @@
+//go:generate mockery --name=Client
 package msteams
 
 import (
@@ -11,10 +12,16 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type Client struct {
-	client *msgraph.GraphServiceRequestBuilder
-	ctx    context.Context
-	botID  string
+type ClientImpl struct {
+	client       *msgraph.GraphServiceRequestBuilder
+	ctx          context.Context
+	botID        string
+	tenantId     string
+	clientId     string
+	clientSecret string
+	botUsername  string
+	botPassword  string
+	clientType   string // can be "bot" or "app"
 }
 
 type Channel struct {
@@ -58,64 +65,79 @@ type ActivityIds struct {
 
 const teamsDefaultScope = "https://graph.microsoft.com/.default"
 
-func NewApp(tenantId, clientId, clientSecret string) (*Client, error) {
-	client := Client{
-		ctx: context.Background(),
+func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
+	return &ClientImpl{
+		ctx:          context.Background(),
+		clientType:   "app",
+		tenantId:     tenantId,
+		clientId:     clientId,
+		clientSecret: clientSecret,
 	}
-
-	m := msauth.NewManager()
-	ts, err := m.ClientCredentialsGrant(
-		client.ctx,
-		tenantId,
-		clientId,
-		clientSecret,
-		[]string{teamsDefaultScope},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	httpClient := oauth2.NewClient(client.ctx, ts)
-	graphClient := msgraph.NewClient(httpClient)
-	client.client = graphClient
-
-	return &client, nil
 }
 
-func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) (*Client, error) {
-	client := Client{
-		ctx: context.Background(),
+func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *ClientImpl {
+	return &ClientImpl{
+		ctx:          context.Background(),
+		clientType:   "bot",
+		tenantId:     tenantId,
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		botUsername:  botUsername,
+		botPassword:  botPassword,
 	}
-
-	m := msauth.NewManager()
-	ts, err := m.ResourceOwnerPasswordGrant(
-		client.ctx,
-		tenantId,
-		clientId,
-		clientSecret,
-		botUsername,
-		botPassword,
-		[]string{teamsDefaultScope},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	httpClient := oauth2.NewClient(client.ctx, ts)
-	graphClient := msgraph.NewClient(httpClient)
-	client.client = graphClient
-
-	req := graphClient.Me().Request()
-	r, err := req.Get(client.ctx)
-	if err != nil {
-		return nil, err
-	}
-	client.botID = *r.ID
-
-	return &client, nil
 }
 
-func (tc *Client) SendMessage(teamID, channelID, parentID, message string) (string, error) {
+func (tc *ClientImpl) Connect() error {
+	var ts oauth2.TokenSource
+	if tc.clientType == "bot" {
+		var err error
+		m := msauth.NewManager()
+		ts, err = m.ResourceOwnerPasswordGrant(
+			tc.ctx,
+			tc.tenantId,
+			tc.clientId,
+			tc.clientSecret,
+			tc.botUsername,
+			tc.botPassword,
+			[]string{teamsDefaultScope},
+		)
+		if err != nil {
+			return err
+		}
+	} else if tc.clientType == "app" {
+		var err error
+		m := msauth.NewManager()
+		ts, err = m.ClientCredentialsGrant(
+			tc.ctx,
+			tc.tenantId,
+			tc.clientId,
+			tc.clientSecret,
+			[]string{teamsDefaultScope},
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		panic("Not valid client type, this shouldn't happen ever.")
+	}
+
+	httpClient := oauth2.NewClient(tc.ctx, ts)
+	graphClient := msgraph.NewClient(httpClient)
+	tc.client = graphClient
+
+	if tc.clientType == "bot" {
+		req := graphClient.Me().Request()
+		r, err := req.Get(tc.ctx)
+		if err != nil {
+			return err
+		}
+		tc.botID = *r.ID
+	}
+
+	return nil
+}
+
+func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (string, error) {
 	content := &msgraph.ItemBody{Content: &message}
 	rmsg := &msgraph.ChatMessage{Body: content}
 
@@ -138,7 +160,7 @@ func (tc *Client) SendMessage(teamID, channelID, parentID, message string) (stri
 	return *res.ID, nil
 }
 
-func (tc *Client) SubscribeToChannel(teamID, channelID, notificationURL string) (string, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string) (string, error) {
 	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
 	clientState := "secret"
@@ -158,7 +180,7 @@ func (tc *Client) SubscribeToChannel(teamID, channelID, notificationURL string) 
 	return *res.ID, nil
 }
 
-func (tc *Client) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
+func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
 	for {
 		select {
 		case <-time.After(time.Minute):
@@ -182,7 +204,7 @@ func (tc *Client) RefreshSubscriptionPeriodically(ctx context.Context, subscript
 	}
 }
 
-func (tc *Client) ClearSubscriptions() error {
+func (tc *ClientImpl) ClearSubscriptions() error {
 	subscriptionsCt := tc.client.Subscriptions().Request()
 	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
 	if err != nil {
@@ -198,7 +220,7 @@ func (tc *Client) ClearSubscriptions() error {
 	return nil
 }
 
-func (tc *Client) GetTeam(teamID string) (*Team, error) {
+func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
 	ct := tc.client.Teams().ID(teamID).Request()
 	res, err := ct.Get(tc.ctx)
 	if err != nil {
@@ -213,7 +235,7 @@ func (tc *Client) GetTeam(teamID string) (*Team, error) {
 	return &Team{ID: teamID, DisplayName: displayName}, nil
 }
 
-func (tc *Client) GetChannel(teamID, channelID string) (*Channel, error) {
+func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
 	ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Request()
 	res, err := ct.Get(tc.ctx)
 	if err != nil {
@@ -296,7 +318,7 @@ func converToMessage(msg *msgraph.ChatMessage) *Message {
 
 }
 
-func (tc *Client) GetMessage(teamID, channelID, messageID string) (*Message, error) {
+func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message, error) {
 	ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID).Request()
 	res, err := ct.Get(tc.ctx)
 	if err != nil {
@@ -305,7 +327,7 @@ func (tc *Client) GetMessage(teamID, channelID, messageID string) (*Message, err
 	return converToMessage(res), nil
 }
 
-func (tc *Client) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
+func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
 	ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID).Replies().ID(replyID).Request()
 	res, err := ct.Get(tc.ctx)
 	if err != nil {
@@ -315,7 +337,7 @@ func (tc *Client) GetReply(teamID, channelID, messageID, replyID string) (*Messa
 	return converToMessage(res), nil
 }
 
-func (tc *Client) GetUserAvatar(userID string) ([]byte, error) {
+func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	ctb := tc.client.Users().ID(userID).Photo()
 	ctb.SetURL(ctb.URL() + "/$value")
 	ct := ctb.Request()
@@ -335,7 +357,7 @@ func (tc *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return photo, nil
 }
 
-func (tc *Client) GetFileURL(weburl string) (string, error) {
+func (tc *ClientImpl) GetFileURL(weburl string) (string, error) {
 	itemRB, err := tc.client.GetDriveItemByURL(tc.ctx, weburl)
 	if err != nil {
 		return "", err
@@ -353,7 +375,7 @@ func (tc *Client) GetFileURL(weburl string) (string, error) {
 	return url.(string), nil
 }
 
-func (tc *Client) GetCodeSnippet(url string) (string, error) {
+func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 	resp, err := tc.client.Teams().Request().Client().Get(url)
 	if err != nil {
 		return "", err
@@ -366,13 +388,19 @@ func (tc *Client) GetCodeSnippet(url string) (string, error) {
 	return string(res), nil
 }
 
-func (tc *Client) GetActivityIds(activity Activity) ActivityIds {
+func GetActivityIds(activity Activity) ActivityIds {
 	result := ActivityIds{}
 	data := strings.Split(activity.Resource, "/")
-	result.TeamID = data[0][7 : len(data[0])-2]
-	result.ChannelID = data[1][10 : len(data[1])-2]
-	result.MessageID = data[2][10 : len(data[2])-2]
-	if len(data) > 3 {
+	if len(data[0]) >= 9 {
+		result.TeamID = data[0][7 : len(data[0])-2]
+	}
+	if len(data) > 1 && len(data[1]) >= 12 {
+		result.ChannelID = data[1][10 : len(data[1])-2]
+	}
+	if len(data) > 2 && len(data[2]) >= 12 {
+		result.MessageID = data[2][10 : len(data[2])-2]
+	}
+	if len(data) > 3 && len(data[3]) >= 11 {
 		result.ReplyID = data[3][9 : len(data[3])-2]
 	}
 	return result

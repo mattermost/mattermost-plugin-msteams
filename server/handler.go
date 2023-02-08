@@ -90,7 +90,7 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 }
 
 func (p *Plugin) handleActivity(activity msteams.Activity) error {
-	activityIds := p.msteamsBotClient.GetActivityIds(activity)
+	activityIds := msteams.GetActivityIds(activity)
 	var msg *msteams.Message
 	if activityIds.ReplyID != "" {
 		var err error
