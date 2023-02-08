@@ -48,13 +48,13 @@ func newTestPlugin() *Plugin {
 		Id:       "bot-user-id",
 		Username: botUsername,
 	}
-	plugin.API.(*plugintest.API).On("CreateBot", bot).Return(bot, nil)
-	plugin.API.(*plugintest.API).On("GetUserByUsername", botUsername).Return(botUser, nil)
-	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil)
+	plugin.API.(*plugintest.API).On("CreateBot", bot).Return(bot, nil).Times(1)
+	plugin.API.(*plugintest.API).On("GetUserByUsername", botUsername).Return(botUser, nil).Times(1)
+	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("LogInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	plugin.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	plugin.API.(*plugintest.API).On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	plugin.API.(*plugintest.API).On("KVGet", "channelsLinked").Return([]byte("{}"), nil)
+	plugin.API.(*plugintest.API).On("KVGet", "channelsLinked").Return([]byte("{}"), nil).Times(1)
 	plugin.OnActivate()
 	return plugin
 }
@@ -126,7 +126,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 		ExpectedBody  string
 	}{
 		{
-			"Valid activity",
+			"Valid message",
 			Activities{
 				Value: []msteams.Activity{
 					{
@@ -136,10 +136,42 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "team-id", "channel-id", "message-id").Return(&msteams.Message{}, nil)
+				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "team-id", "channel-id", "message-id").Return(&msteams.Message{}, nil).Times(1)
 			},
 			200,
 			"",
+		},
+		{
+			"Valid reply",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						SubscriptionId: "test",
+					},
+				},
+			},
+			func() {
+				plugin.msteamsBotClient.(*mocks.Client).On("GetReply", "team-id", "channel-id", "message-id", "reply-id").Return(&msteams.Message{}, nil).Times(1)
+			},
+			200,
+			"",
+		},
+		{
+			"Message not found",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')",
+						SubscriptionId: "test",
+					},
+				},
+			},
+			func() {
+				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "team-id", "channel-id", "message-id").Return(nil, errors.New("not found")).Times(1)
+			},
+			400,
+			"not found\n\n",
 		},
 		{
 			"Invalid activity",
@@ -152,7 +184,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "", "", "").Return(nil, errors.New("test-error"))
+				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "", "", "").Return(nil, errors.New("test-error")).Times(1)
 			},
 			400,
 			"test-error\n\n",
@@ -186,7 +218,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 func TestGetAvatarFromCache(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return([]byte("fake-avatar"), nil)
+	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return([]byte("fake-avatar"), nil).Times(1)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -207,9 +239,9 @@ func TestGetAvatarFromCache(t *testing.T) {
 func TestGetAvatarFromServer(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"})
-	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil)
-	plugin.API.(*plugintest.API).On("KVSetWithExpiry", "avatar_user-id", []byte("fake-avatar"), int64(300)).Return(nil)
+	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
+	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVSetWithExpiry", "avatar_user-id", []byte("fake-avatar"), int64(300)).Return(nil).Times(1)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -230,8 +262,8 @@ func TestGetAvatarFromServer(t *testing.T) {
 func TestGetAvatarNotFound(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"})
-	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found"))
+	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
+	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
