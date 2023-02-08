@@ -128,7 +128,7 @@ func (p *Plugin) start() {
 	p.subscriptionsToLinks = map[string]ChannelLink{}
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
-	err = p.clearSubscriptions()
+	err = p.msteamsAppClient.ClearSubscriptions()
 	if err != nil {
 		p.API.LogError("Unable to clear all subscriptions", "error", err)
 	}
@@ -191,7 +191,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	go p.Send(link, user, post)
+	p.Send(link, user, post)
 }
 
 func (p *Plugin) OnDeactivate() error {
@@ -221,15 +221,6 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 		p.API.KVSet("teams_mattermost_"+newMessageId, []byte(post.Id))
 	}
 	return newMessageId, nil
-}
-
-func (p *Plugin) clearSubscriptions() error {
-	err := p.msteamsAppClient.ClearSubscriptions()
-	if err != nil {
-		p.API.LogError("subscription deletion failed", "error", err)
-		return err
-	}
-	return nil
 }
 
 func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error {

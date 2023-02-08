@@ -12,52 +12,11 @@ import (
 	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
 	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-func newTestPlugin() *Plugin {
-	plugin := &Plugin{
-		MattermostPlugin: plugin.MattermostPlugin{
-			API:    &plugintest.API{},
-			Driver: &plugintest.Driver{},
-		},
-		configuration: &configuration{
-			TenantId:     "",
-			ClientId:     "",
-			ClientSecret: "",
-			BotUsername:  "",
-			BotPassword:  "",
-		},
-		msteamsAppClient: &mocks.Client{},
-		msteamsBotClient: &mocks.Client{},
-	}
-	plugin.msteamsAppClient.(*mocks.Client).On("Connect").Return(nil)
-	plugin.msteamsBotClient.(*mocks.Client).On("Connect").Return(nil)
-	plugin.msteamsAppClient.(*mocks.Client).On("ClearSubscriptions").Return(nil)
-	bot := &model.Bot{
-		Username:    botUsername,
-		DisplayName: botDisplayName,
-		Description: "Created by the MS Teams Sync plugin.",
-	}
-	botUser := &model.User{
-		Id:       "bot-user-id",
-		Username: botUsername,
-	}
-	plugin.API.(*plugintest.API).On("CreateBot", bot).Return(bot, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetUserByUsername", botUsername).Return(botUser, nil).Times(1)
-	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
-	plugin.API.(*plugintest.API).On("LogInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	plugin.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	plugin.API.(*plugintest.API).On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	plugin.API.(*plugintest.API).On("KVGet", "channelsLinked").Return([]byte("{}"), nil).Times(1)
-	plugin.OnActivate()
-	return plugin
-}
 
 func TestSubscriptionValidation(t *testing.T) {
 	plugin := newTestPlugin()
