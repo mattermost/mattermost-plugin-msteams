@@ -75,6 +75,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 	}
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
+		p.API.LogError("Unable to connect to the app client", "error", err)
 		return err
 	}
 	p.msteamsAppClientMutex.Unlock()
@@ -94,6 +95,7 @@ func (p *Plugin) connectTeamsBotClient() error {
 	}
 	err := p.msteamsBotClient.Connect()
 	if err != nil {
+		p.API.LogError("Unable to connect to the bot client", "error", err)
 		return err
 	}
 	p.msteamsBotClientMutex.Unlock()
@@ -230,6 +232,7 @@ func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error
 
 	subscriptionID, err := p.msteamsAppClient.SubscribeToChannel(teamId, channelId, notificationURL)
 	if err != nil {
+		p.API.LogError("Unable to subscribe to channel", "error", err)
 		return err
 	}
 	p.subscriptionsToLinksMutex.Lock()

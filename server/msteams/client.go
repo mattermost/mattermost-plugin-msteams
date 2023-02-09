@@ -54,6 +54,7 @@ type Message struct {
 type Activity struct {
 	Resource       string
 	SubscriptionId string
+	ClientState    string
 }
 
 type ActivityIds struct {
@@ -163,6 +164,7 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string) (string, error) {
 	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
+	// TODO: replace this with a configuration setting and verify it in the api
 	clientState := "secret"
 	changeType := "created"
 	subscription := msgraph.Subscription{

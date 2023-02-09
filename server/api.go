@@ -22,7 +22,6 @@ func NewAPI(p *Plugin) *API {
 	api := &API{p: p, router: router}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/", api.processSubscriptionValidation).Methods("GET")
 	router.HandleFunc("/", api.processMessage).Methods("POST")
 
 	return api
@@ -51,6 +50,12 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
+	validationToken := req.URL.Query().Get("validationToken")
+	if validationToken != "" {
+		w.Write([]byte(validationToken))
+		return
+	}
+
 	activities := Activities{}
 	err := json.NewDecoder(req.Body).Decode(&activities)
 	if err != nil {
@@ -70,15 +75,6 @@ func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, errors, http.StatusBadRequest)
 		return
 	}
-}
-
-func (a *API) processSubscriptionValidation(w http.ResponseWriter, req *http.Request) {
-	validationToken := req.URL.Query().Get("validationToken")
-	if validationToken != "" {
-		w.Write([]byte(validationToken))
-		return
-	}
-	http.Error(w, "validation token not received", http.StatusBadRequest)
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

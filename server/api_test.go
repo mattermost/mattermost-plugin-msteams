@@ -22,7 +22,7 @@ func TestSubscriptionValidation(t *testing.T) {
 	plugin := newTestPlugin()
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/?validationToken=test", nil)
+	r := httptest.NewRequest(http.MethodPost, "/?validationToken=test", nil)
 
 	plugin.ServeHTTP(nil, w, r)
 
@@ -37,26 +37,7 @@ func TestSubscriptionValidation(t *testing.T) {
 	assert.Equal(t, "test", bodyString)
 }
 
-func TestSubscriptionInvalidGet(t *testing.T) {
-	plugin := newTestPlugin()
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 400, result.StatusCode)
-	assert.Equal(t, "validation token not received\n", bodyString)
-}
-
-func TestSubscriptionInvalidPost(t *testing.T) {
+func TestSubscriptionInvalidRequest(t *testing.T) {
 	plugin := newTestPlugin()
 
 	w := httptest.NewRecorder()
