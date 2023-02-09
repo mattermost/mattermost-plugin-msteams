@@ -49,13 +49,13 @@
           "default": ""
         },{
           "key": "botUsername",
-          "display_name": "Config",
+          "display_name": "Bot Username",
           "type": "text",
           "help_text": "Microsoft Teams Bot Username",
           "default": ""
         },{
           "key": "botPassword",
-          "display_name": "Config",
+          "display_name": "Bot Password",
           "type": "text",
           "help_text": "Microsoft Teams Bot Password",
           "default": ""
