@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
 	"github.com/pkg/errors"
@@ -172,7 +172,7 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msteams.Message) (*model.Post,
 	}
 
 	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: string(rootID), FileIds: attachments}
-	post.AddProp("matterbridge_"+p.userID, true)
+	post.AddProp("msteams_sync_"+p.userID, true)
 	post.AddProp("override_username", msg.UserDisplayName)
 	post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
 	post.AddProp("from_webhook", "true")

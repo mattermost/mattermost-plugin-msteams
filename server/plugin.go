@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -15,7 +15,7 @@ import (
 const (
 	botUsername    = "msteams"
 	botDisplayName = "MS Teams"
-	pluginID       = "com.mattermost.matterbridge-plugin"
+	pluginID       = "com.mattermost.msteams-sync-plugin"
 )
 
 type ChannelLink struct {
@@ -179,7 +179,7 @@ func (p *Plugin) OnActivate() error {
 
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	if post.Props != nil {
-		if _, ok := post.Props["matterbridge_"+p.userID].(bool); ok {
+		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
 		}
 	}

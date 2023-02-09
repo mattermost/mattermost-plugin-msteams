@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"

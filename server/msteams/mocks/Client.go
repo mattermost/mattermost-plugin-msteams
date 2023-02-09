@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	msteams "github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
+	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mock "github.com/stretchr/testify/mock"
 )
 

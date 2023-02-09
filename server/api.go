@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/mattermost/mattermost-plugin-matterbridge/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 )
 
 type API struct {

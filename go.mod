@@ -1,8 +1,6 @@
-module github.com/mattermost/mattermost-plugin-matterbridge
+module github.com/mattermost/mattermost-plugin-msteams-sync
 
 go 1.16
-
-replace github.com/42wim/matterbridge => ../matterbridge
 
 require (
 	github.com/google/go-cmp v0.5.9 // indirect
