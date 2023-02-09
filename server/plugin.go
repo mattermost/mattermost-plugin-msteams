@@ -230,7 +230,7 @@ func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error
 	channelId := link.MSTeamsChannel
 	notificationURL := p.getURL() + "/"
 
-	subscriptionID, err := p.msteamsAppClient.SubscribeToChannel(teamId, channelId, notificationURL)
+	subscriptionID, err := p.msteamsAppClient.SubscribeToChannel(teamId, channelId, notificationURL, p.configuration.WebhookSecret)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channel", "error", err)
 		return err

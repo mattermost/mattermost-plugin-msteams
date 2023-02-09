@@ -7,7 +7,7 @@ import (
 type Client interface {
 	Connect() error
 	SendMessage(teamID, channelID, parentID, message string) (string, error)
-	SubscribeToChannel(teamID, channelID, notificationURL string) (string, error)
+	SubscribeToChannel(teamID, channelID, notificationURL, webhookSecret string) (string, error)
 	RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error
 	ClearSubscriptions() error
 	GetTeam(teamID string) (*Team, error)

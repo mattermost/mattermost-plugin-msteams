@@ -65,6 +65,13 @@ func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, activity := range activities.Value {
+		// TODO: Remove this debug line
+		a.p.API.LogError("Acivity Info", "activity", activity)
+		if activity.ClientState != a.p.configuration.WebhookSecret {
+			a.p.API.LogError("Invalid webhook secret", "activity", activity)
+			errors = errors + "Invalid webhook secret\n"
+			continue
+		}
 		err := a.p.handleActivity(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process activity", "activity", activity, "error", err)

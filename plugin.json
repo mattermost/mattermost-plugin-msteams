@@ -42,6 +42,12 @@
           "help_text": "Microsoft Teams Client Secret",
           "default": ""
         },{
+          "key": "webhookSecret",
+          "display_name": "Webhook secret",
+          "type": "text",
+          "help_text": "Microsoft Teams will use this secret to send messages to mattermost",
+          "default": ""
+        },{
           "key": "botUsername",
           "display_name": "Config",
           "type": "text",

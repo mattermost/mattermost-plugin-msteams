@@ -234,20 +234,20 @@ func (_m *Client) SendMessage(teamID string, channelID string, parentID string, 
 	return r0, r1
 }
 
-// SubscribeToChannel provides a mock function with given fields: teamID, channelID, notificationURL
-func (_m *Client) SubscribeToChannel(teamID string, channelID string, notificationURL string) (string, error) {
-	ret := _m.Called(teamID, channelID, notificationURL)
+// SubscribeToChannel provides a mock function with given fields: teamID, channelID, notificationURL, webhookSecret
+func (_m *Client) SubscribeToChannel(teamID string, channelID string, notificationURL string, webhookSecret string) (string, error) {
+	ret := _m.Called(teamID, channelID, notificationURL, webhookSecret)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, string) string); ok {
-		r0 = rf(teamID, channelID, notificationURL)
+	if rf, ok := ret.Get(0).(func(string, string, string, string) string); ok {
+		r0 = rf(teamID, channelID, notificationURL, webhookSecret)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = rf(teamID, channelID, notificationURL)
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(teamID, channelID, notificationURL, webhookSecret)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -161,17 +161,15 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string) (string, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string, webhookSecret string) (string, error) {
 	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
-	// TODO: replace this with a configuration setting and verify it in the api
-	clientState := "secret"
 	changeType := "created"
 	subscription := msgraph.Subscription{
 		Resource:           &resource,
 		ExpirationDateTime: &expirationDateTime,
 		NotificationURL:    &notificationURL,
-		ClientState:        &clientState,
+		ClientState:        &webhookSecret,
 		ChangeType:         &changeType,
 	}
 	ct := tc.client.Subscriptions().Request()
