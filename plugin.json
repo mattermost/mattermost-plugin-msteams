@@ -59,6 +59,12 @@
           "type": "text",
           "help_text": "Microsoft Teams Bot Password",
           "default": ""
+        },{
+          "key": "enabledTeams",
+          "display_name": "Enabled Teams",
+          "type": "text",
+          "help_text": "Teams where syncs are enabled (comma separated Mattermost team names, empty means all enabled)",
+          "default": ""
         }]
     }
 }

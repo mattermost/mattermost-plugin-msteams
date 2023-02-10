@@ -24,6 +24,7 @@ type configuration struct {
 	BotUsername   string
 	BotPassword   string
 	WebhookSecret string
+	EnabledTeams  string
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if
