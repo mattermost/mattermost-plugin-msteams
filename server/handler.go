@@ -125,6 +125,10 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 		return errors.New("Unable to find the subscription")
 	}
 
+	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
+		return errors.New("Team not enabled for msteams sync")
+	}
+
 	post, err := p.msgToPost(channelLink, msg)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)

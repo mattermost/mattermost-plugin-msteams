@@ -88,22 +88,8 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if p.configuration.EnabledTeams != "" {
-		team, appErr := p.API.GetTeam(args.TeamId)
-		if appErr != nil {
-			return cmdError(args.ChannelId, "Unable to get the current team information.")
-		}
-		isTeamEnabled := false
-		enabledTeams := strings.Split(p.configuration.EnabledTeams, ",")
-		for _, enabledTeam := range enabledTeams {
-			if team.Name == enabledTeam {
-				isTeamEnabled = true
-				break
-			}
-		}
-		if !isTeamEnabled {
-			return cmdError(args.ChannelId, "This teams is not enabled for MS Teams sync.")
-		}
+	if !p.checkEnabledTeamByTeamId(args.TeamId) {
+		return cmdError(args.ChannelId, "This teams is not enabled for MS Teams sync.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)

@@ -191,6 +191,10 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		return
 	}
 
+	if !p.checkEnabledTeamByTeamId(link.MattermostTeam) {
+		return
+	}
+
 	user, _ := p.API.GetUser(post.UserId)
 
 	p.Send(link, user, post)
@@ -199,6 +203,24 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 func (p *Plugin) OnDeactivate() error {
 	p.stop()
 	return nil
+}
+func (p *Plugin) checkEnabledTeamByTeamId(teamId string) bool {
+	if p.configuration.EnabledTeams == "" {
+		return true
+	}
+	team, appErr := p.API.GetTeam(teamId)
+	if appErr != nil {
+		return false
+	}
+	isTeamEnabled := false
+	enabledTeams := strings.Split(p.configuration.EnabledTeams, ",")
+	for _, enabledTeam := range enabledTeams {
+		if team.Name == enabledTeam {
+			isTeamEnabled = true
+			break
+		}
+	}
+	return isTeamEnabled
 }
 
 func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (string, error) {
