@@ -119,12 +119,20 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "MS Teams channel not found.")
 	}
 
-	channelsLinked[channel.TeamId+":"+channel.Id] = ChannelLink{
+	link := ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
 	}
+	channelsLinked[channel.TeamId+":"+channel.Id] = link
+
+	subscriptionID, err := p.subscribeToChannel(link)
+	if err != nil {
+		return cmdError(args.ChannelId, "Unable to subscribe to channel, probably it is already link to another channel.")
+	}
+
+	go p.refreshSubscriptionPeridically(p.stopContext, subscriptionID)
 
 	channelsLinkedData, err = json.Marshal(channelsLinked)
 	if err != nil {
@@ -135,8 +143,6 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	if appErr != nil {
 		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
-
-	p.restart()
 
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
@@ -164,13 +170,18 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	}
 	var channelsLinked map[string]ChannelLink
 	json.Unmarshal(channelsLinkedData, &channelsLinked)
-	_, ok := channelsLinked[channel.TeamId+":"+channel.Id]
+	link, ok := channelsLinked[channel.TeamId+":"+channel.Id]
 	if !ok {
 		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
 
+	err := p.unsubscribeFromChannel(link)
+	if err != nil {
+		return cmdError(args.ChannelId, "Unable to store unsubscribe from channel, please try again.")
+	}
+
 	delete(channelsLinked, channel.TeamId+":"+channel.Id)
-	channelsLinkedData, err := json.Marshal(channelsLinked)
+	channelsLinkedData, err = json.Marshal(channelsLinked)
 	if err != nil {
 		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
@@ -179,8 +190,6 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	if appErr != nil {
 		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
-
-	p.restart()
 
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,

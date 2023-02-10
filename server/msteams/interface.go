@@ -9,6 +9,7 @@ type Client interface {
 	SendMessage(teamID, channelID, parentID, message string) (string, error)
 	SubscribeToChannel(teamID, channelID, notificationURL, webhookSecret string) (string, error)
 	RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error
+	ClearSubscription(subscriptionID string) error
 	ClearSubscriptions() error
 	GetTeam(teamID string) (*Team, error)
 	GetChannel(teamID, channelID string) (*Channel, error)

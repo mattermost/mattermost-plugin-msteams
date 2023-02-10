@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -49,6 +50,7 @@ type Plugin struct {
 	channelsLinked            map[string]ChannelLink
 
 	stopSubscriptions func()
+	stopContext       context.Context
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -117,25 +119,30 @@ func (p *Plugin) start() {
 	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
 	if appErr != nil {
 		p.API.LogError("Error getting the channels linked", "error", appErr)
-		return
 	}
+
 	channelsLinked := map[string]ChannelLink{}
 	err = json.Unmarshal(channelsLinkedData, &channelsLinked)
 	if err != nil {
 		p.API.LogError("Error getting the channels linked", "error", err)
-		return
 	}
 
 	p.channelsLinked = channelsLinked
 	p.subscriptionsToLinks = map[string]ChannelLink{}
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
+	p.stopContext = ctx
 	err = p.msteamsAppClient.ClearSubscriptions()
 	if err != nil {
 		p.API.LogError("Unable to clear all subscriptions", "error", err)
 	}
 	for _, link := range channelsLinked {
-		go p.subscribeToChannel(ctx, link)
+		subscriptionID, err := p.subscribeToChannel(link)
+		if err != nil {
+			p.API.LogError("Unable to create the subscription", "error", err)
+			continue
+		}
+		go p.refreshSubscriptionPeridically(ctx, subscriptionID)
 	}
 }
 
@@ -247,7 +254,7 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 	return newMessageId, nil
 }
 
-func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error {
+func (p *Plugin) subscribeToChannel(link ChannelLink) (string, error) {
 	teamId := link.MSTeamsTeam
 	channelId := link.MSTeamsChannel
 	notificationURL := p.getURL() + "/"
@@ -255,17 +262,44 @@ func (p *Plugin) subscribeToChannel(ctx context.Context, link ChannelLink) error
 	subscriptionID, err := p.msteamsAppClient.SubscribeToChannel(teamId, channelId, notificationURL, generateHash(teamId, channelId, p.configuration.WebhookSecret))
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channel", "error", err)
-		return err
+		return "", err
 	}
 	p.subscriptionsToLinksMutex.Lock()
 	p.subscriptionsToLinks[subscriptionID] = link
 	p.subscriptionsToLinksMutex.Unlock()
+	return subscriptionID, nil
+}
 
-	err = p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
+func (p *Plugin) refreshSubscriptionPeridically(ctx context.Context, subscriptionID string) error {
+	err := p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
 	if err != nil {
 		p.API.LogError("error updating subscription", "error", err)
 		return err
 	}
+
+	return nil
+}
+
+func (p *Plugin) unsubscribeFromChannel(link ChannelLink) error {
+	subscriptionToRemove := ""
+	for subscriptionID, subscriptionLink := range p.subscriptionsToLinks {
+		if subscriptionLink.MattermostTeam == link.MattermostTeam && subscriptionLink.MattermostChannel == link.MattermostChannel {
+			subscriptionToRemove = subscriptionID
+		}
+	}
+
+	if subscriptionToRemove == "" {
+		return errors.New("Unable to find subscription")
+	}
+
+	err := p.msteamsAppClient.ClearSubscription(subscriptionToRemove)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to channel", "error", err)
+		return err
+	}
+	p.subscriptionsToLinksMutex.Lock()
+	delete(p.subscriptionsToLinks, subscriptionToRemove)
+	p.subscriptionsToLinksMutex.Unlock()
 
 	return nil
 }

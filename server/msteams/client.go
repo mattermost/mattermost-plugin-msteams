@@ -204,6 +204,15 @@ func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subsc
 	}
 }
 
+func (tc *ClientImpl) ClearSubscription(subscriptionID string) error {
+	deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
+	err := deleteSubCt.Delete(tc.ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (tc *ClientImpl) ClearSubscriptions() error {
 	subscriptionsCt := tc.client.Subscriptions().Request()
 	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
