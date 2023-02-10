@@ -92,6 +92,10 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 
 func (p *Plugin) handleActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
+	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
+		return errors.New("Invalid webhook secret")
+	}
 	var msg *msteams.Message
 	if activityIds.ReplyID != "" {
 		var err error
