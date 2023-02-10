@@ -30,7 +30,7 @@ func NewAPI(p *Plugin) *API {
 func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userID := params["userId"]
-	photo, appErr := a.p.API.KVGet("avatar_" + userID)
+	photo, appErr := a.p.API.KVGet(avatarKey(userID))
 	if appErr != nil || len(photo) == 0 {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
@@ -40,7 +40,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		appErr := a.p.API.KVSetWithExpiry("avatar_"+userID, photo, 300)
+		appErr := a.p.API.KVSetWithExpiry(avatarKey(userID), photo, 300)
 		if appErr != nil {
 			a.p.API.LogError("Unable to cache the new avatar", "error", appErr)
 			return
@@ -59,6 +59,7 @@ func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
 	activities := Activities{}
 	err := json.NewDecoder(req.Body).Decode(&activities)
 	if err != nil {
+		a.p.API.LogError("unable to get the activities from the message msteams server subscription message", "error", err)
 		http.Error(w, "unable to get the activities from the message", http.StatusBadRequest)
 		return
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -16,7 +15,7 @@ func createMsteamsSyncCommand() *model.Command {
 	return &model.Command{
 		Trigger:          msteamsCommand,
 		AutoComplete:     true,
-		AutoCompleteDesc: "Start syncing a msteams channel with this mattermost channel",
+		AutoCompleteDesc: "Manage synced channels between MS Teams and Mattermost",
 		AutoCompleteHint: "[command]",
 		Username:         botUsername,
 		IconURL:          msteamsLogoURL,
@@ -33,6 +32,14 @@ func cmdError(channelID string, detailedError string) (*model.CommandResponse, *
 		Username:     botDisplayName,
 		IconURL:      msteamsLogoURL,
 	}, nil
+}
+
+func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
+	p.API.SendEphemeralPost(userID, &model.Post{
+		Message:   message,
+		UserId:    p.botID,
+		ChannelId: channelID,
+	})
 }
 
 func getAutocompleteData() *model.AutocompleteData {
@@ -89,7 +96,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	}
 
 	if !p.checkEnabledTeamByTeamId(args.TeamId) {
-		return cmdError(args.ChannelId, "This teams is not enabled for MS Teams sync.")
+		return cmdError(args.ChannelId, "This team is not enabled for MS Teams sync.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
@@ -100,16 +107,10 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
 	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
 	if !canLinkChannel {
-		return cmdError(args.ChannelId, "Unable to link the channel, you has to be a channel admin to link it.")
+		return cmdError(args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
-	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
-	}
-	channelsLinked := map[string]ChannelLink{}
-	json.Unmarshal(channelsLinkedData, &channelsLinked)
-	_, ok := channelsLinked[channel.TeamId+":"+channel.Id]
+	_, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
 	if ok {
 		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
@@ -125,7 +126,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
 	}
-	channelsLinked[channel.TeamId+":"+channel.Id] = link
+	p.channelsLinked[channel.TeamId+":"+channel.Id] = link
 
 	subscriptionID, err := p.subscribeToChannel(link)
 	if err != nil {
@@ -134,22 +135,13 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 
 	go p.refreshSubscriptionPeridically(p.stopContext, subscriptionID)
 
-	channelsLinkedData, err = json.Marshal(channelsLinked)
+	err = p.saveChannelsLinked()
 	if err != nil {
 		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
-	appErr = p.API.KVSet("channelsLinked", channelsLinkedData)
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
-	}
-
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "The msteams channel is now linked to this mattermost channel",
-		Username:     botDisplayName,
-		IconURL:      msteamsLogoURL,
-	}, nil
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel")
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
@@ -164,15 +156,9 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return cmdError(args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
-	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
-	}
-	var channelsLinked map[string]ChannelLink
-	json.Unmarshal(channelsLinkedData, &channelsLinked)
-	link, ok := channelsLinked[channel.TeamId+":"+channel.Id]
+	link, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
 	if !ok {
-		return cmdError(args.ChannelId, "Link doesn't exists.")
+		return cmdError(args.ChannelId, "Link doesn't exist.")
 	}
 
 	err := p.unsubscribeFromChannel(link)
@@ -180,23 +166,14 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return cmdError(args.ChannelId, "Unable to store unsubscribe from channel, please try again.")
 	}
 
-	delete(channelsLinked, channel.TeamId+":"+channel.Id)
-	channelsLinkedData, err = json.Marshal(channelsLinked)
-	if err != nil {
+	delete(p.channelsLinked, channel.TeamId+":"+channel.Id)
+
+	if err = p.saveChannelsLinked(); err != nil {
 		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
-	appErr = p.API.KVSet("channelsLinked", channelsLinkedData)
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
-	}
-
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "The msteams channel is no longer linked to this mattermost channel",
-		Username:     botDisplayName,
-		IconURL:      msteamsLogoURL,
-	}, nil
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel")
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
@@ -205,13 +182,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 		return cmdError(args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
-	}
-	var channelsLinked map[string]ChannelLink
-	json.Unmarshal(channelsLinkedData, &channelsLinked)
-	link, ok := channelsLinked[channel.TeamId+":"+channel.Id]
+	link, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
 	if !ok {
 		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
@@ -233,10 +204,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 		msteamsTeam.DisplayName,
 		msteamsTeam.ID,
 	)
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         text,
-		Username:     botDisplayName,
-		IconURL:      msteamsLogoURL,
-	}, nil
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
+	return &model.CommandResponse{}, nil
 }

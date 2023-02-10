@@ -140,7 +140,7 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 	}
 
 	// Avoid possible duplication
-	data, _ := p.API.KVGet("teams_mattermost_" + msg.ID)
+	data, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
 	if len(data) != 0 {
 		return nil
 	}
@@ -152,8 +152,8 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 	}
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.API.KVSet("mattermost_teams_"+newPost.Id, []byte(msg.ID))
-		p.API.KVSet("teams_mattermost_"+msg.ID, []byte(newPost.Id))
+		p.API.KVSet(mattermostTeamsPostKey(newPost.Id), []byte(msg.ID))
+		p.API.KVSet(teamsMattermostPostKey(msg.ID), []byte(newPost.Id))
 	}
 	return nil
 }
@@ -170,7 +170,7 @@ func (p *Plugin) msgToPost(link ChannelLink, msg *msteams.Message) (*model.Post,
 	rootID := []byte{}
 
 	if msg.ReplyToID != "" {
-		rootID, _ = p.API.KVGet("teams_mattermost_" + msg.ReplyToID)
+		rootID, _ = p.API.KVGet(teamsMattermostPostKey(msg.ReplyToID))
 	}
 
 	newText, attachments := p.handleAttachments(channel.Id, text, msg)

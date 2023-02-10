@@ -68,6 +68,8 @@ func (p *Plugin) getURL() string {
 
 func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
+	defer p.msteamsAppClientMutex.Unlock()
+
 	if p.msteamsAppClient == nil {
 		p.msteamsAppClient = msteams.NewApp(
 			p.configuration.TenantId,
@@ -80,12 +82,12 @@ func (p *Plugin) connectTeamsAppClient() error {
 		p.API.LogError("Unable to connect to the app client", "error", err)
 		return err
 	}
-	p.msteamsAppClientMutex.Unlock()
 	return nil
 }
 
 func (p *Plugin) connectTeamsBotClient() error {
 	p.msteamsBotClientMutex.Lock()
+	defer p.msteamsBotClientMutex.Unlock()
 	if p.msteamsBotClient == nil {
 		p.msteamsBotClient = msteams.NewBot(
 			p.configuration.TenantId,
@@ -100,7 +102,19 @@ func (p *Plugin) connectTeamsBotClient() error {
 		p.API.LogError("Unable to connect to the bot client", "error", err)
 		return err
 	}
-	p.msteamsBotClientMutex.Unlock()
+	return nil
+}
+
+func (p *Plugin) saveChannelsLinked() error {
+	channelsLinkedData, err := json.Marshal(p.channelsLinked)
+	if err != nil {
+		return errors.New("unable to serialize the linked channels")
+	}
+
+	appErr := p.API.KVSet(keyChannelsLinked, channelsLinkedData)
+	if appErr != nil {
+		return appErr
+	}
 	return nil
 }
 
@@ -116,7 +130,7 @@ func (p *Plugin) start() {
 		return
 	}
 
-	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
+	channelsLinkedData, appErr := p.API.KVGet(keyChannelsLinked)
 	if appErr != nil {
 		p.API.LogError("Error getting the channels linked", "error", appErr)
 	}
@@ -238,7 +252,7 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 
 	parentID := []byte{}
 	if post.RootId != "" {
-		parentID, _ = p.API.KVGet("mattermost_teams_" + post.RootId)
+		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(post.RootId))
 	}
 
 	newMessageId, err := p.msteamsBotClient.SendMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), text)
@@ -248,8 +262,8 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 	}
 
 	if post.Id != "" && newMessageId != "" {
-		p.API.KVSet("mattermost_teams_"+post.Id, []byte(newMessageId))
-		p.API.KVSet("teams_mattermost_"+newMessageId, []byte(post.Id))
+		p.API.KVSet(mattermostTeamsPostKey(post.Id), []byte(newMessageId))
+		p.API.KVSet(teamsMattermostPostKey(newMessageId), []byte(post.Id))
 	}
 	return newMessageId, nil
 }
