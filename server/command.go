@@ -7,7 +7,6 @@ import (
 
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
-	"github.com/pkg/errors"
 )
 
 const msteamsCommand = "msteamssync"
@@ -81,17 +80,17 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeShowCommand(c, args)
 	}
 
-	return cmdError(args.ChannelId, fmt.Sprintf("getUser() threw error: %s", errors.New("you need at least one command")))
+	return cmdError(args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	if len(parameters) < 2 {
-		return cmdError(args.ChannelId, fmt.Sprintf("getUser() threw error: %s", errors.New("you need at least two parameters")))
+		return cmdError(args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
@@ -102,18 +101,18 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 
 	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
 	}
 	channelsLinked := map[string]ChannelLink{}
 	json.Unmarshal(channelsLinkedData, &channelsLinked)
 	_, ok := channelsLinked[channel.TeamId+":"+channel.Id]
 	if ok {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", errors.New("already exiting link, please unlink and link again")))
+		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
 	_, err := p.msteamsAppClient.GetChannel(parameters[0], parameters[1])
 	if err != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
+		return cmdError(args.ChannelId, "MS Teams channel not found.")
 	}
 
 	channelsLinked[channel.TeamId+":"+channel.Id] = ChannelLink{
@@ -125,12 +124,12 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 
 	channelsLinkedData, err = json.Marshal(channelsLinked)
 	if err != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", err))
+		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
 	appErr = p.API.KVSet("channelsLinked", channelsLinkedData)
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
 	p.restart()
@@ -146,7 +145,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
@@ -157,24 +156,24 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 
 	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
 	}
 	var channelsLinked map[string]ChannelLink
 	json.Unmarshal(channelsLinkedData, &channelsLinked)
 	_, ok := channelsLinked[channel.TeamId+":"+channel.Id]
 	if !ok {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", errors.New("the link doesnt exists")))
+		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
 
 	delete(channelsLinked, channel.TeamId+":"+channel.Id)
 	channelsLinkedData, err := json.Marshal(channelsLinked)
 	if err != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", err))
+		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
 	appErr = p.API.KVSet("channelsLinked", channelsLinkedData)
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
 	}
 
 	p.restart()
@@ -190,28 +189,28 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	channelsLinkedData, appErr := p.API.KVGet("channelsLinked")
 	if appErr != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", appErr))
+		return cmdError(args.ChannelId, "Unable to get the linked channels information, please try again.")
 	}
 	var channelsLinked map[string]ChannelLink
 	json.Unmarshal(channelsLinkedData, &channelsLinked)
 	link, ok := channelsLinked[channel.TeamId+":"+channel.Id]
 	if !ok {
-		return cmdError(args.ChannelId, fmt.Sprintf("getChannel() threw error: %s", errors.New("the link doesnt exists")))
+		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
 	if err != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
+		return cmdError(args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
 	msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
-		return cmdError(args.ChannelId, fmt.Sprintf("msteams channel not found: %s", err))
+		return cmdError(args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
 
 	text := fmt.Sprintf(
