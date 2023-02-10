@@ -202,7 +202,7 @@ func (p *Plugin) OnDeactivate() error {
 }
 
 func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (string, error) {
-	p.API.LogDebug("\n\n\n=> Receiving message", "post", post)
+	p.API.LogDebug("Sending message to MS Teams", "link", link, "post", post)
 
 	// TODO: Replace this with a template
 	text := user.Username + "@mattermost: " + post.Message
