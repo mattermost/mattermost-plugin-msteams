@@ -52,13 +52,14 @@ func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.M
 		//handle the download
 		attachmentData, err := p.handleDownloadFile(a.Name, a.ContentURL)
 		if err != nil {
-			p.API.LogError("download of %s failed: %s", a.Name, err)
+			p.API.LogError("file download failed", "filename", a.Name, "error", err)
 			continue
 		}
 
 		fileInfo, appErr := p.API.UploadFile(attachmentData, channelID, a.Name)
 		if appErr != nil {
 			p.API.LogError("upload file to mattermost failed", "filename", a.Name, "error", err)
+			continue
 		}
 		attachments = append(attachments, fileInfo.Id)
 	}
@@ -72,7 +73,7 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
-		p.API.LogError("unmarshal codesnippet failed: %s", err)
+		p.API.LogError("unmarshal codesnippet failed", "error", err)
 		return text
 	}
 	s := strings.Split(content.CodeSnippetURL, "/")
@@ -82,7 +83,7 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	}
 	codeSnippetText, err := p.msteamsBotClient.GetCodeSnippet(content.CodeSnippetURL)
 	if err != nil {
-		p.API.LogError("retrieving snippet content failed:%s", err)
+		p.API.LogError("retrieving snippet content failed", "error", err)
 		return text
 	}
 	newText := text + "\n```" + content.Language + "\n" + codeSnippetText + "\n```\n"
