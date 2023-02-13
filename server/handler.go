@@ -90,7 +90,7 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	return newText
 }
 
-func (p *Plugin) handleActivity(activity msteams.Activity) error {
+func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
 	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
@@ -155,6 +155,106 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 		p.API.KVSet(mattermostTeamsPostKey(newPost.Id), []byte(msg.ID))
 		p.API.KVSet(teamsMattermostPostKey(msg.ID), []byte(newPost.Id))
 	}
+	return nil
+}
+
+func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
+	activityIds := msteams.GetActivityIds(activity)
+	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
+		return errors.New("Invalid webhook secret")
+	}
+	var msg *msteams.Message
+	if activityIds.ReplyID != "" {
+		var err error
+		msg, err = p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	} else {
+		var err error
+		msg, err = p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return err
+		}
+	}
+
+	if msg.UserID == "" {
+		p.API.LogDebug("Skipping not user event", "msg", msg)
+		return nil
+	}
+
+	if msg.UserID == p.botID {
+		p.API.LogDebug("Skipping messages from bot user")
+		return nil
+	}
+
+	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
+	if !ok {
+		p.API.LogError("Unable to find the subscription")
+		return errors.New("Unable to find the subscription")
+	}
+
+	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
+		return errors.New("Team not enabled for msteams sync")
+	}
+
+	post, err := p.msgToPost(channelLink, msg)
+	if err != nil {
+		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+		return err
+	}
+
+	postID, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
+	if len(postID) == 0 {
+		return nil
+	}
+	post.Id = string(postID)
+
+	_, appErr := p.API.UpdatePost(post)
+	if appErr != nil {
+		p.API.LogError("Unable to update post", "post", post, "error", appErr)
+		return appErr
+	}
+	return nil
+}
+
+func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
+	activityIds := msteams.GetActivityIds(activity)
+	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
+		return errors.New("Invalid webhook secret")
+	}
+
+	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
+	if !ok {
+		p.API.LogError("Unable to find the subscription")
+		return errors.New("Unable to find the subscription")
+	}
+
+	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
+		return errors.New("Team not enabled for msteams sync")
+	}
+
+	msgID := activityIds.ReplyID
+	if msgID == "" {
+		msgID = activityIds.MessageID
+	}
+
+	data, _ := p.API.KVGet(teamsMattermostPostKey(msgID))
+	if len(data) == 0 {
+		p.API.LogError("Unable to find original post", "msgID", msgID)
+		return nil
+	}
+
+	appErr := p.API.DeletePost(string(data))
+	if appErr != nil {
+		p.API.LogError("Unable to to delete post", "msgID", string(data), "error", appErr)
+		return appErr
+	}
+
 	return nil
 }
 

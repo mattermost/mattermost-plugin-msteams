@@ -55,6 +55,7 @@ type Activity struct {
 	Resource       string
 	SubscriptionId string
 	ClientState    string
+	ChangeType     string
 }
 
 type ActivityIds struct {
@@ -161,10 +162,43 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 	return *res.ID, nil
 }
 
+func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {
+	if len(parentID) > 0 {
+		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(msgID).Request()
+		if err := ct.Delete(tc.ctx); err != nil {
+			return err
+		}
+	} else {
+		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(msgID).Request()
+		if err := ct.Delete(tc.ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
+	content := &msgraph.ItemBody{Content: &message}
+	rmsg := &msgraph.ChatMessage{Body: content}
+
+	if len(parentID) > 0 {
+		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(msgID).Request()
+		if err := ct.Update(tc.ctx, rmsg); err != nil {
+			return err
+		}
+	} else {
+		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(msgID).Request()
+		if err := ct.Update(tc.ctx, rmsg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string, webhookSecret string) (string, error) {
 	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
-	changeType := "created"
+	changeType := "created,deleted,updated"
 	subscription := msgraph.Subscription{
 		Resource:           &resource,
 		ExpirationDateTime: &expirationDateTime,

@@ -221,6 +221,30 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	p.Send(link, user, post)
 }
 
+func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
+	p.API.LogError("UPDATING POST", "oldPost", oldPost.Id, "newPost", newPost.Id)
+	if oldPost.Props != nil {
+		if _, ok := oldPost.Props["msteams_sync_"+p.userID].(bool); ok {
+			return
+		}
+	}
+
+	channel, _ := p.API.GetChannel(newPost.ChannelId)
+
+	link, ok := p.channelsLinked[channel.TeamId+":"+newPost.ChannelId]
+	if !ok {
+		return
+	}
+
+	if !p.checkEnabledTeamByTeamId(link.MattermostTeam) {
+		return
+	}
+
+	user, _ := p.API.GetUser(newPost.UserId)
+
+	p.Update(link, user, newPost, oldPost)
+}
+
 func (p *Plugin) OnDeactivate() error {
 	p.stop()
 	return nil
@@ -266,6 +290,48 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 		p.API.KVSet(teamsMattermostPostKey(newMessageId), []byte(post.Id))
 	}
 	return newMessageId, nil
+}
+
+func (p *Plugin) Delete(link ChannelLink, user *model.User, post *model.Post) error {
+	p.API.LogDebug("Sending message to MS Teams", "link", link, "post", post)
+
+	parentID := []byte{}
+	if post.RootId != "" {
+		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(post.RootId))
+	}
+
+	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(post.Id))
+
+	err := p.msteamsBotClient.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID))
+	if err != nil {
+		p.API.LogError("Error deleting post", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (p *Plugin) Update(link ChannelLink, user *model.User, newPost, oldPost *model.Post) error {
+	p.API.LogDebug("Sending message to MS Teams", "link", link, "oldPost", oldPost, "newPost", newPost)
+
+	parentID := []byte{}
+	if oldPost.RootId != "" {
+		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(newPost.RootId))
+	}
+
+	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(newPost.Id))
+
+	// TODO: Replace this with a template
+	text := user.Username + "@mattermost: " + newPost.Message
+
+	p.API.LogDebug("update post data", "msgID", msgID, "parentID", parentID, "text", text)
+
+	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID), text)
+	if err != nil {
+		p.API.LogError("Error updating the post", "error", err)
+		return err
+	}
+
+	return nil
 }
 
 func (p *Plugin) subscribeToChannel(link ChannelLink) (string, error) {
