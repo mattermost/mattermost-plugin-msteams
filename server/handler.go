@@ -92,7 +92,7 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 
 func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
-	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
@@ -160,7 +160,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 
 func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
-	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
@@ -223,7 +223,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
-	if activity.ClientState != generateHash(activityIds.TeamID, activityIds.ChannelID, p.configuration.WebhookSecret) {
+	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
