@@ -234,6 +234,27 @@ func (_m *Client) SendMessage(teamID string, channelID string, parentID string, 
 	return r0, r1
 }
 
+// SendMessageWithAttachments provides a mock function with given fields: teamID, channelID, parentID, message, attachments
+func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []msteams.Attachment) (string, error) {
+	ret := _m.Called(teamID, channelID, parentID, message, attachments)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string, string, string, string, []msteams.Attachment) string); ok {
+		r0 = rf(teamID, channelID, parentID, message, attachments)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string, []msteams.Attachment) error); ok {
+		r1 = rf(teamID, channelID, parentID, message, attachments)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SubscribeToChannel provides a mock function with given fields: teamID, channelID, notificationURL, webhookSecret
 func (_m *Client) SubscribeToChannel(teamID string, channelID string, notificationURL string, webhookSecret string) (string, error) {
 	ret := _m.Called(teamID, channelID, notificationURL, webhookSecret)

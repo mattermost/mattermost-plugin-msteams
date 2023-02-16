@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -279,7 +280,36 @@ func (p *Plugin) Send(link ChannelLink, user *model.User, post *model.Post) (str
 		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(post.RootId))
 	}
 
-	newMessageId, err := p.msteamsBotClient.SendMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), text)
+	var attachments []*msteams.Attachment
+	for _, fileId := range post.FileIds {
+		fileInfo, appErr := p.API.GetFileInfo(fileId)
+		if appErr != nil {
+			p.API.LogError("Unable to get file attachment", "error", appErr)
+			continue
+		}
+		p.API.LogError("adding attachment", "attachment", msteams.Attachment{
+			ID:           fileInfo.Id,
+			Name:         fileInfo.Name,
+			ThumbnailURL: fileInfo.ThumbnailPath,
+			ContentURL:   fileInfo.Path,
+			ContentType:  fileInfo.MimeType,
+		})
+
+		fileData, appErr := p.API.GetFile(fileInfo.Id)
+		if appErr != nil {
+			p.API.LogError("error get file attachment from mattermost", "error", appErr)
+			continue
+		}
+
+		attachment, err := p.msteamsBotClient.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		if err != nil {
+			p.API.LogError("error uploading attachment", "error", err)
+			continue
+		}
+		attachments = append(attachments, attachment)
+	}
+
+	newMessageId, err := p.msteamsBotClient.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), text, attachments)
 	if err != nil {
 		p.API.LogError("Error creating post", "error", err)
 		return "", err

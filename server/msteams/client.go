@@ -3,7 +3,11 @@ package msteams
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
@@ -35,10 +39,13 @@ type Team struct {
 }
 
 type Attachment struct {
-	ContentType string
-	Content     string
-	Name        string
-	ContentURL  string
+	ID           string
+	ContentType  string
+	Content      string
+	Name         string
+	ContentURL   string
+	ThumbnailURL string
+	Data         io.Reader
 }
 
 type Message struct {
@@ -140,8 +147,26 @@ func (tc *ClientImpl) Connect() error {
 }
 
 func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (string, error) {
-	content := &msgraph.ItemBody{Content: &message}
-	rmsg := &msgraph.ChatMessage{Body: content}
+	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil)
+}
+
+func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error) {
+	rmsg := &msgraph.ChatMessage{}
+	content := message
+	for _, attachment := range attachments {
+		att := attachment
+		contentType := "reference"
+		rmsg.Attachments = append(rmsg.Attachments,
+			msgraph.ChatMessageAttachment{
+				ID:          &att.ID,
+				ContentType: &contentType,
+				ContentURL:  &att.ContentURL,
+				Name:        &att.Name,
+			},
+		)
+		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
+	}
+	rmsg.Body = &msgraph.ItemBody{Content: &content}
 
 	var res *msgraph.ChatMessage
 	if len(parentID) > 0 {
@@ -160,6 +185,57 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 		}
 	}
 	return *res.ID, nil
+}
+
+func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
+	fct := tc.client.Teams().ID(teamID).Channels().ID(channelID).FilesFolder().Request()
+	folderInfo, err := fct.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := tc.client.Drives().ID(*folderInfo.ParentReference.DriveID).Items().ID(*folderInfo.ID + ":/" + filename + ":").CreateUploadSession(
+		&msgraph.DriveItemCreateUploadSessionRequestParameter{},
+	).Request()
+
+	uploadSession, err := ct.Post(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", *uploadSession.UploadURL, data)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Length", fmt.Sprintf("%d", filesize))
+	req.Header.Add("Content-Range", fmt.Sprintf("bytes 0-%d/%d", filesize-1, filesize))
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	uploadedFileData, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	var uploadedFile struct {
+		ID     string
+		Name   string
+		WebURL string
+		ETag   string
+	}
+	err = json.Unmarshal(uploadedFileData, &uploadedFile)
+	if err != nil {
+		return nil, err
+	}
+
+	attachment := Attachment{
+		ID:          uploadedFile.ETag[2:38],
+		Name:        uploadedFile.Name,
+		ContentURL:  uploadedFile.WebURL,
+		ContentType: mimeType,
+	}
+
+	return &attachment, nil
 }
 
 func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {

@@ -2,11 +2,14 @@ package msteams
 
 import (
 	"context"
+	"io"
 )
 
 type Client interface {
 	Connect() error
 	SendMessage(teamID, channelID, parentID, message string) (string, error)
+	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error)
+	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error)
 	UpdateMessage(teamID, channelID, parentID, msgID, message string) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	SubscribeToChannel(teamID, channelID, notificationURL, webhookSecret string) (string, error)
