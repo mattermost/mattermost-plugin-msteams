@@ -13,6 +13,7 @@ import (
 
 	msgraph "github.com/yaegashi/msgraph.go/beta"
 	"github.com/yaegashi/msgraph.go/msauth"
+	"gitlab.com/golang-commonmark/markdown"
 	"golang.org/x/oauth2"
 )
 
@@ -152,7 +153,9 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 
 func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error) {
 	rmsg := &msgraph.ChatMessage{}
-	content := message
+	md := markdown.New(markdown.XHTMLOutput(true))
+	content := md.RenderToString([]byte(message))
+
 	for _, attachment := range attachments {
 		att := attachment
 		contentType := "reference"
@@ -166,7 +169,8 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		)
 		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
 	}
-	rmsg.Body = &msgraph.ItemBody{Content: &content}
+	contentType := msgraph.BodyTypeVHTML
+	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 
 	var res *msgraph.ChatMessage
 	if len(parentID) > 0 {
