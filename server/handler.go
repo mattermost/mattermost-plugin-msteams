@@ -118,7 +118,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	if msg.UserID == p.botID {
+	if msg.UserID == p.msteamsBotClient.BotID() {
 		p.API.LogDebug("Skipping messages from bot user")
 		return nil
 	}
@@ -186,7 +186,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	if msg.UserID == p.botID {
+	if msg.UserID == p.msteamsBotClient.BotID() {
 		p.API.LogDebug("Skipping messages from bot user")
 		return nil
 	}

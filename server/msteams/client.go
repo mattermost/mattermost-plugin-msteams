@@ -169,6 +169,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		)
 		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
 	}
+
 	contentType := msgraph.BodyTypeVHTML
 	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 
@@ -258,8 +259,11 @@ func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) e
 }
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
-	content := &msgraph.ItemBody{Content: &message}
-	rmsg := &msgraph.ChatMessage{Body: content}
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	content := md.RenderToString([]byte(message))
+	contentType := msgraph.BodyTypeVHTML
+	body := &msgraph.ItemBody{ContentType: &contentType, Content: &content}
+	rmsg := &msgraph.ChatMessage{Body: body}
 
 	if len(parentID) > 0 {
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(msgID).Request()
@@ -527,4 +531,8 @@ func GetActivityIds(activity Activity) ActivityIds {
 		result.ReplyID = data[3][9 : len(data[3])-2]
 	}
 	return result
+}
+
+func (tc *ClientImpl) BotID() string {
+	return tc.botID
 }

@@ -23,4 +23,5 @@ type Client interface {
 	GetUserAvatar(userID string) ([]byte, error)
 	GetFileURL(weburl string) (string, error)
 	GetCodeSnippet(url string) (string, error)
+	BotID() string
 }
