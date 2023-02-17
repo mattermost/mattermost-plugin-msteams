@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -110,8 +111,8 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
-	_, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
-	if ok {
+	link := p.links.GetLinkByChannelID(args.ChannelId)
+	if link != nil {
 		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
@@ -120,24 +121,14 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "MS Teams channel not found.")
 	}
 
-	link := ChannelLink{
+	err = p.links.AddLink(&links.ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
-	}
-	p.channelsLinked[channel.TeamId+":"+channel.Id] = link
-
-	subscriptionID, err := p.subscribeToChannel(link)
+	})
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to subscribe to channel, probably it is already link to another channel.")
-	}
-
-	go p.refreshSubscriptionPeridically(p.stopContext, subscriptionID)
-
-	err = p.saveChannelsLinked()
-	if err != nil {
-		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
+		return cmdError(args.ChannelId, "Unable to create new link.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel")
@@ -156,20 +147,9 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return cmdError(args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
-	link, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
-	if !ok {
-		return cmdError(args.ChannelId, "Link doesn't exist.")
-	}
-
-	err := p.unsubscribeFromChannel(link)
+	err := p.links.DeleteLinkByChannelId(channel.Id)
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to store unsubscribe from channel, please try again.")
-	}
-
-	delete(p.channelsLinked, channel.TeamId+":"+channel.Id)
-
-	if err = p.saveChannelsLinked(); err != nil {
-		return cmdError(args.ChannelId, "Unable to store the new link, please try again.")
+		return cmdError(args.ChannelId, "Unable to delete link.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel")
@@ -177,13 +157,8 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 }
 
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	channel, appErr := p.API.GetChannel(args.ChannelId)
-	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the current channel information.")
-	}
-
-	link, ok := p.channelsLinked[channel.TeamId+":"+channel.Id]
-	if !ok {
+	link := p.links.GetLinkByChannelID(args.ChannelId)
+	if link == nil {
 		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
 

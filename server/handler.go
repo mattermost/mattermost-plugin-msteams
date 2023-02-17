@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
@@ -123,14 +124,10 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
-	if !ok {
+	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
+	if channelLink == nil {
 		p.API.LogError("Unable to find the subscription")
 		return errors.New("Unable to find the subscription")
-	}
-
-	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
-		return errors.New("Team not enabled for msteams sync")
 	}
 
 	post, err := p.msgToPost(channelLink, msg)
@@ -191,14 +188,10 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
-	if !ok {
+	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
+	if channelLink == nil {
 		p.API.LogError("Unable to find the subscription")
 		return errors.New("Unable to find the subscription")
-	}
-
-	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
-		return errors.New("Team not enabled for msteams sync")
 	}
 
 	post, err := p.msgToPost(channelLink, msg)
@@ -228,14 +221,10 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 		return errors.New("Invalid webhook secret")
 	}
 
-	channelLink, ok := p.subscriptionsToLinks[activity.SubscriptionId]
-	if !ok {
+	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
+	if channelLink == nil {
 		p.API.LogError("Unable to find the subscription")
 		return errors.New("Unable to find the subscription")
-	}
-
-	if !p.checkEnabledTeamByTeamId(channelLink.MattermostTeam) {
-		return errors.New("Team not enabled for msteams sync")
 	}
 
 	msgID := activityIds.ReplyID
@@ -258,7 +247,7 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	return nil
 }
 
-func (p *Plugin) msgToPost(link ChannelLink, msg *msteams.Message) (*model.Post, error) {
+func (p *Plugin) msgToPost(link *links.ChannelLink, msg *msteams.Message) (*model.Post, error) {
 	text := convertToMD(msg.Text)
 
 	channel, err := p.API.GetChannel(link.MattermostChannel)

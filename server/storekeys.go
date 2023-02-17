@@ -1,9 +1,5 @@
 package main
 
-const (
-	keyChannelsLinked = "channelsLinked"
-)
-
 func avatarKey(userID string) string {
 	return "avatar_" + userID
 }
