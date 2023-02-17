@@ -23,7 +23,7 @@ type ChannelLink struct {
 }
 
 type LinksService struct {
-	StopSubscriptions func()
+	stopSubscriptions func()
 
 	subscriptionsToLinksMutex sync.Mutex
 	subscriptionsToLinks      map[string]*ChannelLink
@@ -39,7 +39,7 @@ type LinksService struct {
 
 func New(api plugin.API, msteamsAppClient msteams.Client) *LinksService {
 	return &LinksService{
-		StopSubscriptions:    func() {},
+		stopSubscriptions:    func() {},
 		api:                  api,
 		channelsLinked:       map[string]*ChannelLink{},
 		subscriptionsToLinks: map[string]*ChannelLink{},
@@ -47,7 +47,7 @@ func New(api plugin.API, msteamsAppClient msteams.Client) *LinksService {
 	}
 }
 
-func (ls *LinksService) Save() error {
+func (ls *LinksService) save() error {
 	channelsLinkedData, err := json.Marshal(ls.channelsLinked)
 	if err != nil {
 		return errors.New("unable to serialize the linked channels")
@@ -60,7 +60,7 @@ func (ls *LinksService) Save() error {
 	return nil
 }
 
-func (ls *LinksService) Load() error {
+func (ls *LinksService) load() error {
 	channelsLinkedData, appErr := ls.api.KVGet(keyChannelsLinked)
 	if appErr != nil {
 		ls.api.LogError("Error getting the channels linked", "error", appErr)
@@ -80,17 +80,21 @@ func (ls *LinksService) Load() error {
 }
 
 func (ls *LinksService) Stop() {
-	if ls.StopSubscriptions != nil {
-		ls.StopSubscriptions()
+	if ls.stopSubscriptions != nil {
+		ls.stopSubscriptions()
 	}
 }
 
 func (ls *LinksService) Start() error {
+	err := ls.load()
+	if err != nil {
+		return err
+	}
 	ls.subscriptionsToLinks = map[string]*ChannelLink{}
 	ctx, stop := context.WithCancel(context.Background())
-	ls.StopSubscriptions = stop
+	ls.stopSubscriptions = stop
 	ls.stopContext = ctx
-	err := ls.msteamsAppClient.ClearSubscriptions()
+	err = ls.msteamsAppClient.ClearSubscriptions()
 	if err != nil {
 		ls.api.LogError("Unable to clear all subscriptions", "error", err)
 	}
@@ -205,7 +209,7 @@ func (ls *LinksService) DeleteLinkByChannelId(channelID string) error {
 
 	delete(ls.channelsLinked, channelID)
 
-	if err := ls.Save(); err != nil {
+	if err := ls.save(); err != nil {
 		ls.channelsLinked[channelID] = link
 		return err
 	}
@@ -228,7 +232,7 @@ func (ls *LinksService) AddLink(link *ChannelLink) error {
 
 	go ls.refreshSubscriptionPeridically(ls.stopContext, subscriptionID)
 
-	err = ls.Save()
+	err = ls.save()
 	if err != nil {
 		delete(ls.channelsLinked, link.MattermostChannel)
 		return err

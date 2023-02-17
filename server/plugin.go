@@ -104,16 +104,12 @@ func (p *Plugin) start() {
 		return
 	}
 	p.links = links.New(p.API, p.msteamsAppClient)
-	if err := p.links.Load(); err != nil {
-		p.API.LogError("Unable to start the links service", "error", err)
-		p.links = nil
-		return
-	}
 	p.links.UpdateEnabledTeams(p.configuration.EnabledTeams)
 	p.links.UpdateWebhookSecret(p.configuration.WebhookSecret)
 	p.links.UpdateNotificationURL(p.getURL() + "/")
 	if err = p.links.Start(); err != nil {
 		p.API.LogError("Unable to start the links service", "error", err)
+		p.links = nil
 		return
 	}
 
