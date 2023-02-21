@@ -127,20 +127,15 @@ func (p *Plugin) restart() {
 }
 
 func (p *Plugin) OnActivate() error {
-	bot, appErr := p.API.CreateBot(&model.Bot{
+	botID, appErr := p.API.EnsureBotUser(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
 	})
 	if appErr != nil {
-		bot, appErr := p.API.GetUserByUsername(botUsername)
-		if appErr != nil {
-			return appErr
-		}
-		p.userID = bot.Id
-	} else {
-		p.userID = bot.UserId
+		return appErr
 	}
+	p.userID = botID
 
 	err := p.API.RegisterCommand(createMsteamsSyncCommand())
 	if err != nil {
