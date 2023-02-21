@@ -169,7 +169,6 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
-	p.API.LogError("UPDATING POST", "oldPost", oldPost.Id, "newPost", newPost.Id)
 	if oldPost.Props != nil {
 		if _, ok := oldPost.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -224,26 +223,18 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 	for _, fileId := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileId)
 		if appErr != nil {
-			p.API.LogError("Unable to get file attachment", "error", appErr)
+			p.API.LogWarn("Unable to get file attachment", "error", appErr)
 			continue
 		}
-		p.API.LogError("adding attachment", "attachment", msteams.Attachment{
-			ID:           fileInfo.Id,
-			Name:         fileInfo.Name,
-			ThumbnailURL: fileInfo.ThumbnailPath,
-			ContentURL:   fileInfo.Path,
-			ContentType:  fileInfo.MimeType,
-		})
-
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
-			p.API.LogError("error get file attachment from mattermost", "error", appErr)
+			p.API.LogWarn("error get file attachment from mattermost", "error", appErr)
 			continue
 		}
 
 		attachment, err := p.msteamsBotClient.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
-			p.API.LogError("error uploading attachment", "error", err)
+			p.API.LogWarn("error uploading attachment", "error", err)
 			continue
 		}
 		attachments = append(attachments, attachment)
@@ -251,7 +242,7 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 
 	newMessageId, err := p.msteamsBotClient.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), text, attachments)
 	if err != nil {
-		p.API.LogError("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
 	}
 
@@ -290,14 +281,11 @@ func (p *Plugin) Update(link *links.ChannelLink, user *model.User, newPost, oldP
 
 	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(newPost.Id))
 
-	// TODO: Replace this with a template
-	text := user.Username + "@mattermost: " + newPost.Message
-
-	p.API.LogDebug("update post data", "msgID", msgID, "parentID", parentID, "text", text)
+	text := user.Username + "\n\n " + newPost.Message
 
 	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID), text)
 	if err != nil {
-		p.API.LogError("Error updating the post", "error", err)
+		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
 
