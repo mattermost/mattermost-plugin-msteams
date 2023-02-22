@@ -5,16 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
 const (
 	channelsLinkedPrefix = "channelsLinked_"
-	clusterMutexKey      = "subscriptions_cluster_mutex"
 	subscriptionPrefix   = "subscription_"
 )
 
@@ -29,27 +26,20 @@ type ChannelLink struct {
 type LinksService struct {
 	stopSubscriptions func()
 
-	stopContext      context.Context
-	api              plugin.API
-	msteamsAppClient msteams.Client
+	stopContext         context.Context
+	api                 plugin.API
+	getMsteamsAppClient func() msteams.Client
 
 	webhookSecret   string
 	notificationURL string
 	enabledTeams    string
-
-	clusterMutex *cluster.Mutex
 }
 
-func New(api plugin.API, msteamsAppClient msteams.Client) *LinksService {
-	clusterMutex, err := cluster.NewMutex(api, clusterMutexKey)
-	if err != nil {
-		panic("This shouldn't happen")
-	}
+func New(api plugin.API, getMsteamsAppClient func() msteams.Client) *LinksService {
 	return &LinksService{
-		stopSubscriptions: func() {},
-		api:               api,
-		msteamsAppClient:  msteamsAppClient,
-		clusterMutex:      clusterMutex,
+		stopSubscriptions:   func() {},
+		api:                 api,
+		getMsteamsAppClient: getMsteamsAppClient,
 	}
 }
 
@@ -64,34 +54,26 @@ func (ls *LinksService) Start() error {
 	ls.stopSubscriptions = stop
 	ls.stopContext = ctx
 
-	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-	defer cancel()
-
-	err := ls.clusterMutex.LockWithContext(lockctx)
-	if err != nil {
-		ls.api.LogInfo("Other node is taking care of the subscriptions")
-		return nil
-	}
-
-	defer ls.clusterMutex.Unlock()
-
-	err = ls.msteamsAppClient.ClearSubscriptions()
+	err := ls.getMsteamsAppClient().ClearSubscriptions()
 	if err != nil {
 		ls.api.LogError("Unable to clear all subscriptions", "error", err)
 	}
-	page := 0
-	for {
-		keys, appErr := ls.api.KVList(page, 1000)
-		if appErr != nil {
-			return appErr
-		}
-		if len(keys) == 0 {
-			break
-		}
-		for _, key := range keys {
-			if !strings.HasPrefix(key, channelsLinkedPrefix) {
-				continue
+
+	keys, appErr := ls.api.KVList(0, 1000000000)
+	if appErr != nil {
+		return appErr
+	}
+
+	links := []ChannelLink{}
+	for _, key := range keys {
+		if strings.HasPrefix(key, subscriptionPrefix) {
+			appErr := ls.api.KVDelete(key)
+			if appErr != nil {
+				return appErr
 			}
+		}
+
+		if strings.HasPrefix(key, channelsLinkedPrefix) {
 			linkdata, appErr := ls.api.KVGet(key)
 			if appErr != nil {
 				return appErr
@@ -100,21 +82,39 @@ func (ls *LinksService) Start() error {
 			if err := json.Unmarshal(linkdata, &link); err != nil {
 				return err
 			}
-			subscriptionID, err := ls.subscribeToChannel(&link)
-			if err != nil {
-				ls.api.LogError("Unable to create the subscription", "error", err)
-				continue
-			}
-
-			go ls.refreshSubscriptionPeridically(ctx, subscriptionID)
+			links = append(links, link)
 		}
-		page++
 	}
+
+	for _, link := range links {
+		if err := ls.subscribeToChannel(&link); err != nil {
+			ls.api.LogError("Unable to create the subscription", "error", err)
+			continue
+		}
+	}
+
+	go ls.refreshSubscriptionsPeridically(ctx)
+
 	return nil
 }
 
-func (ls *LinksService) refreshSubscriptionPeridically(ctx context.Context, subscriptionID string) error {
-	err := ls.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
+func (ls *LinksService) refreshSubscriptionsPeridically(ctx context.Context) error {
+	getActiveSubscriptions := func() []string {
+		keys, appErr := ls.api.KVList(0, 1000000000)
+		if appErr != nil {
+			return []string{}
+		}
+
+		result := []string{}
+		for _, key := range keys {
+			if strings.HasPrefix(key, subscriptionPrefix) {
+				result = append(result, strings.Replace(key, subscriptionPrefix, "", -1))
+			}
+		}
+		return result
+	}
+
+	err := ls.getMsteamsAppClient().RefreshSubscriptionsPeriodically(ctx, getActiveSubscriptions)
 	if err != nil {
 		ls.api.LogError("error updating subscription", "error", err)
 		return err
@@ -132,7 +132,7 @@ func (ls *LinksService) unsubscribeFromChannel(link *ChannelLink) error {
 		return errors.New("Unable to find subscription")
 	}
 
-	err := ls.msteamsAppClient.ClearSubscription(link.SubscriptionID)
+	err := ls.getMsteamsAppClient().ClearSubscription(link.SubscriptionID)
 	if err != nil {
 		ls.api.LogError("Unable to subscribe to channel", "error", err)
 		return err
@@ -142,34 +142,34 @@ func (ls *LinksService) unsubscribeFromChannel(link *ChannelLink) error {
 	return nil
 }
 
-func (ls *LinksService) subscribeToChannel(link *ChannelLink) (string, error) {
+func (ls *LinksService) subscribeToChannel(link *ChannelLink) error {
 	teamId := link.MSTeamsTeam
 	channelId := link.MSTeamsChannel
 
-	subscriptionID, err := ls.msteamsAppClient.SubscribeToChannel(teamId, channelId, ls.notificationURL, ls.webhookSecret)
+	subscriptionID, err := ls.getMsteamsAppClient().SubscribeToChannel(teamId, channelId, ls.notificationURL, ls.webhookSecret)
 	if err != nil {
 		ls.api.LogError("Unable to subscribe to channel", "error", err)
-		return "", err
+		return err
 	}
 	link.SubscriptionID = subscriptionID
 
 	linkdata, err := json.Marshal(link)
 	if err != nil {
 		ls.api.LogError("Unable to serialize link", "error", err)
-		return "", err
+		return err
 	}
 	appErr := ls.api.KVSet(subscriptionPrefix+subscriptionID, linkdata)
 	if appErr != nil {
 		ls.api.LogError("Unable to store subscription link", "error", appErr)
-		return "", appErr
+		return appErr
 	}
 	appErr = ls.api.KVSet(channelsLinkedPrefix+link.MattermostChannel, linkdata)
 	if appErr != nil {
 		ls.api.LogError("Unable to store channel link", "error", appErr)
-		return "", appErr
+		return appErr
 	}
 
-	return subscriptionID, nil
+	return nil
 }
 
 func (ls *LinksService) GetLinkByChannelID(channelID string) *ChannelLink {
@@ -255,14 +255,7 @@ func (ls *LinksService) DeleteLinkByChannelId(channelID string) error {
 }
 
 func (ls *LinksService) AddLink(link *ChannelLink) error {
-	subscriptionID, err := ls.subscribeToChannel(link)
-	if err != nil {
-		return err
-	}
-
-	go ls.refreshSubscriptionPeridically(ls.stopContext, subscriptionID)
-
-	return nil
+	return ls.subscribeToChannel(link)
 }
 
 func (ls *LinksService) UpdateNotificationURL(notificationURL string) {

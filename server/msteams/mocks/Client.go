@@ -16,6 +16,20 @@ type Client struct {
 	mock.Mock
 }
 
+// BotID provides a mock function with given fields:
+func (_m *Client) BotID() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // ClearSubscription provides a mock function with given fields: subscriptionID
 func (_m *Client) ClearSubscription(subscriptionID string) error {
 	ret := _m.Called(subscriptionID)
@@ -229,13 +243,13 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return r0, r1
 }
 
-// RefreshSubscriptionPeriodically provides a mock function with given fields: ctx, subscriptionID
-func (_m *Client) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
-	ret := _m.Called(ctx, subscriptionID)
+// RefreshSubscriptionsPeriodically provides a mock function with given fields: ctx, getActiveSubscriptions
+func (_m *Client) RefreshSubscriptionsPeriodically(ctx context.Context, getActiveSubscriptions func() []string) error {
+	ret := _m.Called(ctx, getActiveSubscriptions)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = rf(ctx, subscriptionID)
+	if rf, ok := ret.Get(0).(func(context.Context, func() []string) error); ok {
+		r0 = rf(ctx, getActiveSubscriptions)
 	} else {
 		r0 = ret.Error(0)
 	}

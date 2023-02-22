@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -13,9 +16,10 @@ import (
 )
 
 const (
-	botUsername    = "msteams"
-	botDisplayName = "MS Teams"
-	pluginID       = "com.mattermost.msteams-sync-plugin"
+	botUsername     = "msteams"
+	botDisplayName  = "MS Teams"
+	pluginID        = "com.mattermost.msteams-sync-plugin"
+	clusterMutexKey = "subscriptions_cluster_mutex"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -37,7 +41,8 @@ type Plugin struct {
 	botID  string
 	userID string
 
-	links *links.LinksService
+	links        *links.LinksService
+	clusterMutex *cluster.Mutex
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -93,21 +98,7 @@ func (p *Plugin) connectTeamsBotClient() error {
 }
 
 func (p *Plugin) start() {
-	err := p.connectTeamsAppClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return
-	}
-	err = p.connectTeamsBotClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return
-	}
-	p.links = links.New(p.API, p.msteamsAppClient)
-	p.links.UpdateEnabledTeams(p.configuration.EnabledTeams)
-	p.links.UpdateWebhookSecret(p.configuration.WebhookSecret)
-	p.links.UpdateNotificationURL(p.getURL() + "/")
-	if err = p.links.Start(); err != nil {
+	if err := p.links.Start(); err != nil {
 		p.API.LogError("Unable to start the links service", "error", err)
 		p.links = nil
 		return
@@ -127,6 +118,10 @@ func (p *Plugin) restart() {
 }
 
 func (p *Plugin) OnActivate() error {
+	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
+	if err != nil {
+		return err
+	}
 	botID, appErr := p.API.EnsureBotUser(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
@@ -136,11 +131,28 @@ func (p *Plugin) OnActivate() error {
 		return appErr
 	}
 	p.userID = botID
+	p.clusterMutex = clusterMutex
 
-	err := p.API.RegisterCommand(createMsteamsSyncCommand())
-	if err != nil {
-		return err
+	appErr = p.API.RegisterCommand(createMsteamsSyncCommand())
+	if appErr != nil {
+		return appErr
 	}
+
+	p.links = links.New(p.API, func() msteams.Client { return p.msteamsAppClient })
+	p.links.UpdateEnabledTeams(p.configuration.EnabledTeams)
+	p.links.UpdateWebhookSecret(p.configuration.WebhookSecret)
+	p.links.UpdateNotificationURL(p.getURL() + "/")
+
+	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	err = p.clusterMutex.LockWithContext(lockctx)
+	if err != nil {
+		p.API.LogInfo("Other node is taking care of the subscriptions")
+		return nil
+	}
+	defer p.clusterMutex.Unlock()
+	time.Sleep(100 * time.Millisecond)
 
 	go p.start()
 	return nil

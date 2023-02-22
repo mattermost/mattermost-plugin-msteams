@@ -298,24 +298,28 @@ func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL stri
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
+func (tc *ClientImpl) RefreshSubscriptionsPeriodically(ctx context.Context, getActiveSubscriptions func() []string) error {
 	for {
 		select {
 		case <-time.After(time.Minute):
-			expirationDateTime := time.Now().Add(10 * time.Minute)
-			updatedSubscription := msgraph.Subscription{
-				ExpirationDateTime: &expirationDateTime,
-			}
-			ct := tc.client.Subscriptions().ID(subscriptionID).Request()
-			err := ct.Update(tc.ctx, &updatedSubscription)
-			if err != nil {
-				return err
+			for _, subscriptionID := range getActiveSubscriptions() {
+				expirationDateTime := time.Now().Add(10 * time.Minute)
+				updatedSubscription := msgraph.Subscription{
+					ExpirationDateTime: &expirationDateTime,
+				}
+				ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+				err := ct.Update(tc.ctx, &updatedSubscription)
+				if err != nil {
+					return err
+				}
 			}
 		case <-ctx.Done():
-			deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
-			err := deleteSubCt.Delete(tc.ctx)
-			if err != nil {
-				return err
+			for _, subscriptionID := range getActiveSubscriptions() {
+				deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
+				err := deleteSubCt.Delete(tc.ctx)
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		}

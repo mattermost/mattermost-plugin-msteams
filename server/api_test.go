@@ -72,6 +72,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 					{
 						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')",
 						SubscriptionId: "test",
+						ChangeType:     "created",
 					},
 				},
 			},
@@ -88,6 +89,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 					{
 						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
 						SubscriptionId: "test",
+						ChangeType:     "created",
 					},
 				},
 			},
@@ -104,6 +106,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 					{
 						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')",
 						SubscriptionId: "test",
+						ChangeType:     "created",
 					},
 				},
 			},
@@ -120,6 +123,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 					{
 						Resource:       "test",
 						SubscriptionId: "test",
+						ChangeType:     "created",
 					},
 				},
 			},
