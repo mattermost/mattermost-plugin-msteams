@@ -98,12 +98,13 @@ func (p *Plugin) connectTeamsBotClient() error {
 }
 
 func (p *Plugin) start() {
-	if err := p.links.Start(); err != nil {
-		p.API.LogError("Unable to start the links service", "error", err)
-		p.links = nil
-		return
+	if p.links != nil {
+		if err := p.links.Start(); err != nil {
+			p.API.LogError("Unable to start the links service", "error", err)
+			p.links = nil
+			return
+		}
 	}
-
 }
 
 func (p *Plugin) stop() {
@@ -142,6 +143,17 @@ func (p *Plugin) OnActivate() error {
 	p.links.UpdateEnabledTeams(p.configuration.EnabledTeams)
 	p.links.UpdateWebhookSecret(p.configuration.WebhookSecret)
 	p.links.UpdateNotificationURL(p.getURL() + "/")
+
+	err = p.connectTeamsAppClient()
+	if err != nil {
+		p.API.LogError("Unable to connect to the msteams", "error", err)
+		return err
+	}
+	err = p.connectTeamsBotClient()
+	if err != nil {
+		p.API.LogError("Unable to connect to the msteams", "error", err)
+		return err
+	}
 
 	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
