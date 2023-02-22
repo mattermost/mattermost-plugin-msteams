@@ -230,8 +230,7 @@ func (p *Plugin) checkEnabledTeamByTeamId(teamId string) bool {
 func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending message to MS Teams", "link", link, "post", post)
 
-	// TODO: Replace this with a template
-	text := user.Username + "@mattermost: " + post.Message
+	text := user.Username + ":\n\n" + post.Message
 
 	parentID := []byte{}
 	if post.RootId != "" {
@@ -300,7 +299,7 @@ func (p *Plugin) Update(link *links.ChannelLink, user *model.User, newPost, oldP
 
 	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(newPost.Id))
 
-	text := user.Username + "\n\n " + newPost.Message
+	text := user.Username + ":\n\n " + newPost.Message
 
 	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID), text)
 	if err != nil {
