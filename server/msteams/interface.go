@@ -25,6 +25,7 @@ type Client interface {
 	GetMessage(teamID, channelID, messageID string) (*Message, error)
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)
+	GetMyID() (string, error)
 	GetFileURL(weburl string) (string, error)
 	GetCodeSnippet(url string) (string, error)
 	BotID() string

@@ -102,11 +102,15 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		var client msteams.Client
 		for _, member := range chat.Members {
 			// TODO: move this to constants
-			token, err := p.API.KVGet("token_for_user_" + member.UserID)
+			token, err := p.API.KVGet("token_for_msuser_" + member.UserID)
 			if err != nil || len(token) == 0 {
 				continue
 			}
-			client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, p.configuration.ClientSecret, token)
+			client = msteams.NewTokenClient(token)
+			if err := client.Connect(); err != nil {
+				p.API.LogError("Unable to get original post", "error", err)
+				return nil, nil, err
+			}
 		}
 		if client == nil {
 			// TODO: None of the users are connected to MSTeams, ignoring the message
@@ -149,6 +153,11 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return err
 	}
 
+	if msg == nil {
+		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		return nil
+	}
+
 	if msg.UserID == "" {
 		p.API.LogDebug("Skipping not user event", "msg", msg)
 		return nil
@@ -171,6 +180,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 					Username:  model.NewId(),
 					FirstName: member.DisplayName,
 					Email:     member.Email,
+					Password:  model.NewId(),
 				})
 				if appErr2 != nil {
 					return appErr2

@@ -214,10 +214,27 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		// TODO: move this to a constant
-		err = p.API.KVSet("token_for_user_"+userID, tokendata)
+		client := msteams.NewTokenClient(tokendata)
+		if err = client.Connect(); err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		msteamsUserID, err := client.GetMyID()
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		// TODO: move this to a constant
+		appErr := p.API.KVSet("token_for_user_"+userID, tokendata)
+		if appErr != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", appErr.Error())
+			return
+		}
+		appErr = p.API.KVSet("token_for_msuser_"+msteamsUserID, tokendata)
+		if appErr != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", appErr.Error())
 			return
 		}
 

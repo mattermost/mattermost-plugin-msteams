@@ -88,7 +88,7 @@ type ActivityIds struct {
 	ReplyID   string
 }
 
-const teamsDefaultScope = "https://graph.microsoft.com/.default"
+var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
 func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 	return &ClientImpl{
@@ -100,14 +100,11 @@ func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 	}
 }
 
-func NewTokenClient(tenantId, clientId, clientSecret string, token []byte) *ClientImpl {
+func NewTokenClient(token []byte) *ClientImpl {
 	return &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "token",
-		tenantId:     tenantId,
-		clientId:     clientId,
-		clientSecret: clientSecret,
-		token:        token,
+		ctx:        context.Background(),
+		clientType: "token",
+		token:      token,
 	}
 }
 
@@ -129,7 +126,7 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 		context.Background(),
 		tenantId,
 		clientId,
-		[]string{teamsDefaultScope},
+		teamsDefaultScopes,
 		func(dc *msauth.DeviceCode) error {
 			message <- dc.Message
 			return nil
@@ -149,7 +146,7 @@ func (tc *ClientImpl) Connect() error {
 			tc.clientSecret,
 			tc.botUsername,
 			tc.botPassword,
-			[]string{teamsDefaultScope},
+			teamsDefaultScopes,
 		)
 		if err != nil {
 			return err
@@ -162,7 +159,7 @@ func (tc *ClientImpl) Connect() error {
 			tc.tenantId,
 			tc.clientId,
 			tc.clientSecret,
-			[]string{teamsDefaultScope},
+			teamsDefaultScopes,
 		)
 		if err != nil {
 			return err
@@ -192,6 +189,15 @@ func (tc *ClientImpl) Connect() error {
 	}
 
 	return nil
+}
+
+func (tc *ClientImpl) GetMyID() (string, error) {
+	req := tc.client.Me().Request()
+	r, err := req.Get(tc.ctx)
+	if err != nil {
+		return "", err
+	}
+	return *r.ID, nil
 }
 
 func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (string, error) {
@@ -478,10 +484,28 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 
 	members := []ChatMember{}
 	for _, member := range res.Members {
+		displayName, ok := member.AdditionalData["displayName"]
+		if !ok {
+			displayName = ""
+		}
+		userId, ok := member.AdditionalData["userId"]
+		if !ok {
+			userId = ""
+		}
+		email, ok := member.AdditionalData["email"]
+		if !ok {
+			email = ""
+		}
+
 		members = append(members, ChatMember{
-			DisplayName: member.AdditionalData["displayName"].(string),
-			UserID:      member.AdditionalData["userId"].(string),
-			Email:       member.AdditionalData["email"].(string),
+			DisplayName: displayName.(string),
+			UserID:      userId.(string),
+			Email:       email.(string),
+		})
+		fmt.Println("CHAT MEMBER", ChatMember{
+			DisplayName: displayName.(string),
+			UserID:      userId.(string),
+			Email:       email.(string),
 		})
 	}
 
