@@ -91,27 +91,62 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	return newText
 }
 
-func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
+func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*msteams.Message, *msteams.Chat, error) {
 	activityIds := msteams.GetActivityIds(activity)
+
+	if activityIds.ChatID != "" {
+		chat, err := p.msteamsAppClient.GetChat(activityIds.ChatID)
+		if err != nil {
+			return nil, nil, err
+		}
+		var client msteams.Client
+		for _, member := range chat.Members {
+			// TODO: move this to constants
+			token, err := p.API.KVGet("token_for_user_" + member.UserID)
+			if err != nil || len(token) == 0 {
+				continue
+			}
+			client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, p.configuration.ClientSecret, token)
+		}
+		if client == nil {
+			// TODO: None of the users are connected to MSTeams, ignoring the message
+			return nil, nil, nil
+		}
+
+		msg, err := client.GetChatMessage(activityIds.ChatID, activityIds.MessageID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return nil, nil, err
+		}
+		return msg, chat, nil
+	}
+
+	if activityIds.ReplyID != "" {
+		msg, err := p.msteamsAppClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return nil, nil, err
+		}
+		return msg, nil, nil
+	}
+
+	msg, err := p.msteamsAppClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+	if err != nil {
+		p.API.LogError("Unable to get original post", "error", err)
+		return nil, nil, err
+	}
+	return msg, nil, nil
+}
+
+func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
-	var msg *msteams.Message
-	if activityIds.ReplyID != "" {
-		var err error
-		msg, err = p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
-		if err != nil {
-			p.API.LogError("Unable to get original post", "error", err)
-			return err
-		}
-	} else {
-		var err error
-		msg, err = p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
-		if err != nil {
-			p.API.LogError("Unable to get original post", "error", err)
-			return err
-		}
+
+	msg, chat, err := p.getMessageAndChatFromActivity(activity)
+	if err != nil {
+		return err
 	}
 
 	if msg.UserID == "" {
@@ -124,13 +159,58 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
-	if channelLink == nil {
-		p.API.LogError("Unable to find the subscription")
-		return errors.New("Unable to find the subscription")
+	var channel *model.Channel
+	if chat != nil {
+		userIDs := []string{}
+		for _, member := range chat.Members {
+			u, appErr := p.API.GetUserByEmail(member.Email)
+			if appErr != nil {
+				// TODO: Check if the error is a doesn't exists
+				var appErr2 *model.AppError
+				u, appErr2 = p.API.CreateUser(&model.User{
+					Username:  model.NewId(),
+					FirstName: member.DisplayName,
+					Email:     member.Email,
+				})
+				if appErr2 != nil {
+					return appErr2
+				}
+			}
+			userIDs = append(userIDs, u.Id)
+		}
+		if len(userIDs) < 2 {
+			return errors.New("not enough user for creating a channel")
+		}
+
+		var appErr *model.AppError
+		if chat.Type == "D" {
+			channel, appErr = p.API.GetDirectChannel(userIDs[0], userIDs[1])
+			if appErr != nil {
+				return appErr
+			}
+		} else if chat.Type == "G" {
+			channel, appErr = p.API.GetGroupChannel(userIDs)
+			if appErr != nil {
+				return appErr
+			}
+		} else {
+			return nil
+		}
 	}
 
-	post, err := p.msgToPost(channelLink, msg)
+	// TODO: Get the channel link whenever this is a channel message from the existing subscriptions
+	var channelLink *links.ChannelLink = nil
+
+	if channelLink != nil {
+		// channel, err := p.API.GetChannel(channelLink.MattermostChannel)
+		_, err := p.API.GetChannel(channelLink.MattermostChannel)
+		if err != nil {
+			p.API.LogError("Unable to get the channel", "error", err)
+			return err
+		}
+	}
+
+	post, err := p.msgToPost(channel, msg)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
 		return err
@@ -156,26 +236,15 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 }
 
 func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
-	activityIds := msteams.GetActivityIds(activity)
 	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
-	var msg *msteams.Message
-	if activityIds.ReplyID != "" {
-		var err error
-		msg, err = p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
-		if err != nil {
-			p.API.LogError("Unable to get original post", "error", err)
-			return err
-		}
-	} else {
-		var err error
-		msg, err = p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
-		if err != nil {
-			p.API.LogError("Unable to get original post", "error", err)
-			return err
-		}
+
+	// activityIds := msteams.GetActivityIds(activity)
+	msg, err := p.getMessageFromActivity(activity)
+	if err != nil {
+		return err
 	}
 
 	if msg.UserID == "" {
@@ -188,73 +257,67 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
-	if channelLink == nil {
-		p.API.LogError("Unable to find the subscription")
-		return errors.New("Unable to find the subscription")
-	}
+	// channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
+	// if channelLink == nil {
+	// 	p.API.LogError("Unable to find the subscription")
+	// 	return errors.New("Unable to find the subscription")
+	// }
 
-	post, err := p.msgToPost(channelLink, msg)
-	if err != nil {
-		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
-		return err
-	}
+	// post, err := p.msgToPost(channelLink, msg)
+	// if err != nil {
+	// 	p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+	// 	return err
+	// }
 
-	postID, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
-	if len(postID) == 0 {
-		return nil
-	}
-	post.Id = string(postID)
+	// postID, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
+	// if len(postID) == 0 {
+	// 	return nil
+	// }
+	// post.Id = string(postID)
 
-	_, appErr := p.API.UpdatePost(post)
-	if appErr != nil {
-		p.API.LogError("Unable to update post", "post", post, "error", appErr)
-		return appErr
-	}
+	// _, appErr := p.API.UpdatePost(post)
+	// if appErr != nil {
+	// 	p.API.LogError("Unable to update post", "post", post, "error", appErr)
+	// 	return appErr
+	// }
 	return nil
 }
 
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
-	activityIds := msteams.GetActivityIds(activity)
+	// activityIds := msteams.GetActivityIds(activity)
 	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
 
-	channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
-	if channelLink == nil {
-		p.API.LogError("Unable to find the subscription")
-		return errors.New("Unable to find the subscription")
-	}
+	// channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
+	// if channelLink == nil {
+	// 	p.API.LogError("Unable to find the subscription")
+	// 	return errors.New("Unable to find the subscription")
+	// }
 
-	msgID := activityIds.ReplyID
-	if msgID == "" {
-		msgID = activityIds.MessageID
-	}
+	// msgID := activityIds.ReplyID
+	// if msgID == "" {
+	// 	msgID = activityIds.MessageID
+	// }
 
-	data, _ := p.API.KVGet(teamsMattermostPostKey(msgID))
-	if len(data) == 0 {
-		p.API.LogError("Unable to find original post", "msgID", msgID)
-		return nil
-	}
+	// data, _ := p.API.KVGet(teamsMattermostPostKey(msgID))
+	// if len(data) == 0 {
+	// 	p.API.LogError("Unable to find original post", "msgID", msgID)
+	// 	return nil
+	// }
 
-	appErr := p.API.DeletePost(string(data))
-	if appErr != nil {
-		p.API.LogError("Unable to to delete post", "msgID", string(data), "error", appErr)
-		return appErr
-	}
+	// appErr := p.API.DeletePost(string(data))
+	// if appErr != nil {
+	// 	p.API.LogError("Unable to to delete post", "msgID", string(data), "error", appErr)
+	// 	return appErr
+	// }
 
 	return nil
 }
 
-func (p *Plugin) msgToPost(link *links.ChannelLink, msg *msteams.Message) (*model.Post, error) {
+func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model.Post, error) {
 	text := convertToMD(msg.Text)
-
-	channel, err := p.API.GetChannel(link.MattermostChannel)
-	if err != nil {
-		p.API.LogError("Unable to get the channel", "error", err)
-		return nil, err
-	}
 	props := make(map[string]interface{})
 	rootID := []byte{}
 

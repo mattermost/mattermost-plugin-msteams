@@ -4,6 +4,7 @@ package msteams
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,12 +27,25 @@ type ClientImpl struct {
 	clientSecret string
 	botUsername  string
 	botPassword  string
-	clientType   string // can be "bot" or "app"
+	clientType   string // can be "bot", "app" or "token"
+	token        []byte
 }
 
 type Channel struct {
 	ID          string
 	DisplayName string
+}
+
+type Chat struct {
+	ID      string
+	Members []ChatMember
+	Type    string
+}
+
+type ChatMember struct {
+	DisplayName string
+	UserID      string
+	Email       string
 }
 
 type Team struct {
@@ -67,6 +81,7 @@ type Activity struct {
 }
 
 type ActivityIds struct {
+	ChatID    string
 	TeamID    string
 	ChannelID string
 	MessageID string
@@ -82,6 +97,17 @@ func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 		tenantId:     tenantId,
 		clientId:     clientId,
 		clientSecret: clientSecret,
+	}
+}
+
+func NewTokenClient(tenantId, clientId, clientSecret string, token []byte) *ClientImpl {
+	return &ClientImpl{
+		ctx:          context.Background(),
+		clientType:   "token",
+		tenantId:     tenantId,
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		token:        token,
 	}
 }
 
@@ -127,8 +153,15 @@ func (tc *ClientImpl) Connect() error {
 		if err != nil {
 			return err
 		}
+	} else if tc.clientType == "token" {
+		var token *oauth2.Token
+		err := json.Unmarshal(tc.token, &token)
+		if err != nil {
+			return err
+		}
+		ts = oauth2.StaticTokenSource(token)
 	} else {
-		panic("Not valid client type, this shouldn't happen ever.")
+		return errors.New("not valid client type, this shouldn't happen ever.")
 	}
 
 	httpClient := oauth2.NewClient(tc.ctx, ts)
@@ -279,6 +312,44 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 	return nil
 }
 
+func (tc *ClientImpl) Subscribe(notificationURL string, webhookSecret string) (string, error) {
+	resource := "teams/getAllMessages"
+	expirationDateTime := time.Now().Add(60 * time.Minute)
+	changeType := "created,deleted,updated"
+	subscription := msgraph.Subscription{
+		Resource:           &resource,
+		ExpirationDateTime: &expirationDateTime,
+		NotificationURL:    &notificationURL,
+		ClientState:        &webhookSecret,
+		ChangeType:         &changeType,
+	}
+	ct := tc.client.Subscriptions().Request()
+	res, err := ct.Add(tc.ctx, &subscription)
+	if err != nil {
+		return "", err
+	}
+	return *res.ID, nil
+}
+
+func (tc *ClientImpl) SubscribeToChats(notificationURL string, webhookSecret string) (string, error) {
+	resource := "chats/getAllMessages"
+	expirationDateTime := time.Now().Add(60 * time.Minute)
+	changeType := "created,deleted,updated"
+	subscription := msgraph.Subscription{
+		Resource:           &resource,
+		ExpirationDateTime: &expirationDateTime,
+		NotificationURL:    &notificationURL,
+		ClientState:        &webhookSecret,
+		ChangeType:         &changeType,
+	}
+	ct := tc.client.Subscriptions().Request()
+	res, err := ct.Add(tc.ctx, &subscription)
+	if err != nil {
+		return "", err
+	}
+	return *res.ID, nil
+}
+
 func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string, webhookSecret string) (string, error) {
 	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
 	expirationDateTime := time.Now().Add(60 * time.Minute)
@@ -298,30 +369,25 @@ func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL stri
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) RefreshSubscriptionsPeriodically(ctx context.Context, getActiveSubscriptions func() []string) error {
+func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
 	for {
 		select {
 		case <-time.After(time.Minute):
-			for _, subscriptionID := range getActiveSubscriptions() {
-				expirationDateTime := time.Now().Add(10 * time.Minute)
-				updatedSubscription := msgraph.Subscription{
-					ExpirationDateTime: &expirationDateTime,
-				}
-				ct := tc.client.Subscriptions().ID(subscriptionID).Request()
-				err := ct.Update(tc.ctx, &updatedSubscription)
-				if err != nil {
-					return err
-				}
+			expirationDateTime := time.Now().Add(10 * time.Minute)
+			updatedSubscription := msgraph.Subscription{
+				ExpirationDateTime: &expirationDateTime,
+			}
+			ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+			err := ct.Update(tc.ctx, &updatedSubscription)
+			if err != nil {
+				return err
 			}
 		case <-ctx.Done():
-			for _, subscriptionID := range getActiveSubscriptions() {
-				deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
-				err := deleteSubCt.Delete(tc.ctx)
-				if err != nil {
-					return err
-				}
+			deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
+			err := deleteSubCt.Delete(tc.ctx)
+			if err != nil {
+				return err
 			}
-			return nil
 		}
 	}
 }
@@ -379,6 +445,33 @@ func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
 	}
 
 	return &Channel{ID: channelID, DisplayName: displayName}, nil
+}
+
+func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
+	ct := tc.client.Chats().ID(chatID).Request()
+	ct.Expand("members")
+	res, err := ct.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	chatType := ""
+	if res.AdditionalData["chatType"] == "group" {
+		chatType = "G"
+	} else if res.AdditionalData["chatType"] == "oneOnOne" {
+		chatType = "D"
+	}
+
+	members := []ChatMember{}
+	for _, member := range res.Members {
+		members = append(members, ChatMember{
+			DisplayName: member.AdditionalData["displayName"].(string),
+			UserID:      member.AdditionalData["userId"].(string),
+			Email:       member.AdditionalData["email"].(string),
+		})
+	}
+
+	return &Chat{ID: chatID, Members: members, Type: chatType}, nil
 }
 
 func converToMessage(msg *msgraph.ChatMessage) *Message {
@@ -458,6 +551,15 @@ func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message,
 	return converToMessage(res), nil
 }
 
+func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error) {
+	ct := tc.client.Chats().ID(chatID).Messages().ID(messageID).Request()
+	res, err := ct.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return converToMessage(res), nil
+}
+
 func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
 	ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID).Replies().ID(replyID).Request()
 	res, err := ct.Get(tc.ctx)
@@ -522,6 +624,17 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 func GetActivityIds(activity Activity) ActivityIds {
 	result := ActivityIds{}
 	data := strings.Split(activity.Resource, "/")
+
+	if strings.HasPrefix(data[0], "chats(") {
+		if len(data[0]) >= 9 {
+			result.ChatID = data[0][7 : len(data[0])-2]
+		}
+		if len(data) > 1 && len(data[1]) >= 12 {
+			result.MessageID = data[1][10 : len(data[1])-2]
+		}
+		return result
+	}
+
 	if len(data[0]) >= 9 {
 		result.TeamID = data[0][7 : len(data[0])-2]
 	}

@@ -13,11 +13,15 @@ type Client interface {
 	UpdateMessage(teamID, channelID, parentID, msgID, message string) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	SubscribeToChannel(teamID, channelID, notificationURL, webhookSecret string) (string, error)
-	RefreshSubscriptionsPeriodically(ctx context.Context, getActiveSubscriptions func() []string) error
+	Subscribe(notificationURL, webhookSecret string) (string, error)
+	SubscribeToChats(notificationURL, webhookSecret string) (string, error)
+	RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error
 	ClearSubscription(subscriptionID string) error
 	ClearSubscriptions() error
 	GetTeam(teamID string) (*Team, error)
 	GetChannel(teamID, channelID string) (*Channel, error)
+	GetChat(chatID string) (*Chat, error)
+	GetChatMessage(chatID, messageID string) (*Message, error)
 	GetMessage(teamID, channelID, messageID string) (*Message, error)
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)

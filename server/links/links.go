@@ -30,9 +30,11 @@ type LinksService struct {
 	api                 plugin.API
 	getMsteamsAppClient func() msteams.Client
 
-	webhookSecret   string
-	notificationURL string
-	enabledTeams    string
+	webhookSecret       string
+	notificationURL     string
+	enabledTeams        string
+	subscriptionID      string
+	chatsSubscriptionID string
 }
 
 func New(api plugin.API, getMsteamsAppClient func() msteams.Client) *LinksService {
@@ -86,88 +88,23 @@ func (ls *LinksService) Start() error {
 		}
 	}
 
-	for _, link := range links {
-		if err := ls.subscribeToChannel(&link); err != nil {
-			ls.api.LogError("Unable to create the subscription", "error", err)
-			continue
-		}
-	}
-
-	go ls.refreshSubscriptionsPeridically(ctx)
-
-	return nil
-}
-
-func (ls *LinksService) refreshSubscriptionsPeridically(ctx context.Context) error {
-	getActiveSubscriptions := func() []string {
-		keys, appErr := ls.api.KVList(0, 1000000000)
-		if appErr != nil {
-			return []string{}
-		}
-
-		result := []string{}
-		for _, key := range keys {
-			if strings.HasPrefix(key, subscriptionPrefix) {
-				result = append(result, strings.Replace(key, subscriptionPrefix, "", -1))
-			}
-		}
-		return result
-	}
-
-	err := ls.getMsteamsAppClient().RefreshSubscriptionsPeriodically(ctx, getActiveSubscriptions)
+	subscriptionID, err := ls.getMsteamsAppClient().Subscribe(ls.notificationURL, ls.webhookSecret)
 	if err != nil {
-		ls.api.LogError("error updating subscription", "error", err)
+		ls.api.LogError("Unable to subscribe to channels", "error", err)
 		return err
 	}
+	ls.subscriptionID = subscriptionID
 
-	return nil
-}
-
-func (ls *LinksService) unsubscribeFromChannel(link *ChannelLink) error {
-	data, appErr := ls.api.KVGet(subscriptionPrefix + link.SubscriptionID)
-	if appErr != nil {
-		return appErr
-	}
-	if len(data) == 0 {
-		return errors.New("Unable to find subscription")
-	}
-
-	err := ls.getMsteamsAppClient().ClearSubscription(link.SubscriptionID)
+	chatsSubscriptionID, err := ls.getMsteamsAppClient().SubscribeToChats(ls.notificationURL, ls.webhookSecret)
 	if err != nil {
-		ls.api.LogError("Unable to subscribe to channel", "error", err)
+		ls.api.LogError("Unable to subscribe to chats", "error", err)
 		return err
 	}
-	ls.api.KVDelete(subscriptionPrefix + link.SubscriptionID)
+	ls.subscriptionID = subscriptionID
+	ls.chatsSubscriptionID = chatsSubscriptionID
 
-	return nil
-}
-
-func (ls *LinksService) subscribeToChannel(link *ChannelLink) error {
-	teamId := link.MSTeamsTeam
-	channelId := link.MSTeamsChannel
-
-	subscriptionID, err := ls.getMsteamsAppClient().SubscribeToChannel(teamId, channelId, ls.notificationURL, ls.webhookSecret)
-	if err != nil {
-		ls.api.LogError("Unable to subscribe to channel", "error", err)
-		return err
-	}
-	link.SubscriptionID = subscriptionID
-
-	linkdata, err := json.Marshal(link)
-	if err != nil {
-		ls.api.LogError("Unable to serialize link", "error", err)
-		return err
-	}
-	appErr := ls.api.KVSet(subscriptionPrefix+subscriptionID, linkdata)
-	if appErr != nil {
-		ls.api.LogError("Unable to store subscription link", "error", appErr)
-		return appErr
-	}
-	appErr = ls.api.KVSet(channelsLinkedPrefix+link.MattermostChannel, linkdata)
-	if appErr != nil {
-		ls.api.LogError("Unable to store channel link", "error", appErr)
-		return appErr
-	}
+	go ls.getMsteamsAppClient().RefreshSubscriptionPeriodically(ctx, subscriptionID)
+	go ls.getMsteamsAppClient().RefreshSubscriptionPeriodically(ctx, chatsSubscriptionID)
 
 	return nil
 }
@@ -182,25 +119,6 @@ func (ls *LinksService) GetLinkByChannelID(channelID string) *ChannelLink {
 	err := json.Unmarshal(data, &link)
 	if err != nil {
 		ls.api.LogError("Error getting channel link", "error", err)
-		return nil
-	}
-
-	if !ls.checkEnabledTeamByTeamId(link.MattermostTeam) {
-		return nil
-	}
-	return &link
-}
-
-func (ls *LinksService) GetLinkBySubscriptionID(subscriptionID string) *ChannelLink {
-	data, appErr := ls.api.KVGet(subscriptionPrefix + subscriptionID)
-	if appErr != nil || len(data) == 0 {
-		return nil
-	}
-
-	var link ChannelLink
-	err := json.Unmarshal(data, &link)
-	if err != nil {
-		ls.api.LogError("Error getting subscription link", "error", err)
 		return nil
 	}
 
@@ -246,16 +164,21 @@ func (ls *LinksService) DeleteLinkByChannelId(channelID string) error {
 		return appErr
 	}
 
-	err = ls.unsubscribeFromChannel(&link)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (ls *LinksService) AddLink(link *ChannelLink) error {
-	return ls.subscribeToChannel(link)
+	linkdata, err := json.Marshal(&link)
+	if err != nil {
+		return err
+	}
+	appErr := ls.api.KVSet(channelsLinkedPrefix+link.MattermostChannel, linkdata)
+	if appErr != nil {
+		ls.api.LogError("Unable to store channel link", "error", appErr)
+		return appErr
+	}
+	return nil
+
 }
 
 func (ls *LinksService) UpdateNotificationURL(notificationURL string) {
