@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -57,6 +59,9 @@ func getAutocompleteData() *model.AutocompleteData {
 	show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
 	cmd.AddCommand(show)
 
+	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
+	cmd.AddCommand(connect)
+
 	return cmd
 }
 
@@ -86,6 +91,10 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "show" {
 		return p.executeShowCommand(c, args)
+	}
+
+	if action == "connect" {
+		return p.executeConnectCommand(c, args)
 	}
 
 	return cmdError(args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
@@ -181,5 +190,45 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	messageChan := make(chan string)
+	go func(userID string, messageChan chan string) {
+		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantId, p.configuration.ClientId, messageChan)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		token, err := tokenSource.Token()
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		tokendata, err := json.Marshal(token)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		// TODO: move this to a constant
+		err = p.API.KVSet("token_for_user_"+userID, tokendata)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+
+		messageChan <- fmt.Sprintf("Your accoutn has been connected")
+		return
+	}(args.UserId, messageChan)
+
+	message := <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	message = <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	close(messageChan)
 	return &model.CommandResponse{}, nil
 }

@@ -242,7 +242,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	}
 
 	// activityIds := msteams.GetActivityIds(activity)
-	msg, err := p.getMessageFromActivity(activity)
+	msg, _, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
 	}

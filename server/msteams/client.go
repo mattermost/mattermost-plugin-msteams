@@ -123,6 +123,20 @@ func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *
 	}
 }
 
+func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.TokenSource, error) {
+	m := msauth.NewManager()
+	return m.DeviceAuthorizationGrant(
+		context.Background(),
+		tenantId,
+		clientId,
+		[]string{teamsDefaultScope},
+		func(dc *msauth.DeviceCode) error {
+			message <- dc.Message
+			return nil
+		},
+	)
+}
+
 func (tc *ClientImpl) Connect() error {
 	var ts oauth2.TokenSource
 	if tc.clientType == "bot" {
