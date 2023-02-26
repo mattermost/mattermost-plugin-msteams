@@ -11,6 +11,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -42,11 +43,12 @@ type Plugin struct {
 	userID string
 
 	links        *links.LinksService
+	store        store.Store
 	clusterMutex *cluster.Mutex
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	api := NewAPI(p)
+	api := NewAPI(p, p.store)
 	api.ServeHTTP(w, r)
 }
 
@@ -139,10 +141,12 @@ func (p *Plugin) OnActivate() error {
 		return appErr
 	}
 
-	p.links = links.New(p.API, func() msteams.Client { return p.msteamsAppClient })
-	p.links.UpdateEnabledTeams(p.configuration.EnabledTeams)
-	p.links.UpdateWebhookSecret(p.configuration.WebhookSecret)
-	p.links.UpdateNotificationURL(p.getURL() + "/")
+	p.links = links.New(
+		p.API,
+		func() msteams.Client { return p.msteamsAppClient },
+		func() string { return p.configuration.WebhookSecret },
+		func() string { return p.getURL() + "/" },
+	)
 
 	err = p.connectTeamsAppClient()
 	if err != nil {
@@ -166,6 +170,8 @@ func (p *Plugin) OnActivate() error {
 	defer p.clusterMutex.Unlock()
 	time.Sleep(100 * time.Millisecond)
 
+	p.store = store.New(p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
+
 	go p.start()
 	return nil
 }
@@ -177,8 +183,8 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		}
 	}
 
-	link := p.links.GetLinkByChannelID(post.ChannelId)
-	if link == nil {
+	link, err := p.store.GetLinkByChannelID(post.ChannelId)
+	if err != nil || link == nil {
 		return
 	}
 
@@ -194,8 +200,8 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 	}
 
-	link := p.links.GetLinkByChannelID(newPost.ChannelId)
-	if link == nil {
+	link, err := p.store.GetLinkByChannelID(newPost.ChannelId)
+	if err != nil || link == nil {
 		return
 	}
 
@@ -232,9 +238,9 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 
 	text := user.Username + ":\n\n" + post.Message
 
-	parentID := []byte{}
+	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(post.RootId))
+		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
 	var attachments []*msteams.Attachment
@@ -258,15 +264,14 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 		attachments = append(attachments, attachment)
 	}
 
-	newMessageId, err := p.msteamsBotClient.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), text, attachments)
+	newMessageId, err := p.msteamsBotClient.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, parentID, text, attachments)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
 	}
 
 	if post.Id != "" && newMessageId != "" {
-		p.API.KVSet(mattermostTeamsPostKey(post.Id), []byte(newMessageId))
-		p.API.KVSet(teamsMattermostPostKey(newMessageId), []byte(post.Id))
+		p.store.LinkPosts(post.Id, newMessageId)
 	}
 	return newMessageId, nil
 }
@@ -274,14 +279,14 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 func (p *Plugin) Delete(link links.ChannelLink, user *model.User, post *model.Post) error {
 	p.API.LogDebug("Sending message to MS Teams", "link", link, "post", post)
 
-	parentID := []byte{}
+	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(post.RootId))
+		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
-	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(post.Id))
+	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
 
-	err := p.msteamsBotClient.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID))
+	err := p.msteamsBotClient.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID)
 	if err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
@@ -292,16 +297,16 @@ func (p *Plugin) Delete(link links.ChannelLink, user *model.User, post *model.Po
 func (p *Plugin) Update(link *links.ChannelLink, user *model.User, newPost, oldPost *model.Post) error {
 	p.API.LogDebug("Sending message to MS Teams", "link", link, "oldPost", oldPost, "newPost", newPost)
 
-	parentID := []byte{}
+	parentID := ""
 	if oldPost.RootId != "" {
-		parentID, _ = p.API.KVGet(mattermostTeamsPostKey(newPost.RootId))
+		parentID, _ = p.store.MattermostToTeamsPostId(newPost.RootId)
 	}
 
-	msgID, _ := p.API.KVGet(mattermostTeamsPostKey(newPost.Id))
+	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
 
 	text := user.Username + ":\n\n " + newPost.Message
 
-	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, string(parentID), string(msgID), text)
+	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID, text)
 	if err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err

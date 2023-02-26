@@ -1,0 +1,181 @@
+package store
+
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
+	"github.com/mattermost/mattermost-server/v6/plugin"
+	"golang.org/x/oauth2"
+)
+
+const (
+	avatarCacheTime = 300
+)
+
+type Store interface {
+	GetAvatarCache(userID string) ([]byte, error)
+	SetAvatarCache(userID string, photo []byte) error
+	GetLinkByChannelID(channelID string) (*links.ChannelLink, error)
+	DeleteLinkByChannelID(channelID string) error
+	StoreChannelLink(link *links.ChannelLink) error
+	TeamsToMattermostPostId(postID string) (string, error)
+	MattermostToTeamsPostId(postID string) (string, error)
+	LinkPosts(mattermostPostID, teamsPostID string) error
+	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
+	GetTokenForTeamsUser(userID string) (*oauth2.Token, error)
+	SetTokenForMattermostUser(userID string, token *oauth2.Token) error
+	SetTokenForTeamsUser(userID string, token *oauth2.Token) error
+}
+
+type StoreImpl struct {
+	api          plugin.API
+	enabledTeams func() []string
+}
+
+func New(api plugin.API, enabledTeams func() []string) *StoreImpl {
+	return &StoreImpl{
+		api:          api,
+		enabledTeams: enabledTeams,
+	}
+}
+
+func (s *StoreImpl) GetAvatarCache(userID string) ([]byte, error) {
+	return s.api.KVGet(avatarKey(userID))
+}
+
+func (s *StoreImpl) SetAvatarCache(userID string, photo []byte) error {
+	return s.api.KVSetWithExpiry(avatarKey(userID), photo, avatarCacheTime)
+}
+
+func (s *StoreImpl) GetLinkByChannelID(channelID string) (*links.ChannelLink, error) {
+	linkdata, appErr := s.api.KVGet(channelsLinkedKey(channelID))
+	if appErr != nil {
+		return nil, appErr
+	}
+	var link links.ChannelLink
+	err := json.Unmarshal(linkdata, &link)
+	if err != nil {
+		return nil, err
+	}
+	if !s.checkEnabledTeamByTeamId(link.MattermostTeam) {
+		return nil, errors.New("link not enabled for this team")
+	}
+	return &link, nil
+}
+
+func (s *StoreImpl) DeleteLinkByChannelID(channelID string) error {
+	_, err := s.GetLinkByChannelID(channelID)
+	if err != nil {
+		return err
+	}
+
+	appErr := s.api.KVDelete(channelsLinkedKey(channelID))
+	if appErr != nil {
+		return appErr
+	}
+
+	return nil
+}
+
+func (s *StoreImpl) StoreChannelLink(link *links.ChannelLink) error {
+	linkdata, err := json.Marshal(link)
+	if err != nil {
+		return err
+	}
+
+	appErr := s.api.KVSet(channelsLinkedKey(link.MattermostChannel), linkdata)
+	if appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
+func (s *StoreImpl) TeamsToMattermostPostId(postID string) (string, error) {
+	data, err := s.api.KVGet(mattermostTeamsPostKey(postID))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
+	data, err := s.api.KVGet(teamsMattermostPostKey(postID))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (s *StoreImpl) LinkPosts(mattermostPostID, teamsPostID string) error {
+	err := s.api.KVSet(mattermostTeamsPostKey(mattermostPostID), []byte(teamsPostID))
+	if err != nil {
+		return err
+	}
+	err = s.api.KVSet(teamsMattermostPostKey(teamsPostID), []byte(mattermostPostID))
+	if err != nil {
+		_ = s.api.KVDelete(mattermostTeamsPostKey(mattermostPostID))
+		return err
+	}
+	return nil
+}
+
+func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
+	tokendata, appErr := s.api.KVGet(tokenForMattermostUserKey(userID))
+	if appErr != nil {
+		return nil, appErr
+	}
+	var token oauth2.Token
+	err := json.Unmarshal(tokendata, &token)
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (s *StoreImpl) GetTokenForTeamsUser(userID string) (*oauth2.Token, error) {
+	tokendata, appErr := s.api.KVGet(tokenForTeamsUserKey(userID))
+	if appErr != nil {
+		return nil, appErr
+	}
+	var token oauth2.Token
+	err := json.Unmarshal(tokendata, &token)
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (s *StoreImpl) SetTokenForMattermostUser(userID string, token *oauth2.Token) error {
+	tokendata, err := json.Marshal(token)
+	if err != nil {
+		return err
+	}
+	return s.api.KVSet(tokenForMattermostUserKey(userID), tokendata)
+}
+
+func (s *StoreImpl) SetTokenForTeamsUser(userID string, token *oauth2.Token) error {
+	tokendata, err := json.Marshal(token)
+	if err != nil {
+		return err
+	}
+	return s.api.KVSet(tokenForTeamsUserKey(userID), tokendata)
+}
+
+func (s *StoreImpl) checkEnabledTeamByTeamId(teamId string) bool {
+	if len(s.enabledTeams()) == 0 {
+		return true
+	}
+	team, appErr := s.api.GetTeam(teamId)
+	if appErr != nil {
+		return false
+	}
+	isTeamEnabled := false
+	for _, enabledTeam := range s.enabledTeams() {
+		if team.Name == enabledTeam {
+			isTeamEnabled = true
+			break
+		}
+	}
+	return isTeamEnabled
+}

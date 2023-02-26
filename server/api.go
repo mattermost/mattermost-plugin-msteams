@@ -6,10 +6,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 )
 
 type API struct {
 	p      *Plugin
+	store  store.Store
 	router *mux.Router
 }
 
@@ -17,9 +19,9 @@ type Activities struct {
 	Value []msteams.Activity
 }
 
-func NewAPI(p *Plugin) *API {
+func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
-	api := &API{p: p, router: router}
+	api := &API{p: p, router: router, store: store}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
 	router.HandleFunc("/", api.processMessage).Methods("POST")
@@ -30,7 +32,7 @@ func NewAPI(p *Plugin) *API {
 func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userID := params["userId"]
-	photo, appErr := a.p.API.KVGet(avatarKey(userID))
+	photo, appErr := a.store.GetAvatarCache(userID)
 	if appErr != nil || len(photo) == 0 {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
@@ -40,7 +42,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		appErr := a.p.API.KVSetWithExpiry(avatarKey(userID), photo, 300)
+		appErr := a.store.SetAvatarCache(userID, photo)
 		if appErr != nil {
 			a.p.API.LogError("Unable to cache the new avatar", "error", appErr)
 			return

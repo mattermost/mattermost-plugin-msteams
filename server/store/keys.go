@@ -1,4 +1,8 @@
-package main
+package store
+
+func channelsLinkedKey(channelID string) string {
+	return "channelsLinked_" + channelID
+}
 
 func avatarKey(userID string) string {
 	return "avatar_" + userID
@@ -14,4 +18,12 @@ func teamsMattermostPostKey(postID string) string {
 
 func teamsMattermostChatKey(chatID string) string {
 	return "teams_mattermost_chat_" + chatID
+}
+
+func tokenForMattermostUserKey(userID string) string {
+	return "token_for_mm_user" + userID
+}
+
+func tokenForTeamsUserKey(userID string) string {
+	return "token_for_teams_user" + userID
 }

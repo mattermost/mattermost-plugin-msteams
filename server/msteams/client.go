@@ -28,7 +28,7 @@ type ClientImpl struct {
 	botUsername  string
 	botPassword  string
 	clientType   string // can be "bot", "app" or "token"
-	token        []byte
+	token        *oauth2.Token
 }
 
 type Channel struct {
@@ -100,7 +100,7 @@ func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 	}
 }
 
-func NewTokenClient(token []byte) *ClientImpl {
+func NewTokenClient(token *oauth2.Token) *ClientImpl {
 	return &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
@@ -165,12 +165,7 @@ func (tc *ClientImpl) Connect() error {
 			return err
 		}
 	} else if tc.clientType == "token" {
-		var token *oauth2.Token
-		err := json.Unmarshal(tc.token, &token)
-		if err != nil {
-			return err
-		}
-		ts = oauth2.StaticTokenSource(token)
+		ts = oauth2.StaticTokenSource(tc.token)
 	} else {
 		return errors.New("not valid client type, this shouldn't happen ever.")
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -120,17 +119,17 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
-	link := p.links.GetLinkByChannelID(args.ChannelId)
-	if link != nil {
+	link, err := p.store.GetLinkByChannelID(args.ChannelId)
+	if err != nil || link != nil {
 		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
-	_, err := p.msteamsAppClient.GetChannel(parameters[0], parameters[1])
+	_, err = p.msteamsAppClient.GetChannel(parameters[0], parameters[1])
 	if err != nil {
 		return cmdError(args.ChannelId, "MS Teams channel not found.")
 	}
 
-	err = p.links.AddLink(&links.ChannelLink{
+	err = p.store.StoreChannelLink(&links.ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
@@ -156,7 +155,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return cmdError(args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
-	err := p.links.DeleteLinkByChannelId(channel.Id)
+	err := p.store.DeleteLinkByChannelID(channel.Id)
 	if err != nil {
 		return cmdError(args.ChannelId, "Unable to delete link.")
 	}
@@ -166,8 +165,8 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 }
 
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	link := p.links.GetLinkByChannelID(args.ChannelId)
-	if link == nil {
+	link, err := p.store.GetLinkByChannelID(args.ChannelId)
+	if err != nil || link == nil {
 		return cmdError(args.ChannelId, "Link doesn't exists.")
 	}
 
@@ -208,13 +207,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		tokendata, err := json.Marshal(token)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
-			return
-		}
-
-		client := msteams.NewTokenClient(tokendata)
+		client := msteams.NewTokenClient(token)
 		if err = client.Connect(); err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
@@ -226,15 +219,14 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		// TODO: move this to a constant
-		appErr := p.API.KVSet("token_for_user_"+userID, tokendata)
-		if appErr != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", appErr.Error())
+		err = p.store.SetTokenForMattermostUser(userID, token)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
 		}
-		appErr = p.API.KVSet("token_for_msuser_"+msteamsUserID, tokendata)
-		if appErr != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", appErr.Error())
+		err = p.store.SetTokenForTeamsUser(msteamsUserID, token)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
 		}
 

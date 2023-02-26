@@ -101,9 +101,8 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		}
 		var client msteams.Client
 		for _, member := range chat.Members {
-			// TODO: move this to constants
-			token, err := p.API.KVGet("token_for_msuser_" + member.UserID)
-			if err != nil || len(token) == 0 {
+			token, err := p.store.GetTokenForMattermostUser(member.UserID)
+			if err != nil {
 				continue
 			}
 			client = msteams.NewTokenClient(token)
@@ -227,8 +226,8 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	}
 
 	// Avoid possible duplication
-	data, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
-	if len(data) != 0 {
+	data, _ := p.store.TeamsToMattermostPostId(msg.ID)
+	if data == "" {
 		return nil
 	}
 
@@ -239,8 +238,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	}
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.API.KVSet(mattermostTeamsPostKey(newPost.Id), []byte(msg.ID))
-		p.API.KVSet(teamsMattermostPostKey(msg.ID), []byte(newPost.Id))
+		p.store.LinkPosts(newPost.Id, msg.ID)
 	}
 	return nil
 }
@@ -279,11 +277,11 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	// 	return err
 	// }
 
-	// postID, _ := p.API.KVGet(teamsMattermostPostKey(msg.ID))
+	// postID, _ := p.store.TeamsToMattermostPostId(msg.ID)
 	// if len(postID) == 0 {
 	// 	return nil
 	// }
-	// post.Id = string(postID)
+	// post.Id = postID
 
 	// _, appErr := p.API.UpdatePost(post)
 	// if appErr != nil {
@@ -311,7 +309,7 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	// 	msgID = activityIds.MessageID
 	// }
 
-	// data, _ := p.API.KVGet(teamsMattermostPostKey(msgID))
+	// data, _ := p.store.TeamsToMattermostPostId(msgID)
 	// if len(data) == 0 {
 	// 	p.API.LogError("Unable to find original post", "msgID", msgID)
 	// 	return nil
@@ -329,10 +327,10 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model.Post, error) {
 	text := convertToMD(msg.Text)
 	props := make(map[string]interface{})
-	rootID := []byte{}
+	rootID := ""
 
 	if msg.ReplyToID != "" {
-		rootID, _ = p.API.KVGet(teamsMattermostPostKey(msg.ReplyToID))
+		rootID, _ = p.store.TeamsToMattermostPostId(msg.ReplyToID)
 	}
 
 	newText, attachments := p.handleAttachments(channel.Id, text, msg)
@@ -342,7 +340,7 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: string(rootID), FileIds: attachments}
+	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: rootID, FileIds: attachments}
 	post.AddProp("msteams_sync_"+p.userID, true)
 	post.AddProp("override_username", msg.UserDisplayName)
 	post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
