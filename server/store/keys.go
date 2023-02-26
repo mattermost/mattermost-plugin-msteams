@@ -24,10 +24,12 @@ func teamsMattermostChatKey(chatID string) string {
 	return "teams_mattermost_chat_" + chatID
 }
 
+// TODO: Add lodash at the end
 func tokenForMattermostUserKey(userID string) string {
 	return "token_for_mm_user" + userID
 }
 
+// TODO: Add lodash at the end
 func tokenForTeamsUserKey(userID string) string {
 	return "token_for_teams_user" + userID
 }

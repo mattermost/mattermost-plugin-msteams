@@ -100,7 +100,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		}
 		var client msteams.Client
 		for _, member := range chat.Members {
-			token, err := p.store.GetTokenForMattermostUser(member.UserID)
+			token, err := p.store.GetTokenForTeamsUser(member.UserID)
 			if err != nil {
 				continue
 			}
@@ -348,7 +348,7 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model
 }
 
 func convertToMD(text string) string {
-	if !strings.Contains(text, "<div>") {
+	if !strings.Contains(text, "<div>") && !strings.Contains(text, "<p>") {
 		return text
 	}
 	var sb strings.Builder
