@@ -4,6 +4,10 @@ func channelsLinkedKey(channelID string) string {
 	return "channelsLinked_" + channelID
 }
 
+func channelsLinkedByMSTeamsKey(teamID, channelID string) string {
+	return "channelsLinked_" + teamID + ":" + channelID
+}
+
 func avatarKey(userID string) string {
 	return "avatar_" + userID
 }

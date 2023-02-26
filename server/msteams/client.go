@@ -71,6 +71,9 @@ type Message struct {
 	Subject         string
 	ReplyToID       string
 	Attachments     []Attachment
+	ChannelID       string
+	TeamID          string
+	ChatID          string
 }
 
 type Activity struct {
@@ -101,11 +104,17 @@ func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 }
 
 func NewTokenClient(token *oauth2.Token) *ClientImpl {
-	return &ClientImpl{
+	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		token:      token,
 	}
+	ts := oauth2.StaticTokenSource(client.token)
+	httpClient := oauth2.NewClient(client.ctx, ts)
+	graphClient := msgraph.NewClient(httpClient)
+	client.client = graphClient
+
+	return client
 }
 
 func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *ClientImpl {
@@ -136,7 +145,9 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 
 func (tc *ClientImpl) Connect() error {
 	var ts oauth2.TokenSource
-	if tc.clientType == "bot" {
+	if tc.clientType == "token" {
+		return nil
+	} else if tc.clientType == "bot" {
 		var err error
 		m := msauth.NewManager()
 		ts, err = m.ResourceOwnerPasswordGrant(
@@ -164,8 +175,6 @@ func (tc *ClientImpl) Connect() error {
 		if err != nil {
 			return err
 		}
-	} else if tc.clientType == "token" {
-		ts = oauth2.StaticTokenSource(tc.token)
 	} else {
 		return errors.New("not valid client type, this shouldn't happen ever.")
 	}
@@ -507,7 +516,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 	return &Chat{ID: chatID, Members: members, Type: chatType}, nil
 }
 
-func converToMessage(msg *msgraph.ChatMessage) *Message {
+func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string) *Message {
 	userID := ""
 	if msg.From != nil && msg.From.User != nil && msg.From.User.ID != nil {
 		userID = *msg.From.User.ID
@@ -571,6 +580,9 @@ func converToMessage(msg *msgraph.ChatMessage) *Message {
 		ReplyToID:       replyTo,
 		Subject:         subject,
 		Attachments:     attachments,
+		TeamID:          teamID,
+		ChannelID:       channelID,
+		ChatID:          chatID,
 	}
 
 }
@@ -581,7 +593,7 @@ func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message,
 	if err != nil {
 		return nil, err
 	}
-	return converToMessage(res), nil
+	return converToMessage(res, teamID, channelID, ""), nil
 }
 
 func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error) {
@@ -590,7 +602,7 @@ func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error)
 	if err != nil {
 		return nil, err
 	}
-	return converToMessage(res), nil
+	return converToMessage(res, "", "", chatID), nil
 }
 
 func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
@@ -600,7 +612,7 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 		return nil, err
 	}
 
-	return converToMessage(res), nil
+	return converToMessage(res, teamID, channelID, ""), nil
 }
 
 func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {

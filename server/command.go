@@ -120,7 +120,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
-	if err != nil || link != nil {
+	if err == nil && link != nil {
 		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 

@@ -42,9 +42,9 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		appErr := a.store.SetAvatarCache(userID, photo)
-		if appErr != nil {
-			a.p.API.LogError("Unable to cache the new avatar", "error", appErr)
+		err = a.store.SetAvatarCache(userID, photo)
+		if err != nil {
+			a.p.API.LogError("Unable to cache the new avatar", "error", err)
 			return
 		}
 	}

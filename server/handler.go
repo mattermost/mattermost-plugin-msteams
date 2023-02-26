@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
@@ -106,10 +105,6 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 				continue
 			}
 			client = msteams.NewTokenClient(token)
-			if err := client.Connect(); err != nil {
-				p.API.LogError("Unable to get original post", "error", err)
-				return nil, nil, err
-			}
 		}
 		if client == nil {
 			// TODO: None of the users are connected to MSTeams, ignoring the message
@@ -125,7 +120,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 	}
 
 	if activityIds.ReplyID != "" {
-		msg, err := p.msteamsAppClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		msg, err := p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
 		if err != nil {
 			p.API.LogError("Unable to get original post", "error", err)
 			return nil, nil, err
@@ -133,7 +128,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		return msg, nil, nil
 	}
 
-	msg, err := p.msteamsAppClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+	msg, err := p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
 	if err != nil {
 		p.API.LogError("Unable to get original post", "error", err)
 		return nil, nil, err
@@ -205,18 +200,21 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		} else {
 			return nil
 		}
+	} else {
+		channelLink, _ := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
+		if channelLink != nil {
+			var appErr *model.AppError
+			channel, appErr = p.API.GetChannel(channelLink.MattermostChannel)
+			if appErr != nil {
+				p.API.LogError("Unable to get the channel", "error", appErr)
+				return appErr
+			}
+		}
 	}
 
-	// TODO: Get the channel link whenever this is a channel message from the existing subscriptions
-	var channelLink *links.ChannelLink = nil
-
-	if channelLink != nil {
-		// channel, err := p.API.GetChannel(channelLink.MattermostChannel)
-		_, err := p.API.GetChannel(channelLink.MattermostChannel)
-		if err != nil {
-			p.API.LogError("Unable to get the channel", "error", err)
-			return err
-		}
+	if channel == nil {
+		p.API.LogDebug("Channel not set")
+		return nil
 	}
 
 	post, err := p.msgToPost(channel, msg)
@@ -227,7 +225,8 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 
 	// Avoid possible duplication
 	data, _ := p.store.TeamsToMattermostPostId(msg.ID)
-	if data == "" {
+	if data != "" {
+		p.API.LogDebug("duplicated post")
 		return nil
 	}
 

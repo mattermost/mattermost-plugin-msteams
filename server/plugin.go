@@ -236,11 +236,18 @@ func (p *Plugin) checkEnabledTeamByTeamId(teamId string) bool {
 func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending message to MS Teams", "link", link, "post", post)
 
-	text := user.Username + ":\n\n" + post.Message
-
 	parentID := ""
 	if post.RootId != "" {
 		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+	}
+
+	client := p.msteamsBotClient
+	token, _ := p.store.GetTokenForMattermostUser(user.Id)
+	text := post.Message
+	if token != nil {
+		client = msteams.NewTokenClient(token)
+	} else {
+		text = user.Username + ":\n\n" + post.Message
 	}
 
 	var attachments []*msteams.Attachment
@@ -256,7 +263,7 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 			continue
 		}
 
-		attachment, err := p.msteamsBotClient.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err := client.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("error uploading attachment", "error", err)
 			continue
@@ -264,7 +271,7 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 		attachments = append(attachments, attachment)
 	}
 
-	newMessageId, err := p.msteamsBotClient.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, parentID, text, attachments)
+	newMessageId, err := client.SendMessageWithAttachments(link.MSTeamsTeam, link.MSTeamsChannel, parentID, text, attachments)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
