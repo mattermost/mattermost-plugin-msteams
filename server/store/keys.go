@@ -16,8 +16,8 @@ func mattermostTeamsPostKey(postID string) string {
 	return "mattermost_teams_" + postID
 }
 
-func teamsMattermostPostKey(postID string) string {
-	return "teams_mattermost_" + postID
+func teamsMattermostPostKey(chatID string, postID string) string {
+	return "teams_mattermost_" + chatID + "_" + postID
 }
 
 func teamsMattermostUserKey(userID string) string {

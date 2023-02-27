@@ -16,6 +16,7 @@ import (
 	"github.com/yaegashi/msgraph.go/msauth"
 	"gitlab.com/golang-commonmark/markdown"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/microsoft"
 )
 
 type ClientImpl struct {
@@ -103,13 +104,21 @@ func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
 	}
 }
 
-func NewTokenClient(token *oauth2.Token) *ClientImpl {
+func NewTokenClient(tenantId, clientId string, token *oauth2.Token) *ClientImpl {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		token:      token,
 	}
-	ts := oauth2.StaticTokenSource(client.token)
+	endpoint := microsoft.AzureADEndpoint(tenantId)
+	endpoint.AuthStyle = oauth2.AuthStyleInParams
+	config := &oauth2.Config{
+		ClientID: clientId,
+		Endpoint: endpoint,
+		Scopes:   teamsDefaultScopes,
+	}
+
+	ts := config.TokenSource(client.ctx, client.token)
 	httpClient := oauth2.NewClient(client.ctx, ts)
 	graphClient := msgraph.NewClient(httpClient)
 	client.client = graphClient

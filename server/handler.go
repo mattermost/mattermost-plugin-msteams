@@ -37,9 +37,10 @@ func (p *Plugin) handleDownloadFile(filename, weburl string) ([]byte, error) {
 	return data, nil
 }
 
-func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.Message) (string, model.StringArray) {
+func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
+	parentID := ""
 	for _, a := range msg.Attachments {
 		//remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -47,6 +48,12 @@ func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.M
 		//handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
 			newText = p.handleCodeSnippet(a, newText)
+			continue
+		}
+
+		//handle a message reference (reply)
+		if a.ContentType == "messageReference" {
+			parentID, newText = p.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
 			continue
 		}
 
@@ -64,7 +71,7 @@ func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.M
 		}
 		attachments = append(attachments, fileInfo.Id)
 	}
-	return newText, attachments
+	return newText, attachments, parentID
 }
 
 func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) string {
@@ -91,6 +98,30 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	return newText
 }
 
+// Attachments:[{ID: ContentType:messageReference Content:{\"messageId\":\"1677507519049\",\"messagePreview\":\"test\",\"messageSender\":{\"application\":null,\"device\":null,\"user\":{\"userIdentityType\":\"aadUser\",\"id\":\"2a59b646-e6ab-4f43-91a8-292bb4db599c\",\"displayName\":\"Jesus Espino\"}}} Name: ContentURL: ThumbnailURL: Data:<nil>}] ChannelID: TeamID: ChatID:19:2a59b646-e6ab-4f43-91a8-292bb4db599c_b8cf6063-314b-4a35-ad24-c127d698319b@unq.gbl.spaces}"}
+func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannelID string, text string) (string, string) {
+	var content struct {
+		MessageID string `json:"messageId"`
+	}
+	err := json.Unmarshal([]byte(attach.Content), &content)
+	if err != nil {
+		p.API.LogError("unmarshal codesnippet failed", "error", err)
+		return "", text
+	}
+	// TODO: Make the TEAMS TO MATTERMOST POST ID dependant on the ChannelID or the ChatID to avoid collitions
+	postID, err := p.store.TeamsToMattermostPostId(chatOrChannelID, content.MessageID)
+	if err != nil {
+		return "", text
+	}
+
+	post, err := p.API.GetPost(postID)
+	if post.RootId != "" {
+		return post.RootId, text
+	}
+
+	return post.Id, text
+}
+
 func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*msteams.Message, *msteams.Chat, error) {
 	activityIds := msteams.GetActivityIds(activity)
 
@@ -105,7 +136,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 			if err != nil {
 				continue
 			}
-			client = msteams.NewTokenClient(token)
+			client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 		}
 		if client == nil {
 			// TODO: None of the users are connected to MSTeams, ignoring the message
@@ -152,7 +183,10 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
 		return nil
 	}
+	p.API.LogDebug("MESSAGE SENT", "msg", msg)
 
+	msgdata, _ := json.Marshal(msg)
+	p.API.LogDebug("MESSAGE SENT", "msg", msg, "msgjson", string(msgdata))
 	if msg.UserID == "" {
 		p.API.LogDebug("Skipping not user event", "msg", msg)
 		return nil
@@ -174,11 +208,11 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 				if appErr != nil {
 					var appErr2 *model.AppError
 					u, appErr2 = p.API.CreateUser(&model.User{
-						Username:  slug.Make(member.DisplayName) + ":msteams:" + member.UserID,
+						Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
 						FirstName: member.DisplayName,
-						RemoteId:  &member.UserID,
-						Email:     member.UserID + "@msteamssync-plugin",
-						Password:  model.NewId(),
+						// RemoteId:  &member.UserID,
+						Email:    member.UserID + "@msteamssync-plugin",
+						Password: model.NewId(),
 					})
 					if appErr2 != nil {
 						return appErr2
@@ -240,7 +274,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
-	data, _ := p.store.TeamsToMattermostPostId(msg.ID)
+	data, _ := p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ID)
 	if data != "" {
 		p.API.LogDebug("duplicated post")
 		return nil
@@ -257,7 +291,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.store.LinkPosts(newPost.Id, msg.ID)
+		p.store.LinkPosts(newPost.Id, msg.ChatID+msg.ChannelID, msg.ID)
 	}
 	return nil
 }
@@ -349,11 +383,14 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message, senderI
 	rootID := ""
 
 	if msg.ReplyToID != "" {
-		rootID, _ = p.store.TeamsToMattermostPostId(msg.ReplyToID)
+		rootID, _ = p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ReplyToID)
 	}
 
-	newText, attachments := p.handleAttachments(channel.Id, text, msg)
+	newText, attachments, parentID := p.handleAttachments(channel.Id, text, msg)
 	text = newText
+	if parentID != "" {
+		rootID = parentID
+	}
 
 	if len(rootID) == 0 && msg.Subject != "" {
 		text = "## " + msg.Subject + "\n" + text

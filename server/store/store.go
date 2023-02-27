@@ -20,9 +20,9 @@ type Store interface {
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*links.ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
 	StoreChannelLink(link *links.ChannelLink) error
-	TeamsToMattermostPostId(postID string) (string, error)
+	TeamsToMattermostPostId(chatID string, postID string) (string, error)
 	MattermostToTeamsPostId(postID string) (string, error)
-	LinkPosts(mattermostPostID, teamsPostID string) error
+	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForTeamsUser(userID string) (*oauth2.Token, error)
 	SetTokenForMattermostUser(userID string, token *oauth2.Token) error
@@ -142,8 +142,8 @@ func (s *StoreImpl) MattermostToTeamsUserId(userID string) (string, error) {
 	return string(data), nil
 }
 
-func (s *StoreImpl) TeamsToMattermostPostId(postID string) (string, error) {
-	data, err := s.api.KVGet(teamsMattermostPostKey(postID))
+func (s *StoreImpl) TeamsToMattermostPostId(chatID string, postID string) (string, error) {
+	data, err := s.api.KVGet(teamsMattermostPostKey(chatID, postID))
 	if err != nil {
 		return "", err
 	}
@@ -158,12 +158,12 @@ func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
 	return string(data), nil
 }
 
-func (s *StoreImpl) LinkPosts(mattermostPostID, teamsPostID string) error {
+func (s *StoreImpl) LinkPosts(mattermostPostID, teamsChatOrChannelID, teamsPostID string) error {
 	err := s.api.KVSet(mattermostTeamsPostKey(mattermostPostID), []byte(teamsPostID))
 	if err != nil {
 		return err
 	}
-	err = s.api.KVSet(teamsMattermostPostKey(teamsPostID), []byte(mattermostPostID))
+	err = s.api.KVSet(teamsMattermostPostKey(teamsChatOrChannelID, teamsPostID), []byte(mattermostPostID))
 	if err != nil {
 		_ = s.api.KVDelete(mattermostTeamsPostKey(mattermostPostID))
 		return err

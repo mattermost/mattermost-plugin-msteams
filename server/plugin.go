@@ -278,7 +278,7 @@ func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, er
 	if token == nil {
 		return "", errors.New("not connected user")
 	}
-	client := msteams.NewTokenClient(token)
+	client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 
 	chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
 	if err != nil {
@@ -315,7 +315,7 @@ func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, er
 	}
 
 	if post.Id != "" && newMessageId != "" {
-		p.store.LinkPosts(post.Id, newMessageId)
+		p.store.LinkPosts(post.Id, chatID, newMessageId)
 	}
 	return newMessageId, nil
 }
@@ -332,7 +332,7 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 	token, _ := p.store.GetTokenForMattermostUser(user.Id)
 	text := post.Message
 	if token != nil {
-		client = msteams.NewTokenClient(token)
+		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 	} else {
 		text = user.Username + ":\n\n" + post.Message
 	}
@@ -365,7 +365,7 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 	}
 
 	if post.Id != "" && newMessageId != "" {
-		p.store.LinkPosts(post.Id, newMessageId)
+		p.store.LinkPosts(post.Id, link.MSTeamsChannel, newMessageId)
 	}
 	return newMessageId, nil
 }
