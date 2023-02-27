@@ -144,7 +144,7 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 		context.Background(),
 		tenantId,
 		clientId,
-		teamsDefaultScopes,
+		append(teamsDefaultScopes, "offline_access"),
 		func(dc *msauth.DeviceCode) error {
 			message <- dc.Message
 			return nil
