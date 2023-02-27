@@ -140,7 +140,7 @@ func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *
 
 func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.TokenSource, error) {
 	m := msauth.NewManager()
-	return m.DeviceAuthorizationGrant(
+	ts, err := m.DeviceAuthorizationGrant(
 		context.Background(),
 		tenantId,
 		clientId,
@@ -150,6 +150,15 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 			return nil
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+	t, err := ts.Token()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("TOKEN INFO", t)
+	return ts, nil
 }
 
 func (tc *ClientImpl) Connect() error {
@@ -258,24 +267,10 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) SendChatWithAttachments(chatID, parentID, message string, attachments []*Attachment) (string, error) {
+func (tc *ClientImpl) SendChat(chatID, parentID, message string) (string, error) {
 	rmsg := &msgraph.ChatMessage{}
 	md := markdown.New(markdown.XHTMLOutput(true))
 	content := md.RenderToString([]byte(message))
-
-	for _, attachment := range attachments {
-		att := attachment
-		contentType := "reference"
-		rmsg.Attachments = append(rmsg.Attachments,
-			msgraph.ChatMessageAttachment{
-				ID:          &att.ID,
-				ContentType: &contentType,
-				ContentURL:  &att.ContentURL,
-				Name:        &att.Name,
-			},
-		)
-		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
-	}
 
 	contentType := msgraph.BodyTypeVHTML
 	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
@@ -355,6 +350,14 @@ func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) e
 	return nil
 }
 
+func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
+	ct := tc.client.Chats().ID(chatID).Messages().ID(msgID).Request()
+	if err := ct.Delete(tc.ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
 	content := md.RenderToString([]byte(message))
@@ -372,6 +375,20 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 		if err := ct.Update(tc.ctx, rmsg); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	content := md.RenderToString([]byte(message))
+	contentType := msgraph.BodyTypeVHTML
+	body := &msgraph.ItemBody{ContentType: &contentType, Content: &content}
+	rmsg := &msgraph.ChatMessage{Body: body}
+
+	ct := tc.client.Chats().ID(chatID).Messages().ID(msgID).Request()
+	if err := ct.Update(tc.ctx, rmsg); err != nil {
+		return err
 	}
 	return nil
 }

@@ -197,7 +197,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	var channel *model.Channel
+	var channelID string
 	senderID := p.userID
 	if chat != nil {
 		userIDs := []string{}
@@ -231,41 +231,37 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 			return errors.New("not enough user for creating a channel")
 		}
 
-		var appErr *model.AppError
 		if chat.Type == "D" {
 			p.API.LogError("CREATING CHANNEL WITH USER IDS", "user1", userIDs[0], "user2", userIDs[1])
-			channel, appErr = p.API.GetDirectChannel(userIDs[0], userIDs[1])
+			channel, appErr := p.API.GetDirectChannel(userIDs[0], userIDs[1])
 			if appErr != nil {
 				return appErr
 			}
+			channelID = channel.Id
 		} else if chat.Type == "G" {
-			channel, appErr = p.API.GetGroupChannel(userIDs)
+			channel, appErr := p.API.GetGroupChannel(userIDs)
 			if appErr != nil {
 				return appErr
 			}
+			channelID = channel.Id
 		} else {
 			return nil
 		}
 	} else {
 		channelLink, _ := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
-			var appErr *model.AppError
-			channel, appErr = p.API.GetChannel(channelLink.MattermostChannel)
-			if appErr != nil {
-				p.API.LogError("Unable to get the channel", "error", appErr)
-				return appErr
-			}
+			channelID = channelLink.MattermostChannel
 		}
 	}
 
-	if channel == nil {
+	if channelID == "" {
 		p.API.LogDebug("Channel not set")
 		return nil
 	}
 
-	p.API.LogDebug("Channel Obtained", "channel", channel)
+	p.API.LogDebug("Channel Obtained", "channelID", channelID)
 
-	post, err := p.msgToPost(channel, msg, senderID)
+	post, err := p.msgToPost(channelID, msg, senderID)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
 		return err
@@ -303,7 +299,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	}
 
 	// activityIds := msteams.GetActivityIds(activity)
-	msg, _, err := p.getMessageAndChatFromActivity(activity)
+	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
 	}
@@ -318,66 +314,71 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	// channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
-	// if channelLink == nil {
-	// 	p.API.LogError("Unable to find the subscription")
-	// 	return errors.New("Unable to find the subscription")
-	// }
+	postID, _ := p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ID)
+	if len(postID) == 0 {
+		return nil
+	}
 
-	// post, err := p.msgToPost(channelLink, msg)
-	// if err != nil {
-	// 	p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
-	// 	return err
-	// }
+	channelID := ""
+	if chat == nil {
+		channelLink, err := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
+		if err != nil || channelLink == nil {
+			p.API.LogError("Unable to find the subscription")
+			return errors.New("Unable to find the subscription")
+		}
+		channelID = channelLink.MattermostChannel
+	} else {
+		p, err := p.API.GetPost(postID)
+		if err != nil {
+			return errors.New("Unable to find the original post")
+		}
+		channelID = p.ChannelId
+	}
 
-	// postID, _ := p.store.TeamsToMattermostPostId(msg.ID)
-	// if len(postID) == 0 {
-	// 	return nil
-	// }
-	// post.Id = postID
+	senderID, err := p.store.TeamsToMattermostUserId(msg.UserID)
+	if err != nil || senderID == "" {
+		senderID = p.userID
+	}
 
-	// _, appErr := p.API.UpdatePost(post)
-	// if appErr != nil {
-	// 	p.API.LogError("Unable to update post", "post", post, "error", appErr)
-	// 	return appErr
-	// }
+	post, err := p.msgToPost(channelID, msg, senderID)
+	if err != nil {
+		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+		return err
+	}
+
+	post.Id = postID
+
+	_, appErr := p.API.UpdatePost(post)
+	if appErr != nil {
+		p.API.LogError("Unable to update post", "post", post, "error", appErr)
+		return appErr
+	}
 	return nil
 }
 
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
-	// activityIds := msteams.GetActivityIds(activity)
 	if activity.ClientState != p.configuration.WebhookSecret {
 		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
 
-	// channelLink := p.links.GetLinkBySubscriptionID(activity.SubscriptionId)
-	// if channelLink == nil {
-	// 	p.API.LogError("Unable to find the subscription")
-	// 	return errors.New("Unable to find the subscription")
-	// }
+	activityIds := msteams.GetActivityIds(activity)
 
-	// msgID := activityIds.ReplyID
-	// if msgID == "" {
-	// 	msgID = activityIds.MessageID
-	// }
+	postID, _ := p.store.TeamsToMattermostPostId(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
+	if len(postID) == 0 {
+		return nil
+	}
 
-	// data, _ := p.store.TeamsToMattermostPostId(msgID)
-	// if len(data) == 0 {
-	// 	p.API.LogError("Unable to find original post", "msgID", msgID)
-	// 	return nil
-	// }
-
-	// appErr := p.API.DeletePost(string(data))
-	// if appErr != nil {
-	// 	p.API.LogError("Unable to to delete post", "msgID", string(data), "error", appErr)
-	// 	return appErr
-	// }
+	appErr := p.API.DeletePost(postID)
+	if appErr != nil {
+		p.API.LogError("Unable to to delete post", "msgID", postID, "error", appErr)
+		return appErr
+	}
 
 	return nil
 }
 
-func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message, senderID string) (*model.Post, error) {
+func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := convertToMD(msg.Text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -386,7 +387,7 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message, senderI
 		rootID, _ = p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ReplyToID)
 	}
 
-	newText, attachments, parentID := p.handleAttachments(channel.Id, text, msg)
+	newText, attachments, parentID := p.handleAttachments(channelID, text, msg)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -396,7 +397,7 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message, senderI
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channel.Id, Message: text, Props: props, RootId: rootID, FileIds: attachments}
+	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, FileIds: attachments}
 	post.AddProp("msteams_sync_"+p.userID, true)
 
 	if senderID == p.userID {

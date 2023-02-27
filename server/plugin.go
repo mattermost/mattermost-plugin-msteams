@@ -222,14 +222,40 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 	}
 
-	link, err := p.store.GetLinkByChannelID(newPost.ChannelId)
-	if err != nil || link == nil {
+	token, _ := p.store.GetTokenForMattermostUser(newPost.UserId)
+	if token == nil {
 		return
 	}
+	client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 
 	user, _ := p.API.GetUser(newPost.UserId)
 
-	p.Update(link, user, newPost, oldPost)
+	link, err := p.store.GetLinkByChannelID(newPost.ChannelId)
+	if err != nil || link == nil {
+		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, 2)
+		if appErr != nil {
+			return
+		}
+		if len(members) != 2 {
+			return
+		}
+		dstUserID, err := p.store.MattermostToTeamsUserId(members[0].UserId)
+		if err != nil {
+			return
+		}
+		srcUserID, err := p.store.MattermostToTeamsUserId(members[1].UserId)
+		if err != nil {
+			return
+		}
+		chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
+		if err != nil {
+			return
+		}
+		p.UpdateChat(chatID, user, newPost, oldPost)
+		return
+	}
+
+	p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
 }
 
 func (p *Plugin) OnDeactivate() error {
@@ -286,29 +312,7 @@ func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, er
 		return "", err
 	}
 
-	var attachments []*msteams.Attachment
-	// TODO: Fix attachments here later
-	// for _, fileId := range post.FileIds {
-	// 	fileInfo, appErr := p.API.GetFileInfo(fileId)
-	// 	if appErr != nil {
-	// 		p.API.LogWarn("Unable to get file attachment", "error", appErr)
-	// 		continue
-	// 	}
-	// 	fileData, appErr := p.API.GetFile(fileInfo.Id)
-	// 	if appErr != nil {
-	// 		p.API.LogWarn("error get file attachment from mattermost", "error", appErr)
-	// 		continue
-	// 	}
-
-	// 	attachment, err := client.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
-	// 	if err != nil {
-	// 		p.API.LogWarn("error uploading attachment", "error", err)
-	// 		continue
-	// 	}
-	// 	attachments = append(attachments, attachment)
-	// }
-
-	newMessageId, err := client.SendChatWithAttachments(chatID, parentID, text, attachments)
+	newMessageId, err := client.SendChat(chatID, parentID, text)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
@@ -378,9 +382,15 @@ func (p *Plugin) Delete(link links.ChannelLink, user *model.User, post *model.Po
 		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
+	client := p.msteamsBotClient
+	token, _ := p.store.GetTokenForMattermostUser(user.Id)
+	if token != nil {
+		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	}
+
 	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
 
-	err := p.msteamsBotClient.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID)
+	err := client.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID)
 	if err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
@@ -388,19 +398,70 @@ func (p *Plugin) Delete(link links.ChannelLink, user *model.User, post *model.Po
 	return nil
 }
 
-func (p *Plugin) Update(link *links.ChannelLink, user *model.User, newPost, oldPost *model.Post) error {
-	p.API.LogDebug("Sending message to MS Teams", "link", link, "oldPost", oldPost, "newPost", newPost)
+func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
+	p.API.LogDebug("Sending message to MS Teams", "chatID", chatID, "post", post)
+
+	client := p.msteamsBotClient
+	token, _ := p.store.GetTokenForMattermostUser(user.Id)
+	if token != nil {
+		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	}
+
+	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
+
+	err := client.DeleteChatMessage(chatID, msgID)
+	if err != nil {
+		p.API.LogError("Error deleting post", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post) error {
+	p.API.LogDebug("Sending message to MS Teams", "teamID", teamID, "channelID", channelID, "oldPost", oldPost, "newPost", newPost)
 
 	parentID := ""
 	if oldPost.RootId != "" {
 		parentID, _ = p.store.MattermostToTeamsPostId(newPost.RootId)
 	}
 
+	text := newPost.Message
+
+	client := p.msteamsBotClient
+	token, _ := p.store.GetTokenForMattermostUser(user.Id)
+	if token != nil {
+		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	} else {
+		text = user.Username + ":\n\n " + newPost.Message
+	}
+
 	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
 
-	text := user.Username + ":\n\n " + newPost.Message
+	err := client.UpdateMessage(teamID, channelID, parentID, msgID, text)
+	if err != nil {
+		p.API.LogWarn("Error updating the post", "error", err)
+		return err
+	}
 
-	err := p.msteamsBotClient.UpdateMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID, text)
+	return nil
+}
+
+func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post) error {
+	p.API.LogDebug("Sending message to MS Teams", "chatID", chatID, "oldPost", oldPost, "newPost", newPost)
+
+	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
+
+	text := newPost.Message
+
+	client := p.msteamsBotClient
+	token, _ := p.store.GetTokenForMattermostUser(user.Id)
+	if token != nil {
+		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	} else {
+		text = user.Username + ":\n\n " + newPost.Message
+	}
+
+	err := client.UpdateChatMessage(chatID, msgID, text)
 	if err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err

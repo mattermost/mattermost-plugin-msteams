@@ -10,10 +10,12 @@ type Client interface {
 	CreateOrGetChatForUsers(dstUserID, srcUserID string) (string, error)
 	SendMessage(teamID, channelID, parentID, message string) (string, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error)
-	SendChatWithAttachments(chatID, parentID, message string, attachments []*Attachment) (string, error)
+	SendChat(chatID, parentID, message string) (string, error)
 	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error)
 	UpdateMessage(teamID, channelID, parentID, msgID, message string) error
+	UpdateChatMessage(chatID, msgID, message string) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
+	DeleteChatMessage(chatID, msgID string) error
 	SubscribeToChannel(teamID, channelID, notificationURL, webhookSecret string) (string, error)
 	Subscribe(notificationURL, webhookSecret string) (string, error)
 	SubscribeToChats(notificationURL, webhookSecret string) (string, error)
