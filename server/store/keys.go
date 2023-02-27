@@ -20,6 +20,14 @@ func teamsMattermostPostKey(postID string) string {
 	return "teams_mattermost_" + postID
 }
 
+func teamsMattermostUserKey(userID string) string {
+	return "teams_mattermost_user_" + userID
+}
+
+func mattermostTeamsUserKey(userID string) string {
+	return "mattermost_teams_user_" + userID
+}
+
 func teamsMattermostChatKey(chatID string) string {
 	return "teams_mattermost_chat_" + chatID
 }

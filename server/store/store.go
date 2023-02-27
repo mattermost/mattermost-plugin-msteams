@@ -27,6 +27,10 @@ type Store interface {
 	GetTokenForTeamsUser(userID string) (*oauth2.Token, error)
 	SetTokenForMattermostUser(userID string, token *oauth2.Token) error
 	SetTokenForTeamsUser(userID string, token *oauth2.Token) error
+	SetTeamsToMattermostUserId(teamsUserID, mattermostUserId string) error
+	SetMattermostToTeamsUserId(mattermostUserId, teamsUserId string) error
+	TeamsToMattermostUserId(userID string) (string, error)
+	MattermostToTeamsUserId(userID string) (string, error)
 }
 
 type StoreImpl struct {
@@ -122,8 +126,24 @@ func (s *StoreImpl) StoreChannelLink(link *links.ChannelLink) error {
 	return nil
 }
 
+func (s *StoreImpl) TeamsToMattermostUserId(userID string) (string, error) {
+	data, err := s.api.KVGet(teamsMattermostUserKey(userID))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (s *StoreImpl) MattermostToTeamsUserId(userID string) (string, error) {
+	data, err := s.api.KVGet(mattermostTeamsUserKey(userID))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func (s *StoreImpl) TeamsToMattermostPostId(postID string) (string, error) {
-	data, err := s.api.KVGet(mattermostTeamsPostKey(postID))
+	data, err := s.api.KVGet(teamsMattermostPostKey(postID))
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +151,7 @@ func (s *StoreImpl) TeamsToMattermostPostId(postID string) (string, error) {
 }
 
 func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
-	data, err := s.api.KVGet(teamsMattermostPostKey(postID))
+	data, err := s.api.KVGet(mattermostTeamsPostKey(postID))
 	if err != nil {
 		return "", err
 	}
@@ -195,6 +215,22 @@ func (s *StoreImpl) SetTokenForTeamsUser(userID string, token *oauth2.Token) err
 		return err
 	}
 	appErr := s.api.KVSet(tokenForTeamsUserKey(userID), tokendata)
+	if appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
+func (s *StoreImpl) SetTeamsToMattermostUserId(teamsUserID, mattermostUserId string) error {
+	appErr := s.api.KVSet(teamsMattermostUserKey(teamsUserID), []byte(mattermostUserId))
+	if appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
+func (s *StoreImpl) SetMattermostToTeamsUserId(mattermostUserId, teamsUserID string) error {
+	appErr := s.api.KVSet(mattermostTeamsUserKey(mattermostUserId), []byte(teamsUserID))
 	if appErr != nil {
 		return appErr
 	}

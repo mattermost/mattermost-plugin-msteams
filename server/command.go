@@ -229,6 +229,16 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
 		}
+		err = p.store.SetTeamsToMattermostUserId(msteamsUserID, userID)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
+		err = p.store.SetMattermostToTeamsUserId(userID, msteamsUserID)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			return
+		}
 
 		messageChan <- fmt.Sprintf("Your accoutn has been connected")
 		return

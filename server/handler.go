@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
@@ -163,24 +164,34 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	}
 
 	var channel *model.Channel
+	senderID := p.userID
 	if chat != nil {
 		userIDs := []string{}
 		for _, member := range chat.Members {
-			u, appErr := p.API.GetUserByEmail(member.Email)
-			if appErr != nil {
-				// TODO: Check if the error is a doesn't exists
-				var appErr2 *model.AppError
-				u, appErr2 = p.API.CreateUser(&model.User{
-					Username:  model.NewId(),
-					FirstName: member.DisplayName,
-					Email:     member.Email,
-					Password:  model.NewId(),
-				})
-				if appErr2 != nil {
-					return appErr2
+			mmUserID, err := p.store.TeamsToMattermostUserId(member.UserID)
+			if err != nil || mmUserID == "" {
+				u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
+				if appErr != nil {
+					var appErr2 *model.AppError
+					u, appErr2 = p.API.CreateUser(&model.User{
+						Username:  slug.Make(member.DisplayName) + ":msteams:" + member.UserID,
+						FirstName: member.DisplayName,
+						RemoteId:  &member.UserID,
+						Email:     member.UserID + "@msteamssync-plugin",
+						Password:  model.NewId(),
+					})
+					if appErr2 != nil {
+						return appErr2
+					}
 				}
+				p.store.SetTeamsToMattermostUserId(member.UserID, u.Id)
+				p.store.SetMattermostToTeamsUserId(u.Id, member.UserID)
+				mmUserID = u.Id
 			}
-			userIDs = append(userIDs, u.Id)
+			if msg.UserID == member.UserID {
+				senderID = mmUserID
+			}
+			userIDs = append(userIDs, mmUserID)
 		}
 		if len(userIDs) < 2 {
 			return errors.New("not enough user for creating a channel")
@@ -188,6 +199,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 
 		var appErr *model.AppError
 		if chat.Type == "D" {
+			p.API.LogError("CREATING CHANNEL WITH USER IDS", "user1", userIDs[0], "user2", userIDs[1])
 			channel, appErr = p.API.GetDirectChannel(userIDs[0], userIDs[1])
 			if appErr != nil {
 				return appErr
@@ -217,11 +229,15 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	post, err := p.msgToPost(channel, msg)
+	p.API.LogDebug("Channel Obtained", "channel", channel)
+
+	post, err := p.msgToPost(channel, msg, senderID)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
 		return err
 	}
+
+	p.API.LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
 	data, _ := p.store.TeamsToMattermostPostId(msg.ID)
@@ -230,11 +246,15 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
+	p.API.LogDebug("Post not duplicated")
+
 	newPost, appErr := p.API.CreatePost(post)
 	if appErr != nil {
 		p.API.LogError("Unable to create post", "post", post, "error", appErr)
 		return appErr
 	}
+
+	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		p.store.LinkPosts(newPost.Id, msg.ID)
@@ -323,7 +343,7 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	return nil
 }
 
-func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model.Post, error) {
+func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := convertToMD(msg.Text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -339,11 +359,14 @@ func (p *Plugin) msgToPost(channel *model.Channel, msg *msteams.Message) (*model
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: p.userID, ChannelId: channel.Id, Message: text, Props: props, RootId: rootID, FileIds: attachments}
+	post := &model.Post{UserId: senderID, ChannelId: channel.Id, Message: text, Props: props, RootId: rootID, FileIds: attachments}
 	post.AddProp("msteams_sync_"+p.userID, true)
-	post.AddProp("override_username", msg.UserDisplayName)
-	post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
-	post.AddProp("from_webhook", "true")
+
+	if senderID == p.userID {
+		post.AddProp("override_username", msg.UserDisplayName)
+		post.AddProp("override_icon_url", p.getURL()+"/avatar/"+msg.UserID)
+		post.AddProp("from_webhook", "true")
+	}
 	return post, nil
 }
 

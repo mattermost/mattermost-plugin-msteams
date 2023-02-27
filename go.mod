@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/mux v1.8.0
+	github.com/gosimple/slug v1.13.1
 	github.com/mattermost/mattermost-plugin-api v0.1.1
 	github.com/mattermost/mattermost-server/v6 v6.0.0-20221012175353-8cb6718a9bcc
 	github.com/mattn/godown v0.0.1

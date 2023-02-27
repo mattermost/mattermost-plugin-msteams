@@ -249,6 +249,37 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return *res.ID, nil
 }
 
+func (tc *ClientImpl) SendChatWithAttachments(chatID, parentID, message string, attachments []*Attachment) (string, error) {
+	rmsg := &msgraph.ChatMessage{}
+	md := markdown.New(markdown.XHTMLOutput(true))
+	content := md.RenderToString([]byte(message))
+
+	for _, attachment := range attachments {
+		att := attachment
+		contentType := "reference"
+		rmsg.Attachments = append(rmsg.Attachments,
+			msgraph.ChatMessageAttachment{
+				ID:          &att.ID,
+				ContentType: &contentType,
+				ContentURL:  &att.ContentURL,
+				Name:        &att.Name,
+			},
+		)
+		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
+	}
+
+	contentType := msgraph.BodyTypeVHTML
+	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
+
+	var res *msgraph.ChatMessage
+	ct := tc.client.Chats().ID(chatID).Messages().Request()
+	res, err := ct.Add(tc.ctx, rmsg)
+	if err != nil {
+		return "", err
+	}
+	return *res.ID, nil
+}
+
 func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
 	fct := tc.client.Teams().ID(teamID).Channels().ID(channelID).FilesFolder().Request()
 	folderInfo, err := fct.Get(tc.ctx)
@@ -488,9 +519,9 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 
 	members := []ChatMember{}
 	for _, member := range res.Members {
-		displayName, ok := member.AdditionalData["displayName"]
-		if !ok {
-			displayName = ""
+		displayName := ""
+		if member.DisplayName != nil {
+			displayName = *member.DisplayName
 		}
 		userId, ok := member.AdditionalData["userId"]
 		if !ok {
@@ -502,12 +533,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 		}
 
 		members = append(members, ChatMember{
-			DisplayName: displayName.(string),
-			UserID:      userId.(string),
-			Email:       email.(string),
-		})
-		fmt.Println("CHAT MEMBER", ChatMember{
-			DisplayName: displayName.(string),
+			DisplayName: displayName,
 			UserID:      userId.(string),
 			Email:       email.(string),
 		})
@@ -697,4 +723,59 @@ func GetActivityIds(activity Activity) ActivityIds {
 
 func (tc *ClientImpl) BotID() string {
 	return tc.botID
+}
+
+func (tc *ClientImpl) CreateOrGetChatForUsers(dstUserID, srcUserID string) (string, error) {
+	ct := tc.client.Chats().Request()
+	// TODO: add the filter to make this more performant)
+	// ct.Filter()
+	ct.Expand("members")
+	res, err := ct.Get(tc.ctx)
+	for _, c := range res {
+		if len(c.Members) == 2 {
+			if c.Members[0].AdditionalData["userId"] == srcUserID || c.Members[1].AdditionalData["userId"] == dstUserID {
+				return *c.ID, nil
+			}
+			if c.Members[1].AdditionalData["userId"] == srcUserID || c.Members[0].AdditionalData["userId"] == dstUserID {
+				return *c.ID, nil
+			}
+		}
+	}
+
+	ctn := tc.client.Chats().Request()
+	resn, err := ctn.Add(tc.ctx, &msgraph.Chat{
+		Entity: msgraph.Entity{
+			Object: msgraph.Object{
+				AdditionalData: map[string]interface{}{"chatType": "oneOnOne"},
+			},
+		},
+		Members: []msgraph.ConversationMember{
+			{
+				Entity: msgraph.Entity{
+					Object: msgraph.Object{
+						AdditionalData: map[string]interface{}{
+							"@odata.type":     "#microsoft.graph.aadUserConversationMember",
+							"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + dstUserID + "')",
+						},
+					},
+				},
+				Roles: []string{"owner"},
+			},
+			{
+				Entity: msgraph.Entity{
+					Object: msgraph.Object{
+						AdditionalData: map[string]interface{}{
+							"@odata.type":     "#microsoft.graph.aadUserConversationMember",
+							"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + srcUserID + "')",
+						},
+					},
+				},
+				Roles: []string{"owner"},
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	return *resn.ID, nil
 }

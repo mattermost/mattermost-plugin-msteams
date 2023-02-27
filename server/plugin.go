@@ -14,6 +14,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -185,6 +186,27 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
+		channel, err := p.API.GetChannel(post.ChannelId)
+		if err != nil {
+			return
+		}
+		if channel.Type == model.ChannelTypeDirect {
+			members, err := p.API.GetChannelMembers(post.ChannelId, 0, 2)
+			if err != nil {
+				return
+			}
+			var dstUser string
+			for _, m := range members {
+				if m.UserId != post.UserId {
+					dstUser = m.UserId
+				}
+			}
+			p.SendChat(dstUser, post.UserId, post)
+		}
+		if channel.Type == model.ChannelTypeGroup {
+			// TODO: Add support for group messages
+			panic("Fix this for group messages")
+		}
 		return
 	}
 
@@ -231,6 +253,71 @@ func (p *Plugin) checkEnabledTeamByTeamId(teamId string) bool {
 		}
 	}
 	return isTeamEnabled
+}
+
+func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, error) {
+	p.API.LogDebug("Sending direct message to MS Teams", "srcUser", srcUser, "dstUser", dstUser, "post", post)
+
+	parentID := ""
+	if post.RootId != "" {
+		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+	}
+
+	dstUserID, err := p.store.MattermostToTeamsUserId(dstUser)
+	if err != nil {
+		return "", err
+	}
+	srcUserID, err := p.store.MattermostToTeamsUserId(dstUser)
+	if err != nil {
+		return "", err
+	}
+
+	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "dstUserID", dstUserID, "post", post)
+	token, _ := p.store.GetTokenForMattermostUser(srcUser)
+	text := post.Message
+	if token == nil {
+		return "", errors.New("not connected user")
+	}
+	client := msteams.NewTokenClient(token)
+
+	chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
+	if err != nil {
+		p.API.LogError("FAILING TO CREATE OR GET THE CHAT", "error", err)
+		return "", err
+	}
+
+	var attachments []*msteams.Attachment
+	// TODO: Fix attachments here later
+	// for _, fileId := range post.FileIds {
+	// 	fileInfo, appErr := p.API.GetFileInfo(fileId)
+	// 	if appErr != nil {
+	// 		p.API.LogWarn("Unable to get file attachment", "error", appErr)
+	// 		continue
+	// 	}
+	// 	fileData, appErr := p.API.GetFile(fileInfo.Id)
+	// 	if appErr != nil {
+	// 		p.API.LogWarn("error get file attachment from mattermost", "error", appErr)
+	// 		continue
+	// 	}
+
+	// 	attachment, err := client.UploadFile(link.MSTeamsTeam, link.MSTeamsChannel, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+	// 	if err != nil {
+	// 		p.API.LogWarn("error uploading attachment", "error", err)
+	// 		continue
+	// 	}
+	// 	attachments = append(attachments, attachment)
+	// }
+
+	newMessageId, err := client.SendChatWithAttachments(chatID, parentID, text, attachments)
+	if err != nil {
+		p.API.LogWarn("Error creating post", "error", err)
+		return "", err
+	}
+
+	if post.Id != "" && newMessageId != "" {
+		p.store.LinkPosts(post.Id, newMessageId)
+	}
+	return newMessageId, nil
 }
 
 func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Post) (string, error) {
