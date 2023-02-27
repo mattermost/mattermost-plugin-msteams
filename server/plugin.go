@@ -177,6 +177,36 @@ func (p *Plugin) OnActivate() error {
 	return nil
 }
 
+func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
+	if len(post.FileIds) > 0 {
+		channel, err := p.API.GetChannel(post.ChannelId)
+		if err != nil {
+			return post, ""
+		}
+		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+			members, err := p.API.GetChannelMembers(channel.Id, 0, 10)
+			if err != nil {
+				return post, ""
+			}
+			for _, member := range members {
+				user, err := p.API.GetUser(member.UserId)
+				if err != nil {
+					return post, ""
+				}
+				if strings.HasSuffix(user.Email, "@msteamssync-plugin") {
+					p.API.SendEphemeralPost(post.UserId, &model.Post{
+						Message:   "Attachments not supported in direct messages with MSTeams members",
+						UserId:    p.botID,
+						ChannelId: channel.Id,
+					})
+					return nil, "Attachments not supported in direct messages with MSTeams members"
+				}
+			}
+		}
+	}
+	return post, ""
+}
+
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
