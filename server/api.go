@@ -69,25 +69,10 @@ func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
 	errors := ""
 	for _, activity := range activities.Value {
 		a.p.API.LogDebug("=== Recived activity ====", "activity", activity)
-		switch activity.ChangeType {
-		case "created":
-			err := a.p.handleCreatedActivity(activity)
-			if err != nil {
-				a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
-				errors = errors + err.Error() + "\n"
-			}
-		case "updated":
-			err := a.p.handleUpdatedActivity(activity)
-			if err != nil {
-				a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
-				errors = errors + err.Error() + "\n"
-			}
-		case "deleted":
-			err := a.p.handleDeletedActivity(activity)
-			if err != nil {
-				a.p.API.LogError("Unable to process deleted activity", "activity", activity, "error", err)
-				errors = errors + err.Error() + "\n"
-			}
+		err := a.p.handleActivity(activity)
+		if err != nil {
+			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
+			errors = errors + err.Error() + "\n"
 		}
 	}
 	if errors != "" {

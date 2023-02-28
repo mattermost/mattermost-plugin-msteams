@@ -17,6 +17,32 @@ import (
 
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 
+func (p *Plugin) handleActivity(activity msteams.Activity) error {
+	if activity.ClientState != p.configuration.WebhookSecret {
+		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
+		return errors.New("Invalid webhook secret")
+	}
+
+	switch activity.ChangeType {
+	case "created":
+		err := p.handleCreatedActivity(activity)
+		if err != nil {
+			return err
+		}
+	case "updated":
+		err := p.handleUpdatedActivity(activity)
+		if err != nil {
+			return err
+		}
+	case "deleted":
+		err := p.handleDeletedActivity(activity)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // handleDownloadFile handles file download
 func (p *Plugin) handleDownloadFile(filename, weburl string) ([]byte, error) {
 	realURL, err := p.msteamsBotClient.GetFileURL(weburl)
@@ -167,11 +193,6 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 }
 
 func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
-	if activity.ClientState != p.configuration.WebhookSecret {
-		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
-		return errors.New("Invalid webhook secret")
-	}
-
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
@@ -181,10 +202,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
 		return nil
 	}
-	p.API.LogDebug("MESSAGE SENT", "msg", msg)
 
-	msgdata, _ := json.Marshal(msg)
-	p.API.LogDebug("MESSAGE SENT", "msg", msg, "msgjson", string(msgdata))
 	if msg.UserID == "" {
 		p.API.LogDebug("Skipping not user event", "msg", msg)
 		return nil
@@ -196,54 +214,15 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	}
 
 	var channelID string
-	senderID := p.userID
+	senderID, err := p.store.TeamsToMattermostUserId(msg.UserID)
+	if err != nil || senderID == "" {
+		senderID = p.userID
+	}
 	if chat != nil {
-		userIDs := []string{}
-		for _, member := range chat.Members {
-			mmUserID, err := p.store.TeamsToMattermostUserId(member.UserID)
-			if err != nil || mmUserID == "" {
-				u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
-				if appErr != nil {
-					var appErr2 *model.AppError
-					u, appErr2 = p.API.CreateUser(&model.User{
-						Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
-						FirstName: member.DisplayName,
-						// RemoteId:  &member.UserID,
-						Email:    member.UserID + "@msteamssync-plugin",
-						Password: model.NewId(),
-					})
-					if appErr2 != nil {
-						return appErr2
-					}
-				}
-				p.store.SetTeamsToMattermostUserId(member.UserID, u.Id)
-				p.store.SetMattermostToTeamsUserId(u.Id, member.UserID)
-				mmUserID = u.Id
-			}
-			if msg.UserID == member.UserID {
-				senderID = mmUserID
-			}
-			userIDs = append(userIDs, mmUserID)
-		}
-		if len(userIDs) < 2 {
-			return errors.New("not enough user for creating a channel")
-		}
-
-		if chat.Type == "D" {
-			p.API.LogError("CREATING CHANNEL WITH USER IDS", "user1", userIDs[0], "user2", userIDs[1])
-			channel, appErr := p.API.GetDirectChannel(userIDs[0], userIDs[1])
-			if appErr != nil {
-				return appErr
-			}
-			channelID = channel.Id
-		} else if chat.Type == "G" {
-			channel, appErr := p.API.GetGroupChannel(userIDs)
-			if appErr != nil {
-				return appErr
-			}
-			channelID = channel.Id
-		} else {
-			return nil
+		var err error
+		channelID, err = p.getChatChannelId(chat, msg.UserID)
+		if err != nil {
+			return err
 		}
 	} else {
 		channelLink, _ := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
@@ -256,8 +235,6 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		p.API.LogDebug("Channel not set")
 		return nil
 	}
-
-	p.API.LogDebug("Channel Obtained", "channelID", channelID)
 
 	post, err := p.msgToPost(channelID, msg, senderID)
 	if err != nil {
@@ -274,8 +251,6 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	p.API.LogDebug("Post not duplicated")
-
 	newPost, appErr := p.API.CreatePost(post)
 	if appErr != nil {
 		p.API.LogError("Unable to create post", "post", post, "error", appErr)
@@ -291,12 +266,6 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 }
 
 func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
-	if activity.ClientState != p.configuration.WebhookSecret {
-		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
-		return errors.New("Invalid webhook secret")
-	}
-
-	// activityIds := msteams.GetActivityIds(activity)
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
@@ -355,11 +324,6 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 }
 
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
-	if activity.ClientState != p.configuration.WebhookSecret {
-		p.API.LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
-		return errors.New("Invalid webhook secret")
-	}
-
 	activityIds := msteams.GetActivityIds(activity)
 
 	postID, _ := p.store.TeamsToMattermostPostId(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
@@ -416,4 +380,50 @@ func convertToMD(text string) string {
 		return text
 	}
 	return sb.String()
+}
+
+func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (string, error) {
+	userIDs := []string{}
+	for _, member := range chat.Members {
+		mmUserID, err := p.store.TeamsToMattermostUserId(member.UserID)
+		if err != nil || mmUserID == "" {
+			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
+			if appErr != nil {
+				var appErr2 *model.AppError
+				u, appErr2 = p.API.CreateUser(&model.User{
+					Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
+					FirstName: member.DisplayName,
+					Email:     member.UserID + "@msteamssync-plugin",
+					Password:  model.NewId(),
+				})
+				if appErr2 != nil {
+					return "", appErr2
+				}
+			}
+			p.store.SetTeamsToMattermostUserId(member.UserID, u.Id)
+			p.store.SetMattermostToTeamsUserId(u.Id, member.UserID)
+			mmUserID = u.Id
+		}
+		userIDs = append(userIDs, mmUserID)
+	}
+	if len(userIDs) < 2 {
+		return "", errors.New("not enough user for creating a channel")
+	}
+
+	if chat.Type == "D" {
+		p.API.LogError("CREATING CHANNEL WITH USER IDS", "user1", userIDs[0], "user2", userIDs[1])
+		channel, appErr := p.API.GetDirectChannel(userIDs[0], userIDs[1])
+		if appErr != nil {
+			return "", appErr
+		}
+		return channel.Id, nil
+	}
+	if chat.Type == "G" {
+		channel, appErr := p.API.GetGroupChannel(userIDs)
+		if appErr != nil {
+			return "", appErr
+		}
+		return channel.Id, nil
+	}
+	return "", errors.New("dm/gm not found")
 }
