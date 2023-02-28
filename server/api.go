@@ -24,11 +24,12 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	api := &API{p: p, router: router, store: store}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/", api.processMessage).Methods("POST")
+	router.HandleFunc("/", api.processActivity).Methods("POST")
 
 	return api
 }
 
+// getAvatar returns the microsoft teams avatar
 func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userID := params["userId"]
@@ -51,7 +52,8 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	w.Write(photo)
 }
 
-func (a *API) processMessage(w http.ResponseWriter, req *http.Request) {
+// processActivity handles the activity received from teams subscriptions
+func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.Write([]byte(validationToken))

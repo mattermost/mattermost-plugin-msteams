@@ -29,6 +29,7 @@ type Store interface {
 	SetMattermostToTeamsUserId(mattermostUserId, teamsUserId string) error
 	TeamsToMattermostUserId(userID string) (string, error)
 	MattermostToTeamsUserId(userID string) (string, error)
+	CheckEnabledTeamByTeamId(teamId string) bool
 }
 
 type StoreImpl struct {
@@ -70,7 +71,7 @@ func (s *StoreImpl) GetLinkByChannelID(channelID string) (*links.ChannelLink, er
 	if err != nil {
 		return nil, err
 	}
-	if !s.checkEnabledTeamByTeamId(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -86,7 +87,7 @@ func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*links.
 	if err != nil {
 		return nil, err
 	}
-	if !s.checkEnabledTeamByTeamId(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -210,7 +211,7 @@ func (s *StoreImpl) SetMattermostToTeamsUserId(mattermostUserId, teamsUserID str
 	return nil
 }
 
-func (s *StoreImpl) checkEnabledTeamByTeamId(teamId string) bool {
+func (s *StoreImpl) CheckEnabledTeamByTeamId(teamId string) bool {
 	if len(s.enabledTeams()) == 1 && s.enabledTeams()[0] == "" {
 		return true
 	}

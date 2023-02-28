@@ -39,7 +39,7 @@ func cmdError(channelID string, detailedError string) (*model.CommandResponse, *
 func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
 	p.API.SendEphemeralPost(userID, &model.Post{
 		Message:   message,
-		UserId:    p.botID,
+		UserId:    p.userID,
 		ChannelId: channelID,
 	})
 }
@@ -104,7 +104,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if !p.checkEnabledTeamByTeamId(args.TeamId) {
+	if !p.store.CheckEnabledTeamByTeamId(args.TeamId) {
 		return cmdError(args.ChannelId, "This team is not enabled for MS Teams sync.")
 	}
 
