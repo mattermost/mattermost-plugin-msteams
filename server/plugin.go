@@ -43,7 +43,6 @@ type Plugin struct {
 	stopSubscriptions   func()
 	stopContext         context.Context
 
-	botID  string
 	userID string
 
 	store        store.Store
@@ -128,7 +127,29 @@ func (p *Plugin) connectTeamsBotClient() error {
 }
 
 func (p *Plugin) start() error {
-	err := p.msteamsAppClient.ClearSubscriptions()
+	err := p.connectTeamsAppClient()
+	if err != nil {
+		p.API.LogError("Unable to connect to the msteams", "error", err)
+		return err
+	}
+	err = p.connectTeamsBotClient()
+	if err != nil {
+		p.API.LogError("Unable to connect to the msteams", "error", err)
+		return err
+	}
+
+	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	err = p.clusterMutex.LockWithContext(lockctx)
+	if err != nil {
+		p.API.LogInfo("Other node is taking care of the subscriptions")
+		return nil
+	}
+	defer p.clusterMutex.Unlock()
+	time.Sleep(100 * time.Millisecond)
+
+	err = p.msteamsAppClient.ClearSubscriptions()
 	if err != nil {
 		p.API.LogError("Unable to clear all subscriptions", "error", err)
 	}
@@ -191,28 +212,6 @@ func (p *Plugin) OnActivate() error {
 	if appErr != nil {
 		return appErr
 	}
-
-	err = p.connectTeamsAppClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return err
-	}
-	err = p.connectTeamsBotClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return err
-	}
-
-	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-	defer cancel()
-
-	err = p.clusterMutex.LockWithContext(lockctx)
-	if err != nil {
-		p.API.LogInfo("Other node is taking care of the subscriptions")
-		return nil
-	}
-	defer p.clusterMutex.Unlock()
-	time.Sleep(100 * time.Millisecond)
 
 	p.store = store.New(p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
 
