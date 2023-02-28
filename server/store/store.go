@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"golang.org/x/oauth2"
 )
@@ -13,13 +12,20 @@ const (
 	avatarCacheTime = 300
 )
 
+type ChannelLink struct {
+	MattermostTeam    string
+	MattermostChannel string
+	MSTeamsTeam       string
+	MSTeamsChannel    string
+}
+
 type Store interface {
 	GetAvatarCache(userID string) ([]byte, error)
 	SetAvatarCache(userID string, photo []byte) error
-	GetLinkByChannelID(channelID string) (*links.ChannelLink, error)
-	GetLinkByMSTeamsChannelID(teamID, channelID string) (*links.ChannelLink, error)
+	GetLinkByChannelID(channelID string) (*ChannelLink, error)
+	GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
-	StoreChannelLink(link *links.ChannelLink) error
+	StoreChannelLink(link *ChannelLink) error
 	TeamsToMattermostPostId(chatID string, postID string) (string, error)
 	MattermostToTeamsPostId(postID string) (string, error)
 	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string) error
@@ -61,12 +67,12 @@ func (s *StoreImpl) SetAvatarCache(userID string, photo []byte) error {
 
 }
 
-func (s *StoreImpl) GetLinkByChannelID(channelID string) (*links.ChannelLink, error) {
+func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 	linkdata, appErr := s.api.KVGet(channelsLinkedKey(channelID))
 	if appErr != nil {
 		return nil, appErr
 	}
-	var link links.ChannelLink
+	var link ChannelLink
 	err := json.Unmarshal(linkdata, &link)
 	if err != nil {
 		return nil, err
@@ -77,12 +83,12 @@ func (s *StoreImpl) GetLinkByChannelID(channelID string) (*links.ChannelLink, er
 	return &link, nil
 }
 
-func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*links.ChannelLink, error) {
+func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error) {
 	linkdata, appErr := s.api.KVGet(channelsLinkedByMSTeamsKey(teamID, channelID))
 	if appErr != nil {
 		return nil, appErr
 	}
-	var link links.ChannelLink
+	var link ChannelLink
 	err := json.Unmarshal(linkdata, &link)
 	if err != nil {
 		return nil, err
@@ -107,7 +113,7 @@ func (s *StoreImpl) DeleteLinkByChannelID(channelID string) error {
 	return nil
 }
 
-func (s *StoreImpl) StoreChannelLink(link *links.ChannelLink) error {
+func (s *StoreImpl) StoreChannelLink(link *ChannelLink) error {
 	linkdata, err := json.Marshal(link)
 	if err != nil {
 		return err

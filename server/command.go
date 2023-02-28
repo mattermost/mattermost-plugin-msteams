@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -129,7 +129,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "MS Teams channel not found.")
 	}
 
-	err = p.store.StoreChannelLink(&links.ChannelLink{
+	err = p.store.StoreChannelLink(&store.ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
