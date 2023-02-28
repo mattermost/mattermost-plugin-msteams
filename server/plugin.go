@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -138,16 +137,16 @@ func (p *Plugin) start() error {
 		return err
 	}
 
-	lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-	defer cancel()
+	// lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	// defer cancel()
 
-	err = p.clusterMutex.LockWithContext(lockctx)
-	if err != nil {
-		p.API.LogInfo("Other node is taking care of the subscriptions")
-		return nil
-	}
-	defer p.clusterMutex.Unlock()
-	time.Sleep(100 * time.Millisecond)
+	// err = p.clusterMutex.LockWithContext(lockctx)
+	// if err != nil {
+	// 	p.API.LogInfo("Other node is taking care of the subscriptions")
+	// 	return nil
+	// }
+	// defer p.clusterMutex.Unlock()
+	// time.Sleep(100 * time.Millisecond)
 
 	err = p.msteamsAppClient.ClearSubscriptions()
 	if err != nil {

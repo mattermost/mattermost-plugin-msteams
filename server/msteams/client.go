@@ -751,20 +751,46 @@ func (tc *ClientImpl) BotID() string {
 	return tc.botID
 }
 
-func (tc *ClientImpl) CreateOrGetChatForUsers(dstUserID, srcUserID string) (string, error) {
+func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
 	ct := tc.client.Chats().Request()
 	// TODO: add the filter to make this more performant)
 	// ct.Filter()
 	ct.Expand("members")
 	res, err := ct.Get(tc.ctx)
+	chatType := "group"
+	if len(usersIDs) == 2 {
+		chatType = "oneOnOne"
+	}
+
 	for _, c := range res {
-		if len(c.Members) == 2 {
-			if c.Members[0].AdditionalData["userId"] == srcUserID || c.Members[1].AdditionalData["userId"] == dstUserID {
+		if len(c.Members) == len(usersIDs) {
+			matches := map[string]bool{}
+			for _, m := range c.Members {
+				for _, u := range usersIDs {
+					if m.AdditionalData["userId"] == u {
+						matches[u] = true
+						break
+					}
+				}
+			}
+			if len(matches) == len(usersIDs) {
 				return *c.ID, nil
 			}
-			if c.Members[1].AdditionalData["userId"] == srcUserID || c.Members[0].AdditionalData["userId"] == dstUserID {
-				return *c.ID, nil
-			}
+		}
+	}
+
+	members := make([]msgraph.ConversationMember, len(usersIDs))
+	for idx, userID := range usersIDs {
+		members[idx] = msgraph.ConversationMember{
+			Entity: msgraph.Entity{
+				Object: msgraph.Object{
+					AdditionalData: map[string]interface{}{
+						"@odata.type":     "#microsoft.graph.aadUserConversationMember",
+						"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + userID + "')",
+					},
+				},
+			},
+			Roles: []string{"owner"},
 		}
 	}
 
@@ -772,33 +798,10 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(dstUserID, srcUserID string) (stri
 	resn, err := ctn.Add(tc.ctx, &msgraph.Chat{
 		Entity: msgraph.Entity{
 			Object: msgraph.Object{
-				AdditionalData: map[string]interface{}{"chatType": "oneOnOne"},
+				AdditionalData: map[string]interface{}{"chatType": chatType},
 			},
 		},
-		Members: []msgraph.ConversationMember{
-			{
-				Entity: msgraph.Entity{
-					Object: msgraph.Object{
-						AdditionalData: map[string]interface{}{
-							"@odata.type":     "#microsoft.graph.aadUserConversationMember",
-							"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + dstUserID + "')",
-						},
-					},
-				},
-				Roles: []string{"owner"},
-			},
-			{
-				Entity: msgraph.Entity{
-					Object: msgraph.Object{
-						AdditionalData: map[string]interface{}{
-							"@odata.type":     "#microsoft.graph.aadUserConversationMember",
-							"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + srcUserID + "')",
-						},
-					},
-				},
-				Roles: []string{"owner"},
-			},
-		},
+		Members: members,
 	})
 	if err != nil {
 		return "", err

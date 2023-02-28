@@ -7,7 +7,7 @@ import (
 
 type Client interface {
 	Connect() error
-	CreateOrGetChatForUsers(dstUserID, srcUserID string) (string, error)
+	CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	SendMessage(teamID, channelID, parentID, message string) (string, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error)
 	SendChat(chatID, parentID, message string) (string, error)

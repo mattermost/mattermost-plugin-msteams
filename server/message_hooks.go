@@ -52,22 +52,16 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		if err != nil {
 			return
 		}
-		if channel.Type == model.ChannelTypeDirect {
-			members, err := p.API.GetChannelMembers(post.ChannelId, 0, 2)
+		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+			members, err := p.API.GetChannelMembers(post.ChannelId, 0, 10)
 			if err != nil {
 				return
 			}
-			var dstUser string
+			dstUsers := []string{}
 			for _, m := range members {
-				if m.UserId != post.UserId {
-					dstUser = m.UserId
-				}
+				dstUsers = append(dstUsers, m.UserId)
 			}
-			p.SendChat(dstUser, post.UserId, post)
-		}
-		if channel.Type == model.ChannelTypeGroup {
-			// TODO: Add support for group messages
-			panic("Fix this for group messages")
+			p.SendChat(post.UserId, dstUsers, post)
 		}
 		return
 	}
@@ -93,22 +87,27 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 
 	link, err := p.store.GetLinkByChannelID(newPost.ChannelId)
 	if err != nil || link == nil {
-		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, 2)
+		channel, appErr := p.API.GetChannel(newPost.ChannelId)
 		if appErr != nil {
 			return
 		}
-		if len(members) != 2 {
+		if channel.Type != model.ChannelTypeGroup && channel.Type != model.ChannelTypeDirect {
 			return
 		}
-		dstUserID, err := p.store.MattermostToTeamsUserId(members[0].UserId)
-		if err != nil {
+
+		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, 10)
+		if appErr != nil {
 			return
 		}
-		srcUserID, err := p.store.MattermostToTeamsUserId(members[1].UserId)
-		if err != nil {
-			return
+		usersIDs := []string{}
+		for _, m := range members {
+			teamsUserID, err := p.store.MattermostToTeamsUserId(m.UserId)
+			if err != nil {
+				return
+			}
+			usersIDs = append(usersIDs, teamsUserID)
 		}
-		chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
+		chatID, err := client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			return
 		}
@@ -119,24 +118,28 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 	p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
 }
 
-func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, error) {
-	p.API.LogDebug("Sending direct message to MS Teams", "srcUser", srcUser, "dstUser", dstUser, "post", post)
+func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
+	p.API.LogDebug("Sending direct message to MS Teams", "srcUser", srcUser, "usersIDs", usersIDs, "post", post)
 
 	parentID := ""
 	if post.RootId != "" {
 		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
-	dstUserID, err := p.store.MattermostToTeamsUserId(dstUser)
+	srcUserID, err := p.store.MattermostToTeamsUserId(srcUser)
 	if err != nil {
 		return "", err
 	}
-	srcUserID, err := p.store.MattermostToTeamsUserId(dstUser)
-	if err != nil {
-		return "", err
+	teamsUsersIDs := make([]string, len(usersIDs))
+	for idx, userID := range usersIDs {
+		teamsUserID, err := p.store.MattermostToTeamsUserId(userID)
+		if err != nil {
+			return "", err
+		}
+		teamsUsersIDs[idx] = teamsUserID
 	}
 
-	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "dstUserID", dstUserID, "post", post)
+	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "teamsUsersIDs", teamsUsersIDs, "post", post)
 	text := post.Message
 
 	client, err := p.getClientForUser(srcUser)
@@ -144,7 +147,7 @@ func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, er
 		return "", err
 	}
 
-	chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
+	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
 		p.API.LogError("FAILING TO CREATE OR GET THE CHAT", "error", err)
 		return "", err
