@@ -24,9 +24,7 @@ type Store interface {
 	MattermostToTeamsPostId(postID string) (string, error)
 	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
-	GetTokenForTeamsUser(userID string) (*oauth2.Token, error)
 	SetTokenForMattermostUser(userID string, token *oauth2.Token) error
-	SetTokenForTeamsUser(userID string, token *oauth2.Token) error
 	SetTeamsToMattermostUserId(teamsUserID, mattermostUserId string) error
 	SetMattermostToTeamsUserId(mattermostUserId, teamsUserId string) error
 	TeamsToMattermostUserId(userID string) (string, error)
@@ -184,37 +182,12 @@ func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, err
 	return &token, nil
 }
 
-func (s *StoreImpl) GetTokenForTeamsUser(userID string) (*oauth2.Token, error) {
-	tokendata, appErr := s.api.KVGet(tokenForTeamsUserKey(userID))
-	if appErr != nil {
-		return nil, appErr
-	}
-	var token oauth2.Token
-	err := json.Unmarshal(tokendata, &token)
-	if err != nil {
-		return nil, err
-	}
-	return &token, nil
-}
-
 func (s *StoreImpl) SetTokenForMattermostUser(userID string, token *oauth2.Token) error {
 	tokendata, err := json.Marshal(token)
 	if err != nil {
 		return err
 	}
 	appErr := s.api.KVSet(tokenForMattermostUserKey(userID), tokendata)
-	if appErr != nil {
-		return appErr
-	}
-	return nil
-}
-
-func (s *StoreImpl) SetTokenForTeamsUser(userID string, token *oauth2.Token) error {
-	tokendata, err := json.Marshal(token)
-	if err != nil {
-		return err
-	}
-	appErr := s.api.KVSet(tokenForTeamsUserKey(userID), tokendata)
 	if appErr != nil {
 		return appErr
 	}

@@ -98,7 +98,6 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 	return newText
 }
 
-// Attachments:[{ID: ContentType:messageReference Content:{\"messageId\":\"1677507519049\",\"messagePreview\":\"test\",\"messageSender\":{\"application\":null,\"device\":null,\"user\":{\"userIdentityType\":\"aadUser\",\"id\":\"2a59b646-e6ab-4f43-91a8-292bb4db599c\",\"displayName\":\"Jesus Espino\"}}} Name: ContentURL: ThumbnailURL: Data:<nil>}] ChannelID: TeamID: ChatID:19:2a59b646-e6ab-4f43-91a8-292bb4db599c_b8cf6063-314b-4a35-ad24-c127d698319b@unq.gbl.spaces}"}
 func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannelID string, text string) (string, string) {
 	var content struct {
 		MessageID string `json:"messageId"`
@@ -132,11 +131,10 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		}
 		var client msteams.Client
 		for _, member := range chat.Members {
-			token, err := p.store.GetTokenForTeamsUser(member.UserID)
-			if err != nil {
-				continue
+			client, _ = p.getClientForTeamsUser(member.UserID)
+			if client != nil {
+				break
 			}
-			client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 		}
 		if client == nil {
 			// TODO: None of the users are connected to MSTeams, ignoring the message

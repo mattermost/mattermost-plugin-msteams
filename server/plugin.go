@@ -61,6 +61,31 @@ func (p *Plugin) getURL() string {
 	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
 }
 
+func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
+	token, _ := p.store.GetTokenForMattermostUser(userID)
+	if token == nil {
+		return nil, errors.New("not connected user")
+	}
+	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token), nil
+}
+
+func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
+	userID, err := p.store.TeamsToMattermostUserId(teamsUserID)
+	if err != nil {
+		return nil, err
+	}
+	if userID == "" {
+		return nil, errors.New("not connected user")
+	}
+
+	token, _ := p.store.GetTokenForMattermostUser(userID)
+	if token == nil {
+		return nil, errors.New("not connected user")
+	}
+
+	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token), nil
+}
+
 func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
 	defer p.msteamsAppClientMutex.Unlock()
@@ -252,11 +277,10 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 	}
 
-	token, _ := p.store.GetTokenForMattermostUser(newPost.UserId)
-	if token == nil {
+	client, err := p.getClientForUser(newPost.UserId)
+	if err != nil {
 		return
 	}
-	client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 
 	user, _ := p.API.GetUser(newPost.UserId)
 
@@ -329,12 +353,12 @@ func (p *Plugin) SendChat(dstUser, srcUser string, post *model.Post) (string, er
 	}
 
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "dstUserID", dstUserID, "post", post)
-	token, _ := p.store.GetTokenForMattermostUser(srcUser)
 	text := post.Message
-	if token == nil {
-		return "", errors.New("not connected user")
+
+	client, err := p.getClientForUser(srcUser)
+	if err != nil {
+		return "", err
 	}
-	client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
 
 	chatID, err := client.CreateOrGetChatForUsers(dstUserID, srcUserID)
 	if err != nil {
@@ -362,12 +386,10 @@ func (p *Plugin) Send(link *links.ChannelLink, user *model.User, post *model.Pos
 		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
-	client := p.msteamsBotClient
-	token, _ := p.store.GetTokenForMattermostUser(user.Id)
 	text := post.Message
-	if token != nil {
-		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
-	} else {
+	client, err := p.getClientForUser(user.Id)
+	if err != nil {
+		client = p.msteamsBotClient
 		text = user.Username + ":\n\n" + post.Message
 	}
 
@@ -412,35 +434,32 @@ func (p *Plugin) Delete(link links.ChannelLink, user *model.User, post *model.Po
 		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
 	}
 
-	client := p.msteamsBotClient
-	token, _ := p.store.GetTokenForMattermostUser(user.Id)
-	if token != nil {
-		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	client, err := p.getClientForUser(user.Id)
+	if err != nil {
+		client = p.msteamsBotClient
 	}
 
 	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
 
-	err := client.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID)
-	if err != nil {
+	if err := client.DeleteMessage(link.MSTeamsTeam, link.MSTeamsChannel, parentID, msgID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
 	}
+
 	return nil
 }
 
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
 	p.API.LogDebug("Sending message to MS Teams", "chatID", chatID, "post", post)
 
-	client := p.msteamsBotClient
-	token, _ := p.store.GetTokenForMattermostUser(user.Id)
-	if token != nil {
-		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+	client, err := p.getClientForUser(user.Id)
+	if err != nil {
+		client = p.msteamsBotClient
 	}
 
 	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
 
-	err := client.DeleteChatMessage(chatID, msgID)
-	if err != nil {
+	if err := client.DeleteChatMessage(chatID, msgID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
 	}
@@ -457,18 +476,15 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	text := newPost.Message
 
-	client := p.msteamsBotClient
-	token, _ := p.store.GetTokenForMattermostUser(user.Id)
-	if token != nil {
-		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
-	} else {
-		text = user.Username + ":\n\n " + newPost.Message
+	client, err := p.getClientForUser(user.Id)
+	if err != nil {
+		client = p.msteamsBotClient
+		text = user.Username + ":\n\n" + newPost.Message
 	}
 
 	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
 
-	err := client.UpdateMessage(teamID, channelID, parentID, msgID, text)
-	if err != nil {
+	if err := client.UpdateMessage(teamID, channelID, parentID, msgID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
@@ -483,16 +499,13 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	text := newPost.Message
 
-	client := p.msteamsBotClient
-	token, _ := p.store.GetTokenForMattermostUser(user.Id)
-	if token != nil {
-		client = msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
-	} else {
-		text = user.Username + ":\n\n " + newPost.Message
+	client, err := p.getClientForUser(user.Id)
+	if err != nil {
+		client = p.msteamsBotClient
+		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	err := client.UpdateChatMessage(chatID, msgID, text)
-	if err != nil {
+	if err := client.UpdateChatMessage(chatID, msgID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
