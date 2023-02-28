@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -39,10 +38,14 @@ type Plugin struct {
 	msteamsBotClientMutex sync.Mutex
 	msteamsBotClient      msteams.Client
 
+	subscriptionID      string
+	chatsSubscriptionID string
+	stopSubscriptions   func()
+	stopContext         context.Context
+
 	botID  string
 	userID string
 
-	links        *links.LinksService
 	store        store.Store
 	clusterMutex *cluster.Mutex
 }
@@ -124,19 +127,42 @@ func (p *Plugin) connectTeamsBotClient() error {
 	return nil
 }
 
-func (p *Plugin) start() {
-	if p.links != nil {
-		if err := p.links.Start(); err != nil {
-			p.API.LogError("Unable to start the links service", "error", err)
-			p.links = nil
-			return
-		}
+func (p *Plugin) start() error {
+	err := p.msteamsAppClient.ClearSubscriptions()
+	if err != nil {
+		p.API.LogError("Unable to clear all subscriptions", "error", err)
 	}
+
+	subscriptionID, err := p.msteamsAppClient.Subscribe(p.getURL()+"/", p.configuration.WebhookSecret)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to channels", "error", err)
+		return err
+	}
+
+	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to chats", "error", err)
+		return err
+	}
+	p.subscriptionID = subscriptionID
+	p.chatsSubscriptionID = chatsSubscriptionID
+
+	ctx, stop := context.WithCancel(context.Background())
+	p.stopSubscriptions = stop
+	p.stopContext = ctx
+	go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
+	go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, chatsSubscriptionID)
+
+	return nil
 }
 
 func (p *Plugin) stop() {
-	if p.links != nil {
-		p.links.Stop()
+	if p.stopSubscriptions != nil {
+		p.stopSubscriptions()
+		err := p.msteamsAppClient.ClearSubscriptions()
+		if err != nil {
+			p.API.LogError("Unable to clear all subscriptions", "error", err)
+		}
 	}
 }
 
@@ -165,13 +191,6 @@ func (p *Plugin) OnActivate() error {
 	if appErr != nil {
 		return appErr
 	}
-
-	p.links = links.New(
-		p.API,
-		func() msteams.Client { return p.msteamsAppClient },
-		func() string { return p.configuration.WebhookSecret },
-		func() string { return p.getURL() + "/" },
-	)
 
 	err = p.connectTeamsAppClient()
 	if err != nil {
