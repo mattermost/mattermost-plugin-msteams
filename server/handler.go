@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -462,13 +464,18 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
 			if appErr != nil {
 				var appErr2 *model.AppError
+				memberUUID := uuid.Parse(member.UserID)
+				encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+				shortUserId := encoding.EncodeToString(memberUUID)
 				u, appErr2 = p.API.CreateUser(&model.User{
 					Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
 					FirstName: member.DisplayName,
 					Email:     member.UserID + "@msteamssync-plugin",
 					Password:  model.NewId(),
+					RemoteId:  &shortUserId,
 				})
 				if appErr2 != nil {
+					p.API.LogError("UNABLE TO CREATE THE SYNTHETIC USER", "error", appErr2)
 					return "", appErr2
 				}
 			}
