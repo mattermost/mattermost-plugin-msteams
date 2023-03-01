@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/links"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"

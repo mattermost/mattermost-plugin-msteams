@@ -64,6 +64,11 @@ type Attachment struct {
 	Data         io.Reader
 }
 
+type Reaction struct {
+	UserID   string
+	Reaction string
+}
+
 type Message struct {
 	ID              string
 	UserID          string
@@ -72,6 +77,7 @@ type Message struct {
 	Subject         string
 	ReplyToID       string
 	Attachments     []Attachment
+	Reactions       []Reaction
 	ChannelID       string
 	TeamID          string
 	ChatID          string
@@ -569,6 +575,9 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 }
 
 func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string) *Message {
+	data, _ := json.Marshal(msg)
+	fmt.Println("==================", string(data), "===================")
+
 	userID := ""
 	if msg.From != nil && msg.From.User != nil && msg.From.User.ID != nil {
 		userID = *msg.From.User.ID
@@ -624,6 +633,13 @@ func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string)
 		})
 	}
 
+	reactions := []Reaction{}
+	for _, reaction := range msg.Reactions {
+		if reaction.ReactionType != nil && reaction.User != nil && reaction.User.User != nil && reaction.User.User.ID != nil {
+			reactions = append(reactions, Reaction{UserID: *reaction.User.User.ID, Reaction: *reaction.ReactionType})
+		}
+	}
+
 	return &Message{
 		ID:              msgID,
 		UserID:          userID,
@@ -635,6 +651,7 @@ func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string)
 		TeamID:          teamID,
 		ChannelID:       channelID,
 		ChatID:          chatID,
+		Reactions:       reactions,
 	}
 
 }

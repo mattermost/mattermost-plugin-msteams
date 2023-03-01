@@ -15,6 +15,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var emojisReverseMap map[string]string
+
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 
 func (p *Plugin) handleActivity(activity msteams.Activity) error {
@@ -133,7 +135,6 @@ func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannel
 		p.API.LogError("unmarshal codesnippet failed", "error", err)
 		return "", text
 	}
-	// TODO: Make the TEAMS TO MATTERMOST POST ID dependant on the ChannelID or the ChatID to avoid collitions
 	postID, err := p.store.TeamsToMattermostPostId(chatOrChannelID, content.MessageID)
 	if err != nil {
 		return "", text
@@ -320,7 +321,52 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		p.API.LogError("Unable to update post", "post", post, "error", appErr)
 		return appErr
 	}
+
+	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
+	p.handleReactions(postID, channelID, msg.Reactions)
+
 	return nil
+}
+
+func (p *Plugin) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
+	allReactions := map[string]bool{}
+	for _, reaction := range reactions {
+		code, ok := emojisReverseMap[reaction.Reaction]
+		if !ok {
+			p.API.LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
+			continue
+		}
+		reactionUserID, err := p.store.TeamsToMattermostUserId(reaction.UserID)
+		if err != nil {
+			p.API.LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
+			continue
+		}
+		p.API.LogError("Message reaction code", "code", code)
+		r, appErr := p.API.AddReaction(&model.Reaction{
+			UserId:    reactionUserID,
+			PostId:    postID,
+			ChannelId: channelID,
+			EmojiName: code,
+		})
+		if appErr != nil {
+			p.API.LogError("failed to create the reaction", "err", appErr)
+			continue
+		}
+
+		p.API.LogError("Added reaction", "reaction", r)
+		allReactions[reactionUserID+code] = true
+	}
+
+	postReactions, err := p.API.GetReactions(postID)
+	if err != nil {
+		return
+	}
+
+	for _, r := range postReactions {
+		if !allReactions[r.UserId+r.EmojiName] {
+			p.API.RemoveReaction(r)
+		}
+	}
 }
 
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
@@ -411,7 +457,6 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 	}
 
 	if chat.Type == "D" {
-		p.API.LogError("CREATING CHANNEL WITH USER IDS", "user1", userIDs[0], "user2", userIDs[1])
 		channel, appErr := p.API.GetDirectChannel(userIDs[0], userIDs[1])
 		if appErr != nil {
 			return "", appErr

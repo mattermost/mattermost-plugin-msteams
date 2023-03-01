@@ -71,6 +71,14 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
 }
 
+func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+	// TODO
+}
+
+func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.Reaction) {
+	// TODO
+}
+
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
 	if oldPost.Props != nil {
 		if _, ok := oldPost.Props["msteams_sync_"+p.userID].(bool); ok {

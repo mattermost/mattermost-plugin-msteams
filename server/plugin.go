@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -146,32 +148,35 @@ func (p *Plugin) start() error {
 	// 	return nil
 	// }
 	// defer p.clusterMutex.Unlock()
-	// time.Sleep(100 * time.Millisecond)
 
-	err = p.msteamsAppClient.ClearSubscriptions()
-	if err != nil {
-		p.API.LogError("Unable to clear all subscriptions", "error", err)
-	}
+	go func() {
+		// TODO: Replace this with code that adds or updates (behind the cluster mutex)
+		err = p.msteamsAppClient.ClearSubscriptions()
+		if err != nil {
+			p.API.LogError("Unable to clear all subscriptions", "error", err)
+		}
 
-	subscriptionID, err := p.msteamsAppClient.Subscribe(p.getURL()+"/", p.configuration.WebhookSecret)
-	if err != nil {
-		p.API.LogError("Unable to subscribe to channels", "error", err)
-		return err
-	}
+		time.Sleep(100 * time.Millisecond)
+		subscriptionID, err := p.msteamsAppClient.Subscribe(p.getURL()+"/", p.configuration.WebhookSecret)
+		if err != nil {
+			p.API.LogError("Unable to subscribe to channels", "error", err)
+			return
+		}
 
-	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
-	if err != nil {
-		p.API.LogError("Unable to subscribe to chats", "error", err)
-		return err
-	}
-	p.subscriptionID = subscriptionID
-	p.chatsSubscriptionID = chatsSubscriptionID
+		chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
+		if err != nil {
+			p.API.LogError("Unable to subscribe to chats", "error", err)
+			return
+		}
 
-	ctx, stop := context.WithCancel(context.Background())
-	p.stopSubscriptions = stop
-	p.stopContext = ctx
-	go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
-	go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, chatsSubscriptionID)
+		ctx, stop := context.WithCancel(context.Background())
+		p.stopSubscriptions = stop
+		p.stopContext = ctx
+
+		// TODO: Ensure that refresh periodically also reconnects in case of stopping because an error happens
+		go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
+		go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, chatsSubscriptionID)
+	}()
 
 	return nil
 }
@@ -192,6 +197,18 @@ func (p *Plugin) restart() {
 }
 
 func (p *Plugin) OnActivate() error {
+	// Initialize the emoji translator
+	emojisReverseMap = map[string]string{}
+	for alias, unicode := range emoji.Map() {
+		emojisReverseMap[unicode] = strings.Replace(alias, ":", "", 2)
+	}
+	emojisReverseMap["like"] = "+1"
+	emojisReverseMap["sad"] = "cry"
+	emojisReverseMap["angry"] = "angry"
+	emojisReverseMap["laugh"] = "laughing"
+	emojisReverseMap["heart"] = "heart"
+	emojisReverseMap["surprised"] = "open_mouth"
+
 	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
 	if err != nil {
 		return err
