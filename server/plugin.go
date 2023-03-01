@@ -166,8 +166,8 @@ func (p *Plugin) start() error {
 		p.stopContext = ctx
 
 		// TODO: Ensure that refresh periodically also reconnects in case of stopping because an error happens
-		go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, subscriptionID)
-		go p.msteamsAppClient.RefreshSubscriptionPeriodically(ctx, chatsSubscriptionID)
+		go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, subscriptionID)
+		go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
 	}()
 
 	return nil

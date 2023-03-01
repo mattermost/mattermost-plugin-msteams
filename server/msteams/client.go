@@ -425,6 +425,7 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 	}
 
 	if subscriptionID == "" {
+		fmt.Println("CREATING A NEW SUBSCRIPTION")
 		ct := tc.client.Subscriptions().Request()
 		res, err := ct.Add(tc.ctx, &subscription)
 		if err != nil {
@@ -433,6 +434,7 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 		return *res.ID, nil
 	}
 
+	fmt.Println("UPDATING EXISTING ONE")
 	ct := tc.client.Subscriptions().ID(subscriptionID).Request()
 	if err := ct.Update(tc.ctx, &subscription); err != nil {
 		return "", err
@@ -452,7 +454,8 @@ func (tc *ClientImpl) SubscribeToChats(notificationURL string, webhookSecret str
 	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {
+func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, notificationURL, webhookSecret, resource, changeType string) error {
+	currentSubscriptionID := subscriptionID
 	for {
 		select {
 		case <-time.After(time.Minute):
@@ -460,19 +463,36 @@ func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subsc
 			updatedSubscription := msgraph.Subscription{
 				ExpirationDateTime: &expirationDateTime,
 			}
-			ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+			ct := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
 			err := ct.Update(tc.ctx, &updatedSubscription)
 			if err != nil {
-				return err
+				newSubscriptionID, err := tc.subscribe(notificationURL, webhookSecret, resource, changeType)
+				if err != nil {
+					// TODO: Log here the error (the client probably needs an error logger to do this)
+				}
+				currentSubscriptionID = newSubscriptionID
+				// Unable to refresh, try to recreate the subscription
 			}
 		case <-ctx.Done():
-			deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
+			deleteSubCt := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
 			err := deleteSubCt.Delete(tc.ctx)
 			if err != nil {
 				return err
 			}
 		}
 	}
+}
+
+func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) error {
+	resource := "teams/getAllMessages"
+	changeType := "created,deleted,updated"
+	return tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) error {
+	resource := "chats/getAllMessages"
+	changeType := "created,deleted,updated"
+	return tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
 }
 
 func (tc *ClientImpl) ClearSubscription(subscriptionID string) error {
