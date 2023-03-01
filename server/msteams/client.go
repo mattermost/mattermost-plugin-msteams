@@ -399,10 +399,23 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 	return nil
 }
 
-func (tc *ClientImpl) Subscribe(notificationURL string, webhookSecret string) (string, error) {
-	resource := "teams/getAllMessages"
+func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, changeType string) (string, error) {
 	expirationDateTime := time.Now().Add(60 * time.Minute)
-	changeType := "created,deleted,updated"
+
+	subscriptionsCt := tc.client.Subscriptions().Request()
+	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
+	if err != nil {
+		return "", err
+	}
+
+	subscriptionID := ""
+	for _, s := range subscriptionsRes {
+		if *s.Resource == resource {
+			subscriptionID = *s.ID
+			break
+		}
+	}
+
 	subscription := msgraph.Subscription{
 		Resource:           &resource,
 		ExpirationDateTime: &expirationDateTime,
@@ -410,50 +423,33 @@ func (tc *ClientImpl) Subscribe(notificationURL string, webhookSecret string) (s
 		ClientState:        &webhookSecret,
 		ChangeType:         &changeType,
 	}
-	ct := tc.client.Subscriptions().Request()
-	res, err := ct.Add(tc.ctx, &subscription)
-	if err != nil {
+
+	if subscriptionID == "" {
+		ct := tc.client.Subscriptions().Request()
+		res, err := ct.Add(tc.ctx, &subscription)
+		if err != nil {
+			return "", err
+		}
+		return *res.ID, nil
+	}
+
+	ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+	if err := ct.Update(tc.ctx, &subscription); err != nil {
 		return "", err
 	}
-	return *res.ID, nil
+	return subscriptionID, nil
+}
+
+func (tc *ClientImpl) SubscribeToChannels(notificationURL string, webhookSecret string) (string, error) {
+	resource := "teams/getAllMessages"
+	changeType := "created,deleted,updated"
+	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
 }
 
 func (tc *ClientImpl) SubscribeToChats(notificationURL string, webhookSecret string) (string, error) {
 	resource := "chats/getAllMessages"
-	expirationDateTime := time.Now().Add(60 * time.Minute)
 	changeType := "created,deleted,updated"
-	subscription := msgraph.Subscription{
-		Resource:           &resource,
-		ExpirationDateTime: &expirationDateTime,
-		NotificationURL:    &notificationURL,
-		ClientState:        &webhookSecret,
-		ChangeType:         &changeType,
-	}
-	ct := tc.client.Subscriptions().Request()
-	res, err := ct.Add(tc.ctx, &subscription)
-	if err != nil {
-		return "", err
-	}
-	return *res.ID, nil
-}
-
-func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, notificationURL string, webhookSecret string) (string, error) {
-	resource := "teams/" + teamID + "/channels/" + channelID + "/messages"
-	expirationDateTime := time.Now().Add(60 * time.Minute)
-	changeType := "created,deleted,updated"
-	subscription := msgraph.Subscription{
-		Resource:           &resource,
-		ExpirationDateTime: &expirationDateTime,
-		NotificationURL:    &notificationURL,
-		ClientState:        &webhookSecret,
-		ChangeType:         &changeType,
-	}
-	ct := tc.client.Subscriptions().Request()
-	res, err := ct.Add(tc.ctx, &subscription)
-	if err != nil {
-		return "", err
-	}
-	return *res.ID, nil
+	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
 }
 
 func (tc *ClientImpl) RefreshSubscriptionPeriodically(ctx context.Context, subscriptionID string) error {

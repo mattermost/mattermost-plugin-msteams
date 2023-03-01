@@ -148,14 +148,8 @@ func (p *Plugin) start() error {
 	// defer p.clusterMutex.Unlock()
 
 	go func() {
-		// TODO: Replace this with code that adds or updates (behind the cluster mutex)
-		err = p.msteamsAppClient.ClearSubscriptions()
-		if err != nil {
-			p.API.LogError("Unable to clear all subscriptions", "error", err)
-		}
-
 		time.Sleep(100 * time.Millisecond)
-		subscriptionID, err := p.msteamsAppClient.Subscribe(p.getURL()+"/", p.configuration.WebhookSecret)
+		subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
 		if err != nil {
 			p.API.LogError("Unable to subscribe to channels", "error", err)
 			return
