@@ -26,6 +26,10 @@ type Client interface {
 	GetChannel(teamID, channelID string) (*Channel, error)
 	GetChat(chatID string) (*Chat, error)
 	GetChatMessage(chatID, messageID string) (*Message, error)
+	SetChatReaction(chatID, messageID, userID, emoji string) error
+	SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error
+	UnsetChatReaction(chatID, messageID, userID, emoji string) error
+	UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error
 	GetMessage(teamID, channelID, messageID string) (*Message, error)
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)

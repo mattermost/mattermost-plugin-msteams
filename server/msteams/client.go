@@ -825,3 +825,133 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	}
 	return *resn.ID, nil
 }
+
+func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) error {
+	ctb := tc.client.Chats().ID(chatID).Messages().ID(messageID)
+	ctb.SetURL(ctb.URL() + "/setReaction")
+	ct := ctb.Request()
+	req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+	if err != nil {
+		return err
+	}
+	res, err := ct.Client().Do(req)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != 204 {
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		return errors.New(string(body))
+	}
+	return nil
+}
+
+func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
+	if parentID == "" {
+		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID)
+		ctb.SetURL(ctb.URL() + "/setReaction")
+		ct := ctb.Request()
+		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		if err != nil {
+			return err
+		}
+		res, err := ct.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		if res.StatusCode != 204 {
+			body, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(body))
+		}
+	} else {
+		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(messageID)
+		ctb.SetURL(ctb.URL() + "/setReaction")
+		ct := ctb.Request()
+		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		if err != nil {
+			return err
+		}
+		res, err := ct.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		if res.StatusCode != 204 {
+			body, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(body))
+		}
+	}
+	return nil
+}
+
+func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string) error {
+	ctb := tc.client.Chats().ID(chatID).Messages().ID(messageID)
+	ctb.SetURL(ctb.URL() + "/unsetReaction")
+	ct := ctb.Request()
+	req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+	if err != nil {
+		return err
+	}
+	res, err := ct.Client().Do(req)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != 204 {
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		return errors.New(string(body))
+	}
+	return nil
+}
+
+func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
+	if parentID == "" {
+		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID)
+		ctb.SetURL(ctb.URL() + "/unsetReaction")
+		ct := ctb.Request()
+		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		if err != nil {
+			return err
+		}
+		res, err := ct.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		if res.StatusCode != 204 {
+			body, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(body))
+		}
+	} else {
+		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(messageID)
+		ctb.SetURL(ctb.URL() + "/unsetReaction")
+		ct := ctb.Request()
+		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		if err != nil {
+			return err
+		}
+		res, err := ct.Client().Do(req)
+		if err != nil {
+			return err
+		}
+		if res.StatusCode != 204 {
+			body, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(body))
+		}
+	}
+	return nil
+}

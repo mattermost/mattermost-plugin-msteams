@@ -194,6 +194,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 }
 
 func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
+	p.API.LogDebug("Handling create activity", "activity", activity)
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
@@ -267,6 +268,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 }
 
 func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
+	p.API.LogDebug("Handling update activity", "activity", activity)
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
@@ -329,9 +331,24 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 }
 
 func (p *Plugin) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
+	if len(reactions) == 0 {
+		return
+	}
+	p.API.LogDebug("Handling reactions", "reactions", reactions)
+
+	postReactions, appErr := p.API.GetReactions(postID)
+	if appErr != nil {
+		return
+	}
+
+	postReactionsByUserAndEmoji := map[string]bool{}
+	for _, pr := range postReactions {
+		postReactionsByUserAndEmoji[pr.UserId+pr.EmojiName] = true
+	}
+
 	allReactions := map[string]bool{}
 	for _, reaction := range reactions {
-		code, ok := emojisReverseMap[reaction.Reaction]
+		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
 			p.API.LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
@@ -341,30 +358,39 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 			p.API.LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
 		}
-		p.API.LogError("Message reaction code", "code", code)
-		r, appErr := p.API.AddReaction(&model.Reaction{
-			UserId:    reactionUserID,
-			PostId:    postID,
-			ChannelId: channelID,
-			EmojiName: code,
-		})
-		if appErr != nil {
-			p.API.LogError("failed to create the reaction", "err", appErr)
-			continue
-		}
-
-		p.API.LogError("Added reaction", "reaction", r)
-		allReactions[reactionUserID+code] = true
-	}
-
-	postReactions, err := p.API.GetReactions(postID)
-	if err != nil {
-		return
+		allReactions[reactionUserID+emojiName] = true
 	}
 
 	for _, r := range postReactions {
 		if !allReactions[r.UserId+r.EmojiName] {
+			r.ChannelId = "removedfromplugin"
 			p.API.RemoveReaction(r)
+		}
+	}
+
+	for _, reaction := range reactions {
+		reactionUserID, err := p.store.TeamsToMattermostUserId(reaction.UserID)
+		if err != nil {
+			p.API.LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
+			continue
+		}
+		emojiName, ok := emojisReverseMap[reaction.Reaction]
+		if !ok {
+			p.API.LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
+			continue
+		}
+		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
+			r, appErr := p.API.AddReaction(&model.Reaction{
+				UserId:    reactionUserID,
+				PostId:    postID,
+				ChannelId: channelID,
+				EmojiName: emojiName,
+			})
+			if appErr != nil {
+				p.API.LogError("failed to create the reaction", "err", appErr)
+				continue
+			}
+			p.API.LogError("Added reaction", "reaction", r)
 		}
 	}
 }
