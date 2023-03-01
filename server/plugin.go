@@ -39,10 +39,8 @@ type Plugin struct {
 	msteamsBotClientMutex sync.Mutex
 	msteamsBotClient      msteams.Client
 
-	subscriptionID      string
-	chatsSubscriptionID string
-	stopSubscriptions   func()
-	stopContext         context.Context
+	stopSubscriptions func()
+	stopContext       context.Context
 
 	userID string
 
