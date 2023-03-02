@@ -86,7 +86,10 @@ func (p *Plugin) OnConfigurationChange() error {
 
 	p.setConfiguration(configuration)
 
-	p.restart()
+	// Only restart the application if the OnActivate is already executed
+	if p.store != nil {
+		p.restart()
+	}
 
 	return nil
 }

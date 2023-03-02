@@ -207,7 +207,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token)
+		client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError)
 		if err = client.Connect(); err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return

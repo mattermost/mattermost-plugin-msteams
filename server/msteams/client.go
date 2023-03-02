@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enescakir/emoji"
 	msgraph "github.com/yaegashi/msgraph.go/beta"
 	"github.com/yaegashi/msgraph.go/msauth"
 	"gitlab.com/golang-commonmark/markdown"
@@ -30,6 +31,7 @@ type ClientImpl struct {
 	botPassword  string
 	clientType   string // can be "bot", "app" or "token"
 	token        *oauth2.Token
+	logError     func(msg string, keyValuePairs ...any)
 }
 
 type Channel struct {
@@ -100,21 +102,23 @@ type ActivityIds struct {
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantId, clientId, clientSecret string) *ClientImpl {
+func NewApp(tenantId, clientId, clientSecret string, logError func(string, ...any)) *ClientImpl {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
 		tenantId:     tenantId,
 		clientId:     clientId,
 		clientSecret: clientSecret,
+		logError:     logError,
 	}
 }
 
-func NewTokenClient(tenantId, clientId string, token *oauth2.Token) *ClientImpl {
+func NewTokenClient(tenantId, clientId string, token *oauth2.Token, logError func(string, ...any)) *ClientImpl {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		token:      token,
+		logError:   logError,
 	}
 	endpoint := microsoft.AzureADEndpoint(tenantId)
 	endpoint.AuthStyle = oauth2.AuthStyleInParams
@@ -132,7 +136,7 @@ func NewTokenClient(tenantId, clientId string, token *oauth2.Token) *ClientImpl 
 	return client
 }
 
-func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *ClientImpl {
+func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string, logError func(string, ...any)) *ClientImpl {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "bot",
@@ -141,6 +145,7 @@ func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string) *
 		clientSecret: clientSecret,
 		botUsername:  botUsername,
 		botPassword:  botPassword,
+		logError:     logError,
 	}
 }
 
@@ -159,11 +164,6 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 	if err != nil {
 		return nil, err
 	}
-	t, err := ts.Token()
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("TOKEN INFO", t)
 	return ts, nil
 }
 
@@ -235,7 +235,7 @@ func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (
 func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error) {
 	rmsg := &msgraph.ChatMessage{}
 	md := markdown.New(markdown.XHTMLOutput(true))
-	content := md.RenderToString([]byte(message))
+	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	for _, attachment := range attachments {
 		att := attachment
@@ -276,7 +276,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 func (tc *ClientImpl) SendChat(chatID, parentID, message string) (string, error) {
 	rmsg := &msgraph.ChatMessage{}
 	md := markdown.New(markdown.XHTMLOutput(true))
-	content := md.RenderToString([]byte(message))
+	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	contentType := msgraph.BodyTypeVHTML
 	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
@@ -366,7 +366,7 @@ func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(message))
+	content := md.RenderToString([]byte(emoji.Parse(message)))
 	contentType := msgraph.BodyTypeVHTML
 	body := &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 	rmsg := &msgraph.ChatMessage{Body: body}
@@ -387,7 +387,7 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 
 func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(message))
+	content := md.RenderToString([]byte(emoji.Parse(message)))
 	contentType := msgraph.BodyTypeVHTML
 	body := &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 	rmsg := &msgraph.ChatMessage{Body: body}
@@ -400,18 +400,19 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 }
 
 func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, changeType string) (string, error) {
-	expirationDateTime := time.Now().Add(60 * time.Minute)
+	expirationDateTime := time.Now().Add(30 * time.Minute)
 
 	subscriptionsCt := tc.client.Subscriptions().Request()
 	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
 	if err != nil {
+		tc.logError("Unable to get the subcscriptions list", err)
 		return "", err
 	}
 
-	subscriptionID := ""
+	var existingSubscription *msgraph.Subscription
 	for _, s := range subscriptionsRes {
 		if *s.Resource == resource {
-			subscriptionID = *s.ID
+			existingSubscription = &s
 			break
 		}
 	}
@@ -424,22 +425,34 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 		ChangeType:         &changeType,
 	}
 
-	if subscriptionID == "" {
-		fmt.Println("CREATING A NEW SUBSCRIPTION")
-		ct := tc.client.Subscriptions().Request()
-		res, err := ct.Add(tc.ctx, &subscription)
-		if err != nil {
-			return "", err
+	if existingSubscription != nil {
+		if *existingSubscription.ChangeType != changeType || *existingSubscription.NotificationURL != notificationURL || *existingSubscription.ClientState != webhookSecret {
+			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
+			if err := ct.Delete(tc.ctx); err != nil {
+				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
+			}
+		} else {
+			expirationDateTime := time.Now().Add(30 * time.Minute)
+			updatedSubscription := msgraph.Subscription{
+				ExpirationDateTime: &expirationDateTime,
+			}
+			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
+			err = ct.Update(tc.ctx, &updatedSubscription)
+			if err := ct.Delete(tc.ctx); err != nil {
+				tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
+			}
+			return *existingSubscription.ID, nil
 		}
-		return *res.ID, nil
 	}
 
-	fmt.Println("UPDATING EXISTING ONE")
-	ct := tc.client.Subscriptions().ID(subscriptionID).Request()
-	if err := ct.Update(tc.ctx, &subscription); err != nil {
+	ct := tc.client.Subscriptions().Request()
+	res, err := ct.Add(tc.ctx, &subscription)
+	if err != nil {
+		tc.logError("Unable to create the new subscription", "error", err)
 		return "", err
 	}
-	return subscriptionID, nil
+
+	return *res.ID, nil
 }
 
 func (tc *ClientImpl) SubscribeToChannels(notificationURL string, webhookSecret string) (string, error) {
@@ -458,25 +471,28 @@ func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subsc
 	currentSubscriptionID := subscriptionID
 	for {
 		select {
-		case <-time.After(time.Minute):
-			expirationDateTime := time.Now().Add(10 * time.Minute)
+		case <-time.After(9 * time.Minute):
+			expirationDateTime := time.Now().Add(30 * time.Minute)
 			updatedSubscription := msgraph.Subscription{
 				ExpirationDateTime: &expirationDateTime,
 			}
 			ct := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
 			err := ct.Update(tc.ctx, &updatedSubscription)
 			if err != nil {
+				tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
+
+				// Unable to refresh, try to recreate the subscription
 				newSubscriptionID, err := tc.subscribe(notificationURL, webhookSecret, resource, changeType)
 				if err != nil {
-					// TODO: Log here the error (the client probably needs an error logger to do this)
+					tc.logError("Unable to create the a new subscription", "error", err)
 				}
 				currentSubscriptionID = newSubscriptionID
-				// Unable to refresh, try to recreate the subscription
 			}
 		case <-ctx.Done():
 			deleteSubCt := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
 			err := deleteSubCt.Delete(tc.ctx)
 			if err != nil {
+				tc.logError("Unable to delete the subscription on stop", "error", err)
 				return err
 			}
 		}
@@ -493,31 +509,6 @@ func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Contex
 	resource := "chats/getAllMessages"
 	changeType := "created,deleted,updated"
 	return tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
-}
-
-func (tc *ClientImpl) ClearSubscription(subscriptionID string) error {
-	deleteSubCt := tc.client.Subscriptions().ID(subscriptionID).Request()
-	err := deleteSubCt.Delete(tc.ctx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (tc *ClientImpl) ClearSubscriptions() error {
-	subscriptionsCt := tc.client.Subscriptions().Request()
-	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
-	if err != nil {
-		return err
-	}
-	for _, subscription := range subscriptionsRes {
-		deleteSubCt := tc.client.Subscriptions().ID(*subscription.ID).Request()
-		err := deleteSubCt.Delete(tc.ctx)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {

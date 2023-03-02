@@ -41,6 +41,7 @@ type Plugin struct {
 
 	stopSubscriptions func()
 	stopContext       context.Context
+	startMutex        sync.Mutex
 
 	userID string
 
@@ -66,7 +67,7 @@ func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token), nil
+	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError), nil
 }
 
 func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -83,7 +84,7 @@ func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token), nil
+	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -95,6 +96,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 			p.configuration.TenantId,
 			p.configuration.ClientId,
 			p.configuration.ClientSecret,
+			p.API.LogError,
 		)
 	}
 	err := p.msteamsAppClient.Connect()
@@ -115,6 +117,7 @@ func (p *Plugin) connectTeamsBotClient() error {
 			p.configuration.ClientSecret,
 			p.configuration.BotUsername,
 			p.configuration.BotPassword,
+			p.API.LogError,
 		)
 	}
 	err := p.msteamsBotClient.Connect()
@@ -137,17 +140,10 @@ func (p *Plugin) start() error {
 		return err
 	}
 
-	// lockctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-	// defer cancel()
-
-	// err = p.clusterMutex.LockWithContext(lockctx)
-	// if err != nil {
-	// 	p.API.LogInfo("Other node is taking care of the subscriptions")
-	// 	return nil
-	// }
-	// defer p.clusterMutex.Unlock()
-
 	go func() {
+		p.clusterMutex.Lock()
+		defer p.clusterMutex.Unlock()
+
 		time.Sleep(100 * time.Millisecond)
 		subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
 		if err != nil {
@@ -176,10 +172,7 @@ func (p *Plugin) start() error {
 func (p *Plugin) stop() {
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
-		err := p.msteamsAppClient.ClearSubscriptions()
-		if err != nil {
-			p.API.LogError("Unable to clear all subscriptions", "error", err)
-		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
