@@ -13,7 +13,7 @@ import (
 
 func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
 	p.API.LogError("Message will be posted hook", "post", post)
-	if len(post.FileIds) > 0 {
+	if len(post.FileIds) > 0 && p.configuration.SyncDirectMessages {
 		channel, err := p.API.GetChannel(post.ChannelId)
 		if err != nil {
 			return post, ""
@@ -56,7 +56,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		if err != nil {
 			return
 		}
-		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
 			members, err := p.API.GetChannelMembers(post.ChannelId, 0, 10)
 			if err != nil {
 				return
@@ -88,7 +88,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		if err != nil {
 			return
 		}
-		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
 			p.SetChatReaction(teamsMessageID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
 			return
 		}
@@ -129,7 +129,7 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 		if err != nil {
 			return
 		}
-		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
 			p.UnsetChatReaction(teamsMessageID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			return
 		}
@@ -163,6 +163,9 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 			return
 		}
 		if channel.Type != model.ChannelTypeGroup && channel.Type != model.ChannelTypeDirect {
+			return
+		}
+		if !p.configuration.SyncDirectMessages {
 			return
 		}
 

@@ -228,6 +228,10 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		if err != nil {
 			return err
 		}
+		if !p.configuration.SyncDirectMessages {
+			// Skipping because direct/group messages are disabled
+			return nil
+		}
 	} else {
 		channelLink, _ := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
@@ -299,6 +303,10 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 			return errors.New("Unable to find the subscription")
 		}
 		channelID = channelLink.MattermostChannel
+		if !p.configuration.SyncDirectMessages {
+			// Skipping because direct/group messages are disabled
+			return nil
+		}
 	} else {
 		p, err := p.API.GetPost(postID)
 		if err != nil {
