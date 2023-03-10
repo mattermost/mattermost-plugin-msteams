@@ -176,7 +176,6 @@ func (p *Plugin) restart() {
 
 func (p *Plugin) OnActivate() error {
 	client := pluginapi.NewClient(p.API, p.Driver)
-	client.Store.GetMasterDB()
 
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
@@ -210,7 +209,12 @@ func (p *Plugin) OnActivate() error {
 		return appErr
 	}
 
-	p.store = store.New(client.Store, p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
+	db, err := client.Store.GetMasterDB()
+	if err != nil {
+		return err
+	}
+
+	p.store = store.New(db, client.Store.DriverName(), p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
 	if err := p.store.Init(); err != nil {
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	sq "github.com/Masterminds/squirrel"
-	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"golang.org/x/oauth2"
 )
@@ -43,35 +42,31 @@ type Store interface {
 }
 
 type StoreImpl struct {
-	store        *pluginapi.StoreService
 	api          plugin.API
 	enabledTeams func() []string
 	db           *sql.DB
+	driverName   string
 }
 
-func New(store *pluginapi.StoreService, api plugin.API, enabledTeams func() []string) *StoreImpl {
+func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string) *StoreImpl {
 	return &StoreImpl{
-		store:        store,
+		db:           db,
+		driverName:   driverName,
 		api:          api,
 		enabledTeams: enabledTeams,
 	}
 }
 
 func (s *StoreImpl) Init() error {
-	db, err := s.store.GetMasterDB()
-	s.db = db
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR PRIMARY KEY, mmTeamID VARCHAR, msTeamsChannelID VARCHAR, msTeamsTeamID VARCHAR)")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR PRIMARY KEY, mmTeamID VARCHAR, msTeamsChannelID VARCHAR, msTeamsTeamID VARCHAR)")
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR PRIMARY KEY, msTeamsUserID VARCHAR, token TEXT)")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR PRIMARY KEY, msTeamsUserID VARCHAR, token TEXT)")
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR)")
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR)")
 	if err != nil {
 		return err
 	}
@@ -270,7 +265,7 @@ func (s *StoreImpl) CheckEnabledTeamByTeamId(teamId string) bool {
 
 func (s *StoreImpl) getQueryBuilder() sq.StatementBuilderType {
 	builder := sq.StatementBuilder
-	if s.store.DriverName() == "postgres" {
+	if s.driverName == "postgres" {
 		builder = builder.PlaceholderFormat(sq.Dollar)
 	}
 
