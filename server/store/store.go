@@ -237,10 +237,16 @@ func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oaut
 			return err
 		}
 	}
-	query := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token")
-	_, err := query.Exec()
-	if err != nil {
-		return err
+	if s.driverName == "postgres" {
+		_, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec()
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := s.getQueryBuilder().Replace("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Exec()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
