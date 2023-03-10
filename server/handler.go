@@ -487,8 +487,7 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 					return "", appErr2
 				}
 			}
-			p.store.SetTeamsToMattermostUserId(member.UserID, u.Id)
-			p.store.SetMattermostToTeamsUserId(u.Id, member.UserID)
+			p.store.SetUserInfo(u.Id, member.UserID, nil)
 			mmUserID = u.Id
 		}
 		userIDs = append(userIDs, mmUserID)

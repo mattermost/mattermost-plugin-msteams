@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -71,15 +72,7 @@ func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
 }
 
 func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
-	userID, err := p.store.TeamsToMattermostUserId(teamsUserID)
-	if err != nil {
-		return nil, err
-	}
-	if userID == "" {
-		return nil, errors.New("not connected user")
-	}
-
-	token, _ := p.store.GetTokenForMattermostUser(userID)
+	token, _ := p.store.GetTokenForMSTeamsUser(teamsUserID)
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
@@ -182,6 +175,9 @@ func (p *Plugin) restart() {
 }
 
 func (p *Plugin) OnActivate() error {
+	client := pluginapi.NewClient(p.API, p.Driver)
+	client.Store.GetMasterDB()
+
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
@@ -214,7 +210,10 @@ func (p *Plugin) OnActivate() error {
 		return appErr
 	}
 
-	p.store = store.New(p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
+	p.store = store.New(client.Store, p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
+	if err := p.store.Init(); err != nil {
+		return err
+	}
 
 	go p.start()
 	return nil

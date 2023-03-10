@@ -1,15 +1,19 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 
+	sq "github.com/Masterminds/squirrel"
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"golang.org/x/oauth2"
 )
 
 const (
 	avatarCacheTime = 300
+	avatarKey       = "avatar_"
 )
 
 type ChannelLink struct {
@@ -20,6 +24,7 @@ type ChannelLink struct {
 }
 
 type Store interface {
+	Init() error
 	GetAvatarCache(userID string) ([]byte, error)
 	SetAvatarCache(userID string, photo []byte) error
 	GetLinkByChannelID(channelID string) (*ChannelLink, error)
@@ -30,28 +35,51 @@ type Store interface {
 	MattermostToTeamsPostId(postID string) (string, error)
 	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
-	SetTokenForMattermostUser(userID string, token *oauth2.Token) error
-	SetTeamsToMattermostUserId(teamsUserID, mattermostUserId string) error
-	SetMattermostToTeamsUserId(mattermostUserId, teamsUserId string) error
+	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
+	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	TeamsToMattermostUserId(userID string) (string, error)
 	MattermostToTeamsUserId(userID string) (string, error)
 	CheckEnabledTeamByTeamId(teamId string) bool
 }
 
 type StoreImpl struct {
+	store        *pluginapi.StoreService
 	api          plugin.API
 	enabledTeams func() []string
+	db           *sql.DB
 }
 
-func New(api plugin.API, enabledTeams func() []string) *StoreImpl {
+func New(store *pluginapi.StoreService, api plugin.API, enabledTeams func() []string) *StoreImpl {
 	return &StoreImpl{
+		store:        store,
 		api:          api,
 		enabledTeams: enabledTeams,
 	}
 }
 
+func (s *StoreImpl) Init() error {
+	db, err := s.store.GetMasterDB()
+	s.db = db
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR PRIMARY KEY, mmTeamID VARCHAR, msTeamsChannelID VARCHAR, msTeamsTeamID VARCHAR)")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR PRIMARY KEY, msTeamsUserID VARCHAR, token TEXT)")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR)")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *StoreImpl) GetAvatarCache(userID string) ([]byte, error) {
-	data, appErr := s.api.KVGet(avatarKey(userID))
+	data, appErr := s.api.KVGet(avatarKey + userID)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -59,7 +87,7 @@ func (s *StoreImpl) GetAvatarCache(userID string) ([]byte, error) {
 }
 
 func (s *StoreImpl) SetAvatarCache(userID string, photo []byte) error {
-	appErr := s.api.KVSetWithExpiry(avatarKey(userID), photo, avatarCacheTime)
+	appErr := s.api.KVSetWithExpiry(avatarKey+userID, photo, avatarCacheTime)
 	if appErr != nil {
 		return appErr
 	}
@@ -68,15 +96,14 @@ func (s *StoreImpl) SetAvatarCache(userID string, photo []byte) error {
 }
 
 func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
-	linkdata, appErr := s.api.KVGet(channelsLinkedKey(channelID))
-	if appErr != nil {
-		return nil, appErr
-	}
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
+	row := query.QueryRow()
 	var link ChannelLink
-	err := json.Unmarshal(linkdata, &link)
+	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
 	if err != nil {
 		return nil, err
 	}
+
 	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
 		return nil, errors.New("link not enabled for this team")
 	}
@@ -84,12 +111,10 @@ func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 }
 
 func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error) {
-	linkdata, appErr := s.api.KVGet(channelsLinkedByMSTeamsKey(teamID, channelID))
-	if appErr != nil {
-		return nil, appErr
-	}
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
+	row := query.QueryRow()
 	var link ChannelLink
-	err := json.Unmarshal(linkdata, &link)
+	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
 	if err != nil {
 		return nil, err
 	}
@@ -100,119 +125,127 @@ func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*Channe
 }
 
 func (s *StoreImpl) DeleteLinkByChannelID(channelID string) error {
-	_, err := s.GetLinkByChannelID(channelID)
+	query := s.getQueryBuilder().Delete("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
+	_, err := query.Exec()
 	if err != nil {
 		return err
-	}
-
-	appErr := s.api.KVDelete(channelsLinkedKey(channelID))
-	if appErr != nil {
-		return appErr
 	}
 
 	return nil
 }
 
 func (s *StoreImpl) StoreChannelLink(link *ChannelLink) error {
-	linkdata, err := json.Marshal(link)
+	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam)
+	_, err := query.Exec()
 	if err != nil {
 		return err
 	}
-
-	appErr := s.api.KVSet(channelsLinkedKey(link.MattermostChannel), linkdata)
-	if appErr != nil {
-		return appErr
-	}
-	appErr = s.api.KVSet(channelsLinkedByMSTeamsKey(link.MSTeamsTeam, link.MSTeamsChannel), linkdata)
-	if appErr != nil {
-		_ = s.api.KVDelete(channelsLinkedKey(link.MattermostChannel))
-		return appErr
+	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
+		return errors.New("link not enabled for this team")
 	}
 	return nil
 }
 
 func (s *StoreImpl) TeamsToMattermostUserId(userID string) (string, error) {
-	data, err := s.api.KVGet(teamsMattermostUserKey(userID))
+	query := s.getQueryBuilder().Select("mmUserID").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
+	row := query.QueryRow()
+	var mmUserID string
+	err := row.Scan(&mmUserID)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return mmUserID, nil
 }
 
 func (s *StoreImpl) MattermostToTeamsUserId(userID string) (string, error) {
-	data, err := s.api.KVGet(mattermostTeamsUserKey(userID))
+	query := s.getQueryBuilder().Select("msTeamsUserID").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
+	row := query.QueryRow()
+	var msTeamsUserID string
+	err := row.Scan(&msTeamsUserID)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return msTeamsUserID, nil
 }
 
 func (s *StoreImpl) TeamsToMattermostPostId(chatID string, postID string) (string, error) {
-	data, err := s.api.KVGet(teamsMattermostPostKey(chatID, postID))
+	query := s.getQueryBuilder().Select("mmPostID").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
+	row := query.QueryRow()
+	var mmPostID string
+	err := row.Scan(&mmPostID)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return mmPostID, nil
 }
 
 func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
-	data, err := s.api.KVGet(mattermostTeamsPostKey(postID))
+	query := s.getQueryBuilder().Select("msTeamsPostID").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
+	row := query.QueryRow()
+	var msTeamsPostID string
+	err := row.Scan(&msTeamsPostID)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return msTeamsPostID, nil
 }
 
 func (s *StoreImpl) LinkPosts(mattermostPostID, teamsChatOrChannelID, teamsPostID string) error {
-	err := s.api.KVSet(mattermostTeamsPostKey(mattermostPostID), []byte(teamsPostID))
+	query := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID)
+	_, err := query.Exec()
 	if err != nil {
-		return err
-	}
-	err = s.api.KVSet(teamsMattermostPostKey(teamsChatOrChannelID, teamsPostID), []byte(mattermostPostID))
-	if err != nil {
-		_ = s.api.KVDelete(mattermostTeamsPostKey(mattermostPostID))
 		return err
 	}
 	return nil
 }
 
 func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
-	tokendata, appErr := s.api.KVGet(tokenForMattermostUserKey(userID))
-	if appErr != nil {
-		return nil, appErr
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
+	row := query.QueryRow()
+	var tokendata string
+	err := row.Scan(&tokendata)
+	if err != nil {
+		return nil, err
 	}
+
 	var token oauth2.Token
-	err := json.Unmarshal(tokendata, &token)
+	err = json.Unmarshal([]byte(tokendata), &token)
 	if err != nil {
 		return nil, err
 	}
 	return &token, nil
 }
 
-func (s *StoreImpl) SetTokenForMattermostUser(userID string, token *oauth2.Token) error {
-	tokendata, err := json.Marshal(token)
+func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
+	row := query.QueryRow()
+	var tokendata string
+	err := row.Scan(&tokendata)
+	if err != nil {
+		return nil, err
+	}
+
+	var token oauth2.Token
+	err = json.Unmarshal([]byte(tokendata), &token)
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
+	tokendata := []byte{}
+	if token != nil {
+		var err error
+		tokendata, err = json.Marshal(token)
+		if err != nil {
+			return err
+		}
+	}
+	query := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token")
+	_, err := query.Exec()
 	if err != nil {
 		return err
-	}
-	appErr := s.api.KVSet(tokenForMattermostUserKey(userID), tokendata)
-	if appErr != nil {
-		return appErr
-	}
-	return nil
-}
-
-func (s *StoreImpl) SetTeamsToMattermostUserId(teamsUserID, mattermostUserId string) error {
-	appErr := s.api.KVSet(teamsMattermostUserKey(teamsUserID), []byte(mattermostUserId))
-	if appErr != nil {
-		return appErr
-	}
-	return nil
-}
-
-func (s *StoreImpl) SetMattermostToTeamsUserId(mattermostUserId, teamsUserID string) error {
-	appErr := s.api.KVSet(mattermostTeamsUserKey(mattermostUserId), []byte(teamsUserID))
-	if appErr != nil {
-		return appErr
 	}
 	return nil
 }
@@ -233,4 +266,13 @@ func (s *StoreImpl) CheckEnabledTeamByTeamId(teamId string) bool {
 		}
 	}
 	return isTeamEnabled
+}
+
+func (s *StoreImpl) getQueryBuilder() sq.StatementBuilderType {
+	builder := sq.StatementBuilder
+	if s.store.DriverName() == "postgres" {
+		builder = builder.PlaceholderFormat(sq.Dollar)
+	}
+
+	return builder.RunWith(s.db)
 }
