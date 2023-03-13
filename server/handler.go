@@ -291,7 +291,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	}
 
 	postID, _ := p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ID)
-	if len(postID) == 0 {
+	if postID == "" {
 		return nil
 	}
 
@@ -409,7 +409,7 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
 
 	postID, _ := p.store.TeamsToMattermostPostID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
-	if len(postID) == 0 {
+	if postID == "" {
 		return nil
 	}
 
@@ -437,7 +437,7 @@ func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID stri
 		rootID = parentID
 	}
 
-	if len(rootID) == 0 && msg.Subject != "" {
+	if rootID == "" && msg.Subject != "" {
 		text = "## " + msg.Subject + "\n" + text
 	}
 

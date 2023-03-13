@@ -256,7 +256,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	rmsg.Body = &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 
 	var res *msgraph.ChatMessage
-	if len(parentID) > 0 {
+	if parentID != "" {
 		var err error
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().Request()
 		res, err = ct.Add(tc.ctx, rmsg)
@@ -344,7 +344,7 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 }
 
 func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {
-	if len(parentID) > 0 {
+	if parentID != "" {
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(msgID).Request()
 		if err := ct.Delete(tc.ctx); err != nil {
 			return err
@@ -373,7 +373,7 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 	body := &msgraph.ItemBody{ContentType: &contentType, Content: &content}
 	rmsg := &msgraph.ChatMessage{Body: body}
 
-	if len(parentID) > 0 {
+	if parentID != "" {
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(msgID).Request()
 		if err := ct.Update(tc.ctx, rmsg); err != nil {
 			return err
