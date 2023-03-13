@@ -256,10 +256,16 @@ func (p *Plugin) syncUsers() {
 		}
 
 		if user == nil {
-			p.API.CreateUser(mmUser)
+			_, err := p.API.CreateUser(mmUser)
+			if err != nil {
+				p.API.LogError("Unable to sync user", "error", err)
+			}
 		} else {
 			mmUser.Id = user.Id
-			p.API.UpdateUser(mmUser)
+			_, err := p.API.UpdateUser(mmUser)
+			if err != nil {
+				p.API.LogError("Unable to sync user", "error", err)
+			}
 		}
 	}
 }

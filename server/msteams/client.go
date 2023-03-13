@@ -214,12 +214,11 @@ func (tc *ClientImpl) Connect() error {
 	tc.client = graphClient
 
 	if tc.clientType == "bot" {
-		req := graphClient.Me().Request()
-		r, err := req.Get(tc.ctx)
+		botID, err := tc.GetMyID()
 		if err != nil {
 			return err
 		}
-		tc.botID = *r.ID
+		tc.botID = botID
 	}
 
 	return nil
@@ -227,6 +226,7 @@ func (tc *ClientImpl) Connect() error {
 
 func (tc *ClientImpl) GetMyID() (string, error) {
 	req := tc.client.Me().Request()
+	req.Select("id")
 	r, err := req.Get(tc.ctx)
 	if err != nil {
 		return "", err
@@ -792,6 +792,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	ct := tc.client.Chats().Request()
 	ct.Filter(fmt.Sprintf("members/all(u:u/userId in ('%s'))", strings.Join(usersIDs, "','")))
 	ct.Expand("members")
+	ct.Select("members,id")
 	res, err := ct.Get(tc.ctx)
 	chatType := "group"
 	if len(usersIDs) == 2 {
@@ -977,6 +978,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 func (tc *ClientImpl) ListUsers() ([]User, error) {
 	req := tc.client.Users().Request()
+	req.Select("displayName,id")
 	r, err := req.Get(tc.ctx)
 	if err != nil {
 		return nil, err
