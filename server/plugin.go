@@ -23,7 +23,7 @@ import (
 const (
 	botUsername     = "msteams"
 	botDisplayName  = "MS Teams"
-	pluginID        = "com.mattermost.msteams-sync-plugin"
+	pluginID        = "com.mattermost.msteams-sync"
 	clusterMutexKey = "subscriptions_cluster_mutex"
 )
 
@@ -241,7 +241,7 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 	for _, msUser := range msUsers {
-		user, _ := p.API.GetUserByEmail(msUser.ID + "@msteamssync-plugin")
+		user, _ := p.API.GetUserByEmail(msUser.ID + "@msteamssync")
 
 		userUUID := uuid.Parse(msUser.ID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
@@ -250,7 +250,7 @@ func (p *Plugin) syncUsers() {
 		mmUser := &model.User{
 			Username:  slug.Make(msUser.DisplayName) + "-" + msUser.ID,
 			FirstName: msUser.DisplayName,
-			Email:     msUser.ID + "@msteamssync-plugin",
+			Email:     msUser.ID + "@msteamssync",
 			Password:  model.NewId(),
 			RemoteId:  &shortUserId,
 		}

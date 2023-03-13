@@ -28,7 +28,7 @@ func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*mode
 				if err != nil {
 					return post, ""
 				}
-				if strings.HasSuffix(user.Email, "@msteamssync-plugin") {
+				if strings.HasSuffix(user.Email, "@msteamssync") {
 					p.API.SendEphemeralPost(post.UserId, &model.Post{
 						Message:   "Attachments not supported in direct messages with MSTeams members",
 						UserId:    p.userID,

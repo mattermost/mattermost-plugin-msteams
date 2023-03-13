@@ -473,7 +473,7 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 	for _, member := range chat.Members {
 		mmUserID, err := p.store.TeamsToMattermostUserID(member.UserID)
 		if err != nil || mmUserID == "" {
-			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
+			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync")
 			if appErr != nil {
 				var appErr2 *model.AppError
 				memberUUID := uuid.Parse(member.UserID)
@@ -482,7 +482,7 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 				u, appErr2 = p.API.CreateUser(&model.User{
 					Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
 					FirstName: member.DisplayName,
-					Email:     member.UserID + "@msteamssync-plugin",
+					Email:     member.UserID + "@msteamssync",
 					Password:  model.NewId(),
 					RemoteId:  &shortUserId,
 				})
