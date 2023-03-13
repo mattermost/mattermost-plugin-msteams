@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -30,15 +31,15 @@ type Store interface {
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
 	StoreChannelLink(link *ChannelLink) error
-	TeamsToMattermostPostId(chatID string, postID string) (string, error)
-	MattermostToTeamsPostId(postID string) (string, error)
-	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string) error
+	TeamsToMattermostPostID(chatID string, postID string) (string, error)
+	MattermostToTeamsPostID(postID string) (string, error)
+	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string, msLastUpdateAt time.Time) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
-	TeamsToMattermostUserId(userID string) (string, error)
-	MattermostToTeamsUserId(userID string) (string, error)
-	CheckEnabledTeamByTeamId(teamId string) bool
+	TeamsToMattermostUserID(userID string) (string, error)
+	MattermostToTeamsUserID(userID string) (string, error)
+	CheckEnabledTeamByTeamID(teamID string) bool
 }
 
 type StoreImpl struct {
@@ -66,7 +67,8 @@ func (s *StoreImpl) Init() error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR)")
+
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR, msTeamsLastUpdateAt BIGINT)")
 	if err != nil {
 		return err
 	}
@@ -99,7 +101,7 @@ func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 		return nil, err
 	}
 
-	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -113,7 +115,7 @@ func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*Channe
 	if err != nil {
 		return nil, err
 	}
-	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -135,13 +137,13 @@ func (s *StoreImpl) StoreChannelLink(link *ChannelLink) error {
 	if err != nil {
 		return err
 	}
-	if !s.CheckEnabledTeamByTeamId(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
 		return errors.New("link not enabled for this team")
 	}
 	return nil
 }
 
-func (s *StoreImpl) TeamsToMattermostUserId(userID string) (string, error) {
+func (s *StoreImpl) TeamsToMattermostUserID(userID string) (string, error) {
 	query := s.getQueryBuilder().Select("mmUserID").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
 	row := query.QueryRow()
 	var mmUserID string
@@ -152,7 +154,7 @@ func (s *StoreImpl) TeamsToMattermostUserId(userID string) (string, error) {
 	return mmUserID, nil
 }
 
-func (s *StoreImpl) MattermostToTeamsUserId(userID string) (string, error) {
+func (s *StoreImpl) MattermostToTeamsUserID(userID string) (string, error) {
 	query := s.getQueryBuilder().Select("msTeamsUserID").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
 	row := query.QueryRow()
 	var msTeamsUserID string
@@ -163,7 +165,7 @@ func (s *StoreImpl) MattermostToTeamsUserId(userID string) (string, error) {
 	return msTeamsUserID, nil
 }
 
-func (s *StoreImpl) TeamsToMattermostPostId(chatID string, postID string) (string, error) {
+func (s *StoreImpl) TeamsToMattermostPostID(chatID string, postID string) (string, error) {
 	query := s.getQueryBuilder().Select("mmPostID").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var mmPostID string
@@ -174,7 +176,7 @@ func (s *StoreImpl) TeamsToMattermostPostId(chatID string, postID string) (strin
 	return mmPostID, nil
 }
 
-func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
+func (s *StoreImpl) MattermostToTeamsPostID(postID string) (string, error) {
 	query := s.getQueryBuilder().Select("msTeamsPostID").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var msTeamsPostID string
@@ -185,11 +187,17 @@ func (s *StoreImpl) MattermostToTeamsPostId(postID string) (string, error) {
 	return msTeamsPostID, nil
 }
 
-func (s *StoreImpl) LinkPosts(mattermostPostID, teamsChatOrChannelID, teamsPostID string) error {
-	query := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID)
-	_, err := query.Exec()
-	if err != nil {
-		return err
+func (s *StoreImpl) LinkPosts(mattermostPostID, teamsChatOrChannelID, teamsPostID string, teamsLastUpdateAt time.Time) error {
+	if s.driverName == "postgres" {
+		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID, teamsLastUpdateAt.UnixMicro()).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec()
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID, teamsLastUpdateAt.UnixMicro()).Exec()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -251,11 +259,11 @@ func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oaut
 	return nil
 }
 
-func (s *StoreImpl) CheckEnabledTeamByTeamId(teamId string) bool {
+func (s *StoreImpl) CheckEnabledTeamByTeamID(teamID string) bool {
 	if len(s.enabledTeams()) == 1 && s.enabledTeams()[0] == "" {
 		return true
 	}
-	team, appErr := s.api.GetTeam(teamId)
+	team, appErr := s.api.GetTeam(teamID)
 	if appErr != nil {
 		return false
 	}

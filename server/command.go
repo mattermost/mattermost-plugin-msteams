@@ -104,7 +104,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if !p.store.CheckEnabledTeamByTeamId(args.TeamId) {
+	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
 		return cmdError(args.ChannelId, "This team is not enabled for MS Teams sync.")
 	}
 

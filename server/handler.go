@@ -137,7 +137,7 @@ func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannel
 		p.API.LogError("unmarshal codesnippet failed", "error", err)
 		return "", text
 	}
-	postID, err := p.store.TeamsToMattermostPostId(chatOrChannelID, content.MessageID)
+	postID, err := p.store.TeamsToMattermostPostID(chatOrChannelID, content.MessageID)
 	if err != nil {
 		return "", text
 	}
@@ -218,7 +218,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	}
 
 	var channelID string
-	senderID, err := p.store.TeamsToMattermostUserId(msg.UserID)
+	senderID, err := p.store.TeamsToMattermostUserID(msg.UserID)
 	if err != nil || senderID == "" {
 		senderID = p.userID
 	}
@@ -253,7 +253,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
-	data, _ := p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ID)
+	data, _ := p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ID)
 	if data != "" {
 		p.API.LogDebug("duplicated post")
 		return nil
@@ -268,7 +268,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.store.LinkPosts(newPost.Id, msg.ChatID+msg.ChannelID, msg.ID)
+		p.store.LinkPosts(newPost.Id, msg.ChatID+msg.ChannelID, msg.ID, msg.LastUpdateAt)
 	}
 	return nil
 }
@@ -290,7 +290,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	postID, _ := p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ID)
+	postID, _ := p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ID)
 	if len(postID) == 0 {
 		return nil
 	}
@@ -315,7 +315,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		channelID = p.ChannelId
 	}
 
-	senderID, err := p.store.TeamsToMattermostUserId(msg.UserID)
+	senderID, err := p.store.TeamsToMattermostUserID(msg.UserID)
 	if err != nil || senderID == "" {
 		senderID = p.userID
 	}
@@ -363,7 +363,7 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 			p.API.LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
 		}
-		reactionUserID, err := p.store.TeamsToMattermostUserId(reaction.UserID)
+		reactionUserID, err := p.store.TeamsToMattermostUserID(reaction.UserID)
 		if err != nil {
 			p.API.LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
@@ -379,7 +379,7 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 	}
 
 	for _, reaction := range reactions {
-		reactionUserID, err := p.store.TeamsToMattermostUserId(reaction.UserID)
+		reactionUserID, err := p.store.TeamsToMattermostUserID(reaction.UserID)
 		if err != nil {
 			p.API.LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
@@ -408,7 +408,7 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
 
-	postID, _ := p.store.TeamsToMattermostPostId(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
+	postID, _ := p.store.TeamsToMattermostPostID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
 	if len(postID) == 0 {
 		return nil
 	}
@@ -428,7 +428,7 @@ func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID stri
 	rootID := ""
 
 	if msg.ReplyToID != "" {
-		rootID, _ = p.store.TeamsToMattermostPostId(msg.ChatID+msg.ChannelID, msg.ReplyToID)
+		rootID, _ = p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ReplyToID)
 	}
 
 	newText, attachments, parentID := p.handleAttachments(channelID, text, msg)
@@ -467,7 +467,7 @@ func convertToMD(text string) string {
 func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
-		mmUserID, err := p.store.TeamsToMattermostUserId(member.UserID)
+		mmUserID, err := p.store.TeamsToMattermostUserID(member.UserID)
 		if err != nil || mmUserID == "" {
 			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync-plugin")
 			if appErr != nil {

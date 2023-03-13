@@ -8,9 +8,9 @@ import (
 type Client interface {
 	Connect() error
 	CreateOrGetChatForUsers(usersIDs []string) (string, error)
-	SendMessage(teamID, channelID, parentID, message string) (string, error)
-	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error)
-	SendChat(chatID, parentID, message string) (string, error)
+	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
+	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error)
+	SendChat(chatID, parentID, message string) (*Message, error)
 	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error)
 	UpdateMessage(teamID, channelID, parentID, msgID, message string) error
 	UpdateChatMessage(chatID, msgID, message string) error

@@ -77,7 +77,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
 	p.API.LogError("Adding reaction hook", "reaction", reaction)
-	teamsMessageID, err := p.store.MattermostToTeamsPostId(reaction.PostId)
+	teamsMessageID, err := p.store.MattermostToTeamsPostID(reaction.PostId)
 	if err != nil || teamsMessageID == "" {
 		return
 	}
@@ -112,7 +112,7 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 		p.API.LogError("Ignore reaction that has been trigger from the plugin handler")
 		return
 	}
-	teamsMessageID, err := p.store.MattermostToTeamsPostId(reaction.PostId)
+	teamsMessageID, err := p.store.MattermostToTeamsPostID(reaction.PostId)
 	if err != nil || teamsMessageID == "" {
 		return
 	}
@@ -175,7 +175,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 		usersIDs := []string{}
 		for _, m := range members {
-			teamsUserID, err := p.store.MattermostToTeamsUserId(m.UserId)
+			teamsUserID, err := p.store.MattermostToTeamsUserID(m.UserId)
 			if err != nil {
 				return
 			}
@@ -195,7 +195,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
 	p.API.LogDebug("Setting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
 
-	srcUserID, err := p.store.MattermostToTeamsUserId(srcUser)
+	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
-	teamsMessageID, err := p.store.MattermostToTeamsPostId(post.Id)
+	teamsMessageID, err := p.store.MattermostToTeamsPostID(post.Id)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -256,7 +256,7 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
 	p.API.LogDebug("Unsetting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
 
-	srcUserID, err := p.store.MattermostToTeamsUserId(srcUser)
+	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Unsetting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
-	teamsMessageID, err := p.store.MattermostToTeamsPostId(post.Id)
+	teamsMessageID, err := p.store.MattermostToTeamsPostID(post.Id)
 	if err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -318,16 +318,16 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
 	}
 
-	srcUserID, err := p.store.MattermostToTeamsUserId(srcUser)
+	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		return "", err
 	}
 	teamsUsersIDs := make([]string, len(usersIDs))
 	for idx, userID := range usersIDs {
-		teamsUserID, err := p.store.MattermostToTeamsUserId(userID)
+		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 		if err != nil {
 			return "", err
 		}
@@ -348,16 +348,19 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	newMessageId, err := client.SendChat(chatID, parentID, text)
+	newMessage, err := client.SendChat(chatID, parentID, text)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
 	}
 
-	if post.Id != "" && newMessageId != "" {
-		p.store.LinkPosts(post.Id, chatID, newMessageId)
+	if post.Id != "" && newMessage != nil {
+		err := p.store.LinkPosts(post.Id, chatID, newMessage.ID, newMessage.LastUpdateAt)
+		if err != nil {
+			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		}
 	}
-	return newMessageId, nil
+	return newMessage.ID, nil
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
@@ -365,7 +368,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
 	}
 
 	text := post.Message
@@ -396,16 +399,19 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		attachments = append(attachments, attachment)
 	}
 
-	newMessageId, err := client.SendMessageWithAttachments(teamID, channelID, parentID, text, attachments)
+	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, text, attachments)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return "", err
 	}
 
-	if post.Id != "" && newMessageId != "" {
-		p.store.LinkPosts(post.Id, channelID, newMessageId)
+	if post.Id != "" && newMessage != nil {
+		err := p.store.LinkPosts(post.Id, channelID, newMessage.ID, newMessage.LastUpdateAt)
+		if err != nil {
+			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		}
 	}
-	return newMessageId, nil
+	return newMessage.ID, nil
 }
 
 func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.Post) error {
@@ -413,7 +419,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(post.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -421,7 +427,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 		client = p.msteamsBotClient
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
+	msgID, _ := p.store.MattermostToTeamsPostID(post.Id)
 
 	if err := client.DeleteMessage(teamID, channelID, parentID, msgID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
@@ -439,7 +445,7 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 		client = p.msteamsBotClient
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostId(post.Id)
+	msgID, _ := p.store.MattermostToTeamsPostID(post.Id)
 
 	if err := client.DeleteChatMessage(chatID, msgID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
@@ -453,7 +459,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	parentID := ""
 	if oldPost.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostId(newPost.RootId)
+		parentID, _ = p.store.MattermostToTeamsPostID(newPost.RootId)
 	}
 
 	text := newPost.Message
@@ -464,11 +470,26 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
+	msgID, _ := p.store.MattermostToTeamsPostID(newPost.Id)
 
 	if err := client.UpdateMessage(teamID, channelID, parentID, msgID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
+	}
+
+	var updatedMessage *msteams.Message
+	if parentID != "" {
+		updatedMessage, err = client.GetReply(teamID, channelID, parentID, msgID)
+	} else {
+		updatedMessage, err = client.GetMessage(teamID, channelID, msgID)
+	}
+	if err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+	} else {
+		err := p.store.LinkPosts(newPost.Id, channelID, msgID, updatedMessage.LastUpdateAt)
+		if err != nil {
+			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		}
 	}
 
 	return nil
@@ -477,7 +498,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post) error {
 	p.API.LogDebug("Updating direct message to MS Teams", "chatID", chatID, "oldPost", oldPost, "newPost", newPost)
 
-	msgID, _ := p.store.MattermostToTeamsPostId(newPost.Id)
+	msgID, _ := p.store.MattermostToTeamsPostID(newPost.Id)
 
 	text := newPost.Message
 
@@ -490,6 +511,16 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	if err := client.UpdateChatMessage(chatID, msgID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
+	}
+
+	updatedMessage, err := client.GetChatMessage(chatID, msgID)
+	if err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+	} else {
+		err := p.store.LinkPosts(newPost.Id, chatID, msgID, updatedMessage.LastUpdateAt)
+		if err != nil {
+			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		}
 	}
 
 	return nil
@@ -511,7 +542,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 
 	teamsUsersIDs := make([]string, len(members))
 	for idx, m := range members {
-		teamsUserID, err := p.store.MattermostToTeamsUserId(m.UserId)
+		teamsUserID, err := p.store.MattermostToTeamsUserID(m.UserId)
 		if err != nil {
 			return "", err
 		}

@@ -83,6 +83,7 @@ type Message struct {
 	ChannelID       string
 	TeamID          string
 	ChatID          string
+	LastUpdateAt    time.Time
 }
 
 type Activity struct {
@@ -228,11 +229,11 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 	return *r.ID, nil
 }
 
-func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (string, error) {
+func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (*Message, error) {
 	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil)
 }
 
-func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (string, error) {
+func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error) {
 	rmsg := &msgraph.ChatMessage{}
 	md := markdown.New(markdown.XHTMLOutput(true))
 	content := md.RenderToString([]byte(emoji.Parse(message)))
@@ -260,20 +261,20 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().Request()
 		res, err = ct.Add(tc.ctx, rmsg)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	} else {
 		var err error
 		ct := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().Request()
 		res, err = ct.Add(tc.ctx, rmsg)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-	return *res.ID, nil
+	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, parentID, message string) (string, error) {
+func (tc *ClientImpl) SendChat(chatID, parentID, message string) (*Message, error) {
 	rmsg := &msgraph.ChatMessage{}
 	md := markdown.New(markdown.XHTMLOutput(true))
 	content := md.RenderToString([]byte(emoji.Parse(message)))
@@ -285,9 +286,10 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string) (string, error)
 	ct := tc.client.Chats().ID(chatID).Messages().Request()
 	res, err := ct.Add(tc.ctx, rmsg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return *res.ID, nil
+
+	return convertToMessage(res, "", "", chatID), nil
 }
 
 func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
@@ -581,7 +583,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 	return &Chat{ID: chatID, Members: members, Type: chatType}, nil
 }
 
-func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string) *Message {
+func convertToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string) *Message {
 	data, _ := json.Marshal(msg)
 	fmt.Println("==================", string(data), "===================")
 
@@ -612,6 +614,11 @@ func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string)
 	subject := ""
 	if msg.Subject != nil {
 		subject = *msg.Subject
+	}
+
+	lastUpdateAt := time.Now()
+	if msg.LastModifiedDateTime != nil {
+		lastUpdateAt = *msg.LastModifiedDateTime
 	}
 
 	attachments := []Attachment{}
@@ -659,6 +666,7 @@ func converToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string)
 		ChannelID:       channelID,
 		ChatID:          chatID,
 		Reactions:       reactions,
+		LastUpdateAt:    lastUpdateAt,
 	}
 
 }
@@ -669,7 +677,7 @@ func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message,
 	if err != nil {
 		return nil, err
 	}
-	return converToMessage(res, teamID, channelID, ""), nil
+	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
 func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error) {
@@ -678,7 +686,7 @@ func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error)
 	if err != nil {
 		return nil, err
 	}
-	return converToMessage(res, "", "", chatID), nil
+	return convertToMessage(res, "", "", chatID), nil
 }
 
 func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
@@ -688,7 +696,7 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 		return nil, err
 	}
 
-	return converToMessage(res, teamID, channelID, ""), nil
+	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
 func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
