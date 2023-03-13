@@ -166,7 +166,6 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 			}
 		}
 		if client == nil {
-			// TODO: None of the users are connected to MSTeams, ignoring the message
 			return nil, nil, nil
 		}
 
@@ -278,6 +277,11 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
 		return err
+	}
+
+	if msg == nil {
+		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		return nil
 	}
 
 	if msg.UserID == "" {
