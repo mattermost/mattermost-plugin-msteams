@@ -251,20 +251,22 @@ func (p *Plugin) syncUsers() {
 			Username:  slug.Make(msUser.DisplayName) + "-" + msUser.ID,
 			FirstName: msUser.DisplayName,
 			Email:     msUser.ID + "@msteamssync",
-			Password:  model.NewId(),
 			RemoteId:  &shortUserId,
 		}
 
 		if user == nil {
+			mmUser.Password = model.NewId()
 			_, err := p.API.CreateUser(mmUser)
 			if err != nil {
 				p.API.LogError("Unable to sync user", "error", err)
 			}
 		} else {
 			mmUser.Id = user.Id
-			_, err := p.API.UpdateUser(mmUser)
-			if err != nil {
-				p.API.LogError("Unable to sync user", "error", err)
+			if mmUser.Username != user.Username || mmUser.FirstName != user.FirstName || mmUser.Email != user.Email || mmUser.RemoteId != user.RemoteId {
+				_, err := p.API.UpdateUser(mmUser)
+				if err != nil {
+					p.API.LogError("Unable to sync user", "error", err)
+				}
 			}
 		}
 	}
