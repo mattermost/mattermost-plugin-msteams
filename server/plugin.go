@@ -257,27 +257,31 @@ func (p *Plugin) syncUsers() {
 	for _, msUser := range msUsers {
 		user, _ := p.API.GetUserByEmail(msUser.ID + "@msteamssync")
 
-		userUUID := uuid.Parse(msUser.ID)
-		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-		shortUserId := encoding.EncodeToString(userUUID)
-
-		mmUser := &model.User{
-			Username:  slug.Make(msUser.DisplayName) + "-" + msUser.ID,
-			FirstName: msUser.DisplayName,
-			Email:     msUser.ID + "@msteamssync",
-			RemoteId:  &shortUserId,
-		}
+		username := slug.Make(msUser.DisplayName) + "-" + msUser.ID
 
 		if user == nil {
-			mmUser.Password = model.NewId()
-			_, err := p.API.CreateUser(mmUser)
+			userUUID := uuid.Parse(msUser.ID)
+			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+			shortUserId := encoding.EncodeToString(userUUID)
+
+			mmUser := &model.User{
+				Password:  model.NewId(),
+				Email:     msUser.ID + "@msteamssync",
+				RemoteId:  &shortUserId,
+				FirstName: msUser.DisplayName,
+				Username:  username,
+			}
+
+			newUser, err := p.API.CreateUser(mmUser)
 			if err != nil {
 				p.API.LogError("Unable to sync user", "error", err)
 			}
+			p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
 		} else {
-			mmUser.Id = user.Id
-			if mmUser.Username != user.Username || mmUser.FirstName != user.FirstName || mmUser.Email != user.Email || mmUser.RemoteId != user.RemoteId {
-				_, err := p.API.UpdateUser(mmUser)
+			if username != user.Username || msUser.DisplayName != user.FirstName {
+				user.Username = username
+				user.FirstName = msUser.DisplayName
+				_, err := p.API.UpdateUser(user)
 				if err != nil {
 					p.API.LogError("Unable to sync user", "error", err)
 				}
