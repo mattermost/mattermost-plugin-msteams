@@ -26,7 +26,7 @@ type configuration struct {
 	WebhookSecret      string
 	EnabledTeams       string
 	SyncDirectMessages bool
-	SyncUsers          bool
+	SyncUsers          int
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if

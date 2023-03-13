@@ -136,36 +136,38 @@ func (p *Plugin) start() error {
 		return err
 	}
 
-	if p.configuration.SyncUsers {
-		go p.syncUsers()
+	ctx, stop := context.WithCancel(context.Background())
+	p.stopSubscriptions = stop
+	p.stopContext = ctx
+
+	if p.configuration.SyncUsers > 0 {
+		go p.syncUsersPeriodically(ctx, p.configuration.SyncUsers)
 	}
 
-	go func() {
-		p.clusterMutex.Lock()
-		defer p.clusterMutex.Unlock()
-
-		time.Sleep(100 * time.Millisecond)
-		subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
-		if err != nil {
-			p.API.LogError("Unable to subscribe to channels", "error", err)
-			return
-		}
-
-		chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
-		if err != nil {
-			p.API.LogError("Unable to subscribe to chats", "error", err)
-			return
-		}
-
-		ctx, stop := context.WithCancel(context.Background())
-		p.stopSubscriptions = stop
-		p.stopContext = ctx
-
-		go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, subscriptionID)
-		go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
-	}()
+	go p.startSubscriptions(ctx)
 
 	return nil
+}
+
+func (p *Plugin) startSubscriptions(ctx context.Context) {
+	p.clusterMutex.Lock()
+	defer p.clusterMutex.Unlock()
+
+	time.Sleep(100 * time.Millisecond)
+	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to channels", "error", err)
+		return
+	}
+
+	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to chats", "error", err)
+		return
+	}
+
+	go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, subscriptionID)
+	go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
 }
 
 func (p *Plugin) stop() {
@@ -232,6 +234,18 @@ func (p *Plugin) OnActivate() error {
 func (p *Plugin) OnDeactivate() error {
 	p.stop()
 	return nil
+}
+
+func (p *Plugin) syncUsersPeriodically(ctx context.Context, minutes int) {
+	p.syncUsers()
+	for {
+		select {
+		case <-time.After(time.Duration(minutes) * time.Minute):
+			p.syncUsers()
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (p *Plugin) syncUsers() {

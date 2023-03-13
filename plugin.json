@@ -68,9 +68,9 @@
         },{
           "key": "syncUsers",
           "display_name": "Sync users",
-          "type": "bool",
-          "help_text": "Sync users on startup",
-          "default": false
+          "type": "number",
+          "help_text": "Set the number of minutes between users sync (leave it empty for disable users sync)",
+          "default": 0
         },{
           "key": "syncDirectMessages",
           "display_name": "Sync direct and group messages",
