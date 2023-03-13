@@ -10,7 +10,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
-const msteamsCommand = "msteamssync"
+const msteamsCommand = "msteams"
 const msteamsLogoURL = "https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg"
 
 func createMsteamsSyncCommand() *model.Command {
