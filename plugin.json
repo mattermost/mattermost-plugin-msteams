@@ -66,6 +66,12 @@
           "help_text": "Teams where syncs are enabled (comma separated Mattermost team names, empty means all enabled)",
           "default": ""
         },{
+          "key": "syncUsers",
+          "display_name": "Sync users",
+          "type": "bool",
+          "help_text": "Sync users on startup",
+          "default": false
+        },{
           "key": "syncDirectMessages",
           "display_name": "Sync direct and group messages",
           "type": "bool",

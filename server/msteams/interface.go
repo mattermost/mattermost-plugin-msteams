@@ -34,5 +34,6 @@ type Client interface {
 	GetMyID() (string, error)
 	GetFileURL(weburl string) (string, error)
 	GetCodeSnippet(url string) (string, error)
+	ListUsers() ([]User, error)
 	BotID() string
 }

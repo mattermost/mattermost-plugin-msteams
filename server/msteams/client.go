@@ -45,6 +45,11 @@ type Chat struct {
 	Type    string
 }
 
+type User struct {
+	DisplayName string
+	ID          string
+}
+
 type ChatMember struct {
 	DisplayName string
 	UserID      string
@@ -968,4 +973,20 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		}
 	}
 	return nil
+}
+
+func (tc *ClientImpl) ListUsers() ([]User, error) {
+	req := tc.client.Users().Request()
+	r, err := req.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	users := make([]User, len(r))
+	for i, u := range r {
+		users[i] = User{
+			DisplayName: *u.DisplayName,
+			ID:          *u.ID,
+		}
+	}
+	return users, nil
 }

@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/base32"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/gosimple/slug"
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -133,6 +136,10 @@ func (p *Plugin) start() error {
 		return err
 	}
 
+	if p.configuration.SyncUsers {
+		go p.syncUsers()
+	}
+
 	go func() {
 		p.clusterMutex.Lock()
 		defer p.clusterMutex.Unlock()
@@ -225,4 +232,34 @@ func (p *Plugin) OnActivate() error {
 func (p *Plugin) OnDeactivate() error {
 	p.stop()
 	return nil
+}
+
+func (p *Plugin) syncUsers() {
+	msUsers, err := p.msteamsAppClient.ListUsers()
+	if err != nil {
+		p.API.LogError("Unable to sync users", "error", err)
+		return
+	}
+	for _, msUser := range msUsers {
+		user, _ := p.API.GetUserByEmail(msUser.ID + "@msteamssync-plugin")
+
+		userUUID := uuid.Parse(msUser.ID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserId := encoding.EncodeToString(userUUID)
+
+		mmUser := &model.User{
+			Username:  slug.Make(msUser.DisplayName) + "-" + msUser.ID,
+			FirstName: msUser.DisplayName,
+			Email:     msUser.ID + "@msteamssync-plugin",
+			Password:  model.NewId(),
+			RemoteId:  &shortUserId,
+		}
+
+		if user == nil {
+			p.API.CreateUser(mmUser)
+		} else {
+			mmUser.Id = user.Id
+			p.API.UpdateUser(mmUser)
+		}
+	}
 }
