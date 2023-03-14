@@ -300,6 +300,11 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
+	// Ingnore if the change is already applied in the database
+	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
+		return nil
+	}
+
 	channelID := ""
 	if chat == nil {
 		channelLink, err := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
