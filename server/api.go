@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type API struct {
@@ -25,6 +27,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
 	router.HandleFunc("/", api.processActivity).Methods("POST")
+	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
+	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 
 	return api
 }
@@ -85,4 +89,74 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.router.ServeHTTP(w, r)
+}
+
+func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
+	out := []model.AutocompleteListItem{}
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	client, err := a.p.getClientForUser(userID)
+	if err != nil {
+		data, _ := json.Marshal(out)
+		_, _ = w.Write(data)
+		return
+	}
+
+	teams, err := client.ListTeams()
+	if err != nil {
+		data, _ := json.Marshal(out)
+		_, _ = w.Write(data)
+		return
+	}
+
+	for _, t := range teams {
+		s := model.AutocompleteListItem{
+			Item:     t.ID,
+			Hint:     t.DisplayName,
+			HelpText: t.Description,
+		}
+
+		out = append(out, s)
+	}
+	data, _ := json.Marshal(out)
+	_, _ = w.Write(data)
+
+}
+
+func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
+	out := []model.AutocompleteListItem{}
+	userID := r.Header.Get("Mattermost-User-ID")
+	args := strings.Fields(r.URL.Query().Get("parsed"))
+	if len(args) < 3 {
+		data, _ := json.Marshal(out)
+		_, _ = w.Write(data)
+		return
+	}
+
+	client, err := a.p.getClientForUser(userID)
+	if err != nil {
+		data, _ := json.Marshal(out)
+		_, _ = w.Write(data)
+		return
+	}
+
+	teamID := args[2]
+	channels, err := client.ListChannels(teamID)
+	if err != nil {
+		data, _ := json.Marshal(out)
+		_, _ = w.Write(data)
+		return
+	}
+
+	for _, c := range channels {
+		s := model.AutocompleteListItem{
+			Item:     c.ID,
+			Hint:     c.DisplayName,
+			HelpText: c.Description,
+		}
+
+		out = append(out, s)
+	}
+	data, _ := json.Marshal(out)
+	_, _ = w.Write(data)
 }

@@ -35,5 +35,7 @@ type Client interface {
 	GetFileURL(weburl string) (string, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
+	ListTeams() ([]Team, error)
+	ListChannels(teamID string) ([]Channel, error)
 	BotID() string
 }

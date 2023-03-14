@@ -37,6 +37,7 @@ type ClientImpl struct {
 type Channel struct {
 	ID          string
 	DisplayName string
+	Description string
 }
 
 type Chat struct {
@@ -59,6 +60,7 @@ type ChatMember struct {
 type Team struct {
 	ID          string
 	DisplayName string
+	Description string
 }
 
 type Attachment struct {
@@ -991,4 +993,61 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		}
 	}
 	return users, nil
+}
+
+func (tc *ClientImpl) ListTeams() ([]Team, error) {
+	req := tc.client.Me().JoinedTeams().Request()
+	req.Select("displayName,id, description")
+	r, err := req.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	teams := make([]Team, len(r))
+
+	for i, t := range r {
+		description := ""
+		if t.Description != nil {
+			description = *t.Description
+		}
+
+		displayName := ""
+		if t.DisplayName != nil {
+			displayName = *t.DisplayName
+		}
+
+		teams[i] = Team{
+			DisplayName: displayName,
+			Description: description,
+			ID:          *t.ID,
+		}
+	}
+	return teams, nil
+}
+
+func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
+	req := tc.client.Teams().ID(teamID).Channels().Request()
+	req.Select("displayName,id,description")
+	r, err := req.Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	channels := make([]Channel, len(r))
+	for i, c := range r {
+		description := ""
+		if c.Description != nil {
+			description = *c.Description
+		}
+
+		displayName := ""
+		if c.DisplayName != nil {
+			displayName = *c.DisplayName
+		}
+
+		channels[i] = Channel{
+			DisplayName: displayName,
+			Description: description,
+			ID:          *c.ID,
+		}
+	}
+	return channels, nil
 }

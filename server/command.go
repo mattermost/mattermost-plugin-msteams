@@ -48,8 +48,8 @@ func getAutocompleteData() *model.AutocompleteData {
 	cmd := model.NewAutocompleteData(msteamsCommand, "[command]", "Manage MS Teams linked channels")
 
 	link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
-	link.AddTextArgument("MS Teams Team ID", "[msteams-team-id]", "")
-	link.AddTextArgument("MS Teams Channel ID", "[msteams-channel-id]", "")
+	link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
+	link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
 	cmd.AddCommand(link)
 
 	unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
@@ -124,9 +124,14 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
-	_, err = p.msteamsAppClient.GetChannel(parameters[0], parameters[1])
+	client, err := p.getClientForUser(args.UserId)
 	if err != nil {
-		return cmdError(args.ChannelId, "MS Teams channel not found.")
+		return cmdError(args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
+	}
+
+	_, err = client.GetChannel(parameters[0], parameters[1])
+	if err != nil {
+		return cmdError(args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
 	err = p.store.StoreChannelLink(&store.ChannelLink{
@@ -235,4 +240,8 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
 	close(messageChan)
 	return &model.CommandResponse{}, nil
+}
+
+func getAutocompletePath(path string) string {
+	return "plugins/" + pluginID + "/autocomplete/" + path
 }
