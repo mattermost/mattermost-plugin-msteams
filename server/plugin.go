@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base32"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -254,12 +255,23 @@ func (p *Plugin) syncUsers() {
 		p.API.LogError("Unable to sync users", "error", err)
 		return
 	}
+	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
+	if appErr != nil {
+		p.API.LogError("Unable to sync users", "error", appErr)
+		return
+	}
+
+	mmUsersMap := make(map[string]*model.User, len(mmUsers))
+	for _, mmUser := range mmUsers {
+		mmUsersMap[mmUser.Email] = mmUser
+	}
+
 	for _, msUser := range msUsers {
-		user, _ := p.API.GetUserByEmail(msUser.ID + "@msteamssync")
+		mmUser, ok := mmUsersMap[msUser.ID+"@msteamssync"]
 
 		username := slug.Make(msUser.DisplayName) + "-" + msUser.ID
 
-		if user == nil {
+		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserId := encoding.EncodeToString(userUUID)
@@ -278,10 +290,10 @@ func (p *Plugin) syncUsers() {
 			}
 			p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
 		} else {
-			if username != user.Username || msUser.DisplayName != user.FirstName {
-				user.Username = username
-				user.FirstName = msUser.DisplayName
-				_, err := p.API.UpdateUser(user)
+			if username != mmUser.Username || msUser.DisplayName != mmUser.FirstName {
+				mmUser.Username = username
+				mmUser.FirstName = msUser.DisplayName
+				_, err := p.API.UpdateUser(mmUser)
 				if err != nil {
 					p.API.LogError("Unable to sync user", "error", err)
 				}
