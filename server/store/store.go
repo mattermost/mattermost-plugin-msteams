@@ -63,7 +63,18 @@ func (s *StoreImpl) Init() error {
 	if err != nil {
 		return err
 	}
+
+	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_links_msteamsteamid_msteamschannelid ON msteamssync_links (msTeamsTeamID, msTeamsChannelID)")
+	if err != nil {
+		return err
+	}
+
 	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR PRIMARY KEY, msTeamsUserID VARCHAR, token TEXT)")
+	if err != nil {
+		return err
+	}
+
+	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_users_msteamsuserid ON msteamssync_users (msTeamsUserID)")
 	if err != nil {
 		return err
 	}
@@ -72,6 +83,12 @@ func (s *StoreImpl) Init() error {
 	if err != nil {
 		return err
 	}
+
+	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_posts_msteamschannelid_msteamspostid ON msteamssync_posts (msTeamsChannelID, msTeamsPostID)")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
