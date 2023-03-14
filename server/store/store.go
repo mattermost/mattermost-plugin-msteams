@@ -23,6 +23,13 @@ type ChannelLink struct {
 	MSTeamsChannel    string
 }
 
+type PostInfo struct {
+	MattermostID        string
+	MSTeamsID           string
+	MSTeamsChannel      string
+	MSTeamsLastUpdateAt time.Time
+}
+
 type Store interface {
 	Init() error
 	GetAvatarCache(userID string) ([]byte, error)
@@ -31,9 +38,9 @@ type Store interface {
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
 	StoreChannelLink(link *ChannelLink) error
-	TeamsToMattermostPostID(chatID string, postID string) (string, error)
-	MattermostToTeamsPostID(postID string) (string, error)
-	LinkPosts(mattermostPostID, chatOrChannelID, teamsPostID string, msLastUpdateAt time.Time) error
+	GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error)
+	GetPostInfoByMattermostID(postID string) (*PostInfo, error)
+	LinkPosts(postInfo PostInfo) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -182,36 +189,55 @@ func (s *StoreImpl) MattermostToTeamsUserID(userID string) (string, error) {
 	return msTeamsUserID, nil
 }
 
-func (s *StoreImpl) TeamsToMattermostPostID(chatID string, postID string) (string, error) {
-	query := s.getQueryBuilder().Select("mmPostID").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
+func (s *StoreImpl) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error) {
+	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
-	var mmPostID string
-	err := row.Scan(&mmPostID)
-	if err != nil {
-		return "", err
+	var lastUpdateAt int64
+	postInfo := PostInfo{
+		MSTeamsID:      postID,
+		MSTeamsChannel: chatID,
 	}
-	return mmPostID, nil
+	err := row.Scan(&postInfo.MattermostID, &lastUpdateAt)
+	if err != nil {
+		return nil, err
+	}
+	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
+	return &postInfo, nil
 }
 
-func (s *StoreImpl) MattermostToTeamsPostID(postID string) (string, error) {
-	query := s.getQueryBuilder().Select("msTeamsPostID").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
+func (s *StoreImpl) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
+	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
-	var msTeamsPostID string
-	err := row.Scan(&msTeamsPostID)
-	if err != nil {
-		return "", err
+	var lastUpdateAt int64
+	postInfo := PostInfo{
+		MattermostID: postID,
 	}
-	return msTeamsPostID, nil
+	err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, lastUpdateAt)
+	if err != nil {
+		return nil, err
+	}
+	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
+	return &postInfo, nil
 }
 
-func (s *StoreImpl) LinkPosts(mattermostPostID, teamsChatOrChannelID, teamsPostID string, teamsLastUpdateAt time.Time) error {
+func (s *StoreImpl) LinkPosts(postInfo PostInfo) error {
 	if s.driverName == "postgres" {
-		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID, teamsLastUpdateAt.UnixMicro()).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec()
+		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+			postInfo.MattermostID,
+			postInfo.MSTeamsID,
+			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
+		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec()
 		if err != nil {
 			return err
 		}
 	} else {
-		_, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(mattermostPostID, teamsPostID, teamsChatOrChannelID, teamsLastUpdateAt.UnixMicro()).Exec()
+		_, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+			postInfo.MattermostID,
+			postInfo.MSTeamsID,
+			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
+		).Exec()
 		if err != nil {
 			return err
 		}

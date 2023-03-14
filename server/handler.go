@@ -11,6 +11,7 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
 	"github.com/pborman/uuid"
@@ -137,12 +138,12 @@ func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannel
 		p.API.LogError("unmarshal codesnippet failed", "error", err)
 		return "", text
 	}
-	postID, err := p.store.TeamsToMattermostPostID(chatOrChannelID, content.MessageID)
+	postInfo, err := p.store.GetPostInfoByMSTeamsID(chatOrChannelID, content.MessageID)
 	if err != nil {
 		return "", text
 	}
 
-	post, err := p.API.GetPost(postID)
+	post, err := p.API.GetPost(postInfo.MattermostID)
 	if post.RootId != "" {
 		return post.RootId, text
 	}
@@ -252,8 +253,8 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
-	data, _ := p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ID)
-	if data != "" {
+	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo != nil {
 		p.API.LogDebug("duplicated post")
 		return nil
 	}
@@ -267,7 +268,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.store.LinkPosts(newPost.Id, msg.ChatID+msg.ChannelID, msg.ID, msg.LastUpdateAt)
+		p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
 	}
 	return nil
 }
@@ -294,8 +295,8 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return nil
 	}
 
-	postID, _ := p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postID == "" {
+	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo == nil {
 		return nil
 	}
 
@@ -312,7 +313,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 			return nil
 		}
 	} else {
-		p, err := p.API.GetPost(postID)
+		p, err := p.API.GetPost(postInfo.MattermostID)
 		if err != nil {
 			return errors.New("Unable to find the original post")
 		}
@@ -330,7 +331,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		return err
 	}
 
-	post.Id = postID
+	post.Id = postInfo.MattermostID
 
 	_, appErr := p.API.UpdatePost(post)
 	if appErr != nil {
@@ -339,7 +340,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	}
 
 	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
-	p.handleReactions(postID, channelID, msg.Reactions)
+	p.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 
 	return nil
 }
@@ -412,14 +413,14 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
 	activityIds := msteams.GetActivityIds(activity)
 
-	postID, _ := p.store.TeamsToMattermostPostID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
-	if postID == "" {
+	postInfo, _ := p.store.GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
+	if postInfo == nil {
 		return nil
 	}
 
-	appErr := p.API.DeletePost(postID)
+	appErr := p.API.DeletePost(postInfo.MattermostID)
 	if appErr != nil {
-		p.API.LogError("Unable to to delete post", "msgID", postID, "error", appErr)
+		p.API.LogError("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
 		return appErr
 	}
 
@@ -432,7 +433,10 @@ func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID stri
 	rootID := ""
 
 	if msg.ReplyToID != "" {
-		rootID, _ = p.store.TeamsToMattermostPostID(msg.ChatID+msg.ChannelID, msg.ReplyToID)
+		rootInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ReplyToID)
+		if rootInfo != nil {
+			rootID = rootInfo.MattermostID
+		}
 	}
 
 	newText, attachments, parentID := p.handleAttachments(channelID, text, msg)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pkg/errors"
@@ -77,8 +78,8 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
 	p.API.LogError("Adding reaction hook", "reaction", reaction)
-	teamsMessageID, err := p.store.MattermostToTeamsPostID(reaction.PostId)
-	if err != nil || teamsMessageID == "" {
+	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
+	if err != nil || postInfo == nil {
 		return
 	}
 
@@ -89,7 +90,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
-			p.SetChatReaction(teamsMessageID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
+			p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
 			return
 		}
 		return
@@ -112,8 +113,8 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 		p.API.LogError("Ignore reaction that has been trigger from the plugin handler")
 		return
 	}
-	teamsMessageID, err := p.store.MattermostToTeamsPostID(reaction.PostId)
-	if err != nil || teamsMessageID == "" {
+	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
+	if err != nil || postInfo == nil {
 		return
 	}
 
@@ -130,7 +131,7 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
-			p.UnsetChatReaction(teamsMessageID, reaction.UserId, post.ChannelId, reaction.EmojiName)
+			p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			return
 		}
 		return
@@ -224,18 +225,21 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
-	teamsMessageID, err := p.store.MattermostToTeamsPostID(post.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
 	}
 
-	if teamsMessageID == "" {
+	if postInfo == nil {
 		return errors.New("teams message not found")
 	}
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -244,7 +248,7 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 	}
 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
-	err = client.SetReaction(teamID, channelID, parentID, teamsMessageID, user.Id, emoji.Parse(":"+emojiName+":"))
+	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return err
@@ -285,18 +289,21 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Unsetting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
-	teamsMessageID, err := p.store.MattermostToTeamsPostID(post.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
 	}
 
-	if teamsMessageID == "" {
+	if postInfo == nil {
 		return errors.New("teams message not found")
 	}
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -305,7 +312,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 	}
 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
-	err = client.UnsetReaction(teamID, channelID, parentID, teamsMessageID, user.Id, emoji.Parse(":"+emojiName+":"))
+	err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err)
 		return err
@@ -318,7 +325,10 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
@@ -355,7 +365,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	}
 
 	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(post.Id, chatID, newMessage.ID, newMessage.LastUpdateAt)
+		err := p.store.LinkPosts(store.PostInfo{MattermostID: post.Id, MSTeamsChannel: chatID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -368,7 +378,10 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	text := post.Message
@@ -406,7 +419,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(post.Id, channelID, newMessage.ID, newMessage.LastUpdateAt)
+		err := p.store.LinkPosts(store.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -419,7 +432,10 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	parentID := ""
 	if post.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(post.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	client, err := p.getClientForUser(user.Id)
@@ -427,9 +443,13 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 		client = p.msteamsBotClient
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostID(post.Id)
+	postInfo, _ := p.store.GetPostInfoByMattermostID(post.Id)
+	if postInfo == nil {
+		p.API.LogError("Error deleting post, post not found.")
+		return errors.New("post not found")
+	}
 
-	if err := client.DeleteMessage(teamID, channelID, parentID, msgID); err != nil {
+	if err := client.DeleteMessage(teamID, channelID, parentID, postInfo.MSTeamsID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
 	}
@@ -445,9 +465,13 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 		client = p.msteamsBotClient
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostID(post.Id)
+	postInfo, _ := p.store.GetPostInfoByMattermostID(post.Id)
+	if postInfo == nil {
+		p.API.LogError("Error deleting post, post not found.")
+		return errors.New("post not found")
+	}
 
-	if err := client.DeleteChatMessage(chatID, msgID); err != nil {
+	if err := client.DeleteChatMessage(chatID, postInfo.MSTeamsID); err != nil {
 		p.API.LogError("Error deleting post", "error", err)
 		return err
 	}
@@ -459,7 +483,10 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	parentID := ""
 	if oldPost.RootId != "" {
-		parentID, _ = p.store.MattermostToTeamsPostID(newPost.RootId)
+		parentInfo, _ := p.store.GetPostInfoByMattermostID(newPost.RootId)
+		if parentInfo != nil {
+			parentID = parentInfo.MSTeamsID
+		}
 	}
 
 	text := newPost.Message
@@ -470,23 +497,27 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	msgID, _ := p.store.MattermostToTeamsPostID(newPost.Id)
+	postInfo, _ := p.store.GetPostInfoByMattermostID(newPost.Id)
+	if postInfo == nil {
+		p.API.LogError("Error updating post, post not found.")
+		return errors.New("post not found")
+	}
 
-	if err := client.UpdateMessage(teamID, channelID, parentID, msgID, text); err != nil {
+	if err := client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
 
 	var updatedMessage *msteams.Message
 	if parentID != "" {
-		updatedMessage, err = client.GetReply(teamID, channelID, parentID, msgID)
+		updatedMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
 	} else {
-		updatedMessage, err = client.GetMessage(teamID, channelID, msgID)
+		updatedMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
 	}
 	if err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	} else {
-		err := p.store.LinkPosts(newPost.Id, channelID, msgID, updatedMessage.LastUpdateAt)
+		err := p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -498,7 +529,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post) error {
 	p.API.LogDebug("Updating direct message to MS Teams", "chatID", chatID, "oldPost", oldPost, "newPost", newPost)
 
-	msgID, _ := p.store.MattermostToTeamsPostID(newPost.Id)
+	postInfo, _ := p.store.GetPostInfoByMattermostID(newPost.Id)
+	if postInfo == nil {
+		p.API.LogError("Error updating post, post not found.")
+		return errors.New("post not found")
+	}
 
 	text := newPost.Message
 
@@ -508,16 +543,16 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	if err := client.UpdateChatMessage(chatID, msgID, text); err != nil {
+	if err := client.UpdateChatMessage(chatID, postInfo.MSTeamsID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
 
-	updatedMessage, err := client.GetChatMessage(chatID, msgID)
+	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)
 	if err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	} else {
-		err := p.store.LinkPosts(newPost.Id, chatID, msgID, updatedMessage.LastUpdateAt)
+		err := p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
