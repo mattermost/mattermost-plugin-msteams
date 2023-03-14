@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -35,20 +34,6 @@ type configuration struct {
 func (c *configuration) Clone() *configuration {
 	var clone = *c
 	return &clone
-}
-
-func (c *configuration) ToMap() (map[string]interface{}, error) {
-	var out map[string]interface{}
-	data, err := json.Marshal(c)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &out)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
 }
 
 // getConfiguration retrieves the active configuration under lock, making it safe to use

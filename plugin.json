@@ -44,8 +44,9 @@
         },{
           "key": "webhookSecret",
           "display_name": "Webhook secret",
-          "type": "generated",
-          "help_text": "Microsoft Teams will use this secret to send messages to mattermost"
+          "type": "text",
+          "help_text": "Microsoft Teams will use this secret to send messages to mattermost",
+          "default": ""
         },{
           "key": "botUsername",
           "display_name": "Bot Username",
