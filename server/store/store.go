@@ -246,7 +246,7 @@ func (s *StoreImpl) LinkPosts(postInfo PostInfo) error {
 }
 
 func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
-	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var tokendata string
 	err := row.Scan(&tokendata)
@@ -263,7 +263,7 @@ func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, err
 }
 
 func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
-	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var tokendata string
 	err := row.Scan(&tokendata)
