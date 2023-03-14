@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 	"math"
 	"net/http"
 	"strings"
@@ -184,6 +186,19 @@ func (p *Plugin) restart() {
 }
 
 func (p *Plugin) OnActivate() error {
+	if p.configuration.WebhookSecret == "" {
+		secret, err := generateSecret()
+		if err != nil {
+			return err
+		}
+
+		p.configuration.WebhookSecret = secret
+		configMap, err := p.configuration.ToMap()
+		if err != nil {
+			return err
+		}
+		p.API.SavePluginConfig(configMap)
+	}
 	client := pluginapi.NewClient(p.API, p.Driver)
 
 	// Initialize the emoji translator
@@ -300,4 +315,15 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 	}
+}
+
+func generateSecret() (string, error) {
+	b := make([]byte, 256)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	s := base64.RawStdEncoding.EncodeToString(b)
+	s = s[:32]
+	return s, nil
 }
