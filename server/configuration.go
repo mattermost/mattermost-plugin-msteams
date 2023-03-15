@@ -22,6 +22,7 @@ type configuration struct {
 	TenantId           string `json:"tenantid"`
 	ClientId           string `json:"clientid"`
 	ClientSecret       string `json:"clientsecret"`
+	EncryptionKey      string `json:"encryptionkey"`
 	BotUsername        string `json:"botusername"`
 	BotPassword        string `json:"botpassword"`
 	WebhookSecret      string `json:"webhooksecret"`

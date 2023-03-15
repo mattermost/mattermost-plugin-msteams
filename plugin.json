@@ -42,6 +42,11 @@
           "help_text": "Microsoft Teams Client Secret",
           "default": ""
         },{
+          "key": "encryptionKey",
+          "display_name": "At Rest Encryption Key:",
+          "type": "generated",
+          "help_text": "The AES encryption key used to encrypt stored access tokens"
+        },{
           "key": "webhookSecret",
           "display_name": "Webhook secret",
           "type": "generated",

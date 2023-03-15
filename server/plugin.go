@@ -185,7 +185,8 @@ func (p *Plugin) restart() {
 	p.start()
 }
 
-func (p *Plugin) OnActivate() error {
+func (p *Plugin) generatePluginSecrets() error {
+	needSaveConfig := false
 	if p.configuration.WebhookSecret == "" {
 		secret, err := generateSecret()
 		if err != nil {
@@ -193,12 +194,32 @@ func (p *Plugin) OnActivate() error {
 		}
 
 		p.configuration.WebhookSecret = secret
+		needSaveConfig = true
+	}
+	if p.configuration.EncryptionKey == "" {
+		secret, err := generateSecret()
+		if err != nil {
+			return err
+		}
+
+		p.configuration.EncryptionKey = secret
+		needSaveConfig = true
+	}
+	if needSaveConfig {
 		configMap, err := p.configuration.ToMap()
 		if err != nil {
 			return err
 		}
-		p.API.SavePluginConfig(configMap)
+		if appErr := p.API.SavePluginConfig(configMap); appErr != nil {
+			return appErr
+		}
 	}
+	return nil
+}
+
+func (p *Plugin) OnActivate() error {
+	p.generatePluginSecrets()
+
 	client := pluginapi.NewClient(p.API, p.Driver)
 
 	// Initialize the emoji translator
@@ -238,7 +259,13 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	p.store = store.New(db, client.Store.DriverName(), p.API, func() []string { return strings.Split(p.configuration.EnabledTeams, ",") })
+	p.store = store.New(
+		db,
+		client.Store.DriverName(),
+		p.API,
+		func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
+		func() []byte { return []byte(p.configuration.EncryptionKey) },
+	)
 	if err := p.store.Init(); err != nil {
 		return err
 	}

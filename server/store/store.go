@@ -50,18 +50,20 @@ type Store interface {
 }
 
 type StoreImpl struct {
-	api          plugin.API
-	enabledTeams func() []string
-	db           *sql.DB
-	driverName   string
+	api           plugin.API
+	enabledTeams  func() []string
+	encryptionKey func() []byte
+	db            *sql.DB
+	driverName    string
 }
 
-func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string) *StoreImpl {
+func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *StoreImpl {
 	return &StoreImpl{
-		db:           db,
-		driverName:   driverName,
-		api:          api,
-		enabledTeams: enabledTeams,
+		db:            db,
+		driverName:    driverName,
+		api:           api,
+		enabledTeams:  enabledTeams,
+		encryptionKey: encryptionKey,
 	}
 }
 
@@ -248,8 +250,13 @@ func (s *StoreImpl) LinkPosts(postInfo PostInfo) error {
 func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
-	var tokendata string
-	err := row.Scan(&tokendata)
+	var encryptedToken string
+	err := row.Scan(&encryptedToken)
+	if err != nil {
+		return nil, err
+	}
+
+	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +272,13 @@ func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, err
 func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
-	var tokendata string
-	err := row.Scan(&tokendata)
+	var encryptedToken string
+	err := row.Scan(&encryptedToken)
+	if err != nil {
+		return nil, err
+	}
+
+	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)
 	if err != nil {
 		return nil, err
 	}
@@ -288,13 +300,19 @@ func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oaut
 			return err
 		}
 	}
+
+	encryptedToken, err := encrypt(s.encryptionKey(), string(tokendata))
+	if err != nil {
+		return err
+	}
+
 	if s.driverName == "postgres" {
-		_, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec()
+		_, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec()
 		if err != nil {
 			return err
 		}
 	} else {
-		_, err := s.getQueryBuilder().Replace("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, string(tokendata)).Exec()
+		_, err := s.getQueryBuilder().Replace("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Exec()
 		if err != nil {
 			return err
 		}
