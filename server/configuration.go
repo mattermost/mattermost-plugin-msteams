@@ -19,16 +19,18 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantId           string `json:"tenantid"`
-	ClientId           string `json:"clientid"`
-	ClientSecret       string `json:"clientsecret"`
-	EncryptionKey      string `json:"encryptionkey"`
-	BotUsername        string `json:"botusername"`
-	BotPassword        string `json:"botpassword"`
-	WebhookSecret      string `json:"webhooksecret"`
-	EnabledTeams       string `json:"enabledteams"`
-	SyncDirectMessages bool   `json:"syncdirectmessages"`
-	SyncUsers          int    `json:"syncusers"`
+	TenantId              string `json:"tenantid"`
+	ClientId              string `json:"clientid"`
+	ClientSecret          string `json:"clientsecret"`
+	EncryptionKey         string `json:"encryptionkey"`
+	BotUsername           string `json:"botusername"`
+	BotPassword           string `json:"botpassword"`
+	WebhookSecret         string `json:"webhooksecret"`
+	EnabledTeams          string `json:"enabledteams"`
+	SyncDirectMessages    bool   `json:"syncdirectmessages"`
+	SyncUsers             int    `json:"syncusers"`
+	EnforceConnectedUsers bool   `json:"enforceconnectedusers"`
+	AllowSkipConnectUsers bool   `json:"allowskipconnectusers"`
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if

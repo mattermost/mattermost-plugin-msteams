@@ -256,6 +256,10 @@ func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, err
 		return nil, err
 	}
 
+	if encryptedToken == "" {
+		return nil, errors.New("token not found")
+	}
+
 	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)
 	if err != nil {
 		return nil, err
@@ -276,6 +280,10 @@ func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	err := row.Scan(&encryptedToken)
 	if err != nil {
 		return nil, err
+	}
+
+	if encryptedToken == "" {
+		return nil, errors.New("token not found")
 	}
 
 	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)

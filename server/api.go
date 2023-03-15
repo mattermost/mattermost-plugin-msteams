@@ -29,6 +29,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/", api.processActivity).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
+	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 
 	return api
 }
@@ -159,4 +161,69 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	}
 	data, _ := json.Marshal(out)
 	_, _ = w.Write(data)
+}
+
+func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	response := map[string]bool{
+		"canSkip":      a.p.configuration.AllowSkipConnectUsers,
+		"needsConnect": false,
+	}
+
+	if a.p.configuration.EnforceConnectedUsers {
+		userID := r.Header.Get("Mattermost-User-ID")
+		client, _ := a.p.getClientForUser(userID)
+		if client == nil {
+			response["needsConnect"] = true
+		}
+	}
+
+	data, _ := json.Marshal(response)
+	_, _ = w.Write(data)
+	return
+}
+
+func (a *API) connect(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	messageChan := make(chan string)
+	go func(userID string, messageChan chan string) {
+		tokenSource, err := msteams.RequestUserToken(a.p.configuration.TenantId, a.p.configuration.ClientId, messageChan)
+		if err != nil {
+			return
+		}
+
+		token, err := tokenSource.Token()
+		if err != nil {
+			return
+		}
+
+		client := msteams.NewTokenClient(a.p.configuration.TenantId, a.p.configuration.ClientId, token, a.p.API.LogError)
+		if err = client.Connect(); err != nil {
+			return
+		}
+
+		msteamsUserID, err := client.GetMyID()
+		if err != nil {
+			return
+		}
+
+		err = a.p.store.SetUserInfo(userID, msteamsUserID, token)
+		if err != nil {
+			return
+		}
+		return
+	}(userID, messageChan)
+
+	message := <-messageChan
+
+	data, _ := json.Marshal(map[string]string{"message": message})
+	_, _ = w.Write(data)
+	return
 }

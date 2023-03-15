@@ -64,11 +64,17 @@
           "help_text": "Microsoft Teams Bot Password",
           "default": ""
         },{
-          "key": "enabledTeams",
-          "display_name": "Enabled Teams",
-          "type": "text",
-          "help_text": "Teams where syncs are enabled (comma separated Mattermost team names, empty means all enabled)",
-          "default": ""
+          "key": "enforceConnectedUsers",
+          "display_name": "Enforce connected accounts",
+          "type": "bool",
+          "help_text": "Mattermost will ask the users to connect their account if it is not connected yet",
+          "default": false
+        },{
+          "key": "allowSkipConnectUsers",
+          "display_name": "Allow to temporary skip connect user",
+          "type": "bool",
+          "help_text": "Mattermost will allow to skip temporarilly the account connection, but will prompt it again in the next refresh of the browser",
+          "default": false
         },{
           "key": "syncUsers",
           "display_name": "Sync users",

@@ -67,14 +67,14 @@ module.exports = {
                     {
                         loader: 'css-loader',
                     },
-                    {
-                        loader: 'sass-loader',
-                        options: {
-                            sassOptions: {
-                                includePaths: ['node_modules/compass-mixins/lib', 'sass'],
-                            },
-                        },
-                    },
+                    // {
+                    //     loader: 'sass-loader',
+                    //     options: {
+                    //         sassOptions: {
+                    //             includePaths: ['node_modules/compass-mixins/lib', 'sass'],
+                    //         },
+                    //     },
+                    // },
                 ],
             },
         ],
