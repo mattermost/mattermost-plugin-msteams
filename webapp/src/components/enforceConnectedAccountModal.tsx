@@ -29,9 +29,9 @@ export default function EnforceConnectedAccountModal() {
     }, [])
 
     useEffect(() => {
-        let interval = 0
+        let interval: any = 0
         if (connectMessage) {
-            setInterval(() => {
+            interval = setInterval(() => {
                 Client.needsConnect().then((result) => {
                     if (!result.needsConnect) {
                         setOpen(false)
@@ -55,7 +55,7 @@ export default function EnforceConnectedAccountModal() {
         <div className='EnforceConnectedAccountModal'>
             <img src={msteamsLogo}/>
             <h1>Connect your Microsoft Teams Account</h1>
-            {!connectMessage && <p>For using this server you need to connect your mattermost account with your MS Teams account, to procced just click in the button</p>}
+            {!connectMessage && <p>For using this server you need to connect your Mattermost account with your MS Teams account, to procced just click in the button</p>}
             {!connectMessage && <button className='btn btn-primary' onClick={connectAccount}>{'Connect account'}</button>}
             {connectMessage && <p className='connectMessage'>{connectMessage}</p>}
             {canSkip && !connectMessage && <a className="skipLink" onClick={skip}>{'Skip for now'}</a>}
