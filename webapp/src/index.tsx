@@ -10,7 +10,7 @@ import EnforceConnectedAccountModal from './components/enforceConnectedAccountMo
 import {PluginRegistry} from './types/mattermost-webapp';
 
 export default class Plugin {
-    enforceConnectedAccountId = ''
+    enforceConnectedAccountId = '';
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         Client.setServerRoute('');

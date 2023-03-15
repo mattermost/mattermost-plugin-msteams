@@ -7,19 +7,21 @@ import {ClientError} from 'mattermost-redux/client/client4';
 import {id as pluginId} from './manifest';
 
 class ClientClass {
-    setServerRoute(url) {
+    url = '';
+
+    setServerRoute(url: string) {
         this.url = url + `/plugins/${pluginId}`;
     }
 
     needsConnect = async () => {
         return this.doGet(`${this.url}/needsConnect`);
-    }
+    };
 
     connect = async () => {
         return this.doGet(`${this.url}/connect`);
-    }
+    };
 
-    doGet = async (url, body, headers = {}) => {
+    doGet = async (url: string, headers: {[key: string]: any} = {}) => {
         headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
 
         const options = {
@@ -40,9 +42,9 @@ class ClientClass {
             status_code: response.status,
             url,
         });
-    }
+    };
 
-    doPost = async (url, body, headers = {}) => {
+    doPost = async (url: string, body: any = {}, headers: {[key: string]: any} = {}) => {
         headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
 
         const options = {
@@ -64,9 +66,9 @@ class ClientClass {
             status_code: response.status,
             url,
         });
-    }
+    };
 
-    doDelete = async (url, body, headers = {}) => {
+    doDelete = async (url: string, headers: {[key: string]: any} = {}) => {
         headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
 
         const options = {
@@ -87,9 +89,9 @@ class ClientClass {
             status_code: response.status,
             url,
         });
-    }
+    };
 
-    doPut = async (url, body, headers = {}) => {
+    doPut = async (url: string, body: any, headers: {[key: string]: any} = {}) => {
         headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
 
         const options = {
@@ -111,7 +113,7 @@ class ClientClass {
             status_code: response.status,
             url,
         });
-    }
+    };
 }
 
 const Client = new ClientClass();

@@ -1,5 +1,6 @@
 GO ?= $(shell command -v go 2> /dev/null)
 NPM ?= $(shell command -v npm 2> /dev/null)
+YARN ?= $(shell command -v yarn 2> /dev/null)
 CURL ?= $(shell command -v curl 2> /dev/null)
 MM_DEBUG ?=
 MANIFEST_FILE ?= plugin.json
@@ -89,7 +90,7 @@ endif
 ## Ensures NPM dependencies are installed without having to run this all the time.
 webapp/node_modules: $(wildcard webapp/package.json)
 ifneq ($(HAS_WEBAPP),)
-	cd webapp && $(NPM) install
+	cd webapp && $(YARN) install
 	touch $@
 endif
 
