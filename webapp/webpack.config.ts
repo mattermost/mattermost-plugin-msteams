@@ -1,12 +1,14 @@
-const exec = require('child_process').exec;
+import {exec} from 'child_process';
 
-const path = require('path');
+import path from 'path';
 
-const PLUGIN_ID = require('../plugin.json').id;
+import plugin from '../plugin.json';
+
+const PLUGIN_ID = plugin.id;
 
 const NPM_TARGET = process.env.npm_lifecycle_event; //eslint-disable-line no-process-env
 let mode = 'production';
-let devtool;
+let devtool: string|undefined;
 if (NPM_TARGET === 'debug' || NPM_TARGET === 'debug:watch') {
     mode = 'development';
     devtool = 'source-map';
@@ -15,13 +17,13 @@ if (NPM_TARGET === 'debug' || NPM_TARGET === 'debug:watch') {
 const plugins = [];
 if (NPM_TARGET === 'build:watch' || NPM_TARGET === 'debug:watch') {
     plugins.push({
-        apply: (compiler) => {
+        apply: (compiler: any) => {
             compiler.hooks.watchRun.tap('WatchStartPlugin', () => {
                 // eslint-disable-next-line no-console
                 console.log('Change detected. Rebuilding webapp.');
             });
             compiler.hooks.afterEmit.tap('AfterEmitPlugin', () => {
-                exec('cd .. && make deploy-from-watch', (err, stdout, stderr) => {
+                exec('cd .. && make deploy-from-watch', (err: any, stdout: any, stderr: any) => {
                     if (stdout) {
                         process.stdout.write(stdout);
                     }
