@@ -177,7 +177,21 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 		userID := r.Header.Get("Mattermost-User-ID")
 		client, _ := a.p.getClientForUser(userID)
 		if client == nil {
-			response["needsConnect"] = true
+			if a.p.configuration.EnabledTeams == "" {
+				response["needsConnect"] = true
+			} else {
+				enabledTeams := strings.Fields(a.p.configuration.EnabledTeams)
+
+				teams, _ := a.p.API.GetTeamsForUser(userID)
+				for _, enabledTeam := range enabledTeams {
+					for _, team := range teams {
+						if team.Id == enabledTeam {
+							response["needsConnect"] = true
+							break
+						}
+					}
+				}
+			}
 		}
 	}
 
