@@ -10,7 +10,7 @@
     "test": "jest --forceExit --detectOpenHandles --verbose",
     "test:watch": "jest --watch",
     "test-ci": "jest --forceExit --detectOpenHandles --maxWorkers=2",
-    "check-types": "tsc"
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@emotion/core": "11.0.0",
