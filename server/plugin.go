@@ -48,7 +48,6 @@ type Plugin struct {
 
 	stopSubscriptions func()
 	stopContext       context.Context
-	startMutex        sync.Mutex
 
 	userID string
 
@@ -74,7 +73,7 @@ func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError), nil
+	return msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -83,7 +82,7 @@ func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError), nil
+	return msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -92,8 +91,8 @@ func (p *Plugin) connectTeamsAppClient() error {
 
 	if p.msteamsAppClient == nil {
 		p.msteamsAppClient = msteams.NewApp(
-			p.configuration.TenantId,
-			p.configuration.ClientId,
+			p.configuration.TenantID,
+			p.configuration.ClientID,
 			p.configuration.ClientSecret,
 			p.API.LogError,
 		)
@@ -111,8 +110,8 @@ func (p *Plugin) connectTeamsBotClient() error {
 	defer p.msteamsBotClientMutex.Unlock()
 	if p.msteamsBotClient == nil {
 		p.msteamsBotClient = msteams.NewBot(
-			p.configuration.TenantId,
-			p.configuration.ClientId,
+			p.configuration.TenantID,
+			p.configuration.ClientID,
 			p.configuration.ClientSecret,
 			p.configuration.BotUsername,
 			p.configuration.BotPassword,
@@ -127,16 +126,16 @@ func (p *Plugin) connectTeamsBotClient() error {
 	return nil
 }
 
-func (p *Plugin) start() error {
+func (p *Plugin) start() {
 	err := p.connectTeamsAppClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return err
+		return
 	}
 	err = p.connectTeamsBotClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return err
+		return
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
@@ -148,8 +147,6 @@ func (p *Plugin) start() error {
 	}
 
 	go p.startSubscriptions(ctx)
-
-	return nil
 }
 
 func (p *Plugin) startSubscriptions(ctx context.Context) {
@@ -218,7 +215,10 @@ func (p *Plugin) generatePluginSecrets() error {
 }
 
 func (p *Plugin) OnActivate() error {
-	p.generatePluginSecrets()
+	err := p.generatePluginSecrets()
+	if err != nil {
+		return err
+	}
 
 	client := pluginapi.NewClient(p.API, p.Driver)
 
@@ -306,8 +306,8 @@ func (p *Plugin) syncUsers() {
 	}
 
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
-	for _, mmUser := range mmUsers {
-		mmUsersMap[mmUser.Email] = mmUser
+	for _, u := range mmUsers {
+		mmUsersMap[u.Email] = u
 	}
 
 	for _, msUser := range msUsers {
@@ -318,29 +318,32 @@ func (p *Plugin) syncUsers() {
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-			shortUserId := encoding.EncodeToString(userUUID)
+			shortUserID := encoding.EncodeToString(userUUID)
 
-			mmUser := &model.User{
+			newMMUser := &model.User{
 				Password:  model.NewId(),
 				Email:     msUser.ID + "@msteamssync",
-				RemoteId:  &shortUserId,
+				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
 
-			newUser, err := p.API.CreateUser(mmUser)
+			newUser, appErr := p.API.CreateUser(newMMUser)
+			if appErr != nil {
+				p.API.LogError("Unable to sync user", "error", appErr)
+				continue
+			}
+
+			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
 			if err != nil {
 				p.API.LogError("Unable to sync user", "error", err)
 			}
-			p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
-		} else {
-			if username != mmUser.Username || msUser.DisplayName != mmUser.FirstName {
-				mmUser.Username = username
-				mmUser.FirstName = msUser.DisplayName
-				_, err := p.API.UpdateUser(mmUser)
-				if err != nil {
-					p.API.LogError("Unable to sync user", "error", err)
-				}
+		} else if username != mmUser.Username || msUser.DisplayName != mmUser.FirstName {
+			mmUser.Username = username
+			mmUser.FirstName = msUser.DisplayName
+			_, err := p.API.UpdateUser(mmUser)
+			if err != nil {
+				p.API.LogError("Unable to sync user", "error", err)
 			}
 		}
 	}

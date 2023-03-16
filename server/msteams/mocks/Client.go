@@ -387,31 +387,13 @@ func (_m *Client) ListUsers() ([]msteams.User, error) {
 }
 
 // RefreshChannelsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
-func (_m *Client) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) error {
-	ret := _m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, notificationURL, webhookSecret, subscriptionID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+func (_m *Client) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) {
+	_m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
 }
 
 // RefreshChatsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
-func (_m *Client) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) error {
-	ret := _m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, notificationURL, webhookSecret, subscriptionID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+func (_m *Client) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) {
+	_m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
 }
 
 // SendChat provides a mock function with given fields: chatID, parentID, message

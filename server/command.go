@@ -200,7 +200,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantId, p.configuration.ClientId, messageChan)
+		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantID, p.configuration.ClientID, messageChan)
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
@@ -212,7 +212,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		client := msteams.NewTokenClient(p.configuration.TenantId, p.configuration.ClientId, token, p.API.LogError)
+		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
 		if err = client.Connect(); err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
@@ -230,8 +230,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		messageChan <- fmt.Sprintf("Your accoutn has been connected")
-		return
+		messageChan <- "Your accoutn has been connected"
 	}(args.UserId, messageChan)
 
 	message := <-messageChan

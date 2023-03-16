@@ -480,7 +480,7 @@ func (tc *ClientImpl) SubscribeToChats(notificationURL string, webhookSecret str
 	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, notificationURL, webhookSecret, resource, changeType string) error {
+func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, notificationURL, webhookSecret, resource, changeType string) {
 	currentSubscriptionID := subscriptionID
 	for {
 		select {
@@ -506,22 +506,22 @@ func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subsc
 			err := deleteSubCt.Delete(tc.ctx)
 			if err != nil {
 				tc.logError("Unable to delete the subscription on stop", "error", err)
-				return err
+				return
 			}
 		}
 	}
 }
 
-func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) error {
+func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) {
 	resource := "teams/getAllMessages"
 	changeType := "created,deleted,updated"
-	return tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
+	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) error {
+func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) {
 	resource := "chats/getAllMessages"
 	changeType := "created,deleted,updated"
-	return tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
+	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {

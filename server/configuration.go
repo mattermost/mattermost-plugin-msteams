@@ -19,8 +19,8 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantId              string `json:"tenantid"`
-	ClientId              string `json:"clientid"`
+	TenantID              string `json:"tenantid"`
+	ClientID              string `json:"clientid"`
 	ClientSecret          string `json:"clientsecret"`
 	EncryptionKey         string `json:"encryptionkey"`
 	BotUsername           string `json:"botusername"`

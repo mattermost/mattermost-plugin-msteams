@@ -55,28 +55,26 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Write(photo)
+	_, _ = w.Write(photo)
 }
 
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
-		w.Write([]byte(validationToken))
+		_, _ = w.Write([]byte(validationToken))
 		return
 	}
 
 	activities := Activities{}
 	err := json.NewDecoder(req.Body).Decode(&activities)
 	if err != nil {
-		a.p.API.LogError("unable to get the activities from the message msteams server subscription message", "error", err)
 		http.Error(w, "unable to get the activities from the message", http.StatusBadRequest)
 		return
 	}
 
 	errors := ""
 	for _, activity := range activities.Value {
-		a.p.API.LogDebug("=== Recived activity ====", "activity", activity)
 		err := a.p.handleActivity(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
@@ -122,7 +120,6 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	}
 	data, _ := json.Marshal(out)
 	_, _ = w.Write(data)
-
 }
 
 func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +194,6 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 
 	data, _ := json.Marshal(response)
 	_, _ = w.Write(data)
-	return
 }
 
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +204,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.RequestUserToken(a.p.configuration.TenantId, a.p.configuration.ClientId, messageChan)
+		tokenSource, err := msteams.RequestUserToken(a.p.configuration.TenantID, a.p.configuration.ClientID, messageChan)
 		if err != nil {
 			return
 		}
@@ -218,7 +214,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		client := msteams.NewTokenClient(a.p.configuration.TenantId, a.p.configuration.ClientId, token, a.p.API.LogError)
+		client := msteams.NewTokenClient(a.p.configuration.TenantID, a.p.configuration.ClientID, token, a.p.API.LogError)
 		if err = client.Connect(); err != nil {
 			return
 		}
@@ -232,12 +228,10 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		return
 	}(userID, messageChan)
 
 	message := <-messageChan
 
 	data, _ := json.Marshal(map[string]string{"message": message})
 	_, _ = w.Write(data)
-	return
 }

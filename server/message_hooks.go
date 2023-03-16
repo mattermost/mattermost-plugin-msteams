@@ -53,27 +53,33 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
-		channel, err := p.API.GetChannel(post.ChannelId)
-		if err != nil {
+		channel, appErr := p.API.GetChannel(post.ChannelId)
+		if appErr != nil {
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
-			members, err := p.API.GetChannelMembers(post.ChannelId, 0, 10)
-			if err != nil {
+			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, 10)
+			if appErr != nil {
 				return
 			}
 			dstUsers := []string{}
 			for _, m := range members {
 				dstUsers = append(dstUsers, m.UserId)
 			}
-			p.SendChat(post.UserId, dstUsers, post)
+			_, err = p.SendChat(post.UserId, dstUsers, post)
+			if err != nil {
+				p.API.LogError("Unable to handle message sent", "error", err.Error())
+			}
 		}
 		return
 	}
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
+	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
+	if err != nil {
+		p.API.LogError("Unable to handle message sent", "error", err.Error())
+	}
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
@@ -85,13 +91,15 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 	link, err := p.store.GetLinkByChannelID(reaction.ChannelId)
 	if err != nil || link == nil {
-		channel, err := p.API.GetChannel(reaction.ChannelId)
-		if err != nil {
+		channel, appErr := p.API.GetChannel(reaction.ChannelId)
+		if appErr != nil {
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
-			p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
-			return
+			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
+			if err != nil {
+				p.API.LogError("Unable to handle message reaction set", "error", err.Error())
+			}
 		}
 		return
 	}
@@ -104,7 +112,10 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
+	err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
+	if err != nil {
+		p.API.LogError("Unable to handle message reaction set", "error", err.Error())
+	}
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.Reaction) {
@@ -126,20 +137,25 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
-		channel, err := p.API.GetChannel(post.ChannelId)
-		if err != nil {
+		channel, appErr := p.API.GetChannel(post.ChannelId)
+		if appErr != nil {
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
-			p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
-			return
+			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
+			if err != nil {
+				p.API.LogError("Unable to handle message reaction unset", "error", err.Error())
+			}
 		}
 		return
 	}
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
+	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
+	if err != nil {
+		p.API.LogError("Unable to handle message reaction unset", "error", err.Error())
+	}
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
@@ -176,21 +192,29 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 		usersIDs := []string{}
 		for _, m := range members {
-			teamsUserID, err := p.store.MattermostToTeamsUserID(m.UserId)
+			var teamsUserID string
+			teamsUserID, err = p.store.MattermostToTeamsUserID(m.UserId)
 			if err != nil {
 				return
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}
-		chatID, err := client.CreateOrGetChatForUsers(usersIDs)
+		var chatID string
+		chatID, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			return
 		}
-		p.UpdateChat(chatID, user, newPost, oldPost)
+		err = p.UpdateChat(chatID, user, newPost, oldPost)
+		if err != nil {
+			p.API.LogError("Unable to handle message update", "error", err.Error())
+		}
 		return
 	}
 
-	p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
+	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
+	if err != nil {
+		p.API.LogError("Unable to handle message update", "error", err.Error())
+	}
 }
 
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
@@ -208,14 +232,13 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 
 	chatID, err := p.GetChatIDForChannel(srcUser, channelID)
 	if err != nil {
-		p.API.LogError("FAILING TO CREATE OR GET THE CHAT", "error", err)
 		return err
 	}
 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post reaction", "error", err)
 		return err
 	}
 
@@ -337,7 +360,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	}
 	teamsUsersIDs := make([]string, len(usersIDs))
 	for idx, userID := range usersIDs {
-		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
+		var teamsUserID string
+		teamsUserID, err = p.store.MattermostToTeamsUserID(userID)
 		if err != nil {
 			return "", err
 		}
@@ -392,8 +416,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	var attachments []*msteams.Attachment
-	for _, fileId := range post.FileIds {
-		fileInfo, appErr := p.API.GetFileInfo(fileId)
+	for _, fileID := range post.FileIds {
+		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file attachment", "error", appErr)
 			continue
@@ -404,7 +428,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 
-		attachment, err := client.UploadFile(teamID, channelID, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		var attachment *msteams.Attachment
+		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("error uploading attachment", "error", err)
 			continue
@@ -503,7 +528,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	if err := client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, text); err != nil {
+	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
@@ -516,11 +541,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	}
 	if err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-	} else {
-		err := p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
-		if err != nil {
-			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		}
+		return nil
+	}
+
+	if err = p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
 
 	return nil
@@ -543,7 +568,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	if err := client.UpdateChatMessage(chatID, postInfo.MSTeamsID, text); err != nil {
+	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, text); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}

@@ -16,10 +16,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const (
-	channelsLinkedPrefix = "channelsLinked_"
-)
-
 func newTestPlugin() *Plugin {
 	plugin := &Plugin{
 		MattermostPlugin: plugin.MattermostPlugin{
@@ -27,8 +23,8 @@ func newTestPlugin() *Plugin {
 			Driver: &plugintest.Driver{},
 		},
 		configuration: &configuration{
-			TenantId:      "",
-			ClientId:      "",
+			TenantID:      "",
+			ClientID:      "",
 			ClientSecret:  "",
 			BotUsername:   "",
 			BotPassword:   "",
@@ -64,7 +60,7 @@ func newTestPlugin() *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
 
-	plugin.OnActivate()
+	_ = plugin.OnActivate()
 	return plugin
 }
 

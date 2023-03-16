@@ -4,7 +4,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -60,7 +60,7 @@ func (p *Plugin) handleDownloadFile(filename, weburl string) ([]byte, error) {
 		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
 	}
 
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
 	}
@@ -73,22 +73,22 @@ func (p *Plugin) handleAttachments(channelID string, text string, msg *msteams.M
 	newText := text
 	parentID := ""
 	for _, a := range msg.Attachments {
-		//remove the attachment tags from the text
+		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
 
-		//handle a code snippet (code block)
+		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
 			newText = p.handleCodeSnippet(a, newText)
 			continue
 		}
 
-		//handle a message reference (reply)
+		// handle a message reference (reply)
 		if a.ContentType == "messageReference" {
 			parentID, newText = p.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
 			continue
 		}
 
-		//handle the download
+		// handle the download
 		attachmentData, err := p.handleDownloadFile(a.Name, a.ContentURL)
 		if err != nil {
 			p.API.LogError("file download failed", "filename", a.Name, "error", err)
@@ -143,7 +143,11 @@ func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannel
 		return "", text
 	}
 
-	post, err := p.API.GetPost(postInfo.MattermostID)
+	post, appErr := p.API.GetPost(postInfo.MattermostID)
+	if appErr != nil {
+		return "", text
+	}
+
 	if post.RootId != "" {
 		return post.RootId, text
 	}
@@ -223,8 +227,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		senderID = p.userID
 	}
 	if chat != nil {
-		var err error
-		channelID, err = p.getChatChannelId(chat, msg.UserID)
+		channelID, err = p.getChatChannelID(chat, msg.UserID)
 		if err != nil {
 			return err
 		}
@@ -268,7 +271,10 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
+		err = p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
+		if err != nil {
+			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		}
 	}
 	return nil
 }
@@ -307,7 +313,8 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 
 	channelID := ""
 	if chat == nil {
-		channelLink, err := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
+		var channelLink *store.ChannelLink
+		channelLink, err = p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
 			p.API.LogError("Unable to find the subscription")
 			return errors.New("Unable to find the subscription")
@@ -384,7 +391,10 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 	for _, r := range postReactions {
 		if !allReactions[r.UserId+r.EmojiName] {
 			r.ChannelId = "removedfromplugin"
-			p.API.RemoveReaction(r)
+			appErr = p.API.RemoveReaction(r)
+			if appErr != nil {
+				p.API.LogError("Unable to remove reaction", "error", appErr.Error())
+			}
 		}
 	}
 
@@ -477,7 +487,7 @@ func convertToMD(text string) string {
 	return sb.String()
 }
 
-func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (string, error) {
+func (p *Plugin) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		mmUserID, err := p.store.TeamsToMattermostUserID(member.UserID)
@@ -487,20 +497,22 @@ func (p *Plugin) getChatChannelId(chat *msteams.Chat, msteamsUserID string) (str
 				var appErr2 *model.AppError
 				memberUUID := uuid.Parse(member.UserID)
 				encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-				shortUserId := encoding.EncodeToString(memberUUID)
+				shortUserID := encoding.EncodeToString(memberUUID)
 				u, appErr2 = p.API.CreateUser(&model.User{
 					Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
 					FirstName: member.DisplayName,
 					Email:     member.UserID + "@msteamssync",
 					Password:  model.NewId(),
-					RemoteId:  &shortUserId,
+					RemoteId:  &shortUserID,
 				})
 				if appErr2 != nil {
-					p.API.LogError("UNABLE TO CREATE THE SYNTHETIC USER", "error", appErr2)
 					return "", appErr2
 				}
 			}
-			p.store.SetUserInfo(u.Id, member.UserID, nil)
+			err := p.store.SetUserInfo(u.Id, member.UserID, nil)
+			if err != nil {
+				p.API.LogError("Unable to link the new created mirror user", "error", err.Error())
+			}
 			mmUserID = u.Id
 		}
 		userIDs = append(userIDs, mmUserID)
