@@ -798,7 +798,6 @@ func (tc *ClientImpl) BotID() string {
 
 func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
 	ct := tc.client.Chats().Request()
-	ct.Filter(fmt.Sprintf("members/all(u:u/userId in ('%s'))", strings.Join(usersIDs, "','")))
 	ct.Expand("members")
 	ct.Select("members,id")
 	res, err := ct.Get(tc.ctx)
