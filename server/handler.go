@@ -59,6 +59,7 @@ func (p *Plugin) handleDownloadFile(filename, weburl string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
 	}
+	defer res.Body.Close()
 
 	data, err := io.ReadAll(res.Body)
 	if err != nil {

@@ -324,6 +324,7 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	uploadedFileData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -721,6 +722,8 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
+
 	photo, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -867,6 +870,8 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != 204 {
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
@@ -890,6 +895,8 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
+
 		if res.StatusCode != 204 {
 			body, err := io.ReadAll(res.Body)
 			if err != nil {
@@ -909,6 +916,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
 		if res.StatusCode != 204 {
 			body, err := io.ReadAll(res.Body)
 			if err != nil {
@@ -932,6 +940,8 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != 204 {
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
@@ -955,6 +965,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
 		if res.StatusCode != 204 {
 			body, err := io.ReadAll(res.Body)
 			if err != nil {
@@ -974,6 +985,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
 		if res.StatusCode != 204 {
 			body, err := io.ReadAll(res.Body)
 			if err != nil {
