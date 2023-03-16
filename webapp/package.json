@@ -15,7 +15,7 @@
   "devDependencies": {
     "@emotion/core": "11.0.0",
     "@types/enzyme": "3.10.12",
-    "@types/jest": "29.4.3",
+    "@types/jest": "29.4.4",
     "@types/node": "18.15.3",
     "@types/react": "18.0.28",
     "@types/react-dom": "18.0.11",
@@ -42,6 +42,7 @@
     "node-sass": "8.0.0",
     "sass-loader": "13.2.0",
     "style-loader": "3.3.2",
+    "ts-jest": "29.0.5",
     "ts-loader": "9.4.2",
     "ts-node": "10.9.1",
     "webpack": "5.76.1",
@@ -56,6 +57,7 @@
     "typescript": "4.9.5"
   },
   "jest": {
+    "preset": "ts-jest",
     "snapshotSerializers": [
       "<rootDir>/node_modules/enzyme-to-json/serializer"
     ],
@@ -78,23 +80,19 @@
       "^bundle-loader\\?lazy\\!(.*)$": "$1"
     },
     "moduleDirectories": [
-      "",
       "node_modules",
-      "non_npm_dependencies"
+      "non_npm_dependencies",
+      "<rootDir>"
     ],
     "reporters": [
       "default",
       "jest-junit"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!react-native|react-router|mattermost-webapp)"
+      "node_modules/(?!react-native|react-router)"
     ],
     "setupFiles": [
       "jest-canvas-mock"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.tsx"
-    ],
-    "testURL": "http://localhost:8065"
+    ]
   }
 }
