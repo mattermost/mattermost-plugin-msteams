@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -24,8 +23,8 @@ type ClientImpl struct {
 	client       *msgraph.GraphServiceRequestBuilder
 	ctx          context.Context
 	botID        string
-	tenantId     string
-	clientId     string
+	tenantID     string
+	clientID     string
 	clientSecret string
 	botUsername  string
 	botPassword  string
@@ -94,10 +93,9 @@ type Message struct {
 }
 
 type Activity struct {
-	Resource       string
-	SubscriptionId string
-	ClientState    string
-	ChangeType     string
+	Resource    string
+	ClientState string
+	ChangeType  string
 }
 
 type ActivityIds struct {
@@ -110,28 +108,28 @@ type ActivityIds struct {
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantId, clientId, clientSecret string, logError func(string, ...any)) *ClientImpl {
+func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) *ClientImpl {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
-		tenantId:     tenantId,
-		clientId:     clientId,
+		tenantID:     tenantID,
+		clientID:     clientID,
 		clientSecret: clientSecret,
 		logError:     logError,
 	}
 }
 
-func NewTokenClient(tenantId, clientId string, token *oauth2.Token, logError func(string, ...any)) *ClientImpl {
+func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) *ClientImpl {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		token:      token,
 		logError:   logError,
 	}
-	endpoint := microsoft.AzureADEndpoint(tenantId)
+	endpoint := microsoft.AzureADEndpoint(tenantID)
 	endpoint.AuthStyle = oauth2.AuthStyleInParams
 	config := &oauth2.Config{
-		ClientID: clientId,
+		ClientID: clientID,
 		Endpoint: endpoint,
 		Scopes:   teamsDefaultScopes,
 	}
@@ -144,12 +142,12 @@ func NewTokenClient(tenantId, clientId string, token *oauth2.Token, logError fun
 	return client
 }
 
-func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string, logError func(string, ...any)) *ClientImpl {
+func NewBot(tenantID, clientID, clientSecret, botUsername, botPassword string, logError func(string, ...any)) *ClientImpl {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "bot",
-		tenantId:     tenantId,
-		clientId:     clientId,
+		tenantID:     tenantID,
+		clientID:     clientID,
 		clientSecret: clientSecret,
 		botUsername:  botUsername,
 		botPassword:  botPassword,
@@ -157,12 +155,12 @@ func NewBot(tenantId, clientId, clientSecret, botUsername, botPassword string, l
 	}
 }
 
-func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.TokenSource, error) {
+func RequestUserToken(tenantID, clientID string, message chan string) (oauth2.TokenSource, error) {
 	m := msauth.NewManager()
 	ts, err := m.DeviceAuthorizationGrant(
 		context.Background(),
-		tenantId,
-		clientId,
+		tenantID,
+		clientID,
 		append(teamsDefaultScopes, "offline_access"),
 		func(dc *msauth.DeviceCode) error {
 			message <- dc.Message
@@ -177,15 +175,16 @@ func RequestUserToken(tenantId, clientId string, message chan string) (oauth2.To
 
 func (tc *ClientImpl) Connect() error {
 	var ts oauth2.TokenSource
-	if tc.clientType == "token" {
+	switch tc.clientType {
+	case "token":
 		return nil
-	} else if tc.clientType == "bot" {
+	case "bot":
 		var err error
 		m := msauth.NewManager()
 		ts, err = m.ResourceOwnerPasswordGrant(
 			tc.ctx,
-			tc.tenantId,
-			tc.clientId,
+			tc.tenantID,
+			tc.clientID,
 			tc.clientSecret,
 			tc.botUsername,
 			tc.botPassword,
@@ -194,21 +193,21 @@ func (tc *ClientImpl) Connect() error {
 		if err != nil {
 			return err
 		}
-	} else if tc.clientType == "app" {
+	case "app":
 		var err error
 		m := msauth.NewManager()
 		ts, err = m.ClientCredentialsGrant(
 			tc.ctx,
-			tc.tenantId,
-			tc.clientId,
+			tc.tenantID,
+			tc.clientID,
 			tc.clientSecret,
 			teamsDefaultScopes,
 		)
 		if err != nil {
 			return err
 		}
-	} else {
-		return errors.New("not valid client type, this shouldn't happen ever.")
+	default:
+		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
 	httpClient := oauth2.NewClient(tc.ctx, ts)
@@ -325,7 +324,7 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 	if err != nil {
 		return nil, err
 	}
-	uploadedFileData, err := ioutil.ReadAll(res.Body)
+	uploadedFileData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -420,8 +419,9 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 
 	var existingSubscription *msgraph.Subscription
 	for _, s := range subscriptionsRes {
-		if *s.Resource == resource {
-			existingSubscription = &s
+		subscription := s
+		if *subscription.Resource == resource {
+			existingSubscription = &subscription
 			break
 		}
 	}
@@ -437,7 +437,7 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 	if existingSubscription != nil {
 		if *existingSubscription.ChangeType != changeType || *existingSubscription.NotificationURL != notificationURL || *existingSubscription.ClientState != webhookSecret {
 			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
-			if err := ct.Delete(tc.ctx); err != nil {
+			if err = ct.Delete(tc.ctx); err != nil {
 				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
 			}
 		} else {
@@ -447,10 +447,14 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 			}
 			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
 			err = ct.Update(tc.ctx, &updatedSubscription)
-			if err := ct.Delete(tc.ctx); err != nil {
-				tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
+			if err == nil {
+				return *existingSubscription.ID, nil
 			}
-			return *existingSubscription.ID, nil
+
+			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
+			if err = ct.Delete(tc.ctx); err != nil {
+				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
+			}
 		}
 	}
 
@@ -571,9 +575,9 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 		if member.DisplayName != nil {
 			displayName = *member.DisplayName
 		}
-		userId, ok := member.AdditionalData["userId"]
+		userID, ok := member.AdditionalData["userId"]
 		if !ok {
-			userId = ""
+			userID = ""
 		}
 		email, ok := member.AdditionalData["email"]
 		if !ok {
@@ -582,7 +586,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 
 		members = append(members, ChatMember{
 			DisplayName: displayName,
-			UserID:      userId.(string),
+			UserID:      userID.(string),
 			Email:       email.(string),
 		})
 	}
@@ -675,7 +679,6 @@ func convertToMessage(msg *msgraph.ChatMessage, teamID, channelID, chatID string
 		Reactions:       reactions,
 		LastUpdateAt:    lastUpdateAt,
 	}
-
 }
 
 func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message, error) {
@@ -718,7 +721,7 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	photo, err := ioutil.ReadAll(res.Body)
+	photo, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +753,7 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	res, err := ioutil.ReadAll(resp.Body)
+	res, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -796,6 +799,10 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	ct.Expand("members")
 	ct.Select("members,id")
 	res, err := ct.Get(tc.ctx)
+	if err != nil {
+		return "", err
+	}
+
 	chatType := "group"
 	if len(usersIDs) == 2 {
 		chatType = "oneOnOne"
@@ -861,7 +868,7 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 		return err
 	}
 	if res.StatusCode != 204 {
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			return err
 		}
@@ -884,7 +891,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 			return err
 		}
 		if res.StatusCode != 204 {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				return err
 			}
@@ -903,7 +910,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 			return err
 		}
 		if res.StatusCode != 204 {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				return err
 			}
@@ -926,7 +933,7 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 		return err
 	}
 	if res.StatusCode != 204 {
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			return err
 		}
@@ -949,7 +956,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 			return err
 		}
 		if res.StatusCode != 204 {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				return err
 			}
@@ -968,7 +975,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 			return err
 		}
 		if res.StatusCode != 204 {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				return err
 			}

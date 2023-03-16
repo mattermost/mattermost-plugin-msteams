@@ -49,7 +49,7 @@ type Store interface {
 	CheckEnabledTeamByTeamID(teamID string) bool
 }
 
-type StoreImpl struct {
+type SQLStore struct {
 	api           plugin.API
 	enabledTeams  func() []string
 	encryptionKey func() []byte
@@ -57,8 +57,8 @@ type StoreImpl struct {
 	driverName    string
 }
 
-func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *StoreImpl {
-	return &StoreImpl{
+func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
+	return &SQLStore{
 		db:            db,
 		driverName:    driverName,
 		api:           api,
@@ -67,7 +67,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 	}
 }
 
-func (s *StoreImpl) Init() error {
+func (s *SQLStore) Init() error {
 	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR PRIMARY KEY, mmTeamID VARCHAR, msTeamsChannelID VARCHAR, msTeamsTeamID VARCHAR)")
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func (s *StoreImpl) Init() error {
 	return nil
 }
 
-func (s *StoreImpl) GetAvatarCache(userID string) ([]byte, error) {
+func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
 	data, appErr := s.api.KVGet(avatarKey + userID)
 	if appErr != nil {
 		return nil, appErr
@@ -109,16 +109,15 @@ func (s *StoreImpl) GetAvatarCache(userID string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *StoreImpl) SetAvatarCache(userID string, photo []byte) error {
+func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
 	appErr := s.api.KVSetWithExpiry(avatarKey+userID, photo, avatarCacheTime)
 	if appErr != nil {
 		return appErr
 	}
 	return nil
-
 }
 
-func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
+func (s *SQLStore) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
 	row := query.QueryRow()
 	var link ChannelLink
@@ -133,7 +132,7 @@ func (s *StoreImpl) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 	return &link, nil
 }
 
-func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error) {
+func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error) {
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link ChannelLink
@@ -147,7 +146,7 @@ func (s *StoreImpl) GetLinkByMSTeamsChannelID(teamID, channelID string) (*Channe
 	return &link, nil
 }
 
-func (s *StoreImpl) DeleteLinkByChannelID(channelID string) error {
+func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 	query := s.getQueryBuilder().Delete("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
 	_, err := query.Exec()
 	if err != nil {
@@ -157,7 +156,7 @@ func (s *StoreImpl) DeleteLinkByChannelID(channelID string) error {
 	return nil
 }
 
-func (s *StoreImpl) StoreChannelLink(link *ChannelLink) error {
+func (s *SQLStore) StoreChannelLink(link *ChannelLink) error {
 	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam)
 	_, err := query.Exec()
 	if err != nil {
@@ -169,7 +168,7 @@ func (s *StoreImpl) StoreChannelLink(link *ChannelLink) error {
 	return nil
 }
 
-func (s *StoreImpl) TeamsToMattermostUserID(userID string) (string, error) {
+func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
 	query := s.getQueryBuilder().Select("mmUserID").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
 	row := query.QueryRow()
 	var mmUserID string
@@ -180,7 +179,7 @@ func (s *StoreImpl) TeamsToMattermostUserID(userID string) (string, error) {
 	return mmUserID, nil
 }
 
-func (s *StoreImpl) MattermostToTeamsUserID(userID string) (string, error) {
+func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
 	query := s.getQueryBuilder().Select("msTeamsUserID").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
 	row := query.QueryRow()
 	var msTeamsUserID string
@@ -191,7 +190,7 @@ func (s *StoreImpl) MattermostToTeamsUserID(userID string) (string, error) {
 	return msTeamsUserID, nil
 }
 
-func (s *StoreImpl) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error) {
+func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error) {
 	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
@@ -207,7 +206,7 @@ func (s *StoreImpl) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostI
 	return &postInfo, nil
 }
 
-func (s *StoreImpl) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
+func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
 	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
@@ -222,7 +221,7 @@ func (s *StoreImpl) GetPostInfoByMattermostID(postID string) (*PostInfo, error) 
 	return &postInfo, nil
 }
 
-func (s *StoreImpl) LinkPosts(postInfo PostInfo) error {
+func (s *SQLStore) LinkPosts(postInfo PostInfo) error {
 	if s.driverName == "postgres" {
 		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
@@ -247,7 +246,7 @@ func (s *StoreImpl) LinkPosts(postInfo PostInfo) error {
 	return nil
 }
 
-func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
+func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
@@ -273,7 +272,7 @@ func (s *StoreImpl) GetTokenForMattermostUser(userID string) (*oauth2.Token, err
 	return &token, nil
 }
 
-func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
+func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
@@ -299,7 +298,7 @@ func (s *StoreImpl) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	return &token, nil
 }
 
-func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
+func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
 	tokendata := []byte{}
 	if token != nil {
 		var err error
@@ -328,7 +327,7 @@ func (s *StoreImpl) SetUserInfo(userID string, msTeamsUserID string, token *oaut
 	return nil
 }
 
-func (s *StoreImpl) CheckEnabledTeamByTeamID(teamID string) bool {
+func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {
 	if len(s.enabledTeams()) == 1 && s.enabledTeams()[0] == "" {
 		return true
 	}
@@ -346,7 +345,7 @@ func (s *StoreImpl) CheckEnabledTeamByTeamID(teamID string) bool {
 	return isTeamEnabled
 }
 
-func (s *StoreImpl) getQueryBuilder() sq.StatementBuilderType {
+func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
 	builder := sq.StatementBuilder
 	if s.driverName == "postgres" {
 		builder = builder.PlaceholderFormat(sq.Dollar)
