@@ -30,34 +30,6 @@ func (_m *Client) BotID() string {
 	return r0
 }
 
-// ClearSubscription provides a mock function with given fields: subscriptionID
-func (_m *Client) ClearSubscription(subscriptionID string) error {
-	ret := _m.Called(subscriptionID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(subscriptionID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// ClearSubscriptions provides a mock function with given fields:
-func (_m *Client) ClearSubscriptions() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // Connect provides a mock function with given fields:
 func (_m *Client) Connect() error {
 	ret := _m.Called()
@@ -65,6 +37,41 @@ func (_m *Client) Connect() error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// CreateOrGetChatForUsers provides a mock function with given fields: usersIDs
+func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
+	ret := _m.Called(usersIDs)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func([]string) string); ok {
+		r0 = rf(usersIDs)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(usersIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeleteChatMessage provides a mock function with given fields: chatID, msgID
+func (_m *Client) DeleteChatMessage(chatID string, msgID string) error {
+	ret := _m.Called(chatID, msgID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(chatID, msgID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -102,6 +109,52 @@ func (_m *Client) GetChannel(teamID string, channelID string) (*msteams.Channel,
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
 		r1 = rf(teamID, channelID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChat provides a mock function with given fields: chatID
+func (_m *Client) GetChat(chatID string) (*msteams.Chat, error) {
+	ret := _m.Called(chatID)
+
+	var r0 *msteams.Chat
+	if rf, ok := ret.Get(0).(func(string) *msteams.Chat); ok {
+		r0 = rf(chatID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Chat)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(chatID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChatMessage provides a mock function with given fields: chatID, messageID
+func (_m *Client) GetChatMessage(chatID string, messageID string) (*msteams.Message, error) {
+	ret := _m.Called(chatID, messageID)
+
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string) *msteams.Message); ok {
+		r0 = rf(chatID, messageID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(chatID, messageID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -167,6 +220,27 @@ func (_m *Client) GetMessage(teamID string, channelID string, messageID string) 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
 		r1 = rf(teamID, channelID, messageID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetMyID provides a mock function with given fields:
+func (_m *Client) GetMyID() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -243,13 +317,82 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return r0, r1
 }
 
-// RefreshSubscriptionsPeriodically provides a mock function with given fields: ctx, getActiveSubscriptions
-func (_m *Client) RefreshSubscriptionsPeriodically(ctx context.Context, getActiveSubscriptions func() []string) error {
-	ret := _m.Called(ctx, getActiveSubscriptions)
+// ListChannels provides a mock function with given fields: teamID
+func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
+	ret := _m.Called(teamID)
+
+	var r0 []msteams.Channel
+	if rf, ok := ret.Get(0).(func(string) []msteams.Channel); ok {
+		r0 = rf(teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]msteams.Channel)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListTeams provides a mock function with given fields:
+func (_m *Client) ListTeams() ([]msteams.Team, error) {
+	ret := _m.Called()
+
+	var r0 []msteams.Team
+	if rf, ok := ret.Get(0).(func() []msteams.Team); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]msteams.Team)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListUsers provides a mock function with given fields:
+func (_m *Client) ListUsers() ([]msteams.User, error) {
+	ret := _m.Called()
+
+	var r0 []msteams.User
+	if rf, ok := ret.Get(0).(func() []msteams.User); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]msteams.User)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RefreshChannelsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
+func (_m *Client) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) error {
+	ret := _m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, func() []string) error); ok {
-		r0 = rf(ctx, getActiveSubscriptions)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, notificationURL, webhookSecret, subscriptionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -257,15 +400,54 @@ func (_m *Client) RefreshSubscriptionsPeriodically(ctx context.Context, getActiv
 	return r0
 }
 
+// RefreshChatsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
+func (_m *Client) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) error {
+	ret := _m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, notificationURL, webhookSecret, subscriptionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SendChat provides a mock function with given fields: chatID, parentID, message
+func (_m *Client) SendChat(chatID string, parentID string, message string) (*msteams.Message, error) {
+	ret := _m.Called(chatID, parentID, message)
+
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string) *msteams.Message); ok {
+		r0 = rf(chatID, parentID, message)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(chatID, parentID, message)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SendMessage provides a mock function with given fields: teamID, channelID, parentID, message
-func (_m *Client) SendMessage(teamID string, channelID string, parentID string, message string) (string, error) {
+func (_m *Client) SendMessage(teamID string, channelID string, parentID string, message string) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, message)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, string, string) string); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
 		r0 = rf(teamID, channelID, parentID, message)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
 	var r1 error
@@ -279,14 +461,16 @@ func (_m *Client) SendMessage(teamID string, channelID string, parentID string, 
 }
 
 // SendMessageWithAttachments provides a mock function with given fields: teamID, channelID, parentID, message, attachments
-func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []*msteams.Attachment) (string, error) {
+func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []*msteams.Attachment) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, message, attachments)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, string, string, []*msteams.Attachment) string); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, []*msteams.Attachment) *msteams.Message); ok {
 		r0 = rf(teamID, channelID, parentID, message, attachments)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
 	var r1 error
@@ -299,25 +483,116 @@ func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, pa
 	return r0, r1
 }
 
-// SubscribeToChannel provides a mock function with given fields: teamID, channelID, notificationURL, webhookSecret
-func (_m *Client) SubscribeToChannel(teamID string, channelID string, notificationURL string, webhookSecret string) (string, error) {
-	ret := _m.Called(teamID, channelID, notificationURL, webhookSecret)
+// SetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
+func (_m *Client) SetChatReaction(chatID string, messageID string, userID string, emoji string) error {
+	ret := _m.Called(chatID, messageID, userID, emoji)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+		r0 = rf(chatID, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
+func (_m *Client) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) error {
+	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) error); ok {
+		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SubscribeToChannels provides a mock function with given fields: notificationURL, webhookSecret
+func (_m *Client) SubscribeToChannels(notificationURL string, webhookSecret string) (string, error) {
+	ret := _m.Called(notificationURL, webhookSecret)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, string, string) string); ok {
-		r0 = rf(teamID, channelID, notificationURL, webhookSecret)
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(notificationURL, webhookSecret)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
-		r1 = rf(teamID, channelID, notificationURL, webhookSecret)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(notificationURL, webhookSecret)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+
+// SubscribeToChats provides a mock function with given fields: notificationURL, webhookSecret
+func (_m *Client) SubscribeToChats(notificationURL string, webhookSecret string) (string, error) {
+	ret := _m.Called(notificationURL, webhookSecret)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(notificationURL, webhookSecret)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(notificationURL, webhookSecret)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UnsetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
+func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) error {
+	ret := _m.Called(chatID, messageID, userID, emoji)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+		r0 = rf(chatID, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UnsetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
+func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) error {
+	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) error); ok {
+		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateChatMessage provides a mock function with given fields: chatID, msgID, message
+func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string) error {
+	ret := _m.Called(chatID, msgID, message)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(chatID, msgID, message)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UpdateMessage provides a mock function with given fields: teamID, channelID, parentID, msgID, message

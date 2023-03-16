@@ -11,8 +11,8 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
+	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,9 +70,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')",
-						SubscriptionId: "test",
-						ChangeType:     "created",
+						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:  "created",
+						ClientState: "webhooksecret",
 					},
 				},
 			},
@@ -87,9 +87,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-						SubscriptionId: "test",
-						ChangeType:     "created",
+						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:  "created",
+						ClientState: "webhooksecret",
 					},
 				},
 			},
@@ -104,9 +104,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:       "teams('team-id')/channels('channel-id')/messages('message-id')",
-						SubscriptionId: "test",
-						ChangeType:     "created",
+						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:  "created",
+						ClientState: "webhooksecret",
 					},
 				},
 			},
@@ -121,9 +121,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:       "test",
-						SubscriptionId: "test",
-						ChangeType:     "created",
+						Resource:    "test",
+						ChangeType:  "created",
+						ClientState: "webhooksecret",
 					},
 				},
 			},
@@ -132,6 +132,23 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			400,
 			"test-error\n\n",
+		},
+		{
+			"Invalid webhook secret",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:  "created",
+						ClientState: "invalid",
+					},
+				},
+			},
+			func() {
+				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "", "", "").Return(nil, errors.New("test-error")).Times(1)
+			},
+			400,
+			"Invalid webhook secret\n\n",
 		},
 	}
 	for _, tc := range ttcases {
@@ -162,7 +179,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 func TestGetAvatarFromCache(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return([]byte("fake-avatar"), nil).Times(1)
+	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -183,9 +200,9 @@ func TestGetAvatarFromCache(t *testing.T) {
 func TestGetAvatarFromServer(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
+	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithExpiry", "avatar_user-id", []byte("fake-avatar"), int64(300)).Return(nil).Times(1)
+	plugin.store.(*storemocks.Store).On("SetAvatarCache", "user-id", []byte("fake-avatar")).Return(nil).Times(1)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -206,7 +223,7 @@ func TestGetAvatarFromServer(t *testing.T) {
 func TestGetAvatarNotFound(t *testing.T) {
 	plugin := newTestPlugin()
 
-	plugin.API.(*plugintest.API).On("KVGet", "avatar_user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
+	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
 
 	w := httptest.NewRecorder()

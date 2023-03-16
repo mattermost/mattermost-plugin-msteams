@@ -1,3 +1,4 @@
+//go:generate mockery --name=Store
 package store
 
 import (

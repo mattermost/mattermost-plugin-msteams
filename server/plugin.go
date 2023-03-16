@@ -254,20 +254,22 @@ func (p *Plugin) OnActivate() error {
 		return appErr
 	}
 
-	db, err := client.Store.GetMasterDB()
-	if err != nil {
-		return err
-	}
+	if p.store == nil {
+		db, err := client.Store.GetMasterDB()
+		if err != nil {
+			return err
+		}
 
-	p.store = store.New(
-		db,
-		client.Store.DriverName(),
-		p.API,
-		func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
-		func() []byte { return []byte(p.configuration.EncryptionKey) },
-	)
-	if err := p.store.Init(); err != nil {
-		return err
+		p.store = store.New(
+			db,
+			client.Store.DriverName(),
+			p.API,
+			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
+			func() []byte { return []byte(p.configuration.EncryptionKey) },
+		)
+		if err := p.store.Init(); err != nil {
+			return err
+		}
 	}
 
 	go p.start()
