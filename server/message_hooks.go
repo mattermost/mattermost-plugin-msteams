@@ -468,7 +468,11 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 		client = p.msteamsBotClient
 	}
 
-	postInfo, _ := p.store.GetPostInfoByMattermostID(post.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
+	if err != nil {
+		p.API.LogError("Error updating post", "error", err)
+		return err
+	}
 	if postInfo == nil {
 		p.API.LogError("Error deleting post, post not found.")
 		return errors.New("post not found")
@@ -490,7 +494,11 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 		client = p.msteamsBotClient
 	}
 
-	postInfo, _ := p.store.GetPostInfoByMattermostID(post.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
+	if err != nil {
+		p.API.LogError("Error updating post", "error", err)
+		return err
+	}
 	if postInfo == nil {
 		p.API.LogError("Error deleting post, post not found.")
 		return errors.New("post not found")
@@ -522,7 +530,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	postInfo, _ := p.store.GetPostInfoByMattermostID(newPost.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
+	if err != nil {
+		p.API.LogError("Error updating post", "error", err)
+		return err
+	}
 	if postInfo == nil {
 		p.API.LogError("Error updating post, post not found.")
 		return errors.New("post not found")
@@ -554,7 +566,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post) error {
 	p.API.LogDebug("Updating direct message to MS Teams", "chatID", chatID, "oldPost", oldPost, "newPost", newPost)
 
-	postInfo, _ := p.store.GetPostInfoByMattermostID(newPost.Id)
+	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
+	if err != nil {
+		p.API.LogError("Error updating post", "error", err)
+		return err
+	}
 	if postInfo == nil {
 		p.API.LogError("Error updating post, post not found.")
 		return errors.New("post not found")

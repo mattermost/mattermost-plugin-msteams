@@ -214,7 +214,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
 	postInfo := PostInfo{
 		MattermostID: postID,
 	}
-	err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, lastUpdateAt)
+	err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt)
 	if err != nil {
 		return nil, err
 	}
