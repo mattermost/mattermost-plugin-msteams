@@ -188,7 +188,7 @@ func (tc *ClientImpl) Connect() error {
 			tc.clientSecret,
 			tc.botUsername,
 			tc.botPassword,
-			teamsDefaultScopes,
+			append(teamsDefaultScopes, "offline_access"),
 		)
 		if err != nil {
 			return err
