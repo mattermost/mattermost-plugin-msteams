@@ -103,7 +103,6 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	// TODO: Handle lifecycle messages
 
 	w.WriteHeader(http.StatusOK)
-	return
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

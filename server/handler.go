@@ -274,7 +274,6 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
-	return
 }
 
 func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
@@ -353,8 +352,6 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 
 	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	p.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
-
-	return
 }
 
 func (p *Plugin) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
@@ -438,8 +435,6 @@ func (p *Plugin) handleDeletedActivity(activity msteams.Activity) {
 		p.API.LogError("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
 		return
 	}
-
-	return
 }
 
 func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
