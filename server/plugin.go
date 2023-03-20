@@ -43,8 +43,6 @@ type Plugin struct {
 
 	msteamsAppClientMutex sync.Mutex
 	msteamsAppClient      msteams.Client
-	msteamsBotClientMutex sync.Mutex
-	msteamsBotClient      msteams.Client
 
 	stopSubscriptions func()
 	stopContext       context.Context
@@ -105,34 +103,8 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) connectTeamsBotClient() error {
-	p.msteamsBotClientMutex.Lock()
-	defer p.msteamsBotClientMutex.Unlock()
-	if p.msteamsBotClient == nil {
-		p.msteamsBotClient = msteams.NewBot(
-			p.configuration.TenantID,
-			p.configuration.ClientID,
-			p.configuration.ClientSecret,
-			p.configuration.BotUsername,
-			p.configuration.BotPassword,
-			p.API.LogError,
-		)
-	}
-	err := p.msteamsBotClient.Connect()
-	if err != nil {
-		p.API.LogError("Unable to connect to the bot client", "error", err)
-		return err
-	}
-	return nil
-}
-
 func (p *Plugin) start() {
 	err := p.connectTeamsAppClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return
-	}
-	err = p.connectTeamsBotClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return

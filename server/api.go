@@ -61,6 +61,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
+	a.p.API.LogDebug("Change activity request", "req", req)
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.WriteHeader(http.StatusOK)
@@ -93,6 +94,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 // processLifecycle handles the lifecycle events received from teams subscriptions
 func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
+	a.p.API.LogDebug("Lifecycle activity request", "req", req)
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.WriteHeader(http.StatusOK)

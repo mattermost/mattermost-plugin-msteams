@@ -58,12 +58,6 @@
           "help_text": "The evalution API pay model only allows you to get a limite number of changes notifications, be sure your system keeps them low if you enable this setting",
           "default": false
         },{
-          "key": "botPassword",
-          "display_name": "Bot Password",
-          "type": "text",
-          "help_text": "Microsoft Teams Bot Password",
-          "default": ""
-        },{
           "key": "enforceConnectedUsers",
           "display_name": "Enforce connected accounts",
           "type": "bool",

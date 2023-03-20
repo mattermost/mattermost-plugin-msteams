@@ -24,8 +24,6 @@ type configuration struct {
 	ClientSecret          string `json:"clientsecret"`
 	EncryptionKey         string `json:"encryptionkey"`
 	EvaluationAPI         bool   `json:"evaluationapi"`
-	BotUsername           string `json:"botusername"`
-	BotPassword           string `json:"botpassword"`
 	WebhookSecret         string `json:"webhooksecret"`
 	EnabledTeams          string `json:"enabledteams"`
 	SyncDirectMessages    bool   `json:"syncdirectmessages"`

@@ -267,7 +267,10 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 	}
 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
@@ -331,7 +334,10 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 	}
 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
@@ -411,7 +417,10 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	text := post.Message
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return "", err
+		}
 		text = user.Username + ":\n\n" + post.Message
 	}
 
@@ -465,7 +474,10 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 	}
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
@@ -491,7 +503,10 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 	}
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
@@ -526,7 +541,10 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
@@ -580,7 +598,10 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	client, err := p.getClientForUser(user.Id)
 	if err != nil {
-		client = p.msteamsBotClient
+		client, err = p.getClientForUser(p.userID)
+		if err != nil {
+			return err
+		}
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 

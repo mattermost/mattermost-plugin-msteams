@@ -61,6 +61,9 @@ func getAutocompleteData() *model.AutocompleteData {
 	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
 	cmd.AddCommand(connect)
 
+	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
+	cmd.AddCommand(connectBot)
+
 	return cmd
 }
 
@@ -94,6 +97,10 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "connect" {
 		return p.executeConnectCommand(c, args)
+	}
+
+	if action == "connect-bot" {
+		return p.executeConnectBotCommand(c, args)
 	}
 
 	return cmdError(args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
@@ -230,8 +237,56 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		messageChan <- "Your accoutn has been connected"
+		messageChan <- "Your account has been connected"
 	}(args.UserId, messageChan)
+
+	message := <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	message = <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	close(messageChan)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		return cmdError(args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+	}
+
+	messageChan := make(chan string)
+	go func(userID string, messageChan chan string) {
+		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantID, p.configuration.ClientID, messageChan)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		token, err := tokenSource.Token()
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
+		if err = client.Connect(); err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		msteamsUserID, err := client.GetMyID()
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		err = p.store.SetUserInfo(userID, msteamsUserID, token)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		messageChan <- "The bot account has been connected"
+	}(p.userID, messageChan)
 
 	message := <-messageChan
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)

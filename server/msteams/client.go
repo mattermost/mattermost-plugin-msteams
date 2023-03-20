@@ -22,13 +22,10 @@ import (
 type ClientImpl struct {
 	client       *msgraph.GraphServiceRequestBuilder
 	ctx          context.Context
-	botID        string
 	tenantID     string
 	clientID     string
 	clientSecret string
-	botUsername  string
-	botPassword  string
-	clientType   string // can be "bot", "app" or "token"
+	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
 	logError     func(msg string, keyValuePairs ...any)
 }
@@ -143,19 +140,6 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError fun
 	return client
 }
 
-func NewBot(tenantID, clientID, clientSecret, botUsername, botPassword string, logError func(string, ...any)) *ClientImpl {
-	return &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "bot",
-		tenantID:     tenantID,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		botUsername:  botUsername,
-		botPassword:  botPassword,
-		logError:     logError,
-	}
-}
-
 func RequestUserToken(tenantID, clientID string, message chan string) (oauth2.TokenSource, error) {
 	m := msauth.NewManager()
 	ts, err := m.DeviceAuthorizationGrant(
@@ -179,21 +163,6 @@ func (tc *ClientImpl) Connect() error {
 	switch tc.clientType {
 	case "token":
 		return nil
-	case "bot":
-		var err error
-		m := msauth.NewManager()
-		ts, err = m.ResourceOwnerPasswordGrant(
-			tc.ctx,
-			tc.tenantID,
-			tc.clientID,
-			tc.clientSecret,
-			tc.botUsername,
-			tc.botPassword,
-			append(teamsDefaultScopes, "offline_access"),
-		)
-		if err != nil {
-			return err
-		}
 	case "app":
 		var err error
 		m := msauth.NewManager()
@@ -214,14 +183,6 @@ func (tc *ClientImpl) Connect() error {
 	httpClient := oauth2.NewClient(tc.ctx, ts)
 	graphClient := msgraph.NewClient(httpClient)
 	tc.client = graphClient
-
-	if tc.clientType == "bot" {
-		botID, err := tc.GetMyID()
-		if err != nil {
-			return err
-		}
-		tc.botID = botID
-	}
 
 	return nil
 }
@@ -802,10 +763,6 @@ func GetActivityIds(activity Activity) ActivityIds {
 		result.ReplyID = data[3][9 : len(data[3])-2]
 	}
 	return result
-}
-
-func (tc *ClientImpl) BotID() string {
-	return tc.botID
 }
 
 func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {

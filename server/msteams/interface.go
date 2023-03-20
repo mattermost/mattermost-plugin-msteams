@@ -37,5 +37,4 @@ type Client interface {
 	ListUsers() ([]User, error)
 	ListTeams() ([]Team, error)
 	ListChannels(teamID string) ([]Channel, error)
-	BotID() string
 }

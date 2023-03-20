@@ -45,7 +45,12 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 
 // handleDownloadFile handles file download
 func (p *Plugin) handleDownloadFile(filename, weburl string) ([]byte, error) {
-	realURL, err := p.msteamsBotClient.GetFileURL(weburl)
+	client, err := p.getClientForUser(p.userID)
+	if err != nil {
+		return nil, err
+	}
+
+	realURL, err := client.GetFileURL(weburl)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +121,14 @@ func (p *Plugin) handleCodeSnippet(attach msteams.Attachment, text string) strin
 		p.API.LogError("codesnippetUrl has unexpected size", "size", content.CodeSnippetURL)
 		return text
 	}
-	codeSnippetText, err := p.msteamsBotClient.GetCodeSnippet(content.CodeSnippetURL)
+
+	client, err := p.getClientForUser(p.userID)
+	if err != nil {
+		p.API.LogError("unable to get bot client", "error", err)
+		return text
+	}
+
+	codeSnippetText, err := client.GetCodeSnippet(content.CodeSnippetURL)
 	if err != nil {
 		p.API.LogError("retrieving snippet content failed", "error", err)
 		return text
@@ -178,8 +190,14 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		return msg, chat, nil
 	}
 
+	client, err := p.getClientForUser(p.userID)
+	if err != nil {
+		p.API.LogError("unable to get bot client", "error", err)
+		return nil, nil, err
+	}
+
 	if activityIds.ReplyID != "" {
-		msg, err := p.msteamsBotClient.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		msg, err := client.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
 		if err != nil {
 			p.API.LogError("Unable to get original post", "error", err)
 			return nil, nil, err
@@ -187,7 +205,7 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 		return msg, nil, nil
 	}
 
-	msg, err := p.msteamsBotClient.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+	msg, err := client.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
 	if err != nil {
 		p.API.LogError("Unable to get original post", "error", err)
 		return nil, nil, err
@@ -213,7 +231,8 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 		return
 	}
 
-	if msg.UserID == p.msteamsBotClient.BotID() {
+	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
+	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
 		return
 	}
@@ -294,7 +313,8 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 		return
 	}
 
-	if msg.UserID == p.msteamsBotClient.BotID() {
+	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
+	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
 		return
 	}
