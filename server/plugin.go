@@ -154,13 +154,13 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 	defer p.clusterMutex.Unlock()
 
 	time.Sleep(100 * time.Millisecond)
-	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
+	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
 	}
 
-	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
+	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return

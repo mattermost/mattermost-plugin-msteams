@@ -16,8 +16,8 @@ type Client interface {
 	UpdateChatMessage(chatID, msgID, message string) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
-	SubscribeToChannels(baseURL, webhookSecret string) (string, error)
-	SubscribeToChats(baseURL, webhookSecret string) (string, error)
+	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (string, error)
+	SubscribeToChats(baseURL, webhookSecret string, pay bool) (string, error)
 	RefreshChannelsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string)
 	RefreshChatsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string)
 	GetTeam(teamID string) (*Team, error)

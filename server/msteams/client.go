@@ -474,14 +474,20 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string) (string, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
 	resource := "teams/getAllMessages"
+	if pay {
+		resource = "teams/getAllMessages?model=B"
+	}
 	changeType := "created,deleted,updated"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string) (string, error) {
+func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
 	resource := "chats/getAllMessages"
+	if pay {
+		resource = "chats/getAllMessages?model=B"
+	}
 	changeType := "created,deleted,updated"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
