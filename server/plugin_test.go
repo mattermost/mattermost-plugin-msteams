@@ -4,14 +4,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
 )
@@ -26,17 +24,13 @@ func newTestPlugin() *Plugin {
 			TenantID:      "",
 			ClientID:      "",
 			ClientSecret:  "",
-			BotUsername:   "",
-			BotPassword:   "",
 			WebhookSecret: "webhooksecret",
 			EncryptionKey: "encryptionkey",
 		},
 		msteamsAppClient: &mocks.Client{},
-		msteamsBotClient: &mocks.Client{},
 		store:            &storemocks.Store{},
 	}
 	plugin.msteamsAppClient.(*mocks.Client).On("Connect").Return(nil)
-	plugin.msteamsBotClient.(*mocks.Client).On("Connect").Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("ClearSubscriptions").Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannels", mock.Anything, plugin.configuration.WebhookSecret).Return("channel-subscription-id", nil)
@@ -92,7 +86,6 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
-	plugin.msteamsBotClient.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "test-user@mattermost: message", []*msteams.Attachment(nil)).Return("new-message-id", nil).Times(1)
 	plugin.store.(*storemocks.Store).On("LinkPosts", "post-id", "new-message-id").Return(nil).Times(1)
 
 	plugin.MessageHasBeenPosted(nil, &post)
@@ -145,7 +138,6 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
-	plugin.msteamsBotClient.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "test-user@mattermost: message", []*msteams.Attachment(nil)).Return("", errors.New("test-error")).Times(1)
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }

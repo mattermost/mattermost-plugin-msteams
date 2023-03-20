@@ -16,13 +16,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 func TestSubscriptionValidation(t *testing.T) {
 	plugin := newTestPlugin()
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/?validationToken=test", nil)
+	r := httptest.NewRequest(http.MethodPost, "/changes?validationToken=test", nil)
 
 	plugin.ServeHTTP(nil, w, r)
 
@@ -41,7 +42,7 @@ func TestSubscriptionInvalidRequest(t *testing.T) {
 	plugin := newTestPlugin()
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(""))
+	r := httptest.NewRequest(http.MethodPost, "/changes", strings.NewReader(""))
 
 	plugin.ServeHTTP(nil, w, r)
 
@@ -77,9 +78,8 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "team-id", "channel-id", "message-id").Return(&msteams.Message{}, nil).Times(1)
 			},
-			200,
+			202,
 			"",
 		},
 		{
@@ -94,9 +94,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetReply", "team-id", "channel-id", "message-id", "reply-id").Return(&msteams.Message{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
 			},
-			200,
+			202,
 			"",
 		},
 		{
@@ -111,10 +111,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "team-id", "channel-id", "message-id").Return(nil, errors.New("not found")).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
 			},
-			400,
-			"not found\n\n",
+			202,
+			"",
 		},
 		{
 			"Invalid activity",
@@ -128,10 +128,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "", "", "").Return(nil, errors.New("test-error")).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
 			},
-			400,
-			"test-error\n\n",
+			202,
+			"",
 		},
 		{
 			"Invalid webhook secret",
@@ -145,7 +145,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.msteamsBotClient.(*mocks.Client).On("GetMessage", "", "", "").Return(nil, errors.New("test-error")).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
 			},
 			400,
 			"Invalid webhook secret\n\n",
@@ -159,7 +159,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			tc.PopulateMocks()
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
+			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewReader(data))
 
 			plugin.ServeHTTP(nil, w, r)
 
