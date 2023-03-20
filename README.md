@@ -1,11 +1,11 @@
-# Mattermost ServiceNow Plugin
+# Mattermost MS Teams Sync Plugin
 ## Table of Contents
 - [License](#license)
 - [Overview](#overview)
 - [Features](#features)
 - [Installation](#installation)
 - [Setup](#setup)
-- [Connecting to ServiceNow](#connecting-to-servicenow)
+- [Connecting to MS Teams](#connecting-to-ms-teams)
 
 ## License
 
@@ -18,11 +18,11 @@ This plugin integrates MS Teams with Mattermost by providing automated syncing o
 ## Features
 
 This plugin contains the following features:
-- Connecting/disconnecting to MS Teams account using Device code OAuth.
+- Connecting/disconnecting to MS Teams account using Device Code OAuth flow.
 
-- Linking of Mattermost channels with MS Teams channels and syncing of messages in the linked channels
+- Linking of Mattermost channels with MS Teams channels and syncing of messages in the linked channels.
 
-- Linking of Mattermost DMs and group messages with Teams chats and syncing of messages
+- Linking of Mattermost DMs and group messages with Teams chats and syncing of messages.
 
 - Any updates done in Mattermost messages are synced with MS Teams messages and vice versa.
 
@@ -60,7 +60,3 @@ There are two methods by which you can connect your Mattermost account to your M
     - Click on the "Connect account" button. If it asks for login, enter your Microsoft credentials and click `Continue` to authorize and connect your account.
 
 After connecting successfully, you will get an ephemeral message from the MS Teams bot saying "Your account has been connected".
-
----
-
-Made with &#9829; by [Brightscout](https://www.brightscout.com)
