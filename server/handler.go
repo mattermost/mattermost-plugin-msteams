@@ -197,7 +197,8 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 	}
 
 	if activityIds.ReplyID != "" {
-		msg, err := client.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		var msg *msteams.Message
+		msg, err = client.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
 		if err != nil {
 			p.API.LogError("Unable to get original post", "error", err)
 			return nil, nil, err
