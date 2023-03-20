@@ -26,7 +26,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	api := &API{p: p, router: router, store: store}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/", api.processActivity).Methods("POST")
+	router.HandleFunc("/changes", api.processActivity).Methods("POST")
+	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
@@ -62,6 +63,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
+		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
 	}
@@ -85,6 +87,23 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, errors, http.StatusBadRequest)
 		return
 	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// processLifecycle handles the lifecycle events received from teams subscriptions
+func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
+	validationToken := req.URL.Query().Get("validationToken")
+	if validationToken != "" {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(validationToken))
+		return
+	}
+
+	// TODO: Handle lifecycle messages
+
+	w.WriteHeader(http.StatusOK)
+	return
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

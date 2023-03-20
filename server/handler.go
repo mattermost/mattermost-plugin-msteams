@@ -28,23 +28,18 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 		return errors.New("Invalid webhook secret")
 	}
 
+	// TODO: Make this something that has a limit on the number of goroutines
 	switch activity.ChangeType {
 	case "created":
-		err := p.handleCreatedActivity(activity)
-		if err != nil {
-			return err
-		}
+		go p.handleCreatedActivity(activity)
 	case "updated":
-		err := p.handleUpdatedActivity(activity)
-		if err != nil {
-			return err
-		}
+		go p.handleUpdatedActivity(activity)
 	case "deleted":
-		err := p.handleDeletedActivity(activity)
-		if err != nil {
-			return err
-		}
+		go p.handleDeletedActivity(activity)
+	default:
+		p.API.LogWarn("Unandledy activity", "activity", activity, "error", "Not handled activity")
 	}
+
 	return nil
 }
 
@@ -200,26 +195,27 @@ func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*mste
 	return msg, nil, nil
 }
 
-func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
+func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	p.API.LogDebug("Handling create activity", "activity", activity)
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
-		return err
+		p.API.LogError("Unable to get original message", "error", err.Error())
+		return
 	}
 
 	if msg == nil {
 		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
-		return nil
+		return
 	}
 
 	if msg.UserID == "" {
 		p.API.LogDebug("Skipping not user event", "msg", msg)
-		return nil
+		return
 	}
 
 	if msg.UserID == p.msteamsBotClient.BotID() {
 		p.API.LogDebug("Skipping messages from bot user")
-		return nil
+		return
 	}
 
 	var channelID string
@@ -228,13 +224,14 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 		senderID = p.userID
 	}
 	if chat != nil {
-		channelID, err = p.getChatChannelID(chat, msg.UserID)
-		if err != nil {
-			return err
-		}
 		if !p.configuration.SyncDirectMessages {
 			// Skipping because direct/group messages are disabled
-			return nil
+			return
+		}
+		channelID, err = p.getChatChannelID(chat, msg.UserID)
+		if err != nil {
+			p.API.LogError("Unable to get original channel id", "error", err.Error())
+			return
 		}
 	} else {
 		channelLink, _ := p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
@@ -245,13 +242,13 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 
 	if channelID == "" {
 		p.API.LogDebug("Channel not set")
-		return nil
+		return
 	}
 
 	post, err := p.msgToPost(channelID, msg, senderID)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
-		return err
+		return
 	}
 
 	p.API.LogDebug("Post generated", "post", post)
@@ -260,13 +257,13 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		p.API.LogDebug("duplicated post")
-		return nil
+		return
 	}
 
 	newPost, appErr := p.API.CreatePost(post)
 	if appErr != nil {
 		p.API.LogError("Unable to create post", "post", post, "error", appErr)
-		return appErr
+		return
 	}
 
 	p.API.LogDebug("Post created", "post", newPost)
@@ -277,39 +274,40 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) error {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
-	return nil
+	return
 }
 
-func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
+func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 	p.API.LogDebug("Handling update activity", "activity", activity)
 	msg, chat, err := p.getMessageAndChatFromActivity(activity)
 	if err != nil {
-		return err
+		p.API.LogError("Unable to get original message", "error", err.Error())
+		return
 	}
 
 	if msg == nil {
 		p.API.LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
-		return nil
+		return
 	}
 
 	if msg.UserID == "" {
 		p.API.LogDebug("Skipping not user event", "msg", msg)
-		return nil
+		return
 	}
 
 	if msg.UserID == p.msteamsBotClient.BotID() {
 		p.API.LogDebug("Skipping messages from bot user")
-		return nil
+		return
 	}
 
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
-		return nil
+		return
 	}
 
 	// Ingnore if the change is already applied in the database
 	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
-		return nil
+		return
 	}
 
 	channelID := ""
@@ -318,19 +316,20 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 		channelLink, err = p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
 			p.API.LogError("Unable to find the subscription")
-			return errors.New("Unable to find the subscription")
+			return
 		}
 		channelID = channelLink.MattermostChannel
 		if !p.configuration.SyncDirectMessages {
 			// Skipping because direct/group messages are disabled
-			return nil
+			return
 		}
 	} else {
-		p, err := p.API.GetPost(postInfo.MattermostID)
+		post, err := p.API.GetPost(postInfo.MattermostID)
 		if err != nil {
-			return errors.New("Unable to find the original post")
+			p.API.LogError("Unable to find the original post", "error", err.Error())
+			return
 		}
-		channelID = p.ChannelId
+		channelID = post.ChannelId
 	}
 
 	senderID, err := p.store.TeamsToMattermostUserID(msg.UserID)
@@ -341,7 +340,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	post, err := p.msgToPost(channelID, msg, senderID)
 	if err != nil {
 		p.API.LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
-		return err
+		return
 	}
 
 	post.Id = postInfo.MattermostID
@@ -349,13 +348,13 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) error {
 	_, appErr := p.API.UpdatePost(post)
 	if appErr != nil {
 		p.API.LogError("Unable to update post", "post", post, "error", appErr)
-		return appErr
+		return
 	}
 
 	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	p.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 
-	return nil
+	return
 }
 
 func (p *Plugin) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
@@ -426,21 +425,21 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 	}
 }
 
-func (p *Plugin) handleDeletedActivity(activity msteams.Activity) error {
+func (p *Plugin) handleDeletedActivity(activity msteams.Activity) {
 	activityIds := msteams.GetActivityIds(activity)
 
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
 	if postInfo == nil {
-		return nil
+		return
 	}
 
 	appErr := p.API.DeletePost(postInfo.MattermostID)
 	if appErr != nil {
 		p.API.LogError("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
-		return appErr
+		return
 	}
 
-	return nil
+	return
 }
 
 func (p *Plugin) msgToPost(channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
