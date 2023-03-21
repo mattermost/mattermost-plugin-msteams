@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base32"
@@ -125,7 +126,22 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 	p.clusterMutex.Lock()
 	defer p.clusterMutex.Unlock()
 
-	time.Sleep(100 * time.Millisecond)
+	counter := 0
+	maxRetries := 20
+	for {
+		resp, _ := http.Post(p.getURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
+		resp.Body.Close()
+		if resp.StatusCode == 200 {
+			break
+		}
+
+		counter++
+		if counter > maxRetries {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
