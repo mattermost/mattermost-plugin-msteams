@@ -8,7 +8,7 @@
 
 ![image](https://user-images.githubusercontent.com/6913320/76347903-be67f580-62dd-11ea-829e-236dd45865a8.png)
 
-4. Then fill out the form with the following values:
+4. Fill out the form with the following values:
 
 - Name: `Mattermost MS Teams Sync`
 - Supported account types: Default value (Single tenant)
@@ -63,4 +63,4 @@ Select **Register** to submit the form.
 
 16. Click on **Grant admin consent for...** to grant the permissions for the application.
 
-You're all set for configuration inside of Azure.
+You're all set for configuration inside Azure.

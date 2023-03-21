@@ -17,25 +17,25 @@ This plugin integrates MS Teams with Mattermost by providing automated syncing o
 
 ## Features
 
-This plugin contains the following features:
-- Connecting to MS Teams account using Device Code OAuth flow.
+This plugin supports the following features:
+- Connect to MS Teams account using Device Code OAuth flow.
 
-- Linking of Mattermost channels with MS Teams channels and syncing of messages in the linked channels.
+- Link Mattermost channels with MS Teams channels and sync messages between the linked channels.
 
-- Linking of Mattermost DMs and group messages with Teams chats and syncing of messages.
+- Link Mattermost DMs and group messages with Teams chats and sync messages.
 
-- Any updates done in Mattermost messages are synced with MS Teams messages and vice versa.
+- Sync Mattermost and MS Teams messages for any changes made in any existing messages on either side.
 
 - Deletion of MS Teams messages is synced with Mattermost but it's not vice versa.
 
-- Syncing of posts containing markdown and attachments is supported.
+- - Sync posts containing markdown and attachments.
 
     ![image](https://user-images.githubusercontent.com/77336594/226587339-050c35da-a0f1-47db-a15f-f8d5f59bf8cd.png)
     ![image](https://user-images.githubusercontent.com/77336594/226587366-2c4231bc-1aa2-42c4-b692-bd4441c71c34.png)
     ![image](https://user-images.githubusercontent.com/77336594/226588263-a7915e4d-d9ae-4294-9134-326628febdfc.png)
     ![image](https://user-images.githubusercontent.com/77336594/226588309-3202b78f-d87d-439c-967b-25ba8ed328c9.png)
 
-- Syncing of reactions on posts.
+- Sync reactions on posts.
 
 ## Installation
 

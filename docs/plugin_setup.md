@@ -14,5 +14,5 @@
     - **Sync users**: This config is for the interval (in minutes) in which the users will be synced between Mattermost and MS Teams.
     - **Sync direct and group messages**: Enable this for enabling the syncing of direct and group messages.
 
-    ![image](https://user-images.githubusercontent.com/77336594/226391146-9f760abd-4edc-461f-9582-095acc822eb6.png)
+    ![image](https://user-images.githubusercontent.com/77336594/226593804-e3245221-9fdc-456e-aefb-be243c967394.png)
 
