@@ -42,6 +42,8 @@ func newTestPlugin() *Plugin {
 	}
 	config := model.Config{}
 	config.SetDefaults()
+	plugin.API.(*plugintest.API).On("GetServerVersion").Return("7.8.0")
+	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil)
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&config)
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
@@ -55,8 +57,11 @@ func newTestPlugin() *Plugin {
 	plugin.API.(*plugintest.API).On("KVList", 0, 1000000000).Return([]string{}, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
 
 	_ = plugin.OnActivate()
+	plugin.userID = "bot-user-id"
 	return plugin
 }
 
