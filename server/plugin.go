@@ -210,18 +210,18 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	botID, appErr := p.API.EnsureBotUser(&model.Bot{
+	botID, appErr := client.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	})
+	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
 	if appErr != nil {
 		return appErr
 	}
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	appErr = p.API.RegisterCommand(createMsteamsSyncCommand())
+	appErr = p.API.RegisterCommand(p.createMsteamsSyncCommand())
 	if appErr != nil {
 		return appErr
 	}

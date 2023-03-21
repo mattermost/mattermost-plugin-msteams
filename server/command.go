@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -13,16 +14,22 @@ import (
 const msteamsCommand = "msteams-sync"
 const msteamsLogoURL = "https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg"
 
-func createMsteamsSyncCommand() *model.Command {
+func (p *Plugin) createMsteamsSyncCommand() *model.Command {
+	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
+	if err != nil {
+		p.API.LogError("Unable to get the msteams icon for the slash command")
+	}
+
 	return &model.Command{
-		Trigger:          msteamsCommand,
-		AutoComplete:     true,
-		AutoCompleteDesc: "Manage synced channels between MS Teams and Mattermost",
-		AutoCompleteHint: "[command]",
-		Username:         botUsername,
-		IconURL:          msteamsLogoURL,
-		DisplayName:      botDisplayName,
-		AutocompleteData: getAutocompleteData(),
+		Trigger:              msteamsCommand,
+		AutoComplete:         true,
+		AutoCompleteDesc:     "Manage synced channels between MS Teams and Mattermost",
+		AutoCompleteHint:     "[command]",
+		Username:             botUsername,
+		IconURL:              msteamsLogoURL,
+		DisplayName:          botDisplayName,
+		AutocompleteData:     getAutocompleteData(),
+		AutocompleteIconData: iconData,
 	}
 }
 
