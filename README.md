@@ -1,138 +1,67 @@
-# Plugin Starter Template [![CircleCI branch](https://img.shields.io/circleci/project/github/mattermost/mattermost-plugin-starter-template/master.svg)](https://circleci.com/gh/mattermost/mattermost-plugin-starter-template)
+# Mattermost MS Teams Sync Plugin
+## Table of Contents
+- [License](#license)
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Setup](#setup)
+- [Connecting to MS Teams](#connecting-to-ms-teams)
 
-This plugin serves as a starting point for writing a Mattermost plugin. Feel free to base your own plugin off this repository.
+## License
 
-To learn more about plugins, see [our plugin documentation](https://developers.mattermost.com/extend/plugins/).
+See the [LICENSE](./LICENSE) file for license rights and limitations.
 
-## Getting Started
-Use GitHub's template feature to make a copy of this repository by clicking the "Use this template" button.
+## Overview
 
-Alternatively shallow clone the repository matching your plugin name:
-```
-git clone --depth 1 https://github.com/mattermost/mattermost-plugin-starter-template com.example.my-plugin
-```
+This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa. For a stable production release, please download the latest version from the Plugin Marketplace and follow the instructions to [install](#installation) and [configure](#setup) the plugin. If you are a developer who wants to work on this plugin, please switch to the [Developer docs](./docs/developer_docs.md).
 
-Note that this project uses [Go modules](https://github.com/golang/go/wiki/Modules). Be sure to locate the project outside of `$GOPATH`.
+## Features
 
-Edit the following files:
-1. `plugin.json` with your `id`, `name`, and `description`:
-```
-{
-    "id": "com.example.my-plugin",
-    "name": "My Plugin",
-    "description": "A plugin to enhance Mattermost."
-}
-```
+This plugin supports the following features:
+- Connect to MS Teams account using Device Code OAuth flow.
 
-2. `go.mod` with your Go module path, following the `<hosting-site>/<repository>/<module>` convention:
-```
-module github.com/example/my-plugin
-```
+- Link Mattermost channels with MS Teams channels and sync messages between the linked channels.
 
-3. `.golangci.yml` with your Go module path:
-```yml
-linters-settings:
-  # [...]
-  goimports:
-    local-prefixes: github.com/example/my-plugin
-```
+- Link Mattermost DMs and group messages with Teams chats and sync messages.
 
-Build your plugin:
-```
-make
-```
+- Sync Mattermost and MS Teams messages for any changes made in any existing messages on either side.
 
-This will produce a single plugin file (with support for multiple architectures) for upload to your Mattermost server:
+- Deletion of MS Teams messages is synced with Mattermost but it's not vice versa.
 
-```
-dist/com.example.my-plugin.tar.gz
-```
+- - Sync posts containing markdown and attachments.
 
-## Development
+    ![image](https://user-images.githubusercontent.com/77336594/226587339-050c35da-a0f1-47db-a15f-f8d5f59bf8cd.png)
+    ![image](https://user-images.githubusercontent.com/77336594/226587366-2c4231bc-1aa2-42c4-b692-bd4441c71c34.png)
+    ![image](https://user-images.githubusercontent.com/77336594/226588263-a7915e4d-d9ae-4294-9134-326628febdfc.png)
+    ![image](https://user-images.githubusercontent.com/77336594/226588309-3202b78f-d87d-439c-967b-25ba8ed328c9.png)
 
-To avoid having to manually install your plugin, build and deploy your plugin using one of the following options. In order for the below options to work, you must first enable plugin uploads via your config.json or API and restart Mattermost.
+- Sync reactions on posts.
 
-```json
-    "PluginSettings" : {
-        ...
-        "EnableUploads" : true
-    }
-```
+## Installation
 
-### Deploying with Local Mode
+1. Go to the [releases page of this GitHub repository](github.com/mattermost/mattermost-plugin-msteams-sync/releases) and download the latest release for your Mattermost server.
+2. Upload this file on the Mattermost **System Console > Plugins > Management** page to install the plugin. To learn more about how to upload a plugin, [see the documentation](https://docs.mattermost.com/administration/plugins.html#plugin-uploads).
+3. Enable the plugin from **System Console > Plugins > MSTeams Sync**.
 
-If your Mattermost server is running locally, you can enable [local mode](https://docs.mattermost.com/administration/mmctl-cli-tool.html#local-mode) to streamline deploying your plugin. Edit your server configuration as follows:
+## Setup
 
-```json
-{
-    "ServiceSettings": {
-        ...
-        "EnableLocalMode": true,
-        "LocalModeSocketLocation": "/var/tmp/mattermost_local.socket"
-    },
-}
-```
+- [Microsoft Azure Setup](./docs/azure_setup.md)
+- [Plugin Setup](./docs/plugin_setup.md)
 
-and then deploy your plugin:
-```
-make deploy
-```
+## Connecting to MS Teams
 
-You may also customize the Unix socket path:
-```
-export MM_LOCALSOCKETPATH=/var/tmp/alternate_local.socket
-make deploy
-```
+There are two methods by which you can connect your Mattermost account to your MS Teams account.
 
-If developing a plugin with a webapp, watch for changes and deploy those automatically:
-```
-export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
-export MM_ADMIN_TOKEN=j44acwd8obn78cdcx7koid4jkr
-make watch
-```
+- **Using slash command**
+    - Run the slash command `/msteams-sync connect` in any channel.
+    - You will get an ephemeral message from the MS Teams bot containing a link and a code to connect your account.
+    - Click on that link and enter the code. If it asks for login, enter your Microsoft credentials and click `Continue` to authorize and connect your account.
 
-### Deploying with credentials
+- **Using the button in the full screen modal**
+    - If the setting "Enforce connected accounts" is enabled in the plugin's config settings, then a full screen modal appears that looks like this - 
+    
+    ![image](https://user-images.githubusercontent.com/77336594/226347884-a6469d95-de68-4706-a145-9511d42bd7a4.png)
 
-Alternatively, you can authenticate with the server's API with credentials:
-```
-export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
-export MM_ADMIN_USERNAME=admin
-export MM_ADMIN_PASSWORD=password
-make deploy
-```
+    - Click on the "Connect account" button. If it asks for login, enter your Microsoft credentials and click `Continue` to authorize and connect your account.
 
-or with a [personal access token](https://docs.mattermost.com/developer/personal-access-tokens.html):
-```
-export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
-export MM_ADMIN_TOKEN=j44acwd8obn78cdcx7koid4jkr
-make deploy
-```
-
-## Q&A
-
-### How do I make a server-only or web app-only plugin?
-
-Simply delete the `server` or `webapp` folders and remove the corresponding sections from `plugin.json`. The build scripts will skip the missing portions automatically.
-
-### How do I include assets in the plugin bundle?
-
-Place them into the `assets` directory. To use an asset at runtime, build the path to your asset and open as a regular file:
-
-```go
-bundlePath, err := p.API.GetBundlePath()
-if err != nil {
-    return errors.Wrap(err, "failed to get bundle path")
-}
-
-profileImage, err := ioutil.ReadFile(filepath.Join(bundlePath, "assets", "profile_image.png"))
-if err != nil {
-    return errors.Wrap(err, "failed to read profile image")
-}
-
-if appErr := p.API.SetProfileImage(userID, profileImage); appErr != nil {
-    return errors.Wrap(err, "failed to set profile image")
-}
-```
-
-### How do I build the plugin with unminified JavaScript?
-Setting the `MM_DEBUG` environment variable will invoke the debug builds. The simplist way to do this is to simply include this variable in your calls to `make` (e.g. `make dist MM_DEBUG=1`).
+After connecting successfully, you will get an ephemeral message from the MS Teams bot saying "Your account has been connected".
