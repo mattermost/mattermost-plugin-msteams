@@ -63,4 +63,12 @@ Select **Register** to submit the form.
 
 16. Click on **Grant admin consent for...** to grant the permissions for the application.
 
+### Step 2: Create a user account to act as a bot
+
+1. Create a regular user account. We will connect this account later from the mattermost side. // TODO: Add more details to this process
+
+### Step 3: Ensure you have a pay subscription enable
+
+1. Create a paid subscription to Azure and associate it to your account. // TODO: Add more details to this process
+
 You're all set for configuration inside Azure.
