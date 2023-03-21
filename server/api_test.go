@@ -94,7 +94,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -111,7 +111,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -128,7 +128,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -145,7 +145,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			400,
 			"Invalid webhook secret\n\n",
