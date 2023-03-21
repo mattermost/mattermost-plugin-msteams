@@ -324,7 +324,7 @@ func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.Command
 		return &model.CommandResponse{}, nil
 	}
 
-	err = p.store.SetUserInfo(p.userID, teamsUserID, nil)
+	err = p.store.SetUserInfo(args.UserId, teamsUserID, nil)
 	if err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 		return &model.CommandResponse{}, nil
