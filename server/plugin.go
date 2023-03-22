@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base32"
@@ -43,8 +44,6 @@ type Plugin struct {
 
 	msteamsAppClientMutex sync.Mutex
 	msteamsAppClient      msteams.Client
-	msteamsBotClientMutex sync.Mutex
-	msteamsBotClient      msteams.Client
 
 	stopSubscriptions func()
 	stopContext       context.Context
@@ -105,34 +104,8 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) connectTeamsBotClient() error {
-	p.msteamsBotClientMutex.Lock()
-	defer p.msteamsBotClientMutex.Unlock()
-	if p.msteamsBotClient == nil {
-		p.msteamsBotClient = msteams.NewBot(
-			p.configuration.TenantID,
-			p.configuration.ClientID,
-			p.configuration.ClientSecret,
-			p.configuration.BotUsername,
-			p.configuration.BotPassword,
-			p.API.LogError,
-		)
-	}
-	err := p.msteamsBotClient.Connect()
-	if err != nil {
-		p.API.LogError("Unable to connect to the bot client", "error", err)
-		return err
-	}
-	return nil
-}
-
 func (p *Plugin) start() {
 	err := p.connectTeamsAppClient()
-	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
-		return
-	}
-	err = p.connectTeamsBotClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return
@@ -153,14 +126,29 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 	p.clusterMutex.Lock()
 	defer p.clusterMutex.Unlock()
 
-	time.Sleep(100 * time.Millisecond)
-	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret)
+	counter := 0
+	maxRetries := 20
+	for {
+		resp, _ := http.Post(p.getURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
+		resp.Body.Close()
+		if resp.StatusCode == 200 {
+			break
+		}
+
+		counter++
+		if counter > maxRetries {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
 	}
 
-	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret)
+	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return
@@ -238,18 +226,18 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	botID, appErr := p.API.EnsureBotUser(&model.Bot{
+	botID, appErr := client.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	})
+	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
 	if appErr != nil {
 		return appErr
 	}
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	appErr = p.API.RegisterCommand(createMsteamsSyncCommand())
+	appErr = p.API.RegisterCommand(p.createMsteamsSyncCommand())
 	if appErr != nil {
 		return appErr
 	}

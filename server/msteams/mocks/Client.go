@@ -16,20 +16,6 @@ type Client struct {
 	mock.Mock
 }
 
-// BotID provides a mock function with given fields:
-func (_m *Client) BotID() string {
-	ret := _m.Called()
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
 // Connect provides a mock function with given fields:
 func (_m *Client) Connect() error {
 	ret := _m.Called()
@@ -386,14 +372,14 @@ func (_m *Client) ListUsers() ([]msteams.User, error) {
 	return r0, r1
 }
 
-// RefreshChannelsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
-func (_m *Client) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) {
-	_m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
+// RefreshChannelsSubscriptionPeriodically provides a mock function with given fields: ctx, baseURL, webhookSecret, subscriptionID
+func (_m *Client) RefreshChannelsSubscriptionPeriodically(ctx context.Context, baseURL string, webhookSecret string, subscriptionID string) {
+	_m.Called(ctx, baseURL, webhookSecret, subscriptionID)
 }
 
-// RefreshChatsSubscriptionPeriodically provides a mock function with given fields: ctx, notificationURL, webhookSecret, subscriptionID
-func (_m *Client) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL string, webhookSecret string, subscriptionID string) {
-	_m.Called(ctx, notificationURL, webhookSecret, subscriptionID)
+// RefreshChatsSubscriptionPeriodically provides a mock function with given fields: ctx, baseURL, webhookSecret, subscriptionID
+func (_m *Client) RefreshChatsSubscriptionPeriodically(ctx context.Context, baseURL string, webhookSecret string, subscriptionID string) {
+	_m.Called(ctx, baseURL, webhookSecret, subscriptionID)
 }
 
 // SendChat provides a mock function with given fields: chatID, parentID, message
@@ -493,20 +479,20 @@ func (_m *Client) SetReaction(teamID string, channelID string, parentID string, 
 	return r0
 }
 
-// SubscribeToChannels provides a mock function with given fields: notificationURL, webhookSecret
-func (_m *Client) SubscribeToChannels(notificationURL string, webhookSecret string) (string, error) {
-	ret := _m.Called(notificationURL, webhookSecret)
+// SubscribeToChannels provides a mock function with given fields: baseURL, webhookSecret, pay
+func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
+	ret := _m.Called(baseURL, webhookSecret, pay)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string) string); ok {
-		r0 = rf(notificationURL, webhookSecret)
+	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
+		r0 = rf(baseURL, webhookSecret, pay)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(notificationURL, webhookSecret)
+	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
+		r1 = rf(baseURL, webhookSecret, pay)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -514,20 +500,20 @@ func (_m *Client) SubscribeToChannels(notificationURL string, webhookSecret stri
 	return r0, r1
 }
 
-// SubscribeToChats provides a mock function with given fields: notificationURL, webhookSecret
-func (_m *Client) SubscribeToChats(notificationURL string, webhookSecret string) (string, error) {
-	ret := _m.Called(notificationURL, webhookSecret)
+// SubscribeToChats provides a mock function with given fields: baseURL, webhookSecret, pay
+func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
+	ret := _m.Called(baseURL, webhookSecret, pay)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string) string); ok {
-		r0 = rf(notificationURL, webhookSecret)
+	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
+		r0 = rf(baseURL, webhookSecret, pay)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(notificationURL, webhookSecret)
+	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
+		r1 = rf(baseURL, webhookSecret, pay)
 	} else {
 		r1 = ret.Error(1)
 	}

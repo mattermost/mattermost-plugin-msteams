@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -13,16 +14,22 @@ import (
 const msteamsCommand = "msteams-sync"
 const msteamsLogoURL = "https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg"
 
-func createMsteamsSyncCommand() *model.Command {
+func (p *Plugin) createMsteamsSyncCommand() *model.Command {
+	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
+	if err != nil {
+		p.API.LogError("Unable to get the msteams icon for the slash command")
+	}
+
 	return &model.Command{
-		Trigger:          msteamsCommand,
-		AutoComplete:     true,
-		AutoCompleteDesc: "Manage synced channels between MS Teams and Mattermost",
-		AutoCompleteHint: "[command]",
-		Username:         botUsername,
-		IconURL:          msteamsLogoURL,
-		DisplayName:      botDisplayName,
-		AutocompleteData: getAutocompleteData(),
+		Trigger:              msteamsCommand,
+		AutoComplete:         true,
+		AutoCompleteDesc:     "Manage synced channels between MS Teams and Mattermost",
+		AutoCompleteHint:     "[command]",
+		Username:             botUsername,
+		IconURL:              msteamsLogoURL,
+		DisplayName:          botDisplayName,
+		AutocompleteData:     getAutocompleteData(),
+		AutocompleteIconData: iconData,
 	}
 }
 
@@ -61,6 +68,15 @@ func getAutocompleteData() *model.AutocompleteData {
 	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
 	cmd.AddCommand(connect)
 
+	disconnect := model.NewAutocompleteData("disconnect", "", "Disconnect your Mattermost account from your MS Teams account")
+	cmd.AddCommand(disconnect)
+
+	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
+	cmd.AddCommand(connectBot)
+
+	disconnectBot := model.NewAutocompleteData("disconnect-bot", "", "Disconnect the bot account (only system admins can do this)")
+	cmd.AddCommand(disconnectBot)
+
 	return cmd
 }
 
@@ -94,6 +110,18 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "connect" {
 		return p.executeConnectCommand(c, args)
+	}
+
+	if action == "connect-bot" {
+		return p.executeConnectBotCommand(c, args)
+	}
+
+	if action == "disconnect" {
+		return p.executeDisconnectCommand(c, args)
+	}
+
+	if action == "disconnect-bot" {
+		return p.executeDisconnectBotCommand(c, args)
 	}
 
 	return cmdError(args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
@@ -230,7 +258,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 			return
 		}
 
-		messageChan <- "Your accoutn has been connected"
+		messageChan <- "Your account has been connected"
 	}(args.UserId, messageChan)
 
 	message := <-messageChan
@@ -238,6 +266,93 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 	message = <-messageChan
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
 	close(messageChan)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		return cmdError(args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+	}
+
+	messageChan := make(chan string)
+	go func(userID string, messageChan chan string) {
+		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantID, p.configuration.ClientID, messageChan)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		token, err := tokenSource.Token()
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
+		if err = client.Connect(); err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		msteamsUserID, err := client.GetMyID()
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		err = p.store.SetUserInfo(userID, msteamsUserID, token)
+		if err != nil {
+			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			return
+		}
+
+		messageChan <- "The bot account has been connected"
+	}(p.userID, messageChan)
+
+	message := <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	message = <-messageChan
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
+	close(messageChan)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
+	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
+		return &model.CommandResponse{}, nil
+	}
+
+	err = p.store.SetUserInfo(args.UserId, teamsUserID, nil)
+	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
+		return &model.CommandResponse{}, nil
+	}
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected")
+
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		return cmdError(args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+	}
+
+	botTeamsUserID, err := p.store.MattermostToTeamsUserID(p.userID)
+	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: unable to find the connected bot account")
+		return &model.CommandResponse{}, nil
+	}
+	err = p.store.SetUserInfo(p.userID, botTeamsUserID, nil)
+	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
+		return &model.CommandResponse{}, nil
+	}
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected")
+
 	return &model.CommandResponse{}, nil
 }
 

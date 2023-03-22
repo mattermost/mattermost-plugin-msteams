@@ -22,13 +22,10 @@ import (
 type ClientImpl struct {
 	client       *msgraph.GraphServiceRequestBuilder
 	ctx          context.Context
-	botID        string
 	tenantID     string
 	clientID     string
 	clientSecret string
-	botUsername  string
-	botPassword  string
-	clientType   string // can be "bot", "app" or "token"
+	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
 	logError     func(msg string, keyValuePairs ...any)
 }
@@ -93,9 +90,10 @@ type Message struct {
 }
 
 type Activity struct {
-	Resource    string
-	ClientState string
-	ChangeType  string
+	Resource       string
+	ClientState    string
+	ChangeType     string
+	LifecycleEvent string
 }
 
 type ActivityIds struct {
@@ -142,19 +140,6 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError fun
 	return client
 }
 
-func NewBot(tenantID, clientID, clientSecret, botUsername, botPassword string, logError func(string, ...any)) *ClientImpl {
-	return &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "bot",
-		tenantID:     tenantID,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		botUsername:  botUsername,
-		botPassword:  botPassword,
-		logError:     logError,
-	}
-}
-
 func RequestUserToken(tenantID, clientID string, message chan string) (oauth2.TokenSource, error) {
 	m := msauth.NewManager()
 	ts, err := m.DeviceAuthorizationGrant(
@@ -178,21 +163,6 @@ func (tc *ClientImpl) Connect() error {
 	switch tc.clientType {
 	case "token":
 		return nil
-	case "bot":
-		var err error
-		m := msauth.NewManager()
-		ts, err = m.ResourceOwnerPasswordGrant(
-			tc.ctx,
-			tc.tenantID,
-			tc.clientID,
-			tc.clientSecret,
-			tc.botUsername,
-			tc.botPassword,
-			teamsDefaultScopes,
-		)
-		if err != nil {
-			return err
-		}
 	case "app":
 		var err error
 		m := msauth.NewManager()
@@ -213,14 +183,6 @@ func (tc *ClientImpl) Connect() error {
 	httpClient := oauth2.NewClient(tc.ctx, ts)
 	graphClient := msgraph.NewClient(httpClient)
 	tc.client = graphClient
-
-	if tc.clientType == "bot" {
-		botID, err := tc.GetMyID()
-		if err != nil {
-			return err
-		}
-		tc.botID = botID
-	}
 
 	return nil
 }
@@ -408,7 +370,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 	return nil
 }
 
-func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, changeType string) (string, error) {
+func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (string, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 
 	subscriptionsCt := tc.client.Subscriptions().Request()
@@ -427,16 +389,20 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 		}
 	}
 
+	lifecycleNotificationURL := baseURL + "lifecycle"
+	notificationURL := baseURL + "changes"
+
 	subscription := msgraph.Subscription{
-		Resource:           &resource,
-		ExpirationDateTime: &expirationDateTime,
-		NotificationURL:    &notificationURL,
-		ClientState:        &webhookSecret,
-		ChangeType:         &changeType,
+		Resource:                 &resource,
+		ExpirationDateTime:       &expirationDateTime,
+		NotificationURL:          &notificationURL,
+		LifecycleNotificationURL: &lifecycleNotificationURL,
+		ClientState:              &webhookSecret,
+		ChangeType:               &changeType,
 	}
 
 	if existingSubscription != nil {
-		if *existingSubscription.ChangeType != changeType || *existingSubscription.NotificationURL != notificationURL || *existingSubscription.ClientState != webhookSecret {
+		if *existingSubscription.ChangeType != changeType || *existingSubscription.LifecycleNotificationURL != lifecycleNotificationURL || *existingSubscription.NotificationURL != notificationURL || *existingSubscription.ClientState != webhookSecret {
 			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
 			if err = ct.Delete(tc.ctx); err != nil {
 				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
@@ -469,19 +435,25 @@ func (tc *ClientImpl) subscribe(notificationURL, webhookSecret, resource, change
 	return *res.ID, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(notificationURL string, webhookSecret string) (string, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
 	resource := "teams/getAllMessages"
+	if pay {
+		resource = "teams/getAllMessages?model=B"
+	}
 	changeType := "created,deleted,updated"
-	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(notificationURL string, webhookSecret string) (string, error) {
+func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
 	resource := "chats/getAllMessages"
+	if pay {
+		resource = "chats/getAllMessages?model=B"
+	}
 	changeType := "created,deleted,updated"
-	return tc.subscribe(notificationURL, webhookSecret, resource, changeType)
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, notificationURL, webhookSecret, resource, changeType string) {
+func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, baseURL, webhookSecret, resource, changeType string) {
 	currentSubscriptionID := subscriptionID
 	for {
 		select {
@@ -496,9 +468,10 @@ func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subsc
 				tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
 
 				// Unable to refresh, try to recreate the subscription
-				newSubscriptionID, err := tc.subscribe(notificationURL, webhookSecret, resource, changeType)
+				newSubscriptionID, err := tc.subscribe(baseURL, webhookSecret, resource, changeType)
 				if err != nil {
 					tc.logError("Unable to create the a new subscription", "error", err)
+					continue
 				}
 				currentSubscriptionID = newSubscriptionID
 			}
@@ -513,16 +486,16 @@ func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subsc
 	}
 }
 
-func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) {
+func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string) {
 	resource := "teams/getAllMessages"
 	changeType := "created,deleted,updated"
-	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
+	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, notificationURL, webhookSecret, subscriptionID string) {
+func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string) {
 	resource := "chats/getAllMessages"
 	changeType := "created,deleted,updated"
-	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, notificationURL, webhookSecret, resource, changeType)
+	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, baseURL, webhookSecret, resource, changeType)
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
@@ -790,10 +763,6 @@ func GetActivityIds(activity Activity) ActivityIds {
 		result.ReplyID = data[3][9 : len(data[3])-2]
 	}
 	return result
-}
-
-func (tc *ClientImpl) BotID() string {
-	return tc.botID
 }
 
 func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
