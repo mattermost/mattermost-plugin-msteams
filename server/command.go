@@ -12,7 +12,6 @@ import (
 )
 
 const msteamsCommand = "msteams-sync"
-const msteamsLogoURL = "https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg"
 
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
@@ -26,21 +25,19 @@ func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 		AutoCompleteDesc:     "Manage synced channels between MS Teams and Mattermost",
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
-		IconURL:              msteamsLogoURL,
 		DisplayName:          botDisplayName,
 		AutocompleteData:     getAutocompleteData(),
 		AutocompleteIconData: iconData,
 	}
 }
 
-func cmdError(channelID string, detailedError string) (*model.CommandResponse, *model.AppError) {
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		ChannelId:    channelID,
-		Text:         detailedError,
-		Username:     botDisplayName,
-		IconURL:      msteamsLogoURL,
-	}, nil
+func (p *Plugin) cmdError(userID string, channelID string, detailedError string) (*model.CommandResponse, *model.AppError) {
+	p.API.SendEphemeralPost(userID, &model.Post{
+		Message:   detailedError,
+		UserId:    p.userID,
+		ChannelId: channelID,
+	})
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
@@ -124,42 +121,42 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeDisconnectBotCommand(c, args)
 	}
 
-	return cmdError(args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
+	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	if len(parameters) < 2 {
-		return cmdError(args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
+		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
 	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return cmdError(args.ChannelId, "This team is not enabled for MS Teams sync.")
+		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the current channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
 	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
 	if !canLinkChannel {
-		return cmdError(args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
-		return cmdError(args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
+		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
 	client, err := p.getClientForUser(args.UserId)
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
 	_, err = client.GetChannel(parameters[0], parameters[1])
 	if err != nil {
-		return cmdError(args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
+		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
 	err = p.store.StoreChannelLink(&store.ChannelLink{
@@ -169,7 +166,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		MSTeamsChannel:    parameters[1],
 	})
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to create new link.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel")
@@ -179,18 +176,18 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return cmdError(args.ChannelId, "Unable to get the current channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
 	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
 	if !canLinkChannel {
-		return cmdError(args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
 	err := p.store.DeleteLinkByChannelID(channel.Id)
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to delete link.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel")
@@ -200,17 +197,17 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
-		return cmdError(args.ChannelId, "Link doesn't exists.")
+		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exists.")
 	}
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to get the MS Teams team information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
 	msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
-		return cmdError(args.ChannelId, "Unable to get the MS Teams channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
 
 	text := fmt.Sprintf(
@@ -271,7 +268,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 
 func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return cmdError(args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
 	messageChan := make(chan string)
@@ -337,7 +334,7 @@ func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.Command
 
 func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return cmdError(args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
 	botTeamsUserID, err := p.store.MattermostToTeamsUserID(p.userID)

@@ -1,15 +1,15 @@
 import React, {useCallback, useState, useEffect} from 'react';
 
 import Client from '../client';
+import {id as pluginId} from '../manifest';
 
 import './enforceConnectedAccountModal.css';
-
-const msteamsLogo = 'https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg';
 
 export default function EnforceConnectedAccountModal() {
     const [open, setOpen] = useState(false);
     const [canSkip, setCanSkip] = useState(false);
     const [connectMessage, setConnectMessage] = useState('');
+    const iconURL = `/plugins/${pluginId}/public/msteams-sync-icon.svg`;
 
     const skip = useCallback(() => {
         setOpen(false);
@@ -54,7 +54,7 @@ export default function EnforceConnectedAccountModal() {
 
     return (
         <div className='EnforceConnectedAccountModal'>
-            <img src={msteamsLogo}/>
+            <img src={iconURL}/>
             <h1>{'Connect your Microsoft Teams Account'}</h1>
             {!connectMessage && <p>{'For using this server you need to connect your Mattermost account with your MS Teams account, to procced just click in the button'}</p>}
             {!connectMessage && (
