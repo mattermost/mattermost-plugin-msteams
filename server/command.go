@@ -6,7 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -159,7 +159,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
-	err = p.store.StoreChannelLink(&store.ChannelLink{
+	err = p.store.StoreChannelLink(&storemodels.ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
