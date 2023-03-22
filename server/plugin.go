@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,10 +26,11 @@ import (
 )
 
 const (
-	botUsername     = "msteams"
-	botDisplayName  = "MS Teams"
-	pluginID        = "com.mattermost.msteams-sync"
-	clusterMutexKey = "subscriptions_cluster_mutex"
+	botUsername           = "msteams"
+	botDisplayName        = "MS Teams"
+	pluginID              = "com.mattermost.msteams-sync"
+	clusterMutexKey       = "subscriptions_cluster_mutex"
+	lastReceivedChangeKey = "last_received_change"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -104,7 +106,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) start() {
+func (p *Plugin) start(syncSince *time.Time) {
 	err := p.connectTeamsAppClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
@@ -120,6 +122,14 @@ func (p *Plugin) start() {
 	}
 
 	go p.startSubscriptions(ctx)
+	if syncSince != nil {
+		go p.syncSince(*syncSince)
+	}
+}
+
+func (p *Plugin) syncSince(syncSince time.Time) {
+	// TODO: Implement the sync mechanism
+	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
 func (p *Plugin) startSubscriptions(ctx context.Context) {
@@ -167,7 +177,7 @@ func (p *Plugin) stop() {
 
 func (p *Plugin) restart() {
 	p.stop()
-	p.start()
+	p.start(nil)
 }
 
 func (p *Plugin) generatePluginSecrets() error {
@@ -208,6 +218,23 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
+	data, appErr := p.API.KVGet(lastReceivedChangeKey)
+	if appErr != nil {
+		return appErr
+	}
+
+	lastReceivedChangeMicro := int64(0)
+	var lastRecivedChange *time.Time
+	if len(data) > 0 {
+		var err error
+		lastReceivedChangeMicro, err = strconv.ParseInt(string(data), 10, 64)
+		if err != nil {
+			return err
+		}
+		parsedTime := time.UnixMicro(lastReceivedChangeMicro)
+		lastRecivedChange = &parsedTime
+	}
+
 	client := pluginapi.NewClient(p.API, p.Driver)
 
 	// Initialize the emoji translator
@@ -226,20 +253,20 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	botID, appErr := client.Bot.EnsureBot(&model.Bot{
+	botID, err := client.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
 	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
-	if appErr != nil {
-		return appErr
+	if err != nil {
+		return err
 	}
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	appErr = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if appErr != nil {
-		return appErr
+	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
+	if err != nil {
+		return err
 	}
 
 	if p.store == nil {
@@ -260,7 +287,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
-	go p.start()
+	go p.start(lastRecivedChange)
 	return nil
 }
 

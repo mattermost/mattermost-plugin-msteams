@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -235,6 +237,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
 	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
+		p.updateReceivedChange(msg.LastUpdateAt)
 		return
 	}
 
@@ -277,6 +280,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		p.API.LogDebug("duplicated post")
+		p.updateReceivedChange(msg.LastUpdateAt)
 		return
 	}
 
@@ -288,6 +292,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 
 	p.API.LogDebug("Post created", "post", newPost)
 
+	p.updateReceivedChange(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
 		if err != nil {
@@ -317,11 +322,13 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
 	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
+		p.updateReceivedChange(msg.LastUpdateAt)
 		return
 	}
 
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
+		p.updateReceivedChange(msg.LastUpdateAt)
 		return
 	}
 
@@ -371,6 +378,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 		return
 	}
 
+	p.updateReceivedChange(msg.LastUpdateAt)
 	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	p.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 }
@@ -552,4 +560,11 @@ func (p *Plugin) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (str
 		return channel.Id, nil
 	}
 	return "", errors.New("dm/gm not found")
+}
+
+func (p *Plugin) updateReceivedChange(t time.Time) {
+	err := p.API.KVSet(lastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
+	if err != nil {
+		p.API.LogError("Unable to store properly the last received change")
+	}
 }
