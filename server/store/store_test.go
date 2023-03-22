@@ -8,40 +8,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API) {
+	store := &SQLStore{}
+	store.api = api
+	return store, api
+}
+
 func TestGetAvatarCache(t *testing.T) {
-	ttcases := []struct {
+	for _, test := range []struct {
 		Name                 string
-		SetupAPI             func(*plugintest.API) *plugintest.API
+		SetupAPI             func(*plugintest.API)
 		ExpectedErrorMessage string
 	}{
 		{
-			"GetAvatarCache: Error while getting the avatar cache",
-			func(a *plugintest.API) *plugintest.API {
-				a.On("KVGet", avatarKey+testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the avatar cache"))
-				return a
+			Name: "GetAvatarCache: Error while getting the avatar cache",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("KVGet", avatarKey+testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the avatar cache"))
 			},
-			"unable to get the avatar cache",
+			ExpectedErrorMessage: "unable to get the avatar cache",
 		},
 		{
-			"GetAvatarCache: Valid",
-			func(a *plugintest.API) *plugintest.API {
-				a.On("KVGet", avatarKey+testutils.GetID()).Return([]byte("mock data"), nil)
-				return a
+			Name: "GetAvatarCache: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("KVGet", avatarKey+testutils.GetID()).Return([]byte("mock data"), nil)
 			},
-			"",
 		},
-	}
-	for _, tc := range ttcases {
-		t.Run(tc.Name, func(t *testing.T) {
+	} {
+		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			s := SQLStore{}
-			a := tc.SetupAPI(&plugintest.API{})
-			s.api = a
-			tc.SetupAPI(&plugintest.API{})
-			resp, err := s.GetAvatarCache(testutils.GetID())
+			store, api := setupTestStore(&plugintest.API{})
+			test.SetupAPI(api)
+			resp, err := store.GetAvatarCache(testutils.GetID())
 
-			if tc.ExpectedErrorMessage != "" {
-				assert.Contains(err.Error(), tc.ExpectedErrorMessage)
+			if test.ExpectedErrorMessage != "" {
+				assert.Contains(err.Error(), test.ExpectedErrorMessage)
 				assert.Nil(resp)
 			} else {
 				assert.Nil(err)
@@ -52,38 +52,33 @@ func TestGetAvatarCache(t *testing.T) {
 }
 
 func TestSetAvatarCache(t *testing.T) {
-	ttcases := []struct {
+	for _, test := range []struct {
 		Name                 string
-		SetupAPI             func(*plugintest.API) *plugintest.API
+		SetupAPI             func(*plugintest.API)
 		ExpectedErrorMessage string
 	}{
 		{
-			"SetAvatarCache: Error while setting the avatar cache",
-			func(a *plugintest.API) *plugintest.API {
-				a.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(testutils.GetInternalServerAppError("unable to set the avatar cache"))
-				return a
+			Name: "SetAvatarCache: Error while setting the avatar cache",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(testutils.GetInternalServerAppError("unable to set the avatar cache"))
 			},
-			"unable to set the avatar cache",
+			ExpectedErrorMessage: "unable to set the avatar cache",
 		},
 		{
-			"SetAvatarCache: Valid",
-			func(a *plugintest.API) *plugintest.API {
-				a.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(nil)
-				return a
+			Name: "SetAvatarCache: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(nil)
 			},
-			"",
 		},
-	}
-	for _, tc := range ttcases {
-		t.Run(tc.Name, func(t *testing.T) {
+	} {
+		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			s := SQLStore{}
-			a := tc.SetupAPI(&plugintest.API{})
-			s.api = a
-			err := s.SetAvatarCache(testutils.GetID(), []byte{10})
+			store, api := setupTestStore(&plugintest.API{})
+			test.SetupAPI(api)
+			err := store.SetAvatarCache(testutils.GetID(), []byte{10})
 
-			if tc.ExpectedErrorMessage != "" {
-				assert.Contains(err.Error(), tc.ExpectedErrorMessage)
+			if test.ExpectedErrorMessage != "" {
+				assert.Contains(err.Error(), test.ExpectedErrorMessage)
 			} else {
 				assert.Nil(err)
 			}
