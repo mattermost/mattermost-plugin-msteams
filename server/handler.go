@@ -11,7 +11,7 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
 	"github.com/pborman/uuid"
@@ -289,7 +289,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	p.API.LogDebug("Post created", "post", newPost)
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		err = p.store.LinkPosts(store.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
+		err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -332,7 +332,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 
 	channelID := ""
 	if chat == nil {
-		var channelLink *store.ChannelLink
+		var channelLink *storemodels.ChannelLink
 		channelLink, err = p.store.GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
 			p.API.LogError("Unable to find the subscription")

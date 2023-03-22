@@ -8,6 +8,7 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"golang.org/x/oauth2"
 )
@@ -17,31 +18,17 @@ const (
 	avatarKey       = "avatar_"
 )
 
-type ChannelLink struct {
-	MattermostTeam    string
-	MattermostChannel string
-	MSTeamsTeam       string
-	MSTeamsChannel    string
-}
-
-type PostInfo struct {
-	MattermostID        string
-	MSTeamsID           string
-	MSTeamsChannel      string
-	MSTeamsLastUpdateAt time.Time
-}
-
 type Store interface {
 	Init() error
 	GetAvatarCache(userID string) ([]byte, error)
 	SetAvatarCache(userID string, photo []byte) error
-	GetLinkByChannelID(channelID string) (*ChannelLink, error)
-	GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error)
+	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
+	GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
-	StoreChannelLink(link *ChannelLink) error
-	GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error)
-	GetPostInfoByMattermostID(postID string) (*PostInfo, error)
-	LinkPosts(postInfo PostInfo) error
+	StoreChannelLink(link *storemodels.ChannelLink) error
+	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
+	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
+	LinkPosts(postInfo storemodels.PostInfo) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -118,10 +105,10 @@ func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
 	return nil
 }
 
-func (s *SQLStore) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
+func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
 	row := query.QueryRow()
-	var link ChannelLink
+	var link storemodels.ChannelLink
 	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
 	if err != nil {
 		return nil, err
@@ -133,10 +120,10 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*ChannelLink, error) {
 	return &link, nil
 }
 
-func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*ChannelLink, error) {
+func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
 	row := query.QueryRow()
-	var link ChannelLink
+	var link storemodels.ChannelLink
 	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
 	if err != nil {
 		return nil, err
@@ -157,7 +144,7 @@ func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 	return nil
 }
 
-func (s *SQLStore) StoreChannelLink(link *ChannelLink) error {
+func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
 	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam)
 	_, err := query.Exec()
 	if err != nil {
@@ -191,11 +178,11 @@ func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
 	return msTeamsUserID, nil
 }
 
-func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostInfo, error) {
+func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
 	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
-	postInfo := PostInfo{
+	postInfo := storemodels.PostInfo{
 		MSTeamsID:      postID,
 		MSTeamsChannel: chatID,
 	}
@@ -207,11 +194,11 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*PostIn
 	return &postInfo, nil
 }
 
-func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
+func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error) {
 	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
-	postInfo := PostInfo{
+	postInfo := storemodels.PostInfo{
 		MattermostID: postID,
 	}
 	err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt)
@@ -222,7 +209,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*PostInfo, error) {
 	return &postInfo, nil
 }
 
-func (s *SQLStore) LinkPosts(postInfo PostInfo) error {
+func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 	if s.driverName == "postgres" {
 		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
