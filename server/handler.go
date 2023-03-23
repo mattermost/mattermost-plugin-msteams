@@ -545,33 +545,41 @@ func convertToMD(text string) string {
 	return sb.String()
 }
 
+func (p *Plugin) getOrCreateSyntheticUser(userID, displayName string) (string, error) {
+	mmUserID, err := p.store.TeamsToMattermostUserID(userID)
+	if err != nil || mmUserID == "" {
+		u, appErr := p.API.GetUserByEmail(userID + "@msteamssync")
+		if appErr != nil {
+			var appErr2 *model.AppError
+			memberUUID := uuid.Parse(userID)
+			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+			shortUserID := encoding.EncodeToString(memberUUID)
+			u, appErr2 = p.API.CreateUser(&model.User{
+				Username:  slug.Make(displayName) + "-" + userID,
+				FirstName: displayName,
+				Email:     userID + "@msteamssync",
+				Password:  model.NewId(),
+				RemoteId:  &shortUserID,
+			})
+			if appErr2 != nil {
+				return "", appErr2
+			}
+		}
+		err := p.store.SetUserInfo(u.Id, userID, nil)
+		if err != nil {
+			p.API.LogError("Unable to link the new created mirror user", "error", err.Error())
+		}
+		mmUserID = u.Id
+	}
+	return mmUserID, err
+}
+
 func (p *Plugin) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
-		mmUserID, err := p.store.TeamsToMattermostUserID(member.UserID)
-		if err != nil || mmUserID == "" {
-			u, appErr := p.API.GetUserByEmail(member.UserID + "@msteamssync")
-			if appErr != nil {
-				var appErr2 *model.AppError
-				memberUUID := uuid.Parse(member.UserID)
-				encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-				shortUserID := encoding.EncodeToString(memberUUID)
-				u, appErr2 = p.API.CreateUser(&model.User{
-					Username:  slug.Make(member.DisplayName) + "-" + member.UserID,
-					FirstName: member.DisplayName,
-					Email:     member.UserID + "@msteamssync",
-					Password:  model.NewId(),
-					RemoteId:  &shortUserID,
-				})
-				if appErr2 != nil {
-					return "", appErr2
-				}
-			}
-			err := p.store.SetUserInfo(u.Id, member.UserID, nil)
-			if err != nil {
-				p.API.LogError("Unable to link the new created mirror user", "error", err.Error())
-			}
-			mmUserID = u.Id
+		mmUserID, err := p.getOrCreateSyntheticUser(member.UserID, member.DisplayName)
+		if err != nil {
+			return "", err
 		}
 		userIDs = append(userIDs, mmUserID)
 	}
