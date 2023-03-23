@@ -19,7 +19,11 @@ var emojisReverseMap map[string]string
 
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 
-const lastReceivedChangeKey = "last_received_change"
+const (
+	lastReceivedChangeKey = "last_received_change"
+	numberOfWorkers       = 20
+	activityQueueSize     = 1000
+)
 
 type pluginIface interface {
 	GetAPI() plugin.API
@@ -35,6 +39,8 @@ type pluginIface interface {
 
 type ActivityHandler struct {
 	plugin pluginIface
+	queue  chan msteams.Activity
+	quit   chan bool
 }
 
 func New(plugin pluginIface) *ActivityHandler {
@@ -50,7 +56,33 @@ func New(plugin pluginIface) *ActivityHandler {
 	emojisReverseMap["heart"] = "heart"
 	emojisReverseMap["surprised"] = "open_mouth"
 
-	return &ActivityHandler{plugin: plugin}
+	return &ActivityHandler{
+		plugin: plugin,
+		queue:  make(chan msteams.Activity, activityQueueSize),
+		quit:   make(chan bool),
+	}
+}
+
+func (ah *ActivityHandler) Start() {
+	for i := 0; i < numberOfWorkers; i++ {
+		go func() {
+			select {
+			case activity := <-ah.queue:
+				ah.handleActivity(activity)
+			case <-ah.quit:
+				// we have received a signal to stop
+				return
+			}
+		}()
+	}
+}
+
+func (ah *ActivityHandler) Stop() {
+	go func() {
+		for i := 0; i < numberOfWorkers; i++ {
+			ah.quit <- true
+		}
+	}()
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
@@ -58,25 +90,26 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 		ah.plugin.GetAPI().LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
+	ah.queue <- activity
+	return nil
+}
 
+func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
-	// TODO: Make this something that has a limit on the number of goroutines
 	switch activity.ChangeType {
 	case "created":
 		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		go ah.handleCreatedActivity(activityIds)
+		ah.handleCreatedActivity(activityIds)
 	case "updated":
 		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
-		go ah.handleUpdatedActivity(activityIds)
+		ah.handleUpdatedActivity(activityIds)
 	case "deleted":
 		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
-		go ah.handleDeletedActivity(activityIds)
+		ah.handleDeletedActivity(activityIds)
 	default:
 		ah.plugin.GetAPI().LogWarn("Unandledy activity", "activity", activity, "error", "Not handled activity")
 	}
-
-	return nil
 }
 
 func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) {

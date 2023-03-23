@@ -133,6 +133,8 @@ func (p *Plugin) connectTeamsAppClient() error {
 }
 
 func (p *Plugin) start(syncSince *time.Time) {
+	p.activityHandler.Start()
+
 	err := p.connectTeamsAppClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
@@ -198,6 +200,9 @@ func (p *Plugin) stop() {
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
+	}
+	if p.activityHandler != nil {
+		p.activityHandler.Stop()
 	}
 }
 
