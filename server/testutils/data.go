@@ -39,7 +39,6 @@ func GetChannel(channelType model.ChannelType) *model.Channel {
 
 func GetChannelMembers(count int) model.ChannelMembers {
 	channelMembers := model.ChannelMembers{}
-
 	for i := 0; i < count; i++ {
 		channelMembers = append(channelMembers, model.ChannelMember{
 			UserId:    GetID(),
