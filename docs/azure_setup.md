@@ -67,8 +67,12 @@ Select **Register** to submit the form.
 
 1. Create a regular user account. We will connect this account later from the mattermost side. // TODO: Add more details to this process
 
-### Step 3: Ensure you have a pay subscription enable
+If you don't create the bot user account all the messages from Mattermost users that are not connected to MS Teams are not going to be delivered.
 
-1. Create a paid subscription to Azure and associate it to your account. // TODO: Add more details to this process
+### Step 3: Ensure you have the metered API enabled (and the pay subscription associated to it)
+
+1. Follow the steps here: https://learn.microsoft.com/en-us/graph/metered-api-setup
+
+If you don't configure the metered API, you need to use the evaluation model (configurable in Mattermost) that is limited to a low rate of changes per month. Please, do not use that configuration in real environments because you can stop receiving messages due that limit.
 
 You're all set for configuration inside Azure.
