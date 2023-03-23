@@ -30,14 +30,19 @@ func (p *Plugin) handleActivity(activity msteams.Activity) error {
 		return errors.New("Invalid webhook secret")
 	}
 
+	activityIds := msteams.GetResourceIds(activity.Resource)
+
 	// TODO: Make this something that has a limit on the number of goroutines
 	switch activity.ChangeType {
 	case "created":
-		go p.handleCreatedActivity(activity)
+		p.API.LogDebug("Handling create activity", "activity", activity)
+		go p.handleCreatedActivity(activityIds)
 	case "updated":
-		go p.handleUpdatedActivity(activity)
+		p.API.LogDebug("Handling update activity", "activity", activity)
+		go p.handleUpdatedActivity(activityIds)
 	case "deleted":
-		go p.handleDeletedActivity(activity)
+		p.API.LogDebug("Handling delete activity", "activity", activity)
+		go p.handleDeletedActivity(activityIds)
 	default:
 		p.API.LogWarn("Unandledy activity", "activity", activity, "error", "Not handled activity")
 	}
@@ -165,60 +170,92 @@ func (p *Plugin) handleMessageReference(attach msteams.Attachment, chatOrChannel
 	return post.Id, text
 }
 
-func (p *Plugin) getMessageAndChatFromActivity(activity msteams.Activity) (*msteams.Message, *msteams.Chat, error) {
-	activityIds := msteams.GetActivityIds(activity)
-
-	if activityIds.ChatID != "" {
-		chat, err := p.msteamsAppClient.GetChat(activityIds.ChatID)
-		if err != nil {
-			return nil, nil, err
+func (p *Plugin) getMessageFromChat(chat *msteams.Chat, messageID string) (*msteams.Message, error) {
+	var client msteams.Client
+	for _, member := range chat.Members {
+		client, _ = p.getClientForTeamsUser(member.UserID)
+		if client != nil {
+			break
 		}
-		var client msteams.Client
-		for _, member := range chat.Members {
-			client, _ = p.getClientForTeamsUser(member.UserID)
-			if client != nil {
-				break
-			}
-		}
-		if client == nil {
-			return nil, nil, nil
-		}
-
-		msg, err := client.GetChatMessage(activityIds.ChatID, activityIds.MessageID)
-		if err != nil {
-			p.API.LogError("Unable to get original post", "error", err)
-			return nil, nil, err
-		}
-		return msg, chat, nil
+	}
+	if client == nil {
+		return nil, nil
 	}
 
+	msg, err := client.GetChatMessage(chat.ID, messageID)
+	if err != nil {
+		p.API.LogError("Unable to get original post", "error", err)
+		return nil, err
+	}
+	return msg, nil
+}
+
+func (p *Plugin) getReplyFromChannel(teamID, channelID, messageID, replyID string) (*msteams.Message, error) {
 	client, err := p.getClientForUser(p.userID)
 	if err != nil {
 		p.API.LogError("unable to get bot client", "error", err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	if activityIds.ReplyID != "" {
-		var msg *msteams.Message
-		msg, err = client.GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+	var msg *msteams.Message
+	msg, err = client.GetReply(teamID, channelID, messageID, replyID)
+	if err != nil {
+		p.API.LogError("Unable to get original post", "error", err)
+		return nil, err
+	}
+	return msg, nil
+}
+
+func (p *Plugin) getMessageFromChannel(teamID, channelID, messageID string) (*msteams.Message, error) {
+	client, err := p.getClientForUser(p.userID)
+	if err != nil {
+		p.API.LogError("unable to get bot client", "error", err)
+		return nil, err
+	}
+
+	msg, err := client.GetMessage(teamID, channelID, messageID)
+	if err != nil {
+		p.API.LogError("Unable to get original post", "error", err)
+		return nil, err
+	}
+	return msg, nil
+}
+
+func (p *Plugin) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
+	var msg *msteams.Message
+	var chat *msteams.Chat
+	if activityIds.ChatID != "" {
+		var err error
+		chat, err = p.msteamsAppClient.GetChat(activityIds.ChatID)
+		if err != nil {
+			p.API.LogError("Unable to get original chat", "error", err.Error())
+			return nil, nil, err
+		}
+		msg, err = p.getMessageFromChat(chat, activityIds.MessageID)
+		if err != nil {
+			p.API.LogError("Unable to get original message", "error", err.Error())
+			return nil, nil, err
+		}
+	} else if activityIds.ReplyID != "" {
+		var err error
+		msg, err = p.getReplyFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
 		if err != nil {
 			p.API.LogError("Unable to get original post", "error", err)
 			return nil, nil, err
 		}
-		return msg, nil, nil
+	} else {
+		var err error
+		msg, err = p.getMessageFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+		if err != nil {
+			p.API.LogError("Unable to get original post", "error", err)
+			return nil, nil, err
+		}
 	}
-
-	msg, err := client.GetMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
-	if err != nil {
-		p.API.LogError("Unable to get original post", "error", err)
-		return nil, nil, err
-	}
-	return msg, nil, nil
+	return msg, chat, nil
 }
 
-func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
-	p.API.LogDebug("Handling create activity", "activity", activity)
-	msg, chat, err := p.getMessageAndChatFromActivity(activity)
+func (p *Plugin) handleCreatedActivity(activityIds msteams.ActivityIds) {
+	msg, chat, err := p.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		p.API.LogError("Unable to get original message", "error", err.Error())
 		return
@@ -237,7 +274,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
 	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
-		p.updateReceivedChange(msg.LastUpdateAt)
+		p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
 
@@ -280,7 +317,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		p.API.LogDebug("duplicated post")
-		p.updateReceivedChange(msg.LastUpdateAt)
+		p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
 
@@ -292,7 +329,7 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 
 	p.API.LogDebug("Post created", "post", newPost)
 
-	p.updateReceivedChange(msg.LastUpdateAt)
+	p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
 		if err != nil {
@@ -301,9 +338,8 @@ func (p *Plugin) handleCreatedActivity(activity msteams.Activity) {
 	}
 }
 
-func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
-	p.API.LogDebug("Handling update activity", "activity", activity)
-	msg, chat, err := p.getMessageAndChatFromActivity(activity)
+func (p *Plugin) handleUpdatedActivity(activityIds msteams.ActivityIds) {
+	msg, chat, err := p.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		p.API.LogError("Unable to get original message", "error", err.Error())
 		return
@@ -322,13 +358,13 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 	msteamsUserID, _ := p.store.MattermostToTeamsUserID(p.userID)
 	if msg.UserID == msteamsUserID {
 		p.API.LogDebug("Skipping messages from bot user")
-		p.updateReceivedChange(msg.LastUpdateAt)
+		p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
 
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
-		p.updateReceivedChange(msg.LastUpdateAt)
+		p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
 
@@ -378,7 +414,7 @@ func (p *Plugin) handleUpdatedActivity(activity msteams.Activity) {
 		return
 	}
 
-	p.updateReceivedChange(msg.LastUpdateAt)
+	p.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	p.API.LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	p.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 }
@@ -451,9 +487,7 @@ func (p *Plugin) handleReactions(postID string, channelID string, reactions []ms
 	}
 }
 
-func (p *Plugin) handleDeletedActivity(activity msteams.Activity) {
-	activityIds := msteams.GetActivityIds(activity)
-
+func (p *Plugin) handleDeletedActivity(activityIds msteams.ActivityIds) {
 	postInfo, _ := p.store.GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
 	if postInfo == nil {
 		return
@@ -562,7 +596,7 @@ func (p *Plugin) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (str
 	return "", errors.New("dm/gm not found")
 }
 
-func (p *Plugin) updateReceivedChange(t time.Time) {
+func (p *Plugin) updateLastReceivedChangeDate(t time.Time) {
 	err := p.API.KVSet(lastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
 	if err != nil {
 		p.API.LogError("Unable to store properly the last received change")
