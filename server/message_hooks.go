@@ -166,7 +166,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 	}
 
-	client, err := p.getClientForUser(newPost.UserId)
+	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
 		return
 	}
@@ -225,7 +225,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
-	client, err := p.getClientForUser(srcUser)
+	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
 		return err
 	}
@@ -265,9 +265,9 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 		}
 	}
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -291,7 +291,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	client, err := p.getClientForUser(srcUser)
+	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
 		return err
 	}
@@ -332,9 +332,9 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 		}
 	}
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -377,7 +377,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "teamsUsersIDs", teamsUsersIDs, "post", post)
 	text := post.Message
 
-	client, err := p.getClientForUser(srcUser)
+	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
 		return "", err
 	}
@@ -415,9 +415,9 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	text := post.Message
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return "", err
 		}
@@ -472,9 +472,9 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 		}
 	}
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -501,9 +501,9 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
 	p.API.LogDebug("Deleting direct message to MS Teams", "chatID", chatID, "post", post)
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -539,9 +539,9 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	text := newPost.Message
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -596,9 +596,9 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	text := newPost.Message
 
-	client, err := p.getClientForUser(user.Id)
+	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.getClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
 			return err
 		}
@@ -645,7 +645,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 		}
 		teamsUsersIDs[idx] = teamsUserID
 	}
-	client, err := p.getClientForUser(clientUserID)
+	client, err := p.GetClientForUser(clientUserID)
 	if err != nil {
 		return "", err
 	}

@@ -736,9 +736,9 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 	return string(res), nil
 }
 
-func GetActivityIds(activity Activity) ActivityIds {
+func GetResourceIds(resource string) ActivityIds {
 	result := ActivityIds{}
-	data := strings.Split(activity.Resource, "/")
+	data := strings.Split(resource, "/")
 
 	if strings.HasPrefix(data[0], "chats(") {
 		if len(data[0]) >= 9 {

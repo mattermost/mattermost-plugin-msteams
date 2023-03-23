@@ -8,14 +8,15 @@ import (
 	"encoding/base64"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/enescakir/emoji"
 	"github.com/gosimple/slug"
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -25,10 +26,11 @@ import (
 )
 
 const (
-	botUsername     = "msteams"
-	botDisplayName  = "MS Teams"
-	pluginID        = "com.mattermost.msteams-sync"
-	clusterMutexKey = "subscriptions_cluster_mutex"
+	botUsername           = "msteams"
+	botDisplayName        = "MS Teams"
+	pluginID              = "com.mattermost.msteams-sync"
+	clusterMutexKey       = "subscriptions_cluster_mutex"
+	lastReceivedChangeKey = "last_received_change"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -52,6 +54,8 @@ type Plugin struct {
 
 	store        store.Store
 	clusterMutex *cluster.Mutex
+
+	activityHandler *handlers.ActivityHandler
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -59,7 +63,31 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 	api.ServeHTTP(w, r)
 }
 
-func (p *Plugin) getURL() string {
+func (p *Plugin) GetAPI() plugin.API {
+	return p.API
+}
+
+func (p *Plugin) GetStore() store.Store {
+	return p.store
+}
+
+func (p *Plugin) GetWebhookSecret() string {
+	return p.configuration.WebhookSecret
+}
+
+func (p *Plugin) GetSyncDirectMessages() bool {
+	return p.configuration.SyncDirectMessages
+}
+
+func (p *Plugin) GetBotUserID() string {
+	return p.userID
+}
+
+func (p *Plugin) GetClientForApp() msteams.Client {
+	return p.msteamsAppClient
+}
+
+func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
 	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
 		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
@@ -67,7 +95,7 @@ func (p *Plugin) getURL() string {
 	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
 }
 
-func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
+func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	token, _ := p.store.GetTokenForMattermostUser(userID)
 	if token == nil {
 		return nil, errors.New("not connected user")
@@ -75,7 +103,7 @@ func (p *Plugin) getClientForUser(userID string) (msteams.Client, error) {
 	return msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
 }
 
-func (p *Plugin) getClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
+func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
 	token, _ := p.store.GetTokenForMSTeamsUser(teamsUserID)
 	if token == nil {
 		return nil, errors.New("not connected user")
@@ -104,7 +132,9 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) start() {
+func (p *Plugin) start(syncSince *time.Time) {
+	p.activityHandler.Start()
+
 	err := p.connectTeamsAppClient()
 	if err != nil {
 		p.API.LogError("Unable to connect to the msteams", "error", err)
@@ -120,6 +150,14 @@ func (p *Plugin) start() {
 	}
 
 	go p.startSubscriptions(ctx)
+	if syncSince != nil {
+		go p.syncSince(*syncSince)
+	}
+}
+
+func (p *Plugin) syncSince(syncSince time.Time) {
+	// TODO: Implement the sync mechanism
+	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
 func (p *Plugin) startSubscriptions(ctx context.Context) {
@@ -129,7 +167,7 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 	counter := 0
 	maxRetries := 20
 	for {
-		resp, _ := http.Post(p.getURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
+		resp, _ := http.Post(p.GetURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
 		resp.Body.Close()
 		if resp.StatusCode == 200 {
 			break
@@ -142,20 +180,20 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
 	}
 
-	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.getURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return
 	}
 
-	go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, subscriptionID)
-	go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.getURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
+	go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.GetURL()+"/", p.configuration.WebhookSecret, subscriptionID)
+	go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.GetURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
 }
 
 func (p *Plugin) stop() {
@@ -163,11 +201,14 @@ func (p *Plugin) stop() {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
 	}
+	if p.activityHandler != nil {
+		p.activityHandler.Stop()
+	}
 }
 
 func (p *Plugin) restart() {
 	p.stop()
-	p.start()
+	p.start(nil)
 }
 
 func (p *Plugin) generatePluginSecrets() error {
@@ -208,38 +249,45 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
+	data, appErr := p.API.KVGet(lastReceivedChangeKey)
+	if appErr != nil {
+		return appErr
+	}
+
+	lastReceivedChangeMicro := int64(0)
+	var lastRecivedChange *time.Time
+	if len(data) > 0 {
+		var err error
+		lastReceivedChangeMicro, err = strconv.ParseInt(string(data), 10, 64)
+		if err != nil {
+			return err
+		}
+		parsedTime := time.UnixMicro(lastReceivedChangeMicro)
+		lastRecivedChange = &parsedTime
+	}
+
 	client := pluginapi.NewClient(p.API, p.Driver)
 
-	// Initialize the emoji translator
-	emojisReverseMap = map[string]string{}
-	for alias, unicode := range emoji.Map() {
-		emojisReverseMap[unicode] = strings.Replace(alias, ":", "", 2)
-	}
-	emojisReverseMap["like"] = "+1"
-	emojisReverseMap["sad"] = "cry"
-	emojisReverseMap["angry"] = "angry"
-	emojisReverseMap["laugh"] = "laughing"
-	emojisReverseMap["heart"] = "heart"
-	emojisReverseMap["surprised"] = "open_mouth"
+	p.activityHandler = handlers.New(p)
 
 	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
 	if err != nil {
 		return err
 	}
-	botID, appErr := client.Bot.EnsureBot(&model.Bot{
+	botID, err := client.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
 	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
-	if appErr != nil {
-		return appErr
+	if err != nil {
+		return err
 	}
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	appErr = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if appErr != nil {
-		return appErr
+	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
+	if err != nil {
+		return err
 	}
 
 	if p.store == nil {
@@ -260,7 +308,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
-	go p.start()
+	go p.start(lastRecivedChange)
 	return nil
 }
 
