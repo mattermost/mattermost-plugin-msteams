@@ -78,7 +78,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, activity := range activities.Value {
-		err := a.p.handleActivity(activity)
+		err := a.p.activityHandler.Handle(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
 			errors = errors + err.Error() + "\n"
@@ -115,7 +115,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	client, err := a.p.getClientForUser(userID)
+	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -152,7 +152,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := a.p.getClientForUser(userID)
+	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -192,7 +192,7 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 
 	if a.p.configuration.EnforceConnectedUsers {
 		userID := r.Header.Get("Mattermost-User-ID")
-		client, _ := a.p.getClientForUser(userID)
+		client, _ := a.p.GetClientForUser(userID)
 		if client == nil {
 			if a.p.configuration.EnabledTeams == "" {
 				response["needsConnect"] = true
