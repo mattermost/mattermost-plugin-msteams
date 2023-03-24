@@ -44,7 +44,7 @@ func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*mode
 }
 
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
-	p.API.LogError("Create message hook", "post", post)
+	p.API.LogDebug("Create message hook", "post", post)
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -238,7 +238,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogWarn("Error creating post reaction", "error", err)
+		p.API.LogWarn("Error creating post reaction", "error", err.Error())
 		return err
 	}
 
@@ -276,7 +276,7 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
 	}
 
@@ -305,7 +305,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
 	}
 
@@ -343,7 +343,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
 	}
 
@@ -390,7 +390,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	newMessage, err := client.SendChat(chatID, parentID, text)
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
 	}
 
@@ -448,7 +448,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, text, attachments)
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err)
+		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
 	}
 

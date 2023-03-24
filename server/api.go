@@ -45,14 +45,14 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogError("Unable to read avatar", "error", err)
+			a.p.API.LogError("Unable to read avatar", "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
 
 		err = a.store.SetAvatarCache(userID, photo)
 		if err != nil {
-			a.p.API.LogError("Unable to cache the new avatar", "error", err)
+			a.p.API.LogError("Unable to cache the new avatar", "error", err.Error())
 			return
 		}
 	}
@@ -80,7 +80,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	for _, activity := range activities.Value {
 		err := a.p.activityHandler.Handle(activity)
 		if err != nil {
-			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err)
+			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors = errors + err.Error() + "\n"
 		}
 	}
