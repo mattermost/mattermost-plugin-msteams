@@ -12,7 +12,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
-	"github.com/pkg/errors"
 )
 
 var emojisReverseMap map[string]string
@@ -28,7 +27,6 @@ const (
 type pluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
-	GetWebhookSecret() string
 	GetSyncDirectMessages() bool
 	GetBotUserID() string
 	GetURL() string
@@ -86,9 +84,6 @@ func (ah *ActivityHandler) Stop() {
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
-	if activity.ClientState != ah.plugin.GetWebhookSecret() {
-		return errors.New("Invalid webhook secret")
-	}
 	ah.queue <- activity
 	return nil
 }
