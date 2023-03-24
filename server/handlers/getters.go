@@ -62,36 +62,35 @@ func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID st
 }
 
 func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
-	var msg *msteams.Message
-	var chat *msteams.Chat
 	if activityIds.ChatID != "" {
-		var err error
-		chat, err = ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
+		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err.Error())
 			return nil, nil, err
 		}
-		msg, err = ah.getMessageFromChat(chat, activityIds.MessageID)
+		msg, err := ah.getMessageFromChat(chat, activityIds.MessageID)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 			return nil, nil, err
 		}
-	} else if activityIds.ReplyID != "" {
-		var err error
-		msg, err = ah.getReplyFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
-			return nil, nil, err
-		}
-	} else {
-		var err error
-		msg, err = ah.getMessageFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
-			return nil, nil, err
-		}
+		return msg, chat, nil
 	}
-	return msg, chat, nil
+
+	if activityIds.ReplyID != "" {
+		msg, err := ah.getReplyFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		if err != nil {
+			ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
+			return nil, nil, err
+		}
+		return msg, nil, nil
+	}
+
+	msg, err := ah.getMessageFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
+		return nil, nil, err
+	}
+	return msg, nil, nil
 }
 
 func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) (string, error) {
@@ -114,8 +113,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 				return "", appErr2
 			}
 		}
-		err := ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil)
-		if err != nil {
+		if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
 			ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
 		}
 		mmUserID = u.Id

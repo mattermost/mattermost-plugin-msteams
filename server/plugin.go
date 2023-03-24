@@ -257,7 +257,6 @@ func (p *Plugin) OnActivate() error {
 	lastReceivedChangeMicro := int64(0)
 	var lastRecivedChange *time.Time
 	if len(data) > 0 {
-		var err error
 		lastReceivedChangeMicro, err = strconv.ParseInt(string(data), 10, 64)
 		if err != nil {
 			return err
