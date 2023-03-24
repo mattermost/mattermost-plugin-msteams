@@ -32,7 +32,10 @@ func GetID() string {
 
 func GetPost() *model.Post {
 	return &model.Post{
-		Id: GetPostID(),
+		Id:        GetID(),
+		FileIds:   model.StringArray{GetID()},
+		ChannelId: GetChannelID(),
+		UserId:    GetID(),
 	}
 }
 
