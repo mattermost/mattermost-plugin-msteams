@@ -106,7 +106,7 @@ type ActivityIds struct {
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) *ClientImpl {
+func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) Client {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
@@ -117,7 +117,7 @@ func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...an
 	}
 }
 
-func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) *ClientImpl {
+func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",

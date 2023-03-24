@@ -13,8 +13,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
@@ -146,6 +148,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+				plugin.API.(*plugintest.API).On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", "Invalid webhook secret").Return(nil)
 			},
 			400,
 			"Invalid webhook secret\n\n",
@@ -225,6 +228,7 @@ func TestGetAvatarNotFound(t *testing.T) {
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
+	plugin.API.(*plugintest.API).On("LogError", "Unable to read avatar", "error", "not-found").Return(nil)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)

@@ -69,6 +69,7 @@ func GetUser(role, email string) *model.User {
 
 func GetReaction() *model.Reaction {
 	return &model.Reaction{
+		EmojiName: "+1",
 		UserId:    GetID(),
 		PostId:    GetID(),
 		ChannelId: GetChannelID(),
