@@ -13,7 +13,6 @@ import (
 )
 
 func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
-	p.API.LogError("Message will be posted hook", "post", post)
 	if len(post.FileIds) > 0 && p.configuration.SyncDirectMessages {
 		channel, err := p.API.GetChannel(post.ChannelId)
 		if err != nil {
@@ -83,7 +82,6 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
-	p.API.LogError("Adding reaction hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
 		return
@@ -235,7 +233,6 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
-	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post reaction", "error", err.Error())
@@ -273,7 +270,6 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 		}
 	}
 
-	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
@@ -302,7 +298,6 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
@@ -340,7 +335,6 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 		}
 	}
 
-	p.API.LogError("EMOJI AND EMOJI UNICODE", "emojiName", emojiName, "emojiUnicode", emoji.Parse(":"+emojiName+":"))
 	err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
