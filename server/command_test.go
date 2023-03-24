@@ -101,13 +101,12 @@ func TestExecuteShowCommand(t *testing.T) {
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
-		description   string
-		args          *model.CommandArgs
-		setupAPI      func(*plugintest.API)
-		setupStore    func(*mockStore.Store)
-		setupClient   func(*mockClient.Client)
-		setupPlugin   func()
-		expectedError string
+		description string
+		args        *model.CommandArgs
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
+		setupClient func(*mockClient.Client)
+		setupPlugin func()
 	}{
 		{
 			description: "Successfully executed show command",
@@ -137,8 +136,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "").Return(nil, errors.New("Error while getting the link"))
 			},
-			setupClient:   func(c *mockClient.Client) {},
-			expectedError: "Error while getting link.",
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Unable to get the MS Teams team information",
