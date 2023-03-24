@@ -87,7 +87,6 @@ func (ah *ActivityHandler) Stop() {
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	if activity.ClientState != ah.plugin.GetWebhookSecret() {
-		ah.plugin.GetAPI().LogError("Unable to process activity", "activity", activity, "error", "Invalid webhook secret")
 		return errors.New("Invalid webhook secret")
 	}
 	ah.queue <- activity

@@ -23,6 +23,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -56,6 +57,8 @@ type Plugin struct {
 	clusterMutex *cluster.Mutex
 
 	activityHandler *handlers.ActivityHandler
+
+	clientBuilderWithToken func(string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -100,7 +103,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -109,7 +112,7 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -244,6 +247,9 @@ func (p *Plugin) generatePluginSecrets() error {
 }
 
 func (p *Plugin) OnActivate() error {
+	if p.clientBuilderWithToken == nil {
+		p.clientBuilderWithToken = msteams.NewTokenClient
+	}
 	err := p.generatePluginSecrets()
 	if err != nil {
 		return err
