@@ -188,10 +188,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		SetupClient func(*clientmocks.Client, *clientmocks.Client)
 	}{
 		{
-			Name: "ReactionHasBeenRemoved: Unable to get the post info",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Removing reaction hook", "reaction", mock.Anything).Times(1)
-			},
+			Name:     "ReactionHasBeenRemoved: Unable to get the post info",
+			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
 			},
@@ -204,7 +202,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 		},
@@ -216,9 +216,11 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return("", testutils.GetInternalServerAppError("unable to get source user ID")).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", testutils.GetInternalServerAppError("unable to get source user ID")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 		},
@@ -229,7 +231,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
@@ -245,12 +249,19 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockTeamsTeamID",
+					MSTeamsChannel:    "mockTeamsChannelID",
+				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", testutils.GetMockArgumentsWithType("string", 6)...).Return(errors.New("unable to set the reaction")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
 			},
 		},
 		{
@@ -262,12 +273,19 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockTeamsTeamID",
+					MSTeamsChannel:    "mockTeamsChannelID",
+				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", testutils.GetMockArgumentsWithType("string", 6)...).Return(nil).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
 		},
 	} {
@@ -299,14 +317,21 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return(testutils.GetID(), nil).Times(2)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-				store.On("LinkPosts", mock.AnythingOfType("storemodels.PostInfo")).Return(nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("mockChatID", nil).Times(2)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMsgID",
+				}, nil).Times(2)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockMsgID",
+					MSTeamsChannel: "mockChatID",
+				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return(testutils.GetID(), nil).Times(1)
-				uclient.On("UpdateChatMessage", testutils.GetMockArgumentsWithType("string", 3)...).Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetMockArgumentsWithType("string", 2)...).Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockMsgID", "").Return(nil).Times(1)
+				uclient.On("GetChatMessage", "mockChatID", "mockMsgID").Return(&msteams.Message{}, nil).Times(1)
 			},
 		},
 		{
@@ -357,7 +382,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return(testutils.GetID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(2)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get post info")).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -374,7 +399,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return(testutils.GetID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(2)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -388,16 +413,26 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockTeamsTeamID",
+					MSTeamsChannel:    "mockTeamsChannelID",
+				}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMessageID",
+				}, nil).Times(2)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockMessageID",
+					MSTeamsChannel: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", testutils.GetMockArgumentsWithType("string", 5)...).Return(nil).Times(1)
-				uclient.On("GetMessage", testutils.GetMockArgumentsWithType("string", 3)...).Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "").Return(nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "mockMessageID").Return(&msteams.Message{}, nil).Times(1)
 			},
 		},
 		{
@@ -409,16 +444,25 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: "mockMattermostChannelID",
+					MSTeamsTeam:       "mockTeamsTeamID",
+					MSTeamsChannel:    "mockTeamsChannelID",
+				}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
+				}, nil).Times(2)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsChannel: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", testutils.GetMockArgumentsWithType("string", 5)...).Return(errors.New("unable to update the post")).Times(1)
-				uclient.On("GetMessage", testutils.GetMockArgumentsWithType("string", 3)...).Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "").Return(errors.New("unable to update the post")).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "mockMessageID").Return(&msteams.Message{}, nil).Times(1)
 			},
 		},
 	} {
