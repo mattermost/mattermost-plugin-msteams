@@ -374,7 +374,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", mock.AnythingOfType("string"), "error", mock.Anything).Times(2)
+				api.On("LogError", "Error updating post", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to handle message update", "error", mock.Anything).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
