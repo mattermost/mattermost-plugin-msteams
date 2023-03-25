@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -175,6 +177,260 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			p.ReactionHasBeenAdded(&plugin.Context{}, testutils.GetReaction())
+		})
+	}
+}
+
+func TestSendChat(t *testing.T) {
+	for _, test := range []struct {
+		Name            string
+		SetupAPI        func(*plugintest.API)
+		SetupStore      func(*storemocks.Store)
+		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedMessage string
+		ExpectedError   string
+	}{
+		{
+			Name:     "SendChat: Unable to get the source user ID",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "unable to get the source user ID",
+		},
+		{
+			Name:     "SendChat: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "not connected user",
+		},
+		{
+			Name: "SendChat: Unable to create or get the chat",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "FAILING TO CREATE OR GET THE CHAT", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("", errors.New("unable to create or get the chat")).Times(1)
+			},
+			ExpectedError: "unable to create or get the chat",
+		},
+		{
+			Name: "SendChat: Unable to send the chat",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogWarn", "Error creating post", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
+				uclient.On("SendChat", "mockChatID", "", "mockMessage").Return(nil, errors.New("unable to send the chat")).Times(1)
+			},
+			ExpectedError: "unable to send the chat",
+		},
+		{
+			Name: "SendChat: Able to send the chat and not able to store the post",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsChannel: "mockChatID",
+					MSTeamsID:      "mockMessageID",
+				}).Return(testutils.GetInternalServerAppError("unable to store the post")).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
+				uclient.On("SendChat", "mockChatID", "", "mockMessage").Return(&msteams.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+		{
+			Name:     "SendChat: Valid",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsChannel: "mockChatID",
+					MSTeamsID:      "mockMessageID",
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
+				uclient.On("SendChat", "mockChatID", "", "mockMessage").Return(&msteams.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			mockPost := testutils.GetPost()
+			mockPost.Message = "mockMessage"
+			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost)
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
+
+			assert.Equal(resp, test.ExpectedMessage)
+		})
+	}
+}
+
+func TestSend(t *testing.T) {
+	for _, test := range []struct {
+		Name            string
+		SetupAPI        func(*plugintest.API)
+		SetupStore      func(*storemocks.Store)
+		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedMessage string
+		ExpectedError   string
+	}{
+		{
+			Name:     "Send: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "not connected user",
+		},
+		{
+			Name: "Send: Unable to send message with attachments",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogWarn", "Error creating post", "error", mock.Anything).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
+					Id:       testutils.GetID(),
+					Name:     "mockFileName",
+					Size:     1,
+					MimeType: "mockMimeType",
+				}, nil).Times(1)
+				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+					ID: testutils.GetID(),
+				}, nil).Times(1)
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "mockMessage", []*msteams.Attachment{
+					{
+						ID: testutils.GetID(),
+					},
+				}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
+			},
+			ExpectedError: "unable to send message with attachments",
+		},
+		{
+			Name: "Send: Able to send message with attachments but unable to store posts",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
+					Id:       testutils.GetID(),
+					Name:     "mockFileName",
+					Size:     1,
+					MimeType: "mockMimeType",
+				}, nil).Times(1)
+				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockMessageID",
+					MSTeamsChannel: testutils.GetChannelID(),
+				}).Return(errors.New("unable to store posts")).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+					ID: testutils.GetID(),
+				}, nil).Times(1)
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "mockMessage", []*msteams.Attachment{
+					{
+						ID: testutils.GetID(),
+					},
+				}).Return(&msteams.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+		{
+			Name: "Send: Able to send message with attachments with no error",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
+					Id:       testutils.GetID(),
+					Name:     "mockFileName",
+					Size:     1,
+					MimeType: "mockMimeType",
+				}, nil).Times(1)
+				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockMessageID",
+					MSTeamsChannel: testutils.GetChannelID(),
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+					ID: testutils.GetID(),
+				}, nil).Times(1)
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "mockMessage", []*msteams.Attachment{
+					{
+						ID: testutils.GetID(),
+					},
+				}).Return(&msteams.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			mockPost := testutils.GetPost()
+			mockPost.Message = "mockMessage"
+			resp, err := p.Send(testutils.GetID(), testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), mockPost)
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
+
+			assert.Equal(resp, test.ExpectedMessage)
 		})
 	}
 }
