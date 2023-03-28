@@ -58,10 +58,10 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 }
 
 func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) error {
-	query := `select exists(
-			select distinct index_name from information_schema.statistics 
-			where table_schema = DATABASE()
-			and table_name = 'tableName' and index_name = 'indexName'
+	query := `SELECT EXISTS(
+			SELECT DISTINCT index_name FROM information_schema.statistics 
+			WHERE table_schema = DATABASE()
+			AND table_name = 'tableName' AND index_name = 'indexName'
 		)`
 
 	query = strings.ReplaceAll(query, "tableName", tableName)
@@ -79,7 +79,7 @@ func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) 
 	}
 
 	if result == 0 {
-		indexQuery := "create index indexName on tableName(columnList)"
+		indexQuery := "CREATE INDEX indexName on tableName(columnList)"
 		indexQuery = strings.ReplaceAll(indexQuery, "tableName", tableName)
 		indexQuery = strings.ReplaceAll(indexQuery, "indexName", indexName)
 		indexQuery = strings.ReplaceAll(indexQuery, "columnList", columnList)
@@ -388,15 +388,3 @@ func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
 
 	return builder.RunWith(s.db)
 }
-
-// func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
-// 	return sq.StatementBuilder.PlaceholderFormat(s.GetQueryPlaceholder())
-// }
-
-// func (s *SQLStore) GetQueryPlaceholder() sq.PlaceholderFormat {
-// 	if s.driverName == model.DatabaseDriverPostgres {
-// 		return sq.Dollar
-// 	}
-
-// 	return sq.Question
-// }
