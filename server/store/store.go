@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"golang.org/x/oauth2"
 )
@@ -55,33 +57,78 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 	}
 }
 
+func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) error {
+	query := `select exists(
+			select distinct index_name from information_schema.statistics 
+			where table_schema = DATABASE()
+			and table_name = 'tableName' and index_name = 'indexName'
+		)`
+
+	query = strings.ReplaceAll(query, "tableName", tableName)
+	query = strings.ReplaceAll(query, "indexName", indexName)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return err
+	}
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return scanErr
+		}
+	}
+
+	if result == 0 {
+		indexQuery := "create index indexName on tableName(columnList)"
+		indexQuery = strings.ReplaceAll(indexQuery, "tableName", tableName)
+		indexQuery = strings.ReplaceAll(indexQuery, "indexName", indexName)
+		indexQuery = strings.ReplaceAll(indexQuery, "columnList", columnList)
+		_, err = s.db.Exec(indexQuery)
+	}
+
+	return err
+}
+
 func (s *SQLStore) Init() error {
-	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR PRIMARY KEY, mmTeamID VARCHAR, msTeamsChannelID VARCHAR, msTeamsTeamID VARCHAR)")
+	var err error
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255))")
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_links_msteamsteamid_msteamschannelid ON msteamssync_links (msTeamsTeamID, msTeamsChannelID)")
+	if s.driverName == model.DatabaseDriverPostgres {
+		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_links_msteamsteamid_msteamschannelid ON msteamssync_links (msTeamsTeamID, msTeamsChannelID)")
+	} else {
+		err = s.CreateIndexForMySQL("msteamssync_links", "idx_msteamssync_links_msteamsteamid_msteamschannelid", "msTeamsTeamID, msTeamsChannelID")
+	}
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR PRIMARY KEY, msTeamsUserID VARCHAR, token TEXT)")
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT)")
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_users_msteamsuserid ON msteamssync_users (msTeamsUserID)")
+	if s.driverName == model.DatabaseDriverPostgres {
+		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_users_msteamsuserid ON msteamssync_users (msTeamsUserID)")
+	} else {
+		err = s.CreateIndexForMySQL("msteamssync_users", "idx_msteamssync_users_msteamsuserid", "msTeamsUserID")
+	}
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR PRIMARY KEY, msTeamsPostID VARCHAR, msTeamsChannelID VARCHAR, msTeamsLastUpdateAt BIGINT)")
+	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT)")
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_posts_msteamschannelid_msteamspostid ON msteamssync_posts (msTeamsChannelID, msTeamsPostID)")
+	if s.driverName == model.DatabaseDriverPostgres {
+		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_posts_msteamschannelid_msteamspostid ON msteamssync_posts (msTeamsChannelID, msTeamsPostID)")
+	} else {
+		err = s.CreateIndexForMySQL("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID")
+	}
 	if err != nil {
 		return err
 	}
@@ -341,3 +388,15 @@ func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
 
 	return builder.RunWith(s.db)
 }
+
+// func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
+// 	return sq.StatementBuilder.PlaceholderFormat(s.GetQueryPlaceholder())
+// }
+
+// func (s *SQLStore) GetQueryPlaceholder() sq.PlaceholderFormat {
+// 	if s.driverName == model.DatabaseDriverPostgres {
+// 		return sq.Dollar
+// 	}
+
+// 	return sq.Question
+// }
