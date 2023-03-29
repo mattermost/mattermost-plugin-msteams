@@ -90,10 +90,12 @@ type Message struct {
 }
 
 type Activity struct {
-	Resource       string
-	ClientState    string
-	ChangeType     string
-	LifecycleEvent string
+	Resource                       string
+	ClientState                    string
+	ChangeType                     string
+	LifecycleEvent                 string
+	SubscriptionExpirationDateTime time.Time
+	SubscriptionID                 string
 }
 
 type ActivityIds struct {
@@ -383,7 +385,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	var existingSubscription *msgraph.Subscription
 	for _, s := range subscriptionsRes {
 		subscription := s
-		if *subscription.Resource == resource {
+		if *subscription.Resource == resource || *subscription.Resource+"?model=B" == resource {
 			existingSubscription = &subscription
 			break
 		}
@@ -453,49 +455,18 @@ func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) refreshSubscriptionPeriodically(ctx context.Context, subscriptionID, baseURL, webhookSecret, resource, changeType string) {
-	currentSubscriptionID := subscriptionID
-	for {
-		select {
-		case <-time.After(9 * time.Minute):
-			expirationDateTime := time.Now().Add(30 * time.Minute)
-			updatedSubscription := msgraph.Subscription{
-				ExpirationDateTime: &expirationDateTime,
-			}
-			ct := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
-			err := ct.Update(tc.ctx, &updatedSubscription)
-			if err != nil {
-				tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
-
-				// Unable to refresh, try to recreate the subscription
-				newSubscriptionID, err := tc.subscribe(baseURL, webhookSecret, resource, changeType)
-				if err != nil {
-					tc.logError("Unable to create the a new subscription", "error", err)
-					continue
-				}
-				currentSubscriptionID = newSubscriptionID
-			}
-		case <-ctx.Done():
-			deleteSubCt := tc.client.Subscriptions().ID(currentSubscriptionID).Request()
-			err := deleteSubCt.Delete(tc.ctx)
-			if err != nil {
-				tc.logError("Unable to delete the subscription on stop", "error", err)
-				return
-			}
-		}
+func (tc *ClientImpl) RefreshSubscription(subscriptionID string) error {
+	expirationDateTime := time.Now().Add(30 * time.Minute)
+	updatedSubscription := msgraph.Subscription{
+		ExpirationDateTime: &expirationDateTime,
 	}
-}
-
-func (tc *ClientImpl) RefreshChatsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string) {
-	resource := "teams/getAllMessages"
-	changeType := "created,deleted,updated"
-	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, baseURL, webhookSecret, resource, changeType)
-}
-
-func (tc *ClientImpl) RefreshChannelsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string) {
-	resource := "chats/getAllMessages"
-	changeType := "created,deleted,updated"
-	tc.refreshSubscriptionPeriodically(ctx, subscriptionID, baseURL, webhookSecret, resource, changeType)
+	ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+	err := ct.Update(tc.ctx, &updatedSubscription)
+	if err != nil {
+		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
+		return err
+	}
+	return nil
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
