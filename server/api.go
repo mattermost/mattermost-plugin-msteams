@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -61,7 +62,6 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
-	a.p.API.LogDebug("Change activity request", "req", req)
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.WriteHeader(http.StatusOK)
@@ -75,13 +75,19 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "unable to get the activities from the message", http.StatusBadRequest)
 		return
 	}
+	defer req.Body.Close()
 
+	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
+		if activity.ClientState != a.p.configuration.WebhookSecret {
+			errors += "Invalid webhook secret"
+		}
+		a.refreshSubscriptionIfNeeded(activity)
 		err := a.p.activityHandler.Handle(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
-			errors = errors + err.Error() + "\n"
+			errors += err.Error() + "\n"
 		}
 	}
 	if errors != "" {
@@ -92,9 +98,18 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// TODO: Deduplicate this calls in case multiple activities are sent after the subscription receives the notification
+func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
+	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
+		err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
+		if err != nil {
+			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
+		}
+	}
+}
+
 // processLifecycle handles the lifecycle events received from teams subscriptions
 func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
-	a.p.API.LogDebug("Lifecycle activity request", "req", req)
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
 		w.WriteHeader(http.StatusOK)
@@ -102,7 +117,29 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: Handle lifecycle messages
+	lifecycleEvents := Activities{}
+	err := json.NewDecoder(req.Body).Decode(&lifecycleEvents)
+	if err != nil {
+		http.Error(w, "unable to get the lifecycle events from the message", http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	a.p.API.LogDebug("Lifecycle activity request", "activities", lifecycleEvents)
+
+	for _, event := range lifecycleEvents.Value {
+		if event.ClientState != a.p.configuration.WebhookSecret {
+			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
+			continue
+		}
+		if event.LifecycleEvent == "reauthorizationRequired" {
+			err := a.p.msteamsAppClient.RefreshSubscription(event.SubscriptionID)
+			if err != nil {
+				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
+			}
+		}
+		// TODO: handle "missed" lifecycle event to resync
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
