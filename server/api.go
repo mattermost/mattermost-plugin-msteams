@@ -81,13 +81,13 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	errors := ""
 	for _, activity := range activities.Value {
 		if activity.ClientState != a.p.configuration.WebhookSecret {
-			errors = errors + "Invalid webhook secret"
+			errors += "Invalid webhook secret"
 		}
 		a.refreshSubscriptionIfNeeded(activity)
 		err := a.p.activityHandler.Handle(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
-			errors = errors + err.Error() + "\n"
+			errors += err.Error() + "\n"
 		}
 	}
 	if errors != "" {
@@ -100,13 +100,12 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 // TODO: Deduplicate this calls in case multiple activities are sent after the subscription receives the notification
 func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
-	if activity.SubscriptionExpirationDateTime.Sub(time.Now()) < time.Duration(5*time.Minute) {
+	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
 		err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
 		if err != nil {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		}
 	}
-	return
 }
 
 // processLifecycle handles the lifecycle events received from teams subscriptions
