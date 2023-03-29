@@ -29,7 +29,7 @@ func TestMessageWillBePosted(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: Unable to get the channel members",
@@ -37,7 +37,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(nil, testutils.GetInternalServerAppError("unable to get the channel members")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: Unable to get the user",
@@ -46,7 +46,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the user")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: User email with suffix '@msteamssync'",
@@ -65,7 +65,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(2)
 			},
-			ExpectedPost: testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestMessageWillBePosted(t *testing.T) {
 			p := newTestPlugin()
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
-			post, resp := p.MessageWillBePosted(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()))
+			post, resp := p.MessageWillBePosted(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 
 			assert.Equal(test.ExpectedMessage, resp)
 			assert.Equal(test.ExpectedPost, post)
@@ -137,7 +137,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			Name: "ReactionHasBeenAdded: Unable to set the reaction",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("LogWarn", "Error creating post", "error", "unable to set the reaction")
 				api.On("LogError", "Unable to handle message reaction set", "error", "unable to set the reaction")
@@ -155,7 +155,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			Name: "ReactionHasBeenAdded: Valid",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(),testutils.GetUserID()), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {

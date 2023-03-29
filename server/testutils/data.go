@@ -14,6 +14,10 @@ func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
+func GetTeamUserID() string {
+	return "rioegneonqimomsoqwiew3qeo"
+}
+
 func GetPostID() string {
 	return "qwifdnaootmgkerodfdmwo"
 }
@@ -30,12 +34,12 @@ func GetID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetPost(ChannelID, UserID string) *model.Post {
+func GetPost(channelID, userID string) *model.Post {
 	return &model.Post{
 		Id:        GetID(),
 		FileIds:   model.StringArray{GetID()},
-		ChannelId: ChannelID,
-		UserId:    UserID,
+		ChannelId: channelID,
+		UserId:    userID,
 	}
 }
 
