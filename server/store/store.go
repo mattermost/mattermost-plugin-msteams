@@ -58,6 +58,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 }
 
 func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) error {
+	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
 			SELECT DISTINCT index_name FROM information_schema.statistics 
 			WHERE table_schema = DATABASE()
@@ -91,8 +92,7 @@ func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) 
 
 func (s *SQLStore) Init() error {
 	var err error
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255))")
-	if err != nil {
+	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255))"); err != nil {
 		return err
 	}
 
@@ -105,8 +105,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT)")
-	if err != nil {
+	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT)"); err != nil {
 		return err
 	}
 
@@ -119,8 +118,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	_, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT)")
-	if err != nil {
+	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT)"); err != nil {
 		return err
 	}
 
@@ -258,23 +256,21 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 	if s.driverName == "postgres" {
-		_, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		if _, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec()
-		if err != nil {
+		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec(); err != nil {
 			return err
 		}
 	} else {
-		_, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		if _, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		).Exec()
-		if err != nil {
+		).Exec(); err != nil {
 			return err
 		}
 	}
@@ -349,13 +345,11 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 	}
 
 	if s.driverName == "postgres" {
-		_, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec()
-		if err != nil {
+		if _, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec(); err != nil {
 			return err
 		}
 	} else {
-		_, err := s.getQueryBuilder().Replace("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Exec()
-		if err != nil {
+		if _, err := s.getQueryBuilder().Replace("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Exec(); err != nil {
 			return err
 		}
 	}
