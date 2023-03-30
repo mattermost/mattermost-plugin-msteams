@@ -117,7 +117,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.Reaction) {
-	p.API.LogError("Removing reaction hook", "reaction", reaction)
+	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
 	if reaction.ChannelId == "removefromplugin" {
 		p.API.LogError("Ignore reaction that has been trigger from the plugin handler")
 		return
