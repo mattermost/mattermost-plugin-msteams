@@ -149,6 +149,11 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
 	}
 
+	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
+	if err == nil && link != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "A link to this MS Teams channel already exists, please remove unlink the channel before you link a new one")
+	}
+
 	client, err := p.GetClientForUser(args.UserId)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
