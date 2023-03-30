@@ -74,10 +74,6 @@ func (p *Plugin) GetStore() store.Store {
 	return p.store
 }
 
-func (p *Plugin) GetWebhookSecret() string {
-	return p.configuration.WebhookSecret
-}
-
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.configuration.SyncDirectMessages
 }
@@ -183,20 +179,17 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	subscriptionID, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	_, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
 	}
 
-	chatsSubscriptionID, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	_, err = p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return
 	}
-
-	go p.msteamsAppClient.RefreshChannelsSubscriptionPeriodically(ctx, p.GetURL()+"/", p.configuration.WebhookSecret, subscriptionID)
-	go p.msteamsAppClient.RefreshChatsSubscriptionPeriodically(ctx, p.GetURL()+"/", p.configuration.WebhookSecret, chatsSubscriptionID)
 }
 
 func (p *Plugin) stop() {

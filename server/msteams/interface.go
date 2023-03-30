@@ -1,7 +1,6 @@
 package msteams
 
 import (
-	"context"
 	"io"
 )
 
@@ -18,8 +17,7 @@ type Client interface {
 	DeleteChatMessage(chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (string, error)
 	SubscribeToChats(baseURL, webhookSecret string, pay bool) (string, error)
-	RefreshChannelsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string)
-	RefreshChatsSubscriptionPeriodically(ctx context.Context, baseURL, webhookSecret, subscriptionID string)
+	RefreshSubscription(subscriptionID string) error
 	GetTeam(teamID string) (*Team, error)
 	GetChannel(teamID, channelID string) (*Channel, error)
 	GetChat(chatID string) (*Chat, error)
