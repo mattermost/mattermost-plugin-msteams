@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -57,7 +58,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 	}
 }
 
-func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) error {
+func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
 	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
 			SELECT DISTINCT index_name FROM information_schema.statistics 
@@ -90,44 +91,47 @@ func (s *SQLStore) CreateIndexForMySQL(tableName, indexName, columnList string) 
 	return err
 }
 
-func (s *SQLStore) Init() error {
+func (s *SQLStore) createTable(tableName, columnList string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
 	var err error
-	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_links (mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255))"); err != nil {
-		return err
-	}
-
 	if s.driverName == model.DatabaseDriverPostgres {
-		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_links_msteamsteamid_msteamschannelid ON msteamssync_links (msTeamsTeamID, msTeamsChannelID)")
+		_, err = s.db.Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList))
 	} else {
-		err = s.CreateIndexForMySQL("msteamssync_links", "idx_msteamssync_links_msteamsteamid_msteamschannelid", "msTeamsTeamID, msTeamsChannelID")
+		err = s.createIndexForMySQL(tableName, indexName, columnList)
 	}
-	if err != nil {
+
+	return err
+}
+
+func (s *SQLStore) Init() error {
+	if err := s.createTable("msteamssync_links", "mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255)"); err != nil {
 		return err
 	}
 
-	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_users (mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT)"); err != nil {
+	if err := s.createTable("msteamssync_users", "mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT"); err != nil {
 		return err
 	}
 
-	if s.driverName == model.DatabaseDriverPostgres {
-		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_users_msteamsuserid ON msteamssync_users (msTeamsUserID)")
-	} else {
-		err = s.CreateIndexForMySQL("msteamssync_users", "idx_msteamssync_users_msteamsuserid", "msTeamsUserID")
-	}
-	if err != nil {
+	if err := s.createTable("msteamssync_posts", "mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT"); err != nil {
 		return err
 	}
 
-	if _, err = s.db.Exec("CREATE TABLE IF NOT EXISTS msteamssync_posts (mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT)"); err != nil {
+	if err := s.createIndex("msteamssync_links", "idx_msteamssync_links_msteamsteamid_msteamschannelid", "msTeamsTeamID, msTeamsChannelID"); err != nil {
 		return err
 	}
 
-	if s.driverName == model.DatabaseDriverPostgres {
-		_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_msteamssync_posts_msteamschannelid_msteamspostid ON msteamssync_posts (msTeamsChannelID, msTeamsPostID)")
-	} else {
-		err = s.CreateIndexForMySQL("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID")
+	if err := s.createIndex("msteamssync_users", "idx_msteamssync_users_msteamsuserid", "msTeamsUserID"); err != nil {
+		return err
 	}
-	if err != nil {
+
+	if err := s.createIndex("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID"); err != nil {
 		return err
 	}
 
