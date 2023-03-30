@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -75,9 +76,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:  "created",
-						ClientState: "webhooksecret",
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
 					},
 				},
 			},
@@ -91,9 +93,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-						ChangeType:  "created",
-						ClientState: "webhooksecret",
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
 					},
 				},
 			},
@@ -108,9 +111,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:  "created",
-						ClientState: "webhooksecret",
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
 					},
 				},
 			},
@@ -125,9 +129,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:    "test",
-						ChangeType:  "created",
-						ClientState: "webhooksecret",
+						Resource:                       "test",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
 					},
 				},
 			},
@@ -142,9 +147,10 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			Activities{
 				Value: []msteams.Activity{
 					{
-						Resource:    "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:  "created",
-						ClientState: "invalid",
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
+						ChangeType:                     "created",
+						ClientState:                    "invalid",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
 					},
 				},
 			},
@@ -153,7 +159,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				plugin.API.(*plugintest.API).On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", "Invalid webhook secret").Return(nil)
 			},
 			400,
-			"Invalid webhook secret\n\n",
+			"Invalid webhook secret\n",
 		},
 	}
 	for _, tc := range ttcases {
@@ -252,6 +258,7 @@ func TestProcessActivity(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		SetupAPI           func(*plugintest.API)
+		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
 		RequestBody        string
 		ValidationToken    string
 		ExpectedStatusCode int
@@ -260,6 +267,7 @@ func TestProcessActivity(t *testing.T) {
 		{
 			Name:               "ProcessActivity: With validation token present",
 			SetupAPI:           func(api *plugintest.API) {},
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			ValidationToken:    "mockValidationToken",
 			ExpectedStatusCode: http.StatusOK,
 			ExpectedResult:     "mockValidationToken",
@@ -267,6 +275,7 @@ func TestProcessActivity(t *testing.T) {
 		{
 			Name:               "ProcessActivity: Invalid body",
 			SetupAPI:           func(api *plugintest.API) {},
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			RequestBody:        `{`,
 			ExpectedStatusCode: http.StatusBadRequest,
 			ExpectedResult:     "unable to get the activities from the message\n",
@@ -276,6 +285,7 @@ func TestProcessActivity(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", mock.Anything).Times(1)
 			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -284,11 +294,14 @@ func TestProcessActivity(t *testing.T) {
 				"LifecycleEvent": "mockLifecycleEvent"
 			}]}`,
 			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedResult:     "Invalid webhook secret\n\n",
+			ExpectedResult:     "Invalid webhook secret\n",
 		},
 		{
 			Name:     "ProcessActivity: Valid body with valid webhook secret",
 			SetupAPI: func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				client.On("RefreshSubscription", mock.Anything).Return(nil)
+			},
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -303,6 +316,7 @@ func TestProcessActivity(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin()
 			test.SetupAPI(plugin.API.(*plugintest.API))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -328,25 +342,86 @@ func TestProcessLifecycle(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		ValidationToken    string
+		SetupAPI           func(*plugintest.API)
+		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
+		RequestBody        string
 		ExpectedStatusCode int
 		ExpectedResult     string
 	}{
 		{
-			Name:               "ProcessLifecycle: With validation token present",
-			ValidationToken:    "mockValidationToken",
+			Name:            "ProcessLifecycle: With validation token present",
+			SetupAPI:        func(api *plugintest.API) {},
+			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ValidationToken: "mockValidationToken",
+			RequestBody: `{
+				"Value": [{
+				"Resource": "mockResource",
+				"ClientState": "webhooksecret",
+				"ChangeType": "mockChangeType",
+				"LifecycleEvent": "mockLifecycleEvent"
+			}]}`,
 			ExpectedStatusCode: http.StatusOK,
 			ExpectedResult:     "mockValidationToken",
 		},
 		{
-			Name:               "ProcessLifecycle: Without validation token present",
+			Name:               "ProcessLifecycle: Invalid body",
+			SetupAPI:           func(api *plugintest.API) {},
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			RequestBody:        `{`,
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedResult:     "unable to get the lifecycle events from the message\n",
+		},
+		{
+			Name: "ProcessLifecycle: Valid body with invalid webhook secret",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Invalid webhook secret recevied in lifecycle event").Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			RequestBody: `{
+				"Value": [{
+				"Resource": "mockResource",
+				"ClientState": "mockClientState",
+				"ChangeType": "mockChangeType",
+				"LifecycleEvent": "mockLifecycleEvent"
+			}]}`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name:        "ProcessLifecycle: Valid body with valid webhook secret and without refresh needed",
+			SetupAPI:    func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			RequestBody: `{
+				"Value": [{
+				"Resource": "mockResource",
+				"ClientState": "webhooksecret",
+				"ChangeType": "mockChangeType",
+				"LifecycleEvent": "mockLifecycleEvent"
+			}]}`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name:     "ProcessLifecycle: Valid body with valid webhook secret and with refresh needed",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				client.On("RefreshSubscription", "mockID").Return(nil)
+			},
+			RequestBody: `{
+				"Value": [{
+				"SubscriptionID": "mockID",
+				"ClientState": "webhooksecret",
+				"ChangeType": "mockChangeType",
+				"LifecycleEvent": "reauthorizationRequired"
+			}]}`,
 			ExpectedStatusCode: http.StatusOK,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin()
+			test.SetupAPI(plugin.API.(*plugintest.API))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/lifecycle", nil)
+			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
 				queryParams := url.Values{
 					"validationToken": {"mockValidationToken"},
