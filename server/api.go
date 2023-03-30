@@ -82,6 +82,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	for _, activity := range activities.Value {
 		if activity.ClientState != a.p.configuration.WebhookSecret {
 			errors += "Invalid webhook secret"
+			continue
 		}
 		a.refreshSubscriptionIfNeeded(activity)
 		err := a.p.activityHandler.Handle(activity)
