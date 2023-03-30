@@ -218,7 +218,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamUserID(), nil).Times(1)
-				var token *oauth2.Token = nil
+				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamUserID(), token).Return(nil).Times(1)
 			},
 		},
@@ -248,7 +248,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", nil).Times(1)
-				var token *oauth2.Token = nil
+				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), "", token).Return(errors.New("Error while disconnecting your account")).Times(1)
 			},
 		},
@@ -289,7 +289,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token = nil
+				var token *oauth2.Token
 				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(nil).Times(1)
 			},
 		},
@@ -327,7 +327,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token = nil
+				var token *oauth2.Token
 				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(errors.New("Error while disconnecting the bot account")).Times(1)
 			},
 		},
