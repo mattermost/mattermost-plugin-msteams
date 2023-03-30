@@ -6,12 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
+	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/pkg/errors"
@@ -204,7 +206,7 @@ func TestGetAvatarFromServer(t *testing.T) {
 	plugin := newTestPlugin()
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
-	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
+	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
 	plugin.store.(*storemocks.Store).On("SetAvatarCache", "user-id", []byte("fake-avatar")).Return(nil).Times(1)
 
 	w := httptest.NewRecorder()
@@ -227,7 +229,7 @@ func TestGetAvatarNotFound(t *testing.T) {
 	plugin := newTestPlugin()
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
-	plugin.msteamsAppClient.(*mocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
+	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
 	plugin.API.(*plugintest.API).On("LogError", "Unable to read avatar", "error", "not-found").Return(nil)
 
 	w := httptest.NewRecorder()
@@ -244,4 +246,180 @@ func TestGetAvatarNotFound(t *testing.T) {
 
 	assert.Equal(t, 404, result.StatusCode)
 	assert.Equal(t, "avatar not found\n", bodyString)
+}
+
+func TestAutocompleteChannels(t *testing.T) {
+	for _, test := range []struct {
+		Name           string
+		QueryParams    string
+		SetupStore     func(*storemocks.Store)
+		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedResult []model.AutocompleteListItem
+	}{
+		{
+			Name:           "AutocompleteChannels: Query params not present",
+			SetupStore:     func(store *storemocks.Store) {},
+			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedResult: []model.AutocompleteListItem{},
+		},
+		{
+			Name:        "AutocompleteChannels: Unable to get client for the user",
+			QueryParams: "mockData-1 mockData-2 mockData-3",
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedResult: []model.AutocompleteListItem{},
+		},
+		{
+			Name:        "AutocompleteChannels: Unable to get the channels list",
+			QueryParams: "mockData-1 mockData-2 mockData-3",
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
+			},
+			ExpectedResult: []model.AutocompleteListItem{},
+		},
+		{
+			Name:        "AutocompleteChannels: Valid",
+			QueryParams: "mockData-1 mockData-2 mockData-3",
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("ListChannels", "mockData-3").Return([]msteams.Channel{
+					{
+						ID:          "mockTeamsTeamID-1",
+						DisplayName: "mockDisplayName-1",
+						Description: "mockDescription-1",
+					},
+					{
+						ID:          "mockTeamsTeamID-2",
+						DisplayName: "mockDisplayName-2",
+						Description: "mockDescription-2",
+					},
+				}, nil).Times(1)
+			},
+			ExpectedResult: []model.AutocompleteListItem{
+				{
+					Item:     "mockTeamsTeamID-1",
+					Hint:     "mockDisplayName-1",
+					HelpText: "mockDescription-1",
+				},
+				{
+					Item:     "mockTeamsTeamID-2",
+					Hint:     "mockDisplayName-2",
+					HelpText: "mockDescription-2",
+				},
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin()
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)
+			if test.QueryParams != "" {
+				queryParams := url.Values{
+					"parsed": {test.QueryParams},
+				}
+
+				r.URL.RawQuery = queryParams.Encode()
+			}
+
+			r.Header.Add("Mattermost-User-ID", testutils.GetID())
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			var list []model.AutocompleteListItem
+			err := json.NewDecoder(result.Body).Decode(&list)
+			require.Nil(t, err)
+			assert.Equal(test.ExpectedResult, list)
+		})
+	}
+}
+
+func TestNeedsConnect(t *testing.T) {
+	for _, test := range []struct {
+		Name                  string
+		SetupPlugin           func(*plugintest.API)
+		SetupStore            func(*storemocks.Store)
+		EnforceConnectedUsers bool
+		EnabledTeams          string
+		ExpectedResult        string
+	}{
+		{
+			Name:           "NeedsConnect: EnforceConnectedUsers is false",
+			SetupPlugin:    func(api *plugintest.API) {},
+			SetupStore:     func(store *storemocks.Store) {},
+			ExpectedResult: "{\"canSkip\":false,\"needsConnect\":false}",
+		},
+		{
+			Name:        "NeedsConnect: Unable to get the client",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			EnforceConnectedUsers: true,
+			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+		},
+		{
+			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetTeamsForUser", testutils.GetID()).Return([]*model.Team{
+					{
+						Id: "mockTeam",
+					},
+				}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			EnforceConnectedUsers: true,
+			EnabledTeams:          "mockTeamID",
+			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":false}",
+		},
+		{
+			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetTeamsForUser", testutils.GetID()).Return([]*model.Team{
+					{
+						Id: "mockTeamID",
+					},
+				}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			EnforceConnectedUsers: true,
+			EnabledTeams:          "mockTeamID",
+			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin()
+			plugin.configuration.EnforceConnectedUsers = test.EnforceConnectedUsers
+			plugin.configuration.EnabledTeams = test.EnabledTeams
+			test.SetupPlugin(plugin.API.(*plugintest.API))
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/needsConnect", nil)
+			r.Header.Add("Mattermost-User-ID", testutils.GetID())
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+		})
+	}
 }
