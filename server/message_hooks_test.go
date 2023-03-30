@@ -1069,3 +1069,185 @@ func TestSend(t *testing.T) {
 		})
 	}
 }
+
+func TestDelete(t *testing.T) {
+	for _, test := range []struct {
+		Name          string
+		SetupAPI      func(*plugintest.API)
+		SetupStore    func(*storemocks.Store)
+		SetupClient   func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedError string
+	}{
+		{
+			Name:     "Delete: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "not connected user",
+		},
+		{
+			Name: "Delete: Unable to get the post info",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error updating post", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post info")).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "unable to get the post info",
+		},
+		{
+			Name: "Delete: Post info is nil",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error deleting post, post not found.")
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "post not found",
+		},
+		{
+			Name: "Delete: Unable to delete the message",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error deleting post", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMSTeamsID",
+				}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("DeleteMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID").Return(errors.New("unable to delete the message")).Times(1)
+			},
+			ExpectedError: "unable to delete the message",
+		},
+		{
+			Name:     "Delete: Valid",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMSTeamsID",
+				}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("DeleteMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID").Return(nil).Times(1)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			err := p.Delete("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost())
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
+		})
+	}
+}
+
+func TestDeleteChat(t *testing.T) {
+	for _, test := range []struct {
+		Name          string
+		SetupAPI      func(*plugintest.API)
+		SetupStore    func(*storemocks.Store)
+		SetupClient   func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedError string
+	}{
+		{
+			Name:     "DeleteChat: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "not connected user",
+		},
+		{
+			Name: "DeleteChat: Unable to get the post info",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error updating post", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post info")).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "unable to get the post info",
+		},
+		{
+			Name: "DeleteChat: Post info is nil",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error deleting post, post not found.")
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			ExpectedError: "post not found",
+		},
+		{
+			Name: "DeleteChat: Unable to delete the message",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error deleting post", "error", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMSTeamsID",
+				}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(errors.New("unable to delete the message")).Times(1)
+			},
+			ExpectedError: "unable to delete the message",
+		},
+		{
+			Name:     "DeleteChat: Valid",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+					MSTeamsID:    "mockMSTeamsID",
+				}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(nil).Times(1)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost())
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
+		})
+	}
+}
