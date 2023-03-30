@@ -31,7 +31,7 @@ func TestMessageWillBePosted(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: Unable to get the channel members",
@@ -39,7 +39,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(nil, testutils.GetInternalServerAppError("unable to get the channel members")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: Unable to get the user",
@@ -48,7 +48,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the user")).Times(1)
 			},
-			ExpectedPost: testutils.GetPost(),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
 			Name: "MessageWillBePosted: User email with suffix '@msteamssync'",
@@ -67,7 +67,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(2)
 			},
-			ExpectedPost: testutils.GetPost(),
+			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestMessageWillBePosted(t *testing.T) {
 			p := newTestPlugin()
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
-			post, resp := p.MessageWillBePosted(&plugin.Context{}, testutils.GetPost())
+			post, resp := p.MessageWillBePosted(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 
 			assert.Equal(test.ExpectedMessage, resp)
 			assert.Equal(test.ExpectedPost, post)
@@ -139,7 +139,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			Name: "ReactionHasBeenAdded: Unable to set the reaction",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("LogWarn", "Error creating post", "error", "unable to set the reaction")
 				api.On("LogError", "Unable to handle message reaction set", "error", "unable to set the reaction")
@@ -157,7 +157,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			Name: "ReactionHasBeenAdded: Valid",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -213,7 +213,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -228,7 +228,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID and channel",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -246,7 +246,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -269,7 +269,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			Name: "ReactionHasBeenRemoved: Valid",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(), nil).Times(1)
+				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
@@ -474,7 +474,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			p.MessageHasBeenUpdated(&plugin.Context{}, testutils.GetPost(), testutils.GetPost())
+			p.MessageHasBeenUpdated(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 		})
 	}
 }
@@ -637,7 +637,7 @@ func TestSetReaction(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-			resp := p.SetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(), "mockName")
+			resp := p.SetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
 			if test.ExpectedMessage != "" {
 				assert.Contains(resp.Error(), test.ExpectedMessage)
 			} else {
@@ -806,7 +806,7 @@ func TestUnsetReaction(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-			resp := p.UnsetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(), "mockName")
+			resp := p.UnsetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
 			if test.ExpectedMessage != "" {
 				assert.Contains(resp.Error(), test.ExpectedMessage)
 			} else {
@@ -922,7 +922,7 @@ func TestSendChat(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			mockPost := testutils.GetPost()
+			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage"
 			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost)
 			if test.ExpectedError != "" {
@@ -1056,7 +1056,7 @@ func TestSend(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			mockPost := testutils.GetPost()
+			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage"
 			resp, err := p.Send(testutils.GetID(), testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), mockPost)
 			if test.ExpectedError != "" {
@@ -1151,7 +1151,7 @@ func TestDelete(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			err := p.Delete("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost())
+			err := p.Delete("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1242,7 +1242,7 @@ func TestDeleteChat(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost())
+			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1383,9 +1383,9 @@ func TestUpdate(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			mockPost := testutils.GetPost()
+			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage"
-			err := p.Update("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost())
+			err := p.Update("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1528,9 +1528,9 @@ func TestUpdateChat(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
-			mockPost := testutils.GetPost()
+			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage"
-			err := p.UpdateChat("mockChatID", testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost())
+			err := p.UpdateChat("mockChatID", testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {

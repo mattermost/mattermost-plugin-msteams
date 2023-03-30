@@ -6,10 +6,27 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
+func GetChannelID() string {
+	return "bnqnzipmnir4zkkj95ggba5pde"
+}
+
+func GetUserID() string {
+	return "sfmq19kpztg5iy47ebe51hb31w"
+}
+
+func GetTeamUserID() string {
+	return "rioegneonqimomsoqwiew3qeo"
+}
+
+func GetPostID() string {
+	return "qwifdnaootmgkerodfdmwo"
+}
+
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
 		DetailedError: errorMsg,
+		Id:            GetID(),
 	}
 }
 
@@ -17,16 +34,12 @@ func GetID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetChannelID() string {
-	return "bnqnzipmnir4zkkj95ggba5pde"
-}
-
-func GetPost() *model.Post {
+func GetPost(channelID, userID string) *model.Post {
 	return &model.Post{
 		Id:        GetID(),
 		FileIds:   model.StringArray{GetID()},
-		ChannelId: GetChannelID(),
-		UserId:    GetID(),
+		ChannelId: channelID,
+		UserId:    userID,
 	}
 }
 
