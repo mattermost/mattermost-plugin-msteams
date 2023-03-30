@@ -340,7 +340,11 @@ func (ah *ActivityHandler) handleReactions(postID string, channelID string, reac
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds) {
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, activityIds.MessageID)
+	messageID := activityIds.MessageID
+	if activityIds.ReplyID != "" {
+		messageID = activityIds.ReplyID
+	}
+	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, messageID)
 	if postInfo == nil {
 		return
 	}
