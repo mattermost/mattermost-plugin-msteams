@@ -69,9 +69,11 @@ func getAutocompleteData() *model.AutocompleteData {
 	cmd.AddCommand(disconnect)
 
 	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
+	connectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(connectBot)
 
 	disconnectBot := model.NewAutocompleteData("disconnect-bot", "", "Disconnect the bot account (only system admins can do this)")
+	disconnectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(disconnectBot)
 
 	return cmd
@@ -125,6 +127,23 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+	}
+
+	if !isSysAdmin {
+		var isChannelAdmin bool
+		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
+		if err != nil {
+			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+		}
+
+		if !isChannelAdmin {
+			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+		}
+	}
+
 	if len(parameters) < 2 {
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
@@ -179,6 +198,23 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+	}
+
+	if !isSysAdmin {
+		var isChannelAdmin bool
+		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
+		if err != nil {
+			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+		}
+
+		if !isChannelAdmin {
+			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+		}
+	}
+
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
@@ -190,7 +226,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
-	err := p.store.DeleteLinkByChannelID(channel.Id)
+	err = p.store.DeleteLinkByChannelID(channel.Id)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
