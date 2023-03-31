@@ -133,7 +133,8 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	}
 
 	if !isSysAdmin {
-		isChannelAdmin, err := p.IsChannelAdmin(args.UserId, args.ChannelId)
+		var isChannelAdmin bool
+		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
 		if err != nil {
 			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 		}
@@ -203,7 +204,8 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	}
 
 	if !isSysAdmin {
-		isChannelAdmin, err := p.IsChannelAdmin(args.UserId, args.ChannelId)
+		var isChannelAdmin bool
+		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
 		if err != nil {
 			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 		}
