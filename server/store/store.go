@@ -110,8 +110,33 @@ func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
 	return err
 }
 
+func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) error {
+	if s.driverName == model.DatabaseDriverPostgres {
+		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
+			return err
+		}
+	} else {
+		if _, err := s.db.Exec(fmt.Sprintf(`
+			IF NOT EXISTS( SELECT NULL
+              FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE table_name = '%s'
+             AND table_schema = DATABASE()
+             AND column_name = '%s')  THEN
+			  ALTER TABLE %s ADD %s %s;
+			END IF;`, tableName, columnName, tableName, columnName, columnDefinition)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *SQLStore) Init() error {
-	if err := s.createTable("msteamssync_links", "mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255)"); err != nil {
+	if err := s.createTable("msteamssync_links", "mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255), creator VARCHAR(255)"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn("msteamssync_links", "creator", "VARCHAR(255)"); err != nil {
 		return err
 	}
 
@@ -155,10 +180,10 @@ func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
 }
 
 func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
-	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
+	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
 	if err != nil {
 		return nil, err
 	}
@@ -170,10 +195,10 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLin
 }
 
 func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error) {
-	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam)
+	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +219,7 @@ func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 }
 
 func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
-	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam)
+	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam, link.Creator)
 	_, err := query.Exec()
 	if err != nil {
 		return err

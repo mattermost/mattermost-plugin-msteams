@@ -169,6 +169,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
+		Creator:           args.UserId,
 	})
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
