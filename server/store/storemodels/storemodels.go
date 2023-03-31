@@ -7,6 +7,7 @@ type ChannelLink struct {
 	MattermostChannel string
 	MSTeamsTeam       string
 	MSTeamsChannel    string
+	Creator           string
 }
 
 type PostInfo struct {
