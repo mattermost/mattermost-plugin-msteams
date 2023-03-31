@@ -127,8 +127,20 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if !p.IsSystemAdmin(args.UserId) && !p.IsChannelAdmin(args.UserId, args.ChannelId) {
-		return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+	}
+
+	if !isSysAdmin {
+		isChannelAdmin, err := p.IsChannelAdmin(args.UserId, args.ChannelId)
+		if err != nil {
+			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+		}
+
+		if !isChannelAdmin {
+			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+		}
 	}
 
 	if len(parameters) < 2 {
@@ -185,8 +197,20 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if !p.IsSystemAdmin(args.UserId) && !p.IsChannelAdmin(args.UserId, args.ChannelId) {
-		return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+	}
+
+	if !isSysAdmin {
+		isChannelAdmin, err := p.IsChannelAdmin(args.UserId, args.ChannelId)
+		if err != nil {
+			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+		}
+
+		if !isChannelAdmin {
+			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
+		}
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
@@ -200,7 +224,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
 	}
 
-	err := p.store.DeleteLinkByChannelID(channel.Id)
+	err = p.store.DeleteLinkByChannelID(channel.Id)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
