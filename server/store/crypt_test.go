@@ -16,7 +16,7 @@ func TestUnpad(t *testing.T) {
 	assert := assert.New(t)
 	resp, err := unpad(make([]byte, 1))
 	assert.Nil(err)
-	assert.Equal([]uint8([]byte{0x0}), resp)
+	assert.Equal([]byte{0x0}, resp)
 }
 
 func TestEncrypt(t *testing.T) {
