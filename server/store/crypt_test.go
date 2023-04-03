@@ -82,7 +82,7 @@ func TestDecrypt(t *testing.T) {
 				assert.Equal("", resp)
 			} else {
 				assert.Nil(err)
-				assert.NotEqual("", resp)
+				assert.Equal("mockData", resp)
 			}
 		})
 	}
