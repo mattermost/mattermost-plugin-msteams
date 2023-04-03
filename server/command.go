@@ -127,21 +127,9 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
-	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
-	}
-
-	if !isSysAdmin {
-		var isChannelAdmin bool
-		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
-		if err != nil {
-			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
-		}
-
-		if !isChannelAdmin {
-			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
-		}
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
 	if len(parameters) < 2 {
@@ -155,12 +143,6 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
-	}
-
-	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
-	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
@@ -199,21 +181,9 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	isSysAdmin, err := p.IsSystemAdmin(args.UserId)
-	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
-	}
-
-	if !isSysAdmin {
-		var isChannelAdmin bool
-		isChannelAdmin, err = p.IsChannelAdmin(args.UserId, args.ChannelId)
-		if err != nil {
-			return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
-		}
-
-		if !isChannelAdmin {
-			return p.cmdError(args.UserId, args.ChannelId, "This command can be run only by channel and system admins.")
-		}
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
@@ -221,14 +191,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
-	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
-	}
-
-	err = p.store.DeleteLinkByChannelID(channel.Id)
-	if err != nil {
+	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 

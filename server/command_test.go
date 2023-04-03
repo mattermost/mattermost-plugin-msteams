@@ -35,12 +35,11 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -58,12 +57,11 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
 					Id:   "Mock-ChannelID",
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManagePublicChannelProperties).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: "Mock-ChannelID",
@@ -75,51 +73,11 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			},
 		},
 		{
-			description: "Unable to get the current user",
-			args:        &model.CommandArgs{},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the user")).Once()
-				api.On("LogError", mock.AnythingOfType("string"), "UserID", "", "Error", ": , Error while getting the user")
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Something went wrong.",
-				}).Return(testutils.GetPost("", "")).Times(1)
-			},
-			setupStore: func(s *mockStore.Store) {},
-		},
-		{
-			description: "Unable to get the current user's channel membership",
-			args:        &model.CommandArgs{},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", "").Return(testutils.GetUser(model.SystemUserRoleId, "testemail@gmail.com"), nil).Once()
-				api.On("GetChannelMember", "", "").Return(nil, testutils.GetInternalServerAppError("Error while getting user's channel membership")).Once()
-				api.On("LogError", mock.AnythingOfType("string"), "UserID", "", "ChannelID", "", "Error", ": , Error while getting user's channel membership").Once()
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Something went wrong.",
-				}).Return(testutils.GetPost("", "")).Times(1)
-			},
-			setupStore: func(s *mockStore.Store) {},
-		},
-		{
-			description: "User is neither system admin nor channel admin",
-			args:        &model.CommandArgs{},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", "").Return(testutils.GetUser(model.SystemUserRoleId, "testemail@gmail.com"), nil).Once()
-				api.On("GetChannelMember", "", "").Return(&model.ChannelMember{SchemeAdmin: false}, nil).Once()
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "This command can be run only by channel and system admins.",
-				}).Return(testutils.GetPost("", "")).Times(1)
-			},
-			setupStore: func(s *mockStore.Store) {},
-		},
-		{
 			description: "Unable to get the current channel",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", "").Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil).Once()
-				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
+				api.On("HasPermissionToChannel", "", "", model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
 					Message: "Unable to get the current channel information.",
@@ -134,17 +92,12 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
-					Id:   testutils.GetChannelID(),
-					Type: model.ChannelTypeOpen,
-				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(false).Times(1)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(false).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					ChannelId: testutils.GetChannelID(),
 					UserId:    "bot-user-id",
-					Message:   "Unable to unlink the channel, you has to be a channel admin to unlink it.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "")).Times(1)
+					Message:   "Unable to unlink the channel, you have to be a channel admin to unlink it.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -420,11 +373,10 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -451,11 +403,10 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -481,7 +432,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -496,7 +447,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			parameters:  []string{"", ""},
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", "").Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", "", "", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
 					Message: "This team is not enabled for MS Teams sync.",
@@ -514,7 +465,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				TeamId: testutils.GetTeamUserID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", "", "", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
@@ -534,11 +485,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
-					Type: model.ChannelTypeOpen,
-				}, nil).Times(1)
-				api.On("HasPermissionToChannel", "", testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(false).Times(1)
+				api.On("HasPermissionToChannel", "", testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(false).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -559,11 +506,10 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, "testemail@gmail.com"), nil)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManagePublicChannelProperties).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
