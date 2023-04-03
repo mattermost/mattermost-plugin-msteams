@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
@@ -40,7 +41,6 @@ func newTestPlugin() *Plugin {
 			return clientMock
 		},
 	}
-	plugin.msteamsAppClient.(*mocks.Client).On("Connect").Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("ClearSubscriptions").Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannels", mock.Anything, plugin.configuration.WebhookSecret).Return("channel-subscription-id", nil)
@@ -57,7 +57,6 @@ func newTestPlugin() *Plugin {
 	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil)
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
-	plugin.API.(*plugintest.API).On("SavePluginConfig", mock.Anything).Return(nil)
 	plugin.API.(*plugintest.API).On("EnsureBotUser", bot).Return("bot-user-id", nil).Times(1)
 	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -370,6 +369,114 @@ func TestSyncUsers(t *testing.T) {
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			p.syncUsers()
+		})
+	}
+}
+
+func TestConnectTeamsAppClient(t *testing.T) {
+	for _, test := range []struct {
+		Name          string
+		SetupAPI      func(*plugintest.API)
+		SetupClient   func(*mocks.Client)
+		ExpectedError string
+	}{
+		{
+			Name: "ConnectTeamsAppClient: Unable to connect to the app client",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
+			},
+			ExpectedError: "unable to connect to the app client",
+		},
+		{
+			Name: "ConnectTeamsAppClient: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("Connect").Return(nil).Times(1)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
+			err := p.connectTeamsAppClient()
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
+		})
+	}
+}
+
+func TestStart(t *testing.T) {
+	for _, test := range []struct {
+		Name        string
+		SetupAPI    func(*plugintest.API)
+		SetupStore  func(*storemocks.Store)
+		SetupClient func(*mocks.Client)
+	}{
+		{
+			Name: "Start: Unable to connect to the app client",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to connect to the msteams", "error", mock.Anything).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {},
+			SetupClient: func(client *mocks.Client) {
+				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			p := newTestPlugin()
+			p.clusterMutex = &cluster.Mutex{}
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
+			p.start(nil)
+		})
+	}
+}
+
+func TestGeneratePluginSecrets(t *testing.T) {
+	for _, test := range []struct {
+		Name          string
+		SetupAPI      func(*plugintest.API)
+		ExpectedError string
+	}{
+		{
+			Name: "GeneratePluginSecrets: Unable to save plugin config",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SavePluginConfig", mock.Anything).Return(testutils.GetInternalServerAppError("unable to save plugin config")).Times(1)
+			},
+			ExpectedError: "unable to save plugin config",
+		},
+		{
+			Name: "GeneratePluginSecrets: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SavePluginConfig", mock.Anything).Return(nil).Times(1)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin()
+			p.configuration.WebhookSecret = ""
+			p.configuration.EncryptionKey = ""
+			test.SetupAPI(p.API.(*plugintest.API))
+			err := p.generatePluginSecrets()
+			if test.ExpectedError != "" {
+				assert.Contains(err.Error(), test.ExpectedError)
+			} else {
+				assert.Nil(err)
+			}
 		})
 	}
 }
