@@ -391,10 +391,8 @@ func TestConnectTeamsAppClient(t *testing.T) {
 			ExpectedError: "unable to connect to the app client",
 		},
 		{
-			Name: "ConnectTeamsAppClient: Valid",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
-			},
+			Name:     "ConnectTeamsAppClient: Valid",
+			SetupAPI: func(api *plugintest.API) {},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(nil).Times(1)
 			},
