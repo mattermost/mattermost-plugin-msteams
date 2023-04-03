@@ -142,12 +142,22 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError fun
 	return client
 }
 
-func RequestUserToken(tenantID, clientID string, message chan string) (oauth2.TokenSource, error) {
+func NewUnauthenticatedClient(tenantID, clientID string, logError func(string, ...any)) Client {
+	return &ClientImpl{
+		ctx:        context.Background(),
+		clientType: "unauthenticated",
+		tenantID:   tenantID,
+		clientID:   clientID,
+		logError:   logError,
+	}
+}
+
+func (tc *ClientImpl) RequestUserToken(message chan string) (oauth2.TokenSource, error) {
 	m := msauth.NewManager()
 	ts, err := m.DeviceAuthorizationGrant(
 		context.Background(),
-		tenantID,
-		clientID,
+		tc.tenantID,
+		tc.clientID,
 		append(teamsDefaultScopes, "offline_access"),
 		func(dc *msauth.DeviceCode) error {
 			message <- dc.Message

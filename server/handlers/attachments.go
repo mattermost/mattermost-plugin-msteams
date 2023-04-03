@@ -12,8 +12,8 @@ import (
 )
 
 // handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(filename, weburl string) ([]byte, error) {
-	client, err := ah.plugin.GetClientForUser(ah.plugin.GetBotUserID())
+func (ah *ActivityHandler) handleDownloadFile(userID, filename, weburl string) ([]byte, error) {
+	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (ah *ActivityHandler) handleDownloadFile(filename, weburl string) ([]byte, 
 	return data, nil
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
+func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -47,7 +47,7 @@ func (ah *ActivityHandler) handleAttachments(channelID string, text string, msg 
 
 		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
-			newText = ah.handleCodeSnippet(a, newText)
+			newText = ah.handleCodeSnippet(userID, a, newText)
 			continue
 		}
 
@@ -58,7 +58,7 @@ func (ah *ActivityHandler) handleAttachments(channelID string, text string, msg 
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(a.Name, a.ContentURL)
+		attachmentData, err := ah.handleDownloadFile(userID, a.Name, a.ContentURL)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
 			continue
@@ -74,7 +74,7 @@ func (ah *ActivityHandler) handleAttachments(channelID string, text string, msg 
 	return newText, attachments, parentID
 }
 
-func (ah *ActivityHandler) handleCodeSnippet(attach msteams.Attachment, text string) string {
+func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attachment, text string) string {
 	var content struct {
 		Language       string `json:"language"`
 		CodeSnippetURL string `json:"codeSnippetUrl"`
@@ -90,7 +90,7 @@ func (ah *ActivityHandler) handleCodeSnippet(attach msteams.Attachment, text str
 		return text
 	}
 
-	client, err := ah.plugin.GetClientForUser(ah.plugin.GetBotUserID())
+	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("unable to get bot client", "error", err)
 		return text
