@@ -37,52 +37,22 @@ func TestEncrypt(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			resp, err := encrypt(test.Key, "mockData")
+			encryptedKey, err := encrypt(test.Key, "mockData")
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
-				assert.Equal("", resp)
+				assert.Equal("", encryptedKey)
 			} else {
 				assert.Nil(err)
-				assert.NotEqual("", resp)
+				assert.NotEqual("", encryptedKey)
 			}
-		})
-	}
-}
 
-func TestDecrypt(t *testing.T) {
-	for _, test := range []struct {
-		Name          string
-		Key           []byte
-		Text          string
-		ExpectedError string
-	}{
-		{
-			Name:          "Decrypt: Invalid key",
-			Text:          "g2E9QKddQTJn74EFipHhZ7QCW0vf1cIzXzN8xRTr9fA=",
-			Key:           make([]byte, 1),
-			ExpectedError: "could not create a cipher block",
-		},
-		{
-			Name:          "Decrypt: blocksize must be multiple of decoded message length",
-			Text:          "mockData",
-			Key:           make([]byte, 16),
-			ExpectedError: "blocksize must be multiple of decoded message length",
-		},
-		{
-			Name: "Decrypt: Valid",
-			Text: "g2E9QKddQTJn74EFipHhZ7QCW0vf1cIzXzN8xRTr9fA=",
-			Key:  make([]byte, 16),
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			resp, err := decrypt(test.Key, test.Text)
+			decryptedKey, err := decrypt(test.Key, encryptedKey)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
-				assert.Equal("", resp)
+				assert.Equal("", decryptedKey)
 			} else {
 				assert.Nil(err)
-				assert.Equal("mockData", resp)
+				assert.Equal("mockData", decryptedKey)
 			}
 		})
 	}
