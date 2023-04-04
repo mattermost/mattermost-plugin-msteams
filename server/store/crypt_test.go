@@ -26,12 +26,12 @@ func TestEncryptDecrypt(t *testing.T) {
 		ExpectedError string
 	}{
 		{
-			Name:          "Encrypt: Invalid key",
+			Name:          "EncryptDecrypt: Invalid key",
 			Key:           make([]byte, 1),
 			ExpectedError: "could not create a cipher block",
 		},
 		{
-			Name: "Encrypt: Valid",
+			Name: "EncryptDecrypt: Valid",
 			Key:  make([]byte, 16),
 		},
 	} {
@@ -121,7 +121,7 @@ func TestDecrypt(t *testing.T) {
 				assert.Equal("", resp)
 			} else {
 				assert.Nil(err)
-				assert.NotEqual("", resp)
+				assert.Equal("mockData", resp)
 			}
 		})
 	}
