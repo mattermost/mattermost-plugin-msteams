@@ -167,9 +167,11 @@ func (p *Plugin) startSubscriptions(ctx context.Context) {
 	maxRetries := 20
 	for {
 		resp, _ := http.Post(p.GetURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
-		resp.Body.Close()
-		if resp.StatusCode == 200 {
-			break
+		if resp != nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				break
+			}
 		}
 
 		counter++
