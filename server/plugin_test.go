@@ -414,10 +414,10 @@ func TestConnectTeamsAppClient(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	mockSiteURL := "mockSiteURL"
 	for _, test := range []struct {
 		Name        string
 		SetupAPI    func(*plugintest.API)
-		SetupStore  func(*storemocks.Store)
 		SetupClient func(*mocks.Client)
 	}{
 		{
@@ -426,17 +426,29 @@ func TestStart(t *testing.T) {
 				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
 				api.On("LogError", "Unable to connect to the msteams", "error", mock.Anything).Times(1)
 			},
-			SetupStore: func(store *storemocks.Store) {},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
+			},
+		},
+		{
+			Name: "Start: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: &mockSiteURL,
+					},
+				})
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("Connect").Return(nil).Times(1)
 			},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin()
-			p.clusterMutex = &cluster.Mutex{}
+			mutex, _ := cluster.NewMutex(p.API, clusterMutexKey)
+			p.clusterMutex = mutex
 			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			p.start(nil)
 		})
