@@ -91,6 +91,36 @@ func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) 
 	return err
 }
 
+func (s *SQLStore) addColumnForMySQL(tableName, columnName, columnDefinition string) error {
+	// TODO: Try to do this using only one query
+	query := `SELECT EXISTS(
+			SELECT NULL FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'tableName'
+			AND table_schema = DATABASE()
+			AND column_name = 'columnName'
+		)`
+
+	query = strings.ReplaceAll(query, "tableName", tableName)
+	query = strings.ReplaceAll(query, "columnName", columnName)
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return err
+	}
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return scanErr
+		}
+	}
+
+	if result == 0 {
+		alterQuery := fmt.Sprintf("ALTER TABLE %s ADD %s %s", tableName, columnName, columnDefinition)
+		_, err = s.db.Exec(alterQuery)
+	}
+
+	return err
+}
+
 func (s *SQLStore) createTable(tableName, columnList string) error {
 	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
 		return err
@@ -115,17 +145,8 @@ func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) err
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
 			return err
 		}
-	} else {
-		if _, err := s.db.Exec(fmt.Sprintf(`
-			IF NOT EXISTS( SELECT NULL
-              FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_name = '%s'
-             AND table_schema = DATABASE()
-             AND column_name = '%s')  THEN
-			  ALTER TABLE %s ADD %s %s;
-			END IF;`, tableName, columnName, tableName, columnName, columnDefinition)); err != nil {
-			return err
-		}
+	} else if err := s.addColumnForMySQL(tableName, columnName, columnDefinition); err != nil {
+		return err
 	}
 
 	return nil
