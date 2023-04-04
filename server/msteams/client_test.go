@@ -20,65 +20,93 @@ func TestConvertToMessage(t *testing.T) {
 	attachmentContentType := "mockAttachmentContentType"
 	attachmentName := "mockAttachmentName"
 	attachmentURL := "mockAttachmentURL"
-	assert := assert.New(t)
-	resp := convertToMessage(&msgraph.ChatMessage{
-		From: &msgraph.IdentitySet{
-			User: &msgraph.Identity{
-				ID:          &teamsUserID,
-				DisplayName: &teamsUserDisplayName,
-			},
-		},
-		ReplyToID: &teamsReplyID,
-		Body: &msgraph.ItemBody{
-			Content: &content,
-		},
-		Subject:              &subject,
-		LastModifiedDateTime: &time.Time{},
-		Attachments: []msgraph.ChatMessageAttachment{
-			{
-				ContentType: &attachmentContentType,
-				Content:     &attachmentContent,
-				Name:        &attachmentName,
-				ContentURL:  &attachmentURL,
-			},
-		},
-		Reactions: []msgraph.ChatMessageReaction{
-			{
-				ReactionType: &reactionType,
-				User: &msgraph.IdentitySet{
+	for _, test := range []struct {
+		Name           string
+		ChatMessage    *msgraph.ChatMessage
+		ExpectedResult Message
+	}{
+		{
+			Name: "ConvertToMessage: With data filled",
+			ChatMessage: &msgraph.ChatMessage{
+				From: &msgraph.IdentitySet{
 					User: &msgraph.Identity{
-						ID: &teamsUserID,
+						ID:          &teamsUserID,
+						DisplayName: &teamsUserDisplayName,
+					},
+				},
+				ReplyToID: &teamsReplyID,
+				Body: &msgraph.ItemBody{
+					Content: &content,
+				},
+				Subject:              &subject,
+				LastModifiedDateTime: &time.Time{},
+				Attachments: []msgraph.ChatMessageAttachment{
+					{
+						ContentType: &attachmentContentType,
+						Content:     &attachmentContent,
+						Name:        &attachmentName,
+						ContentURL:  &attachmentURL,
+					},
+				},
+				Reactions: []msgraph.ChatMessageReaction{
+					{
+						ReactionType: &reactionType,
+						User: &msgraph.IdentitySet{
+							User: &msgraph.Identity{
+								ID: &teamsUserID,
+							},
+						},
 					},
 				},
 			},
+			ExpectedResult: Message{
+				UserID:          teamsUserID,
+				UserDisplayName: teamsUserDisplayName,
+				ReplyToID:       teamsReplyID,
+				Text:            content,
+				Subject:         subject,
+				LastUpdateAt:    time.Time{},
+				Attachments: []Attachment{
+					{
+						ContentType: attachmentContentType,
+						Content:     attachmentContent,
+						Name:        attachmentName,
+						ContentURL:  attachmentURL,
+					},
+				},
+				Reactions: []Reaction{
+					{
+						Reaction: reactionType,
+						UserID:   teamsUserID,
+					},
+				},
+				ChannelID: testutils.GetChannelID(),
+				TeamID:    "mockTeamsTeamID",
+				ChatID:    "mockChatID",
+			},
 		},
-	}, "mockTeamsTeamID", testutils.GetChannelID(), "mockChatID")
+		{
+			Name: "ConvertToMessage: With no data filled",
+			ChatMessage: &msgraph.ChatMessage{
+				LastModifiedDateTime: &time.Time{},
+			},
+			ExpectedResult: Message{
+				Attachments:  []Attachment{},
+				Reactions:    []Reaction{},
+				LastUpdateAt: time.Time{},
+				ChannelID:    testutils.GetChannelID(),
+				TeamID:       "mockTeamsTeamID",
+				ChatID:       "mockChatID",
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			resp := convertToMessage(test.ChatMessage, "mockTeamsTeamID", testutils.GetChannelID(), "mockChatID")
 
-	assert.Equal(Message{
-		UserID:          teamsUserID,
-		UserDisplayName: teamsUserDisplayName,
-		ReplyToID:       teamsReplyID,
-		Text:            content,
-		Subject:         subject,
-		LastUpdateAt:    time.Time{},
-		Attachments: []Attachment{
-			{
-				ContentType: attachmentContentType,
-				Content:     attachmentContent,
-				Name:        attachmentName,
-				ContentURL:  attachmentURL,
-			},
-		},
-		Reactions: []Reaction{
-			{
-				Reaction: reactionType,
-				UserID:   teamsUserID,
-			},
-		},
-		ChannelID: testutils.GetChannelID(),
-		TeamID:    "mockTeamsTeamID",
-		ChatID:    "mockChatID",
-	}, *resp)
+			assert.Equal(test.ExpectedResult, *resp)
+		})
+	}
 }
 
 func TestGetResourceIds(t *testing.T) {
@@ -89,20 +117,38 @@ func TestGetResourceIds(t *testing.T) {
 	}{
 		{
 			Name:     "GetResourceIds: With prefix chats(",
-			Resource: "chats(chat123-ID/mockChannel456-ID",
+			Resource: "chats('19:8ea0e38b-efb3-4757-924a-5f94061cf8c2_97f62344-57dc-409c-88ad-c4af14158ff5@unq.gbl.spaces')/messages('1612289765949')",
 			ExpectedResult: ActivityIds{
-				ChatID:    "hat123-",
-				MessageID: "l456-",
+				ChatID:    "19:8ea0e38b-efb3-4757-924a-5f94061cf8c2_97f62344-57dc-409c-88ad-c4af14158ff5@unq.gbl.spaces",
+				MessageID: "1612289765949",
 			},
 		},
 		{
 			Name:     "GetResourceIds: Without prefix chats(",
-			Resource: "mockTeam123-ID/mockChannel456-ID/mockMessage789-ID/mockReply910-ID",
+			Resource: "teams('fbe2bf47-16c8-47cf-b4a5-4b9b187c508b')/channels('19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2')/messages('1612293113399')/replies('19:zOtXfpDMWANo7-9CHuzHdM7WPSamQejH0Vydj0U-Yho1')",
 			ExpectedResult: ActivityIds{
-				TeamID:    "m123-",
-				ChannelID: "l456-",
-				MessageID: "e789-",
-				ReplyID:   "910-",
+				TeamID:    "fbe2bf47-16c8-47cf-b4a5-4b9b187c508b",
+				ChannelID: "19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2",
+				MessageID: "1612293113399",
+				ReplyID:   "19:zOtXfpDMWANo7-9CHuzHdM7WPSamQejH0Vydj0U-Yho1",
+			},
+		},
+		{
+			Name:     "GetResourceIds: Resource with multiple '/'",
+			Resource: "/////19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2///",
+		},
+		{
+			Name: "GetResourceIds: Empty resource",
+		},
+		{
+			Name:     "GetResourceIds: Resource with small length",
+			Resource: "ID",
+		},
+		{
+			Name:     "GetResourceIds: Resource with large length",
+			Resource: "very-long-teams-ID-with-very-long-chat-ID",
+			ExpectedResult: ActivityIds{
+				TeamID: "ng-teams-ID-with-very-long-chat-",
 			},
 		},
 	} {
