@@ -33,6 +33,7 @@ func TestGetAvatarCache(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("KVGet", avatarKey+testutils.GetID()).Return([]byte("mock data"), nil)
 			},
+			ExpectedErrorMessage: "",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -70,6 +71,7 @@ func TestSetAvatarCache(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(nil)
 			},
+			ExpectedErrorMessage: "",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -110,6 +112,7 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 			EnabledTeams: func() []string {
 				return []string{"mockTeamsTeam"}
 			},
+			ExpectedResult: false,
 		},
 		{
 			Name: "CheckEnabledTeamByTeamID: Enabled team does not matches",
@@ -121,6 +124,7 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 			EnabledTeams: func() []string {
 				return []string{"mockTeamsTeam"}
 			},
+			ExpectedResult: false,
 		},
 		{
 			Name: "CheckEnabledTeamByTeamID: Valid",
