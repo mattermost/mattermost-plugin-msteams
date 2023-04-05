@@ -127,6 +127,15 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	channel, appErr := p.API.GetChannel(args.ChannelId)
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
+	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
+	}
+
 	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
 	if !canLinkChannel {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
@@ -138,11 +147,6 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 
 	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
 		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
-	}
-
-	channel, appErr := p.API.GetChannel(args.ChannelId)
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
@@ -181,14 +185,18 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
-	}
-
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
+	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
+	}
+
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
 	}
 
 	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
