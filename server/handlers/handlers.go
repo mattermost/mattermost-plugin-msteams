@@ -130,11 +130,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	var senderID string
 	var channelID string
-	senderID, err := ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-	if err != nil || senderID == "" {
-		senderID = ah.plugin.GetBotUserID()
-	}
 	if chat != nil {
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
@@ -145,11 +142,17 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
 			return
 		}
+		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
+		senderID, _ = ah.getOrCreateSyntheticUser(msg.UserID, "")
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
 			channelID = channelLink.MattermostChannel
 		}
+	}
+
+	if err != nil || senderID == "" {
+		senderID = ah.plugin.GetBotUserID()
 	}
 
 	if channelID == "" {

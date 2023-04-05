@@ -108,13 +108,21 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 	if err != nil || mmUserID == "" {
 		u, appErr := ah.plugin.GetAPI().GetUserByEmail(userID + "@msteamssync")
 		if appErr != nil {
+			userDisplayName := displayName
+			if displayName == "" {
+				user, err := ah.plugin.GetClientForApp().GetUser(userID)
+				if err != nil {
+					return "", err
+				}
+				userDisplayName = user.DisplayName
+			}
 			var appErr2 *model.AppError
 			memberUUID := uuid.Parse(userID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(memberUUID)
 			u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
-				Username:  slug.Make(displayName) + "-" + userID,
-				FirstName: displayName,
+				Username:  slug.Make(userDisplayName) + "-" + userID,
+				FirstName: userDisplayName,
 				Email:     userID + "@msteamssync",
 				Password:  model.NewId(),
 				RemoteId:  &shortUserID,
