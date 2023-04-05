@@ -8,8 +8,8 @@ import (
 	"github.com/mattn/godown"
 )
 
-func (ah *ActivityHandler) msgToPost(channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
-	text := convertToMD(msg.Text)
+func (ah *ActivityHandler) MsgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
+	text := ConvertToMD(msg.Text)
 	props := make(map[string]interface{})
 	rootID := ""
 
@@ -20,7 +20,7 @@ func (ah *ActivityHandler) msgToPost(channelID string, msg *msteams.Message, sen
 		}
 	}
 
-	newText, attachments, parentID := ah.handleAttachments(channelID, text, msg)
+	newText, attachments, parentID := ah.handleAttachments(userID, channelID, text, msg)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -41,7 +41,7 @@ func (ah *ActivityHandler) msgToPost(channelID string, msg *msteams.Message, sen
 	return post, nil
 }
 
-func convertToMD(text string) string {
+func ConvertToMD(text string) string {
 	if !strings.Contains(text, "<div>") && !strings.Contains(text, "<p>") {
 		return text
 	}

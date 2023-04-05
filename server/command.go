@@ -69,9 +69,11 @@ func getAutocompleteData() *model.AutocompleteData {
 	cmd.AddCommand(disconnect)
 
 	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
+	connectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(connectBot)
 
 	disconnectBot := model.NewAutocompleteData("disconnect-bot", "", "Disconnect the bot account (only system admins can do this)")
+	disconnectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(disconnectBot)
 
 	return cmd
@@ -125,6 +127,11 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
+	}
+
 	if len(parameters) < 2 {
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
@@ -138,15 +145,14 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
-	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
-	}
-
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
+	}
+
+	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
+	if err == nil && link != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "A link to this MS Teams channel already exists, please remove unlink the channel before you link a new one")
 	}
 
 	client, err := p.GetClientForUser(args.UserId)
@@ -164,6 +170,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
+		Creator:           args.UserId,
 	})
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
@@ -174,19 +181,17 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 }
 
 func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
+	}
+
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	canLinkChannel := channel.Type == model.ChannelTypeOpen && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePublicChannelProperties)
-	canLinkChannel = canLinkChannel || (channel.Type == model.ChannelTypePrivate && p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManagePrivateChannelProperties))
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you has to be a channel admin to unlink it.")
-	}
-
-	err := p.store.DeleteLinkByChannelID(channel.Id)
-	if err != nil {
+	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 
@@ -225,7 +230,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantID, p.configuration.ClientID, messageChan)
+		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
@@ -273,7 +278,7 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.RequestUserToken(p.configuration.TenantID, p.configuration.ClientID, messageChan)
+		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
 			return

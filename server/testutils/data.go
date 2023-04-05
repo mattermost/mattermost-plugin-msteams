@@ -10,6 +10,10 @@ func GetChannelID() string {
 	return "bnqnzipmnir4zkkj95ggba5pde"
 }
 
+func GetSenderID() string {
+	return "pqoejrn65psweomewmosaqr"
+}
+
 func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
