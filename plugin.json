@@ -81,6 +81,12 @@
           "type": "bool",
           "help_text": "Sync direct and group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
           "default": false
+        },{
+          "key": "enabledTeams",
+          "display_name": "Enabled Teams",
+          "type": "text",
+          "help_text": "Teams where syncs are enabled (comma separated Mattermost team names, empty means all enabled)",
+          "default": ""
         }]
     }
 }
