@@ -53,7 +53,7 @@ func TestMsgToPost(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			ah.plugin = p
-			post, _ := ah.MsgToPost(testCase.userID, testCase.channelID, testCase.message, testCase.senderID)
+			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.message, testCase.senderID)
 			assert.Equal(t, post, testCase.post)
 		})
 	}
@@ -77,7 +77,7 @@ func TestConvertToMD(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			text := ConvertToMD(testCase.text)
+			text := convertToMD(testCase.text)
 			assert.Equal(t, text, testCase.expectedOutput)
 		})
 	}

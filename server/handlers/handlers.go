@@ -162,7 +162,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
 	}
 
-	post, err := ah.MsgToPost(userID, channelID, msg, senderID)
+	post, err := ah.msgToPost(userID, channelID, msg, senderID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
 		return
@@ -262,7 +262,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
 	}
 
-	post, err := ah.MsgToPost(userID, channelID, msg, senderID)
+	post, err := ah.msgToPost(userID, channelID, msg, senderID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
 		return
