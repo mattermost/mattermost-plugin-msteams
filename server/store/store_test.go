@@ -22,13 +22,13 @@ func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, testcontai
 	store := &SQLStore{}
 	store.api = api
 	store.driverName = "postgres"
-	db, container := createTestDb()
+	db, container := createTestDB()
 	store.db = db
-	store.Init()
+	_ = store.Init()
 	return store, api, container
 }
 
-func createTestDb() (*sql.DB, testcontainers.Container) {
+func createTestDB() (*sql.DB, testcontainers.Container) {
 	postgresPort := nat.Port("5432/tcp")
 	postgres, _ := testcontainers.GenericContainer(context.Background(),
 		testcontainers.GenericContainerRequest{
@@ -212,7 +212,8 @@ func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 
-	container.Terminate(context.Background())
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
 }
 
 func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
@@ -239,7 +240,8 @@ func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 
-	container.Terminate(context.Background())
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
 }
 
 func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
@@ -281,5 +283,6 @@ func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
 
-	container.Terminate(context.Background())
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
 }
