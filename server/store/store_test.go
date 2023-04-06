@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"golang.org/x/oauth2"
 )
 
 func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, testcontainers.Container) {
@@ -326,6 +327,88 @@ func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
 
 	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID")
 	assert.Equal(&mockPostInfo, resp)
+	assert.Nil(getErr)
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), &oauth2.Token{})
+	assert.Nil(storeErr)
+
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID())
+	assert.Equal(testutils.GetID(), resp)
+	assert.Nil(getErr)
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), &oauth2.Token{})
+	assert.Nil(storeErr)
+
+	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID())
+	assert.Equal(testutils.GetTeamUserID(), resp)
+	assert.Nil(getErr)
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	token := &oauth2.Token{
+		AccessToken:  "mockAccessToken",
+		RefreshToken: "mockRefreshToken",
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), token)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID())
+	assert.Equal(token, resp)
+	assert.Nil(getErr)
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	token := &oauth2.Token{
+		AccessToken:  "mockAccessToken",
+		RefreshToken: "mockRefreshToken",
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), token)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID())
+	assert.Equal(token, resp)
 	assert.Nil(getErr)
 
 	termErr := container.Terminate(context.Background())
