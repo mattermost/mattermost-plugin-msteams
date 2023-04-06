@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"testing"
 
@@ -282,6 +283,50 @@ func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+
+	mockPostInfo := storemodels.PostInfo{
+		MattermostID:        "mockMattermostID",
+		MSTeamsID:           "mockMSTeamsID",
+		MSTeamsChannel:      "mockMSTeamsChannel",
+		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
+	}
+
+	storeErr := store.LinkPosts(mockPostInfo)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel", "mockMSTeamsID")
+	assert.Equal(&mockPostInfo, resp)
+	assert.Nil(getErr)
+
+	termErr := container.Terminate(context.Background())
+	assert.Nil(termErr)
+}
+
+func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
+	assert := assert.New(t)
+	store, _, container := setupTestStore(&plugintest.API{})
+
+	mockPostInfo := storemodels.PostInfo{
+		MattermostID:        "mockMattermostID",
+		MSTeamsID:           "mockMSTeamsID",
+		MSTeamsChannel:      "mockMSTeamsChannel",
+		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
+	}
+
+	storeErr := store.LinkPosts(mockPostInfo)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID")
+	assert.Equal(&mockPostInfo, resp)
+	assert.Nil(getErr)
 
 	termErr := container.Terminate(context.Background())
 	assert.Nil(termErr)
