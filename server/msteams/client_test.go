@@ -134,22 +134,23 @@ func TestGetResourceIds(t *testing.T) {
 			},
 		},
 		{
-			Name:     "GetResourceIds: Resource with multiple '/'",
-			Resource: "/////19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2///",
+			Name:           "GetResourceIds: Resource with multiple '/'",
+			Resource:       "/////19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2///",
+			ExpectedResult: ActivityIds{},
 		},
 		{
-			Name: "GetResourceIds: Empty resource",
+			Name:           "GetResourceIds: Empty resource",
+			ExpectedResult: ActivityIds{},
 		},
 		{
-			Name:     "GetResourceIds: Resource with small length",
-			Resource: "ID",
+			Name:           "GetResourceIds: Resource with small length",
+			Resource:       "ID",
+			ExpectedResult: ActivityIds{},
 		},
 		{
-			Name:     "GetResourceIds: Resource with large length",
-			Resource: "very-long-teams-ID-with-very-long-chat-ID",
-			ExpectedResult: ActivityIds{
-				TeamID: "ng-teams-ID-with-very-long-chat-",
-			},
+			Name:           "GetResourceIds: Resource with large length",
+			Resource:       "very-long-teams-ID-with-very-long-chat-ID",
+			ExpectedResult: ActivityIds{},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
