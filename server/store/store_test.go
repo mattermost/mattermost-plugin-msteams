@@ -1,18 +1,55 @@
 package store
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
+
 	"testing"
 
+	"github.com/docker/go-connections/nat"
+	"github.com/jmoiron/sqlx"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API) {
+func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, testcontainers.Container) {
 	store := &SQLStore{}
 	store.api = api
-	return store, api
+	store.driverName = "postgres"
+	db, container := createTestDb()
+	store.db = db
+	store.Init()
+	return store, api, container
+}
+
+func createTestDb() (*sql.DB, testcontainers.Container) {
+	postgresPort := nat.Port("5432/tcp")
+	postgres, _ := testcontainers.GenericContainer(context.Background(),
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        "postgres",
+				ExposedPorts: []string{postgresPort.Port()},
+				Env: map[string]string{
+					"POSTGRES_PASSWORD": "pass",
+					"POSTGRES_USER":     "user",
+				},
+				WaitingFor: wait.ForAll(
+					wait.ForLog("database system is ready to accept connections"),
+					wait.ForListeningPort(postgresPort),
+				),
+			},
+			Started: true,
+		})
+
+	hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
+	conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+	return conn.DB, postgres
 }
 
 func TestGetAvatarCache(t *testing.T) {
@@ -38,7 +75,7 @@ func TestGetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api := setupTestStore(&plugintest.API{})
+			store, api, _ := setupTestStore(&plugintest.API{})
 			test.SetupAPI(api)
 			resp, err := store.GetAvatarCache(testutils.GetID())
 
@@ -76,7 +113,7 @@ func TestSetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api := setupTestStore(&plugintest.API{})
+			store, api, _ := setupTestStore(&plugintest.API{})
 			test.SetupAPI(api)
 			err := store.SetAvatarCache(testutils.GetID(), []byte{10})
 
@@ -141,7 +178,7 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api := setupTestStore(&plugintest.API{})
+			store, api, _ := setupTestStore(&plugintest.API{})
 			test.SetupAPI(api)
 			store.enabledTeams = test.EnabledTeams
 			resp := store.CheckEnabledTeamByTeamID("mockTeamID")
@@ -149,4 +186,100 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 			assert.Equal(test.ExpectedResult, resp)
 		})
 	}
+}
+
+func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
+	assert := assert.New(t)
+	store, api, container := setupTestStore(&plugintest.API{})
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
+
+	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
+		Name: "mockMattermostTeamID",
+	}, nil)
+
+	mockChannelLink := &storemodels.ChannelLink{
+		MattermostChannel: "mockMattermostChannelID",
+		MattermostTeam:    "mockMattermostTeamID",
+		MSTeamsTeam:       "mockMSTeamsTeamID",
+		MSTeamsChannel:    "mockMSTeamsChannelID",
+		Creator:           "mockCreator",
+	}
+
+	storeErr := store.StoreChannelLink(mockChannelLink)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID")
+	assert.Equal(mockChannelLink, resp)
+	assert.Nil(getErr)
+
+	container.Terminate(context.Background())
+}
+
+func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
+	assert := assert.New(t)
+	store, api, container := setupTestStore(&plugintest.API{})
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
+
+	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
+		Name: "mockMattermostTeamID",
+	}, nil)
+
+	mockChannelLink := &storemodels.ChannelLink{
+		MattermostChannel: "mockMattermostChannelID",
+		MattermostTeam:    "mockMattermostTeamID",
+		MSTeamsTeam:       "mockMSTeamsTeamID",
+		MSTeamsChannel:    "mockMSTeamsChannelID",
+		Creator:           "mockCreator",
+	}
+
+	storeErr := store.StoreChannelLink(mockChannelLink)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	assert.Equal(mockChannelLink, resp)
+	assert.Nil(getErr)
+
+	container.Terminate(context.Background())
+}
+
+func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
+	assert := assert.New(t)
+	store, api, container := setupTestStore(&plugintest.API{})
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
+
+	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
+		Name: "mockMattermostTeamID",
+	}, nil)
+
+	mockChannelLink := &storemodels.ChannelLink{
+		MattermostChannel: "mockMattermostChannelID",
+		MattermostTeam:    "mockMattermostTeamID",
+		MSTeamsTeam:       "mockMSTeamsTeamID",
+		MSTeamsChannel:    "mockMSTeamsChannelID",
+		Creator:           "mockCreator",
+	}
+
+	storeErr := store.StoreChannelLink(mockChannelLink)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID")
+	assert.Equal(mockChannelLink, resp)
+	assert.Nil(getErr)
+
+	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	assert.Equal(mockChannelLink, resp)
+	assert.Nil(getErr)
+
+	delErr := store.DeleteLinkByChannelID("mockMattermostChannelID")
+	assert.Nil(delErr)
+
+	resp, getErr = store.GetLinkByChannelID("mockMattermostChannelID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+
+	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+
+	container.Terminate(context.Background())
 }
