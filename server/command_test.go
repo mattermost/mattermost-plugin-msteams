@@ -528,7 +528,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {},
 		},
 		{
-			description: "Unable to unlink channel as channel is either a direct or group message",
+			description: "Unable to link channel as channel is either a direct or group message",
 			parameters:  []string{testutils.GetTeamUserID(), ""},
 			args: &model.CommandArgs{
 				TeamId:    testutils.GetTeamUserID(),
