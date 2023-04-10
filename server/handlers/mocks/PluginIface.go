@@ -151,20 +151,6 @@ func (_m *PluginIface) GetURL() string {
 	return r0
 }
 
-// GetWebhookSecret provides a mock function with given fields:
-func (_m *PluginIface) GetWebhookSecret() string {
-	ret := _m.Called()
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
 type mockConstructorTestingTNewPluginIface interface {
 	mock.TestingT
 	Cleanup(func())

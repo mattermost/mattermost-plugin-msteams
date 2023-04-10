@@ -22,6 +22,22 @@ func GetTeamUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
 }
 
+func GetMessageID() string {
+	return "dsdfonreoapwer4onebfdr"
+}
+
+func GetReplyID() string {
+	return "pqoeurndhroajdemq4nfmw"
+}
+
+func GetChatID() string {
+	return "qplsnwere9nurernidteoqw"
+}
+
+func GetMattermostID() string {
+	return "qwifdnaootmgkerodfdmwo"
+}
+
 func GetPostID() string {
 	return "qwifdnaootmgkerodfdmwo"
 }
