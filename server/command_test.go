@@ -47,7 +47,30 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
+			},
+		},
+		{
+			description: "Unable to get link.",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: "Mock-ChannelID",
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
+					Id:   "Mock-ChannelID",
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: "Mock-ChannelID",
+					Message:   "This Mattermost channel is not linked to any MS Teams channel.",
+				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID())).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, errors.New("Error while getting link")).Once()
 			},
 		},
 		{
@@ -69,6 +92,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, nil).Once()
 				s.On("DeleteLinkByChannelID", "Mock-ChannelID").Return(errors.New("Error while deleting a link")).Times(1)
 			},
 		},
@@ -238,6 +262,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamUserID(), nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamUserID(), token).Return(nil).Times(1)
 			},
@@ -256,6 +281,20 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 		},
 		{
+			description: "User account is not connected as token is not found",
+			args:        &model.CommandArgs{},
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", "", &model.Post{
+					UserId:  "bot-user-id",
+					Message: "Error: the account is not connected",
+				}).Return(testutils.GetPost("", "")).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "").Return("", nil).Times(1)
+				s.On("GetTokenForMattermostUser", "").Return(nil, errors.New("Unable to get token")).Once()
+			},
+		},
+		{
 			description: "Unable to disconnect your account",
 			args: &model.CommandArgs{
 				UserId: testutils.GetUserID(),
@@ -269,6 +308,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", nil).Times(1)
 				var token *oauth2.Token
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				s.On("SetUserInfo", testutils.GetUserID(), "", token).Return(errors.New("Error while disconnecting your account")).Times(1)
 			},
 		},

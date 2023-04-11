@@ -199,6 +199,10 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
 	}
 
+	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "This Mattermost channel is not linked to any MS Teams channel.")
+	}
+
 	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
@@ -330,6 +334,11 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
 	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
+		return &model.CommandResponse{}, nil
+	}
+
+	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
 		return &model.CommandResponse{}, nil
 	}
