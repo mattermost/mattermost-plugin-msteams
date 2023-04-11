@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"testing"
@@ -20,17 +21,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, testcontainers.Container) {
+func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, func()) {
 	store := &SQLStore{}
 	store.api = api
 	store.driverName = "postgres"
-	db, container := createTestDB()
+	db, tearDownContainer := createTestDB()
 	store.db = db
 	_ = store.Init()
-	return store, api, container
+	return store, api, tearDownContainer
 }
 
-func createTestDB() (*sql.DB, testcontainers.Container) {
+func createTestDB() (*sql.DB, func()) {
 	postgresPort := nat.Port("5432/tcp")
 	postgres, _ := testcontainers.GenericContainer(context.Background(),
 		testcontainers.GenericContainerRequest{
@@ -51,7 +52,13 @@ func createTestDB() (*sql.DB, testcontainers.Container) {
 
 	hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
 	conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
-	return conn.DB, postgres
+	tearDownContainer := func() {
+		if err := postgres.Terminate(context.Background()); err != nil {
+			log.Fatalf("failed to terminate container: %s", err.Error())
+		}
+	}
+
+	return conn.DB, tearDownContainer
 }
 
 func TestGetAvatarCache(t *testing.T) {
@@ -77,7 +84,8 @@ func TestGetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, _ := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			defer tearDownContainer()
 			test.SetupAPI(api)
 			resp, err := store.GetAvatarCache(testutils.GetID())
 
@@ -115,7 +123,8 @@ func TestSetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, _ := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			defer tearDownContainer()
 			test.SetupAPI(api)
 			err := store.SetAvatarCache(testutils.GetID(), []byte{10})
 
@@ -180,7 +189,8 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, _ := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			defer tearDownContainer()
 			test.SetupAPI(api)
 			store.enabledTeams = test.EnabledTeams
 			resp := store.CheckEnabledTeamByTeamID("mockTeamID")
@@ -192,7 +202,8 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 
 func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, container := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
 	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
@@ -213,14 +224,12 @@ func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, container := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
 	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
@@ -241,14 +250,12 @@ func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 	resp, getErr := store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, container := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
 	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
@@ -284,14 +291,12 @@ func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 
 	mockPostInfo := storemodels.PostInfo{
 		MattermostID:        "mockMattermostID",
@@ -306,14 +311,12 @@ func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
 	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel", "mockMSTeamsID")
 	assert.Equal(&mockPostInfo, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 
 	mockPostInfo := storemodels.PostInfo{
 		MattermostID:        "mockMattermostID",
@@ -328,14 +331,12 @@ func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
 	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID")
 	assert.Equal(&mockPostInfo, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
@@ -346,14 +347,12 @@ func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
 	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID())
 	assert.Equal(testutils.GetID(), resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
@@ -364,14 +363,12 @@ func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID())
 	assert.Equal(testutils.GetTeamUserID(), resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
@@ -387,14 +384,12 @@ func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID())
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
 
 func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
 	assert := assert.New(t)
-	store, _, container := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
@@ -410,7 +405,4 @@ func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
 	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID())
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
-
-	termErr := container.Terminate(context.Background())
-	assert.Nil(termErr)
 }
