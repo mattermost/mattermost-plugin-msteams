@@ -815,7 +815,12 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 	ctb := tc.client.Chats().ID(chatID).Messages().ID(messageID)
 	ctb.SetURL(ctb.URL() + "/setReaction")
 	ct := ctb.Request()
-	req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+	req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+		"reactionType": emoji,
+		"user": map[string]string{
+			"id": userID,
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -840,7 +845,12 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID)
 		ctb.SetURL(ctb.URL() + "/setReaction")
 		ct := ctb.Request()
-		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+			"reactionType": emoji,
+			"user": map[string]string{
+				"id": userID,
+			},
+		})
 		if err != nil {
 			return err
 		}
@@ -861,7 +871,12 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(messageID)
 		ctb.SetURL(ctb.URL() + "/setReaction")
 		ct := ctb.Request()
-		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+			"reactionType": emoji,
+			"user": map[string]string{
+				"id": userID,
+			},
+		})
 		if err != nil {
 			return err
 		}
@@ -885,7 +900,12 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 	ctb := tc.client.Chats().ID(chatID).Messages().ID(messageID)
 	ctb.SetURL(ctb.URL() + "/unsetReaction")
 	ct := ctb.Request()
-	req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+	req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+		"reactionType": emoji,
+		"user": map[string]string{
+			"id": userID,
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -910,7 +930,12 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(messageID)
 		ctb.SetURL(ctb.URL() + "/unsetReaction")
 		ct := ctb.Request()
-		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+			"reactionType": emoji,
+			"user": map[string]string{
+				"id": userID,
+			},
+		})
 		if err != nil {
 			return err
 		}
@@ -930,7 +955,12 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		ctb := tc.client.Teams().ID(teamID).Channels().ID(channelID).Messages().ID(parentID).Replies().ID(messageID)
 		ctb.SetURL(ctb.URL() + "/unsetReaction")
 		ct := ctb.Request()
-		req, err := ct.NewJSONRequest("POST", "", map[string]string{"reactionType": emoji})
+		req, err := ct.NewJSONRequest("POST", "", map[string]interface{}{
+			"reactionType": emoji,
+			"user": map[string]string{
+				"id": userID,
+			},
+		})
 		if err != nil {
 			return err
 		}
