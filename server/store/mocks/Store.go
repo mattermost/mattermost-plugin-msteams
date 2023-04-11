@@ -3,8 +3,8 @@
 package mocks
 
 import (
+	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mock "github.com/stretchr/testify/mock"
-	oauth2 "golang.org/x/oauth2"
 
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
@@ -158,15 +158,15 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 }
 
 // GetTokenForMSTeamsUser provides a mock function with given fields: userID
-func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
+func (_m *Store) GetTokenForMSTeamsUser(userID string) (*msteams.Token, error) {
 	ret := _m.Called(userID)
 
-	var r0 *oauth2.Token
-	if rf, ok := ret.Get(0).(func(string) *oauth2.Token); ok {
+	var r0 *msteams.Token
+	if rf, ok := ret.Get(0).(func(string) *msteams.Token); ok {
 		r0 = rf(userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*oauth2.Token)
+			r0 = ret.Get(0).(*msteams.Token)
 		}
 	}
 
@@ -181,15 +181,15 @@ func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 }
 
 // GetTokenForMattermostUser provides a mock function with given fields: userID
-func (_m *Store) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
+func (_m *Store) GetTokenForMattermostUser(userID string) (*msteams.Token, error) {
 	ret := _m.Called(userID)
 
-	var r0 *oauth2.Token
-	if rf, ok := ret.Get(0).(func(string) *oauth2.Token); ok {
+	var r0 *msteams.Token
+	if rf, ok := ret.Get(0).(func(string) *msteams.Token); ok {
 		r0 = rf(userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*oauth2.Token)
+			r0 = ret.Get(0).(*msteams.Token)
 		}
 	}
 
@@ -267,11 +267,11 @@ func (_m *Store) SetAvatarCache(userID string, photo []byte) error {
 }
 
 // SetUserInfo provides a mock function with given fields: userID, msTeamsUserID, token
-func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
+func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *msteams.Token) error {
 	ret := _m.Called(userID, msTeamsUserID, token)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, *oauth2.Token) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, *msteams.Token) error); ok {
 		r0 = rf(userID, msTeamsUserID, token)
 	} else {
 		r0 = ret.Error(0)

@@ -230,13 +230,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
-			return
-		}
-
-		token, err := tokenSource.Token()
+		token, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
 			return
@@ -278,13 +272,7 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
-			return
-		}
-
-		token, err := tokenSource.Token()
+		token, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
 			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
 			return

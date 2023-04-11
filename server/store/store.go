@@ -10,10 +10,10 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -32,9 +32,9 @@ type Store interface {
 	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
 	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
 	LinkPosts(postInfo storemodels.PostInfo) error
-	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
-	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
-	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
+	GetTokenForMattermostUser(userID string) (*msteams.Token, error)
+	GetTokenForMSTeamsUser(userID string) (*msteams.Token, error)
+	SetUserInfo(userID string, msTeamsUserID string, token *msteams.Token) error
 	TeamsToMattermostUserID(userID string) (string, error)
 	MattermostToTeamsUserID(userID string) (string, error)
 	CheckEnabledTeamByTeamID(teamID string) bool
@@ -327,7 +327,7 @@ func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 	return nil
 }
 
-func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
+func (s *SQLStore) GetTokenForMattermostUser(userID string) (*msteams.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
@@ -345,7 +345,7 @@ func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, erro
 		return nil, err
 	}
 
-	var token oauth2.Token
+	var token msteams.Token
 	err = json.Unmarshal([]byte(tokendata), &token)
 	if err != nil {
 		return nil, err
@@ -353,7 +353,7 @@ func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, erro
 	return &token, nil
 }
 
-func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
+func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*msteams.Token, error) {
 	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}, sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
@@ -371,7 +371,7 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 		return nil, err
 	}
 
-	var token oauth2.Token
+	var token msteams.Token
 	err = json.Unmarshal([]byte(tokendata), &token)
 	if err != nil {
 		return nil, err
@@ -379,7 +379,7 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 	return &token, nil
 }
 
-func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
+func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *msteams.Token) error {
 	tokendata := []byte{}
 	if token != nil {
 		var err error

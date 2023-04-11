@@ -262,12 +262,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	messageChan := make(chan string)
 	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			return
-		}
-
-		token, err := tokenSource.Token()
+		token, err := msteams.NewUnauthenticatedClient(a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
 			return
 		}
