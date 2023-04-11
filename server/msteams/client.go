@@ -721,6 +721,10 @@ func GetResourceIds(resource string) ActivityIds {
 	result := ActivityIds{}
 	data := strings.Split(resource, "/")
 
+	if len(data) <= 1 {
+		return result
+	}
+
 	if strings.HasPrefix(data[0], "chats(") {
 		if len(data[0]) >= 9 {
 			result.ChatID = data[0][7 : len(data[0])-2]
