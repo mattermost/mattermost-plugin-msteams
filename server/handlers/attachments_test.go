@@ -219,7 +219,7 @@ func TestHandleMessageReference(t *testing.T) {
 			},
 		},
 		{
-			description: "Unable to unmarshal codesnippet",
+			description: "Unable to unmarshal content",
 			attach: msteams.Attachment{
 				Content: "Invalid JSON",
 			},
