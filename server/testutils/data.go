@@ -10,12 +10,32 @@ func GetChannelID() string {
 	return "bnqnzipmnir4zkkj95ggba5pde"
 }
 
+func GetSenderID() string {
+	return "pqoejrn65psweomewmosaqr"
+}
+
 func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
 func GetTeamUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
+}
+
+func GetMessageID() string {
+	return "dsdfonreoapwer4onebfdr"
+}
+
+func GetReplyID() string {
+	return "pqoeurndhroajdemq4nfmw"
+}
+
+func GetChatID() string {
+	return "qplsnwere9nurernidteoqw"
+}
+
+func GetMattermostID() string {
+	return "qwifdnaootmgkerodfdmwo"
 }
 
 func GetPostID() string {

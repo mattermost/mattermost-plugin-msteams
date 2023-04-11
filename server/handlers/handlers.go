@@ -24,7 +24,7 @@ const (
 	activityQueueSize     = 1000
 )
 
-type pluginIface interface {
+type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
@@ -36,12 +36,12 @@ type pluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin pluginIface
+	plugin PluginIface
 	queue  chan msteams.Activity
 	quit   chan bool
 }
 
-func New(plugin pluginIface) *ActivityHandler {
+func New(plugin PluginIface) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
