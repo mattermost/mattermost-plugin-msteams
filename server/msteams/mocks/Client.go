@@ -167,15 +167,17 @@ func (_m *Client) GetCodeSnippet(url string) (string, error) {
 	return r0, r1
 }
 
-// GetFileURL provides a mock function with given fields: weburl
-func (_m *Client) GetFileURL(weburl string) (string, error) {
+// GetFileContent provides a mock function with given fields: weburl
+func (_m *Client) GetFileContent(weburl string) ([]byte, error) {
 	ret := _m.Called(weburl)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(string) []byte); ok {
 		r0 = rf(weburl)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
 	}
 
 	var r1 error

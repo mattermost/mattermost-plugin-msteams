@@ -2,9 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -18,20 +15,9 @@ func (ah *ActivityHandler) handleDownloadFile(userID, filename, weburl string) (
 		return nil, err
 	}
 
-	realURL, err := client.GetFileURL(weburl)
+	data, err := client.GetFileContent(weburl)
 	if err != nil {
 		return nil, err
-	}
-	// Actually download the file.
-	res, err := http.DefaultClient.Get(realURL)
-	if err != nil {
-		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
-	}
-	defer res.Body.Close()
-
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
 	}
 
 	return data, nil

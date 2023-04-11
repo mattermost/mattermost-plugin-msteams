@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,7 +18,9 @@ import (
 	"github.com/enescakir/emoji"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
 	az "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
@@ -707,39 +710,63 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	return photo, nil
 }
 
-func (tc *ClientImpl) GetFileURL(weburl string) (string, error) {
-	// TODO: I have to investigate how to do this
-	// itemRB, err := tc.client.GetDriveItemByURL(tc.ctx, weburl)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// itemRB.Workbook().Worksheets()
-	// tc.client.Workbooks()
-	// item, err := itemRB.Request().Get(tc.ctx)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// url, ok := item.GetAdditionalData("@microsoft.graph.downloadUrl")
-	// if !ok {
-	// 	return "", nil
-	// }
-	// return url.(string), nil
-	return "", errors.New("NOT IMPLEMENTED YET")
+func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
+	u, err := url.Parse(weburl)
+	if err != nil {
+		return nil, err
+	}
+	u.RawQuery = ""
+	segments := strings.Split(u.Path, "/")
+
+	var site models.Siteable
+	for i := 3; i <= len(segments); i++ {
+		path := strings.Join(segments[:i], "/")
+		if len(path) == 0 || path[0] != '/' {
+			path = "/" + path
+		}
+
+		site, err = sites.NewSiteItemRequestBuilder("/sites/"+u.Hostname()+":"+path+":", tc.client.RequestAdapter).Get(tc.ctx, nil)
+		if err == nil {
+			break
+		}
+	}
+	if site == nil {
+		return nil, fmt.Errorf("Site for %s not found", weburl)
+	}
+
+	msDrives, err := tc.client.SitesById(*site.GetId()).Drives().Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	var itemRequest *drives.DriveItemRequestBuilder
+	var driveID string
+	for _, drive := range msDrives.GetValue() {
+		if strings.HasPrefix(u.String(), *drive.GetWebUrl()) {
+			path := u.String()[len(*drive.GetWebUrl()):]
+			if len(path) == 0 || path[0] != '/' {
+				path = "/" + path
+			}
+			itemRequest = drives.NewDriveItemRequestBuilder("/drives/"+driveID+"/root:"+path, tc.client.RequestAdapter)
+			driveID = *drive.GetId()
+			break
+		}
+	}
+
+	item, err := itemRequest.Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return tc.client.DrivesById(driveID).ItemsById(*item.GetId()).Content().Get(tc.ctx, nil)
 }
 
 func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
-	// TODO: I have to investigate how to do this
-	// resp, err := tc.client.Teams().Request().Client().Get(url)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// defer resp.Body.Close()
-	// res, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// return string(res), nil
-	return "", errors.New("NOT IMPLEMENTED YET")
+	// This is a hack to use the underneath machinery to do a plain request
+	// with the proper session
+	data, err := drives.NewItemItemsItemContentRequestBuilder(url, tc.client.RequestAdapter).Get(tc.ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func GetResourceIds(resource string) ActivityIds {
