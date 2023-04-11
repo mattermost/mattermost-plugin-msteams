@@ -21,44 +21,78 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func setupTestStore(api *plugintest.API) (*SQLStore, *plugintest.API, func()) {
+func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugintest.API, func()) {
 	store := &SQLStore{}
 	store.api = api
-	store.driverName = "postgres"
-	db, tearDownContainer := createTestDB()
+	store.driverName = driverName
+	db, tearDownContainer := createTestDB(driverName)
 	store.db = db
 	_ = store.Init()
 	return store, api, tearDownContainer
 }
 
-func createTestDB() (*sql.DB, func()) {
-	postgresPort := nat.Port("5432/tcp")
-	postgres, _ := testcontainers.GenericContainer(context.Background(),
+func createTestDB(driverName string) (*sql.DB, func()) {
+	// Create postgres container
+	if driverName == model.DatabaseDriverPostgres {
+		postgresPort := nat.Port("5432/tcp")
+		postgres, _ := testcontainers.GenericContainer(context.Background(),
+			testcontainers.GenericContainerRequest{
+				ContainerRequest: testcontainers.ContainerRequest{
+					Image:        "postgres",
+					ExposedPorts: []string{postgresPort.Port()},
+					Env: map[string]string{
+						"POSTGRES_PASSWORD": "pass",
+						"POSTGRES_USER":     "user",
+					},
+					WaitingFor: wait.ForAll(
+						wait.ForLog("database system is ready to accept connections"),
+						wait.ForListeningPort(postgresPort),
+					),
+				},
+				Started: true,
+			})
+
+		hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
+		conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+		tearDownContainer := func() {
+			if err := postgres.Terminate(context.Background()); err != nil {
+				log.Fatalf("failed to terminate container: %s", err.Error())
+			}
+		}
+
+		return conn.DB, tearDownContainer
+	}
+
+	// Create MySQL container
+	context := context.Background()
+	mysql, _ := testcontainers.GenericContainer(context,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "postgres",
-				ExposedPorts: []string{postgresPort.Port()},
+				Image:        "mysql:latest",
+				ExposedPorts: []string{"3306/tcp"},
 				Env: map[string]string{
-					"POSTGRES_PASSWORD": "pass",
-					"POSTGRES_USER":     "user",
+					"MYSQL_ROOT_PASSWORD": "root",
+					"MYSQL_DATABASE":      "test",
 				},
 				WaitingFor: wait.ForAll(
 					wait.ForLog("database system is ready to accept connections"),
-					wait.ForListeningPort(postgresPort),
 				),
 			},
 			Started: true,
 		})
 
-	hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
-	conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+	host, _ := mysql.Host(context)
+	p, _ := mysql.MappedPort(context, "3306/tcp")
+	port := p.Int()
+
+	mysqlConn, _ := sqlx.Connect("mysql", fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
 	tearDownContainer := func() {
-		if err := postgres.Terminate(context.Background()); err != nil {
+		if err := mysql.Terminate(context); err != nil {
 			log.Fatalf("failed to terminate container: %s", err.Error())
 		}
 	}
 
-	return conn.DB, tearDownContainer
+	return mysqlConn.DB, tearDownContainer
 }
 
 func TestGetAvatarCache(t *testing.T) {
@@ -84,7 +118,7 @@ func TestGetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 			defer tearDownContainer()
 			test.SetupAPI(api)
 			resp, err := store.GetAvatarCache(testutils.GetID())
@@ -123,7 +157,7 @@ func TestSetAvatarCache(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 			defer tearDownContainer()
 			test.SetupAPI(api)
 			err := store.SetAvatarCache(testutils.GetID(), []byte{10})
@@ -189,7 +223,7 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 			defer tearDownContainer()
 			test.SetupAPI(api)
 			store.enabledTeams = test.EnabledTeams
@@ -202,7 +236,7 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 
 func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
@@ -228,7 +262,7 @@ func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 
 func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
@@ -254,7 +288,7 @@ func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 
 func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
@@ -295,7 +329,7 @@ func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 
 func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverMysql)
 	defer tearDownContainer()
 
 	mockPostInfo := storemodels.PostInfo{
@@ -315,7 +349,7 @@ func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
 
 func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 
 	mockPostInfo := storemodels.PostInfo{
@@ -335,7 +369,7 @@ func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
 
 func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverMysql)
 	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -351,7 +385,7 @@ func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
 
 func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -367,7 +401,7 @@ func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
 
 func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -388,7 +422,7 @@ func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
 
 func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{})
+	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
 	defer tearDownContainer()
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
