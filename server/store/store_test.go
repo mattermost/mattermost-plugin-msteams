@@ -95,6 +95,39 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 	return mysqlConn.DB, tearDownContainer
 }
 
+func TestStore(t *testing.T) {
+	testFunctions := map[string]func(*testing.T, *SQLStore, *plugintest.API){
+		"testStoreChannelLinkAndGetLinkByChannelID":         testStoreChannelLinkAndGetLinkByChannelID,
+		"testGetLinkByChannelIDForInvalidID":                testGetLinkByChannelIDForInvalidID,
+		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID": testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
+		"testGetLinkByMSTeamsChannelIDForInvalidID":         testGetLinkByMSTeamsChannelIDForInvalidID,
+		"testStoreChannelLinkdAndDeleteLinkByChannelID":     testStoreChannelLinkdAndDeleteLinkByChannelID,
+		"testDeleteLinkByChannelIDForInvalidID":             testDeleteLinkByChannelIDForInvalidID,
+		"testLinkPostsAndGetPostInfoByMSTeamsID":            testLinkPostsAndGetPostInfoByMSTeamsID,
+		"testGetPostInfoByMSTeamsIDForInvalidID":            testGetPostInfoByMSTeamsIDForInvalidID,
+		"testLinkPostsAndGetPostInfoByMattermostID":         testLinkPostsAndGetPostInfoByMattermostID,
+		"testGetPostInfoByMattermostIDForInvalidID":         testGetPostInfoByMattermostIDForInvalidID,
+		"testSetUserInfoAndTeamsToMattermostUserID":         testSetUserInfoAndTeamsToMattermostUserID,
+		"testTeamsToMattermostUserIDForInvalidID":           testTeamsToMattermostUserIDForInvalidID,
+		"testSetUserInfoAndMattermostToTeamsUserID":         testSetUserInfoAndMattermostToTeamsUserID,
+		"testMattermostToTeamsUserIDForInvalidID":           testMattermostToTeamsUserIDForInvalidID,
+		"testSetUserInfoAndGetTokenForMattermostUser":       testSetUserInfoAndGetTokenForMattermostUser,
+		"testGetTokenForMattermostUserForInvalidUserID":     testGetTokenForMattermostUserForInvalidUserID,
+		"testSetUserInfoAndGetTokenForMSTeamsUser":          testSetUserInfoAndGetTokenForMSTeamsUser,
+		"testGetTokenForMSTeamsUserForInvalidID":            testGetTokenForMSTeamsUserForInvalidID,
+	}
+	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
+		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
+		for test := range testFunctions {
+			t.Run(driver+"/"+test, func(t *testing.T) {
+				testFunctions[test](t, store, api)
+			})
+		}
+
+		tearDownContainer()
+	}
+}
+
 func TestGetAvatarCache(t *testing.T) {
 	for _, test := range []struct {
 		Name                 string
@@ -234,209 +267,262 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	}
 }
 
-func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
+func testStoreChannelLinkAndGetLinkByChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
 
-	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
-		Name: "mockMattermostTeamID",
+	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
+		Name: "mockMattermostTeamID-1",
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID",
-		MattermostTeam:    "mockMattermostTeamID",
-		MSTeamsTeam:       "mockMSTeamsTeamID",
-		MSTeamsChannel:    "mockMSTeamsChannelID",
+		MattermostChannel: "mockMattermostChannelID-1",
+		MattermostTeam:    "mockMattermostTeamID-1",
+		MSTeamsTeam:       "mockMSTeamsTeamID-1",
+		MSTeamsChannel:    "mockMSTeamsChannelID-1",
 		Creator:           "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID")
+	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID-1")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 }
 
-func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
+func testGetLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
-	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
-		Name: "mockMattermostTeamID",
+	resp, getErr := store.GetLinkByChannelID("invalidMattermostChannelID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-2"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-2").Return(&model.Team{
+		Name: "mockMattermostTeamID-2",
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID",
-		MattermostTeam:    "mockMattermostTeamID",
-		MSTeamsTeam:       "mockMSTeamsTeamID",
-		MSTeamsChannel:    "mockMSTeamsChannelID",
+		MattermostChannel: "mockMattermostChannelID-2",
+		MattermostTeam:    "mockMattermostTeamID-2",
+		MSTeamsTeam:       "mockMSTeamsTeamID-2",
+		MSTeamsChannel:    "mockMSTeamsChannelID-2",
 		Creator:           "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	resp, getErr := store.GetLinkByMSTeamsChannelID("mockMattermostTeamID-2", "mockMSTeamsChannelID-2")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 }
 
-func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
+func testGetLinkByMSTeamsChannelIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID"} }
 
-	api.On("GetTeam", "mockMattermostTeamID").Return(&model.Team{
-		Name: "mockMattermostTeamID",
+	resp, getErr := store.GetLinkByMSTeamsChannelID("invalidMattermostTeamID", "invalidMSTeamsChannelID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-3"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-3").Return(&model.Team{
+		Name: "mockMattermostTeamID-3",
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID",
-		MattermostTeam:    "mockMattermostTeamID",
-		MSTeamsTeam:       "mockMSTeamsTeamID",
-		MSTeamsChannel:    "mockMSTeamsChannelID",
+		MattermostChannel: "mockMattermostChannelID-3",
+		MattermostTeam:    "mockMattermostTeamID-3",
+		MSTeamsTeam:       "mockMSTeamsTeamID-3",
+		MSTeamsChannel:    "mockMSTeamsChannelID-3",
 		Creator:           "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID")
+	resp, getErr := store.GetLinkByChannelID("mockMattermostChannelID-3")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 
-	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID-3", "mockMSTeamsChannelID-3")
 	assert.Equal(mockChannelLink, resp)
 	assert.Nil(getErr)
 
-	delErr := store.DeleteLinkByChannelID("mockMattermostChannelID")
+	delErr := store.DeleteLinkByChannelID("mockMattermostChannelID-3")
 	assert.Nil(delErr)
 
-	resp, getErr = store.GetLinkByChannelID("mockMattermostChannelID")
+	resp, getErr = store.GetLinkByChannelID("mockMattermostChannelID-3")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
 
-	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID", "mockMSTeamsChannelID")
+	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID-3", "mockMSTeamsChannelID-3")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
+func testDeleteLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverMysql)
-	defer tearDownContainer()
+
+	delErr := store.DeleteLinkByChannelID("invalidIDMattermostChannelID")
+	assert.Nil(delErr)
+}
+
+func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 
 	mockPostInfo := storemodels.PostInfo{
-		MattermostID:        "mockMattermostID",
-		MSTeamsID:           "mockMSTeamsID",
-		MSTeamsChannel:      "mockMSTeamsChannel",
+		MattermostID:        "mockMattermostID-1",
+		MSTeamsID:           "mockMSTeamsID-1",
+		MSTeamsChannel:      "mockMSTeamsChannel-1",
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
 	storeErr := store.LinkPosts(mockPostInfo)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel", "mockMSTeamsID")
+	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel-1", "mockMSTeamsID-1")
 	assert.Equal(&mockPostInfo, resp)
 	assert.Nil(getErr)
 }
 
-func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
+func testGetPostInfoByMSTeamsIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
+
+	resp, getErr := store.GetPostInfoByMSTeamsID("invalidMSTeamsChannel", "invalidMSTeamsID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 
 	mockPostInfo := storemodels.PostInfo{
-		MattermostID:        "mockMattermostID",
-		MSTeamsID:           "mockMSTeamsID",
-		MSTeamsChannel:      "mockMSTeamsChannel",
+		MattermostID:        "mockMattermostID-2",
+		MSTeamsID:           "mockMSTeamsID-2",
+		MSTeamsChannel:      "mockMSTeamsChannel-2",
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
 	storeErr := store.LinkPosts(mockPostInfo)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID")
+	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID-2")
 	assert.Equal(&mockPostInfo, resp)
 	assert.Nil(getErr)
 }
 
-func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
+func testGetPostInfoByMattermostIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverMysql)
-	defer tearDownContainer()
+
+	resp, getErr := store.GetPostInfoByMattermostID("invalidMattermostID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID())
-	assert.Equal(testutils.GetID(), resp)
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
+	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 }
 
-func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
+func testTeamsToMattermostUserIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
+
+	resp, getErr := store.TeamsToMattermostUserID("invalidTeamsUserID")
+	assert.Equal("", resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID())
-	assert.Equal(testutils.GetTeamUserID(), resp)
+	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
+	assert.Equal(testutils.GetTeamUserID()+"2", resp)
 	assert.Nil(getErr)
 }
 
-func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
+func testMattermostToTeamsUserIDForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
+
+	resp, getErr := store.MattermostToTeamsUserID("invalidUserID")
+	assert.Equal("", resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
 
 	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken",
-		RefreshToken: "mockRefreshToken",
+		AccessToken:  "mockAccessToken-3",
+		RefreshToken: "mockRefreshToken-3",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID())
+	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
 }
 
-func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
+func testGetTokenForMattermostUserForInvalidUserID(t *testing.T, store *SQLStore, api *plugintest.API) {
 	assert := assert.New(t)
-	store, _, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-	defer tearDownContainer()
+
+	resp, getErr := store.GetTokenForMattermostUser("invalidUserID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
 
 	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken",
-		RefreshToken: "mockRefreshToken",
+		AccessToken:  "mockAccessToken-4",
+		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID(), testutils.GetTeamUserID(), token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID())
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID() + "4")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
+}
+
+func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+
+	resp, getErr := store.GetTokenForMSTeamsUser("invalidTeamsUserID")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "no rows in result set")
 }
