@@ -11,7 +11,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
 
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -112,7 +111,7 @@ func TestGetChatChannelID(t *testing.T) {
 				}, nil)
 			},
 			setupStore: func() {
-				var token *oauth2.Token
+				var token *msteams.Token
 				store.On("TeamsToMattermostUserID", "mock-userID").Return("", errors.New("Error while getting mattermost userID"))
 				store.On("SetUserInfo", "mock-Id", "mock-userID", token).Return(errors.New("Error while setting user info"))
 			},

@@ -861,13 +861,14 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 }
 
 func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) error {
-	identitySet := models.NewIdentitySet()
-	identity := models.NewIdentity()
-	identity.SetId(userID)
-	identitySet.SetUser(user)
+	userInfo := map[string]any{
+		"user": map[string]string{
+			"id": userID,
+		},
+	}
 	setReaction := chats.NewItemMessagesItemSetReactionPostRequestBody()
 	setReaction.SetReactionType(&emoji)
-	setReaction.SetUser(identitySet)
+	setReaction.SetAdditionalData(userInfo)
 
 	if err := tc.client.ChatsById(chatID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
 		return err
@@ -876,15 +877,16 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 }
 
 func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
-	identitySet := models.NewIdentitySet()
-	identity := models.NewIdentity()
-	identity.SetId(userID)
-	identitySet.SetUser(user)
+	userInfo := map[string]any{
+		"user": map[string]string{
+			"id": userID,
+		},
+	}
 
 	if parentID == "" {
 		setReaction := teams.NewItemChannelsItemMessagesItemSetReactionPostRequestBody()
 		setReaction.SetReactionType(&emoji)
-		setReaction.SetUser(identitySet)
+		setReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
 			return err
@@ -892,7 +894,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 	} else {
 		setReaction := teams.NewItemChannelsItemMessagesItemRepliesItemSetReactionPostRequestBody()
 		setReaction.SetReactionType(&emoji)
-		setReaction.SetUser(identitySet)
+		setReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
 			return err
@@ -902,14 +904,15 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 }
 
 func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string) error {
-	identitySet := models.NewIdentitySet()
-	identity := models.NewIdentity()
-	identity.SetId(userID)
-	identitySet.SetUser(user)
+	userInfo := map[string]any{
+		"user": map[string]string{
+			"id": userID,
+		},
+	}
 
 	unsetReaction := chats.NewItemMessagesItemUnsetReactionPostRequestBody()
 	unsetReaction.SetReactionType(&emoji)
-	unsetReaction.SetUser(identitySet)
+	unsetReaction.SetAdditionalData(userInfo)
 
 	if err := tc.client.ChatsById(chatID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
 		return err
@@ -918,15 +921,16 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 }
 
 func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
-	identitySet := models.NewIdentitySet()
-	identity := models.NewIdentity()
-	identity.SetId(userID)
-	identitySet.SetUser(user)
+	userInfo := map[string]any{
+		"user": map[string]string{
+			"id": userID,
+		},
+	}
 
 	if parentID == "" {
 		unsetReaction := teams.NewItemChannelsItemMessagesItemUnsetReactionPostRequestBody()
 		unsetReaction.SetReactionType(&emoji)
-		unsetReaction.SetUser(identitySet)
+		unsetReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
 			return err
@@ -934,7 +938,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 	} else {
 		unsetReaction := teams.NewItemChannelsItemMessagesItemRepliesItemUnsetReactionPostRequestBody()
 		unsetReaction.SetReactionType(&emoji)
-		unsetReaction.SetUser(identitySet)
+		unsetReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
 			return err

@@ -37,7 +37,7 @@ func TestHandleDownloadFile(t *testing.T) {
 				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 			},
 			setupClient: func() {
-				client.On("GetFileURL", "https://example.com/file1.txt").Return("https://example.com/file1.txt", nil)
+				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
 			},
 		},
 		{
@@ -60,7 +60,7 @@ func TestHandleDownloadFile(t *testing.T) {
 				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 			},
 			setupClient: func() {
-				client.On("GetFileURL", "").Return("", errors.New("Error while getting a file url"))
+				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting a file url"))
 			},
 		},
 	} {
