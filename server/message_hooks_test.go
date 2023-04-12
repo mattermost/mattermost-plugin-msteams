@@ -147,6 +147,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeam: "mm-team-id", MattermostChannel: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
@@ -163,6 +164,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeam: "mm-team-id", MattermostChannel: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
@@ -259,6 +261,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MSTeamsChannel:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
@@ -283,6 +286,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MSTeamsChannel:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
@@ -610,6 +614,7 @@ func TestSetReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(testutils.GetInternalServerAppError("unable to set the reaction")).Times(1)
@@ -622,6 +627,7 @@ func TestSetReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil).Times(1)
@@ -636,7 +642,7 @@ func TestSetReaction(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-			resp := p.SetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
+			resp := p.SetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUserID(), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
 			if test.ExpectedMessage != "" {
 				assert.Contains(resp.Error(), test.ExpectedMessage)
 			} else {
@@ -779,6 +785,7 @@ func TestUnsetReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(testutils.GetInternalServerAppError("unable to unset the reaction")).Times(1)
@@ -791,6 +798,7 @@ func TestUnsetReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil).Times(1)
@@ -805,7 +813,7 @@ func TestUnsetReaction(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-			resp := p.UnsetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUser(model.SystemAdminRoleId, "test@tes.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
+			resp := p.UnsetReaction("mockTeamsTeamID", "mockTeamsChannelID", testutils.GetUserID(), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), "mockName")
 			if test.ExpectedMessage != "" {
 				assert.Contains(resp.Error(), test.ExpectedMessage)
 			} else {
