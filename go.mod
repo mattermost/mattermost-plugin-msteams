@@ -20,9 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
 	github.com/testcontainers/testcontainers-go v0.19.0
-	github.com/yaegashi/msgraph.go v0.1.4
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )
 
 require (
@@ -96,8 +94,6 @@ require (
 	github.com/philhofer/fwd v1.1.1 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rickb777/date v1.12.4 // indirect
-	github.com/rickb777/plural v1.2.0 // indirect
 	github.com/rivo/uniseg v0.3.4 // indirect
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
@@ -119,7 +115,6 @@ require (
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220817144833-d7fd3f11b9b1 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
