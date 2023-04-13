@@ -189,6 +189,9 @@ func (tc *ClientImpl) RequestUserToken(message chan string) (*Token, error) {
 			},
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
 	if err != nil {
@@ -461,20 +464,20 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
-			if err := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
+			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
+				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
 		} else {
 			expirationDateTime := time.Now().Add(30 * time.Minute)
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
-			if _, err := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err != nil {
+			if _, err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err2 != nil {
 				return *existingSubscription.GetId(), nil
 			}
 
 			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
-			if err := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", err, "subscription", existingSubscription)
+			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
+				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
 		}
 	}
@@ -731,7 +734,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 		}
 	}
 	if site == nil {
-		return nil, fmt.Errorf("Site for %s not found", weburl)
+		return nil, fmt.Errorf("site for %s not found", weburl)
 	}
 
 	msDrives, err := tc.client.SitesById(*site.GetId()).Drives().Get(tc.ctx, nil)
