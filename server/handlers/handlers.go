@@ -24,7 +24,7 @@ const (
 	activityQueueSize     = 1000
 )
 
-type pluginIface interface {
+type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
@@ -36,12 +36,12 @@ type pluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin pluginIface
+	plugin PluginIface
 	queue  chan msteams.Activity
 	quit   chan bool
 }
 
-func New(plugin pluginIface) *ActivityHandler {
+func New(plugin PluginIface) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
@@ -53,6 +53,7 @@ func New(plugin pluginIface) *ActivityHandler {
 	emojisReverseMap["laugh"] = "laughing"
 	emojisReverseMap["heart"] = "heart"
 	emojisReverseMap["surprised"] = "open_mouth"
+	emojisReverseMap["checkmarkbutton"] = "white_check_mark"
 
 	return &ActivityHandler{
 		plugin: plugin,
@@ -137,6 +138,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 			// Skipping because direct/group messages are disabled
 			return
 		}
+
 		channelID, err = ah.getChatChannelID(chat, msg.UserID)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
@@ -304,7 +306,7 @@ func (ah *ActivityHandler) handleReactions(postID string, channelID string, reac
 	for _, reaction := range reactions {
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
-			ah.plugin.GetAPI().LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
 		}
 		reactionUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(reaction.UserID)
@@ -333,7 +335,7 @@ func (ah *ActivityHandler) handleReactions(postID string, channelID string, reac
 		}
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
-			ah.plugin.GetAPI().LogError("Not code reaction found for reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {

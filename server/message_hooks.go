@@ -50,6 +50,11 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		}
 	}
 
+	if post.IsSystemMessage() {
+		p.API.LogDebug("Not propagate system message post", "post", post)
+		return
+	}
+
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
 		channel, appErr := p.API.GetChannel(post.ChannelId)
@@ -108,10 +113,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		return
 	}
 
-	user, _ := p.API.GetUser(post.UserId)
-
-	err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
-	if err != nil {
+	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName); err != nil {
 		p.API.LogError("Unable to handle message reaction set", "error", err.Error())
 	}
 }
@@ -148,9 +150,7 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 		return
 	}
 
-	user, _ := p.API.GetUser(post.UserId)
-
-	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, user, post, reaction.EmojiName)
+	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName)
 	if err != nil {
 		p.API.LogError("Unable to handle message reaction unset", "error", err.Error())
 	}
@@ -233,8 +233,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
-	err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
-	if err != nil {
+	if err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post reaction", "error", err.Error())
 		return err
 	}
@@ -242,7 +241,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 	return nil
 }
 
-func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
+func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
@@ -262,7 +261,7 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 		}
 	}
 
-	client, err := p.GetClientForUser(user.Id)
+	client, err := p.GetClientForUser(userID)
 	if err != nil {
 		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
@@ -270,7 +269,8 @@ func (p *Plugin) SetReaction(teamID, channelID string, user *model.User, post *m
 		}
 	}
 
-	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
+	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
+	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
@@ -298,8 +298,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
-	if err != nil {
+	if err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
 	}
@@ -307,7 +306,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	return nil
 }
 
-func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post *model.Post, emojiName string) error {
+func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Post, emojiName string) error {
 	p.API.LogDebug("Unsetting reaction", "teamID", teamID, "channelID", channelID, "post", post, "emojiName", emojiName)
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
@@ -327,7 +326,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 		}
 	}
 
-	client, err := p.GetClientForUser(user.Id)
+	client, err := p.GetClientForUser(userID)
 	if err != nil {
 		client, err = p.GetClientForUser(p.userID)
 		if err != nil {
@@ -335,8 +334,8 @@ func (p *Plugin) UnsetReaction(teamID, channelID string, user *model.User, post 
 		}
 	}
 
-	err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, user.Id, emoji.Parse(":"+emojiName+":"))
-	if err != nil {
+	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
+	if err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
 	}
