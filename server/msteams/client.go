@@ -547,7 +547,7 @@ func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
 
 func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 	requestParameters := &chats.ChatItemRequestBuilderGetQueryParameters{
-		Expand: []string{"members"},
+		Expand: []string{"members($select=displayName,userId,email)"},
 	}
 	configuration := &chats.ChatItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
