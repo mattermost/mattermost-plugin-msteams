@@ -5,24 +5,19 @@ import (
 	"net/http"
 	"testing"
 
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
+	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
-	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"golang.org/x/oauth2"
-
-	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 )
 
 type pluginMock struct {
@@ -49,9 +44,9 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{
-		appClient:          &mocks.Client{},
-		userClient:         &mocks.Client{},
-		teamsUserClient:    &mocks.Client{},
+		appClient:          &mocksClient.Client{},
+		userClient:         &mocksClient.Client{},
+		teamsUserClient:    &mocksClient.Client{},
 		store:              &storemocks.Store{},
 		api:                &plugintest.API{},
 		botUserID:          "bot-user-id",
@@ -67,14 +62,14 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 		DisplayName    string
 		SetupStore     func(*storemocks.Store)
 		SetupAPI       func(*plugintest.API)
-		SetupAppClient func(*mocks.Client)
+		SetupAppClient func(*mocksClient.Client)
 		ExpectedResult string
 		ExpectedError  bool
 	}{
 		{
-			Name:        "Uknown user but maching an already existing synthetic user",
+			Name:        "Uknown user but matching an already existing synthetic user",
 			UserID:      "unknown-user",
-			DisplayName: "Unkown User",
+			DisplayName: "Unknown User",
 			SetupStore: func(store *storemocks.Store) {
 				store.On("TeamsToMattermostUserID", "unknown-user").Return("", nil).Times(1)
 				store.On("SetUserInfo", "new-user-id", "unknown-user", mock.Anything).Return(nil).Times(1)
@@ -82,11 +77,11 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
-			SetupAppClient: func(*mocks.Client) {},
+			SetupAppClient: func(*mocksClient.Client) {},
 			ExpectedResult: "new-user-id",
 		},
 		{
-			Name:        "Uknown user without display name not maching an already existing synthetic user",
+			Name:        "Uknown user without display name not matching an already existing synthetic user",
 			UserID:      "unknown-user",
 			DisplayName: "",
 			SetupStore: func(store *storemocks.Store) {
@@ -108,13 +103,13 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 					return true
 				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
-			SetupAppClient: func(client *mocks.Client) {
+			SetupAppClient: func(client *mocksClient.Client) {
 				client.On("GetUser", "unknown-user").Return(&msteams.User{DisplayName: "New display name", ID: "unknown-user"}, nil)
 			},
 			ExpectedResult: "new-user-id",
 		},
 		{
-			Name:        "Uknown user with display name not maching an already existing synthetic user",
+			Name:        "Uknown user with display name not matching an already existing synthetic user",
 			UserID:      "unknown-user",
 			DisplayName: "Unknown User",
 			SetupStore: func(store *storemocks.Store) {
@@ -136,7 +131,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 					return true
 				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
-			SetupAppClient: func(*mocks.Client) {},
+			SetupAppClient: func(*mocksClient.Client) {},
 			ExpectedResult: "new-user-id",
 		},
 	} {
@@ -145,7 +140,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			ah := newTestHandler()
 			test.SetupAPI(ah.plugin.GetAPI().(*plugintest.API))
 			test.SetupStore(ah.plugin.GetStore().(*storemocks.Store))
-			test.SetupAppClient(ah.plugin.GetClientForApp().(*mocks.Client))
+			test.SetupAppClient(ah.plugin.GetClientForApp().(*mocksClient.Client))
 			result, err := ah.getOrCreateSyntheticUser(test.UserID, test.DisplayName)
 			assert.Equal(test.ExpectedResult, result)
 			if test.ExpectedError {
@@ -160,7 +155,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 func TestGetChatChannelID(t *testing.T) {
 	ah := ActivityHandler{}
 	mockAPI := &plugintest.API{}
-	store := mocksStore.NewStore(t)
+	store := storemocks.NewStore(t)
 
 	for _, testCase := range []struct {
 		description      string
@@ -469,7 +464,7 @@ func TestGetReplyFromChannel(t *testing.T) {
 
 func TestGetUserIDForChannelLink(t *testing.T) {
 	ah := ActivityHandler{}
-	store := mocksStore.NewStore(t)
+	store := storemocks.NewStore(t)
 
 	for _, testCase := range []struct {
 		description      string
@@ -515,7 +510,7 @@ func TestGetUserIDForChannelLink(t *testing.T) {
 func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 	ah := ActivityHandler{}
 	client := mocksClient.NewClient(t)
-	store := mocksStore.NewStore(t)
+	store := storemocks.NewStore(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {

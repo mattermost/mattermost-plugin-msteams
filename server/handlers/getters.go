@@ -105,38 +105,39 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 
 func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) (string, error) {
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(userID)
-	if err != nil || mmUserID == "" {
-		u, appErr := ah.plugin.GetAPI().GetUserByEmail(userID + "@msteamssync")
-		if appErr != nil {
-			userDisplayName := displayName
-			if displayName == "" {
-				user, err := ah.plugin.GetClientForApp().GetUser(userID)
-				if err != nil {
-					return "", err
-				}
-				userDisplayName = user.DisplayName
-			}
-			var appErr2 *model.AppError
-			memberUUID := uuid.Parse(userID)
-			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-			shortUserID := encoding.EncodeToString(memberUUID)
-			u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
-				Username:  slug.Make(userDisplayName) + "-" + userID,
-				FirstName: userDisplayName,
-				Email:     userID + "@msteamssync",
-				Password:  model.NewId(),
-				RemoteId:  &shortUserID,
-			})
-			if appErr2 != nil {
-				return "", appErr2
-			}
-		}
-		if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
-			ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
-		}
-		mmUserID = u.Id
+	if err == nil && mmUserID != "" {
+		return mmUserID, err
 	}
-	return mmUserID, err
+
+	u, appErr := ah.plugin.GetAPI().GetUserByEmail(userID + "@msteamssync")
+	if appErr != nil {
+		userDisplayName := displayName
+		if displayName == "" {
+			user, clientErr := ah.plugin.GetClientForApp().GetUser(userID)
+			if clientErr != nil {
+				return "", clientErr
+			}
+			userDisplayName = user.DisplayName
+		}
+		var appErr2 *model.AppError
+		memberUUID := uuid.Parse(userID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserID := encoding.EncodeToString(memberUUID)
+		u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
+			Username:  slug.Make(userDisplayName) + "-" + userID,
+			FirstName: userDisplayName,
+			Email:     userID + "@msteamssync",
+			Password:  model.NewId(),
+			RemoteId:  &shortUserID,
+		})
+		if appErr2 != nil {
+			return "", appErr2
+		}
+	}
+	if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
+		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
+	}
+	return u.Id, err
 }
 
 func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
