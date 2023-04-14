@@ -160,7 +160,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 	p.API.LogDebug("Updating message hook", "newPost", newPost, "oldPost", oldPost)
 	if oldPost.Props != nil {
 		if _, ok := oldPost.Props["msteams_sync_"+p.userID].(bool); ok {
-			return
+			p.API.LogDebug("Updating a post that was created from MS Teams.")
 		}
 	}
 
