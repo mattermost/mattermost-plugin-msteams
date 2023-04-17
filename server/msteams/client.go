@@ -23,7 +23,7 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
-	az "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
+	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"gitlab.com/golang-commonmark/markdown"
 )
 
@@ -147,18 +147,19 @@ func NewTokenClient(tenantID, clientID string, token *Token, logError func(strin
 		logError:   logError,
 	}
 
-	auth, err := az.NewAzureIdentityAuthenticationProviderWithScopes(client.token, teamsDefaultScopes)
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(client.token, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
+		logError("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
 	if err != nil {
+		logError("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
-	graphClient := msgraphsdk.NewGraphServiceClient(adapter)
-	client.client = graphClient
+	client.client = msgraphsdk.NewGraphServiceClient(adapter)
 
 	return client
 }
@@ -193,7 +194,7 @@ func (tc *ClientImpl) RequestUserToken(message chan string) (*Token, error) {
 		return nil, err
 	}
 
-	_, err = msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	_, err = msgraphsdk.NewGraphServiceClientWithCredentials(cred, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +551,7 @@ func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
 
 func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 	requestParameters := &chats.ChatItemRequestBuilderGetQueryParameters{
-		Expand: []string{"members($select=displayName,userId,email)"},
+		Expand: []string{"members"},
 	}
 	configuration := &chats.ChatItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -573,19 +574,20 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 		if member.GetDisplayName() != nil {
 			displayName = *member.GetDisplayName()
 		}
-		userID, ok := member.GetAdditionalData()["userId"]
-		if !ok {
-			userID = ""
+		emptyString := ""
+		userID, err := member.GetBackingStore().Get("userId")
+		if err != nil || userID == nil {
+			userID = &emptyString
 		}
-		email, ok := member.GetAdditionalData()["email"]
-		if !ok {
-			email = ""
+		email, err := member.GetBackingStore().Get("email")
+		if err != nil || email == nil {
+			email = &emptyString
 		}
 
 		members = append(members, ChatMember{
 			DisplayName: displayName,
-			UserID:      userID.(string),
-			Email:       email.(string),
+			UserID:      *(userID.(*string)),
+			Email:       *(email.(*string)),
 		})
 	}
 
@@ -806,14 +808,14 @@ func GetResourceIds(resource string) ActivityIds {
 }
 
 func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
-	requestParameters := &chats.ChatsRequestBuilderGetQueryParameters{
+	requestParameters := &users.ItemChatsRequestBuilderGetQueryParameters{
 		Select: []string{"members", "id"},
 		Expand: []string{"members"},
 	}
-	configuration := &chats.ChatsRequestBuilderGetRequestConfiguration{
+	configuration := &users.ItemChatsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
-	res, err := tc.client.Chats().Get(tc.ctx, configuration)
+	res, err := tc.client.Me().Chats().Get(tc.ctx, configuration)
 	if err != nil {
 		return "", err
 	}
@@ -828,7 +830,8 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 			matches := map[string]bool{}
 			for _, m := range c.GetMembers() {
 				for _, u := range usersIDs {
-					if m.GetAdditionalData()["userId"] == u {
+					userID, err := m.GetBackingStore().Get("userId")
+					if err == nil && userID != nil && *(userID.(*string)) == u {
 						matches[u] = true
 						break
 					}

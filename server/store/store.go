@@ -381,17 +381,18 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*msteams.Token, error)
 
 func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *msteams.Token) error {
 	tokendata := []byte{}
+	var encryptedToken string
 	if token != nil {
 		var err error
 		tokendata, err = json.Marshal(token)
 		if err != nil {
 			return err
 		}
-	}
 
-	encryptedToken, err := encrypt(s.encryptionKey(), string(tokendata))
-	if err != nil {
-		return err
+		encryptedToken, err = encrypt(s.encryptionKey(), string(tokendata))
+		if err != nil {
+			return err
+		}
 	}
 
 	if s.driverName == "postgres" {
