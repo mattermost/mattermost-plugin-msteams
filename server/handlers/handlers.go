@@ -115,7 +115,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
 		return
 	}
 
@@ -206,7 +206,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
 		return
 	}
 
