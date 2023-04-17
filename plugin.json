@@ -50,12 +50,12 @@
           "key": "webhookSecret",
           "display_name": "Webhook secret",
           "type": "generated",
-          "help_text": "Microsoft Teams will use this secret to send messages to mattermost"
+          "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
         },{
           "key": "evaluationAPI",
-          "display_name": "Use the evalution API pay model",
+          "display_name": "Use the evaluation API pay model",
           "type": "bool",
-          "help_text": "The evalution API pay model only allows you to get a limite number of changes notifications, be sure your system keeps them low if you enable this setting",
+          "help_text": "The evaluation API pay model only allows you to get a limited number of change notifications. Be sure your system keeps them low if you enable this setting",
           "default": false
         },{
           "key": "enforceConnectedUsers",
@@ -65,15 +65,15 @@
           "default": false
         },{
           "key": "allowSkipConnectUsers",
-          "display_name": "Allow to temporary skip connect user",
+          "display_name": "Allow to temporarily skip connect user",
           "type": "bool",
-          "help_text": "Mattermost will allow to skip temporarilly the account connection, but will prompt it again in the next refresh of the browser",
+          "help_text": "Mattermost will allow to skip temporarily the account connection, but will prompt it again in the next refresh of the browser",
           "default": false
         },{
           "key": "syncUsers",
           "display_name": "Sync users",
           "type": "number",
-          "help_text": "Set the number of minutes between users sync (leave it empty for disable users sync)",
+          "help_text": "Set the number of minutes between users sync (leave it empty to disable users sync)",
           "default": 0
         },{
           "key": "syncDirectMessages",
@@ -85,7 +85,7 @@
           "key": "enabledTeams",
           "display_name": "Enabled Teams",
           "type": "text",
-          "help_text": "Teams where syncs are enabled (comma separated Mattermost team names, empty means all enabled)",
+          "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
           "default": ""
         }]
     }
