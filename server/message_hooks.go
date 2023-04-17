@@ -158,12 +158,6 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
 	p.API.LogDebug("Updating message hook", "newPost", newPost, "oldPost", oldPost)
-	if oldPost.Props != nil {
-		if _, ok := oldPost.Props["msteams_sync_"+p.userID].(bool); ok {
-			p.API.LogDebug("Updating a post that was created from MS Teams.")
-		}
-	}
-
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
 		return
