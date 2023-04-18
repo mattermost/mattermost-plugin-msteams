@@ -730,7 +730,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 			path = "/" + path
 		}
 
-		site, err = sites.NewSiteItemRequestBuilder("/sites/"+u.Hostname()+":"+path+":", tc.client.RequestAdapter).Get(tc.ctx, nil)
+		site, err = sites.NewSiteItemRequestBuilder(tc.client.RequestAdapter.GetBaseUrl()+"/sites/"+u.Hostname()+":"+path+":", tc.client.RequestAdapter).Get(tc.ctx, nil)
 		if err == nil {
 			break
 		}
@@ -743,7 +743,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var itemRequest *drives.DriveItemRequestBuilder
+	var itemRequest *drives.ItemItemsDriveItemItemRequestBuilder
 	var driveID string
 	for _, drive := range msDrives.GetValue() {
 		if strings.HasPrefix(u.String(), *drive.GetWebUrl()) {
@@ -751,8 +751,8 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 			if len(path) == 0 || path[0] != '/' {
 				path = "/" + path
 			}
-			itemRequest = drives.NewDriveItemRequestBuilder("/drives/"+driveID+"/root:"+path, tc.client.RequestAdapter)
 			driveID = *drive.GetId()
+			itemRequest = drives.NewItemItemsDriveItemItemRequestBuilder(tc.client.RequestAdapter.GetBaseUrl()+"/drives/"+driveID+"/root:"+path, tc.client.RequestAdapter)
 			break
 		}
 	}
@@ -761,7 +761,15 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return tc.client.DrivesById(driveID).ItemsById(*item.GetId()).Content().Get(tc.ctx, nil)
+	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+	if !ok {
+		return nil, errors.New("downloadUrl not found")
+	}
+	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
