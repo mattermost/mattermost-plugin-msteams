@@ -42,7 +42,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is no longer linked to this Mattermost channel",
+					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -197,7 +197,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Link doesn't exists.",
+					Message: "Link doesn't exist.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -256,7 +256,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Your account has been disconnected",
+					Message: "Your account has been disconnected.",
 				}).Return(testutils.GetPost("", testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -343,7 +343,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "The bot account has been disconnected",
+					Message:   "The bot account has been disconnected.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -441,7 +441,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is now linked to this Mattermost channel",
+					Message:   "The MS Teams channel is now linked to this Mattermost channel.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -471,7 +471,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "A link to this MS Teams channel already exists, please remove unlink the channel before you link a new one",
+					Message:   "A link for this channel already exists. Please unlink the channel before you link again with another channel.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {

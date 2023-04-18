@@ -7,12 +7,11 @@
     - **Client Secret**: Enter the client secret of your registered OAuth app in Azure portal.
     - **At Rest Encryption Key**: Regenerate a new encryption secret. This encryption secret will be used to encrypt and decrypt the OAuth token.
     - **Webhook secret**: Regenerate a new webhook secret.
-    - **Use the evalution API pay model**: Enable this only for testing purposes. You need the pay model to be able to support enough messages notifications to work in a real world scenario.
-    - **Enforce connected accounts**: Enabling this will enforce all the users to connect their Mattermost account to their MS Teams account.
+    - **Use the evalution API pay model**: Enable this only for testing purposes. You need the pay model to be able to support enough message notifications to work in a real world scenario.
+    - **Enforce connected accounts**: Enabling this will enforce all the users to connect their Mattermost accounts to their MS Teams accounts.
     - **Allow to temporarily skip connect user**: Enabling this will allow the users to temporarily skip connecting their accounts.
-    - **Sync users**: This config is for the interval (in minutes) in which the users will be synced between Mattermost and MS Teams, if you set it to empty it will not syncrhonize the users.
+    - **Sync users**: This config is for the interval (in minutes) in which the users will be synced between Mattermost and MS Teams. If you leave it empty, it will not syncrhonize the users.
     - **Sync direct and group messages**: Enable this for enabling the syncing of direct and group messages.
+    - **Enabled Teams**: This config is for the Mattermost teams for which syncing is enabled. Enter a comma-separated list of Mattermost team names. If you leave it empty, it will enable syncing for all the teams. 
 
-    ![image](https://user-images.githubusercontent.com/77336594/226593804-e3245221-9fdc-456e-aefb-be243c967394.png)
-
-- Go to your any channel in Mattermost as a system admin and run the command `/msteams-sync connect-bot` to connect the bot account to the previously created bot account in MS Teams.
+    ![image](https://user-images.githubusercontent.com/77336594/232424455-e39a11d6-30bd-4f78-b3bb-e8e257358db9.png)

@@ -65,14 +65,16 @@ Select **Register** to submit the form.
 
 ### Step 2: Create a user account to act as a bot
 
-1. Create a regular user account. We will connect this account later from the mattermost side. // TODO: Add more details to this process
+1. Create a regular user account. We will connect this account later from the Mattermost side.
+1. This account is needed for creating messages on MS Teams on behalf of users who are present in Mattermost but not on MS Teams.
+1. This account is also needed when users on Mattermost have not connected their accounts and some messages need to be posted on their behalf. See the screenshot below:
 
-If you don't create the bot user account all the messages from Mattermost users that are not connected to MS Teams are not going to be delivered.
+![image](https://user-images.githubusercontent.com/100013900/232403027-6d3ce866-d404-4ef2-a27b-ef5cc897cb25.png)
 
-### Step 3: Ensure you have the metered API enabled (and the pay subscription associated to it)
+### Step 3: Ensure you have the metered APIs enabled (and the pay subscription associated to it)
 
 1. Follow the steps here: https://learn.microsoft.com/en-us/graph/metered-api-setup
 
-If you don't configure the metered API, you need to use the evaluation model (configurable in Mattermost) that is limited to a low rate of changes per month. Please, do not use that configuration in real environments because you can stop receiving messages due that limit.
+1. If you don't configure the metered APIs, you need to use the Evaluation model (configurable in Mattermost) that is limited to a low rate of changes per month. Please, do not use that configuration in real environments because you can stop receiving messages due that limit. See [this doc](https://learn.microsoft.com/en-us/graph/teams-licenses) for more details.
 
 You're all set for configuration inside Azure.
