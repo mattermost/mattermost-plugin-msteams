@@ -332,46 +332,36 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 }
 
 func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
-	if err != nil {
+	if _, err := p.store.MattermostToTeamsUserID(args.UserId); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
 		return &model.CommandResponse{}, nil
 	}
 
-	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
-		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
-		return &model.CommandResponse{}, nil
-	}
-
-	err = p.store.SetUserInfo(args.UserId, teamsUserID, nil)
-	if err != nil {
+	if err := p.store.DeleteUserInfo(args.UserId); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 		return &model.CommandResponse{}, nil
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
-
 	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
 	}
 
-	botTeamsUserID, err := p.store.MattermostToTeamsUserID(p.userID)
-	if err != nil {
+	if _, err := p.store.MattermostToTeamsUserID(p.userID); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: unable to find the connected bot account")
 		return &model.CommandResponse{}, nil
 	}
-	err = p.store.SetUserInfo(p.userID, botTeamsUserID, nil)
-	if err != nil {
+
+	if err := p.store.DeleteUserInfo(p.userID); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
 		return &model.CommandResponse{}, nil
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected.")
-
 	return &model.CommandResponse{}, nil
 }
 

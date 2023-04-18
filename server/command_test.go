@@ -262,9 +262,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamUserID(), nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
-				var token *oauth2.Token
-				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamUserID(), token).Return(nil).Times(1)
+				s.On("DeleteUserInfo", testutils.GetUserID()).Return(nil).Once()
 			},
 		},
 		{
@@ -281,20 +279,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 		},
 		{
-			description: "User account is not connected as token is not found",
-			args:        &model.CommandArgs{},
-			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Error: the account is not connected",
-				}).Return(testutils.GetPost("", "")).Times(1)
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("MattermostToTeamsUserID", "").Return("", nil).Times(1)
-				s.On("GetTokenForMattermostUser", "").Return(nil, errors.New("Unable to get token")).Once()
-			},
-		},
-		{
 			description: "Unable to disconnect your account",
 			args: &model.CommandArgs{
 				UserId: testutils.GetUserID(),
@@ -307,9 +291,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", nil).Times(1)
-				var token *oauth2.Token
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
-				s.On("SetUserInfo", testutils.GetUserID(), "", token).Return(errors.New("Error while disconnecting your account")).Times(1)
+				s.On("DeleteUserInfo", testutils.GetUserID()).Return(errors.New("Error while disconnecting your account")).Once()
 			},
 		},
 	} {
@@ -349,8 +331,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(nil).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(nil).Once()
 			},
 		},
 		{
@@ -387,18 +368,17 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(errors.New("Error while disconnecting the bot account")).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(errors.New("Error while disconnecting the bot account")).Once()
 			},
 		},
 		{
-			description: "Unable to connect the bot account",
+			description: "Unable to disconnect the bot account due to bad permissions",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", "", model.PermissionManageSystem).Return(false).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Unable to connect the bot account, only system admins can connect the bot account.",
+					Message: "Unable to disconnect the bot account, only system admins can disconnect the bot account.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
