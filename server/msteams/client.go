@@ -686,6 +686,26 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	return photo, nil
 }
 
+func (tc *ClientImpl) GetUser(userID string) (*User, error) {
+	ctb := tc.client.Users().ID(userID)
+	u, err := ctb.Request().Get(tc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	displayName := ""
+	if u.DisplayName != nil {
+		displayName = *u.DisplayName
+	}
+
+	user := User{
+		DisplayName: displayName,
+		ID:          *u.ID,
+	}
+
+	return &user, nil
+}
+
 func (tc *ClientImpl) GetFileURL(weburl string) (string, error) {
 	itemRB, err := tc.client.GetDriveItemByURL(tc.ctx, weburl)
 	if err != nil {
