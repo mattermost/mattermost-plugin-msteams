@@ -151,12 +151,12 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists, please remove unlink the channel before you link a new one")
+		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
 	if err == nil && link != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "A link to this MS Teams channel already exists, please remove unlink the channel before you link a new one")
+		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	client, err := p.GetClientForUser(args.UserId)
@@ -180,7 +180,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel")
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }
 
@@ -207,14 +207,14 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel")
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exists.")
+		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
 	}
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
@@ -244,35 +244,35 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 	go func(userID string, messageChan chan string) {
 		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
 			return
 		}
 
 		token, err := tokenSource.Token()
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
 			return
 		}
 
 		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
 		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
 			return
 		}
 
 		msteamsUserID, err := client.GetMyID()
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
 			return
 		}
 
 		err = p.store.SetUserInfo(userID, msteamsUserID, token)
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link your account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
 			return
 		}
 
-		messageChan <- "Your account has been connected"
+		messageChan <- "Your account has been connected."
 	}(args.UserId, messageChan)
 
 	message := <-messageChan
@@ -292,31 +292,31 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 	go func(userID string, messageChan chan string) {
 		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
 			return
 		}
 
 		token, err := tokenSource.Token()
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
 			return
 		}
 
 		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
 		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
 			return
 		}
 
 		msteamsUserID, err := client.GetMyID()
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
 			return
 		}
 
 		err = p.store.SetUserInfo(userID, msteamsUserID, token)
 		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to link the bot account, %s", err.Error())
+			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
 			return
 		}
 
@@ -349,7 +349,7 @@ func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.Command
 		return &model.CommandResponse{}, nil
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected")
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 
 	return &model.CommandResponse{}, nil
 }
@@ -370,7 +370,7 @@ func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.Comm
 		return &model.CommandResponse{}, nil
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected")
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected.")
 
 	return &model.CommandResponse{}, nil
 }
