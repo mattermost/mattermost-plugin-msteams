@@ -18,9 +18,12 @@ type Client interface {
 	UpdateChatMessage(chatID, msgID, message string) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
-	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (string, error)
-	SubscribeToChats(baseURL, webhookSecret string, pay bool) (string, error)
+	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error)
+	SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error)
+	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error)
+	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*Subscription, error)
 	RefreshSubscription(subscriptionID string) error
+	DeleteSubscription(subscriptionID string) error
 	GetTeam(teamID string) (*Team, error)
 	GetChannel(teamID, channelID string) (*Channel, error)
 	GetChat(chatID string) (*Chat, error)

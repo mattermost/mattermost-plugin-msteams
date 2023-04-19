@@ -38,6 +38,9 @@ type Store interface {
 	TeamsToMattermostUserID(userID string) (string, error)
 	MattermostToTeamsUserID(userID string) (string, error)
 	CheckEnabledTeamByTeamID(teamID string) bool
+	ListChatSubscriptionsToCheck() []storemodels.ChatSubscription
+	ListChannelSubscriptionsToCheck() []storemodels.ChannelSubscription
+	SaveSubscription(subscriptionID, userID, teamID, channelID string, expiresOn time.Time) error
 }
 
 type SQLStore struct {

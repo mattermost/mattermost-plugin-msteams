@@ -30,6 +30,11 @@ type ClientImpl struct {
 	logError     func(msg string, keyValuePairs ...any)
 }
 
+type Subscription struct {
+	ID        string
+	ExpiresOn time.Time
+}
+
 type Channel struct {
 	ID          string
 	DisplayName string
@@ -382,14 +387,14 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 	return nil
 }
 
-func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (string, error) {
+func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (*Subscription, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 
 	subscriptionsCt := tc.client.Subscriptions().Request()
 	subscriptionsRes, err := subscriptionsCt.Get(tc.ctx)
 	if err != nil {
 		tc.logError("Unable to get the subcscriptions list", err)
-		return "", err
+		return nil, err
 	}
 
 	var existingSubscription *msgraph.Subscription
@@ -427,7 +432,10 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 			ct := tc.client.Subscriptions().ID(*existingSubscription.ID).Request()
 			err = ct.Update(tc.ctx, &updatedSubscription)
 			if err == nil {
-				return *existingSubscription.ID, nil
+				return &Subscription{
+					ID:        *existingSubscription.ID,
+					ExpiresOn: *existingSubscription.ExpirationDateTime,
+				}, nil
 			}
 
 			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
@@ -441,13 +449,16 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	res, err := ct.Add(tc.ctx, &subscription)
 	if err != nil {
 		tc.logError("Unable to create the new subscription", "error", err)
-		return "", err
+		return nil, err
 	}
 
-	return *res.ID, nil
+	return &Subscription{
+		ID:        *res.ID,
+		ExpiresOn: *res.ExpirationDateTime,
+	}, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "teams/getAllMessages"
 	if pay {
 		resource = "teams/getAllMessages?model=B"
@@ -456,8 +467,23 @@ func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, 
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL string, webhookSecret string) (*Subscription, error) {
+	resource := fmt.Sprintf("/teams/%s/channels/%s/messages", teamID, channelID)
+	changeType := "created,deleted,updated"
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "chats/getAllMessages"
+	if pay {
+		resource = "chats/getAllMessages?model=B"
+	}
+	changeType := "created,deleted,updated"
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
+	resource := fmt.Sprintf("/users/%s/chats/getAllMessages", userID)
 	if pay {
 		resource = "chats/getAllMessages?model=B"
 	}
@@ -474,6 +500,16 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) error {
 	err := ct.Update(tc.ctx, &updatedSubscription)
 	if err != nil {
 		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
+		return err
+	}
+	return nil
+}
+
+func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
+	ct := tc.client.Subscriptions().ID(subscriptionID).Request()
+	err := ct.Delete(tc.ctx)
+	if err != nil {
+		tc.logError("Unable to delete the subscription", "error", err, "subscriptionID", subscriptionID)
 		return err
 	}
 	return nil
