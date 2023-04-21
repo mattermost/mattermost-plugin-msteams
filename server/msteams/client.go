@@ -43,8 +43,10 @@ type Chat struct {
 }
 
 type User struct {
-	DisplayName string
-	ID          string
+	DisplayName       string
+	ID                string
+	Mail              string
+	UserPrincipalName string
 }
 
 type ChatMember struct {
@@ -1002,7 +1004,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 func (tc *ClientImpl) ListUsers() ([]User, error) {
 	req := tc.client.Users().Request()
-	req.Select("displayName,id")
+	req.Select("displayName,id,mail,userPrincipalName")
 	r, err := req.Get(tc.ctx)
 	if err != nil {
 		return nil, err
@@ -1012,6 +1014,12 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		users[i] = User{
 			DisplayName: *u.DisplayName,
 			ID:          *u.ID,
+		}
+
+		if u.Mail != nil {
+			users[i].Mail = strings.ToLower(*u.Mail)
+		} else {
+			users[i].Mail = strings.ToLower(*u.UserPrincipalName)
 		}
 	}
 	return users, nil

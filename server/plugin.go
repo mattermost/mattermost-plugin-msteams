@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base32"
 	"encoding/base64"
 	"math"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -347,7 +347,11 @@ func (p *Plugin) syncUsers() {
 	}
 
 	for _, msUser := range msUsers {
-		mmUser, ok := mmUsersMap[msUser.ID+"@msteamssync"]
+		if msUser.Mail == "" {
+			continue
+		}
+
+		mmUser, ok := mmUsersMap[msUser.Mail]
 
 		username := slug.Make(msUser.DisplayName) + "-" + msUser.ID
 
@@ -357,8 +361,8 @@ func (p *Plugin) syncUsers() {
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  model.NewId(),
-				Email:     msUser.ID + "@msteamssync",
+				Password:  generateRandomPassword(),
+				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
@@ -394,4 +398,31 @@ func generateSecret() (string, error) {
 	s := base64.RawStdEncoding.EncodeToString(b)
 	s = s[:32]
 	return s, nil
+}
+
+func generateRandomPassword() string {
+	lowerCharSet := "abcdedfghijklmnopqrst"
+	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	specialCharSet := "!@#$%&*"
+	numberSet := "0123456789"
+	allCharSet := lowerCharSet + upperCharSet + specialCharSet + numberSet
+
+	var password strings.Builder
+
+	password.WriteString(getRandomString(lowerCharSet, 1))
+	password.WriteString(getRandomString(upperCharSet, 1))
+	password.WriteString(getRandomString(specialCharSet, 1))
+	password.WriteString(getRandomString(numberSet, 1))
+	password.WriteString(getRandomString(allCharSet, 20))
+	return password.String()
+}
+
+func getRandomString(characterSet string, length int) string {
+	rand.Seed(time.Now().Unix())
+	var randomString strings.Builder
+	for i := 0; i < length; i++ {
+		randomString.WriteString(string(characterSet[rand.Intn(len(characterSet))]))
+	}
+
+	return randomString.String()
 }
