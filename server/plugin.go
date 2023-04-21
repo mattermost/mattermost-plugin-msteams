@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base32"
 	"encoding/base64"
 	"math"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -418,10 +419,10 @@ func generateRandomPassword() string {
 }
 
 func getRandomString(characterSet string, length int) string {
-	rand.Seed(time.Now().Unix())
 	var randomString strings.Builder
 	for i := 0; i < length; i++ {
-		randomString.WriteString(string(characterSet[rand.Intn(len(characterSet))]))
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(length)))
+		randomString.WriteString(string(characterSet[num.Int64()]))
 	}
 
 	return randomString.String()
