@@ -43,10 +43,9 @@ type Chat struct {
 }
 
 type User struct {
-	DisplayName       string
-	ID                string
-	Mail              string
-	UserPrincipalName string
+	DisplayName string
+	ID          string
+	Mail        string
 }
 
 type ChatMember struct {
@@ -1018,7 +1017,7 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 
 		if u.Mail != nil {
 			users[i].Mail = strings.ToLower(*u.Mail)
-		} else {
+		} else if u.UserPrincipalName != nil {
 			users[i].Mail = strings.ToLower(*u.UserPrincipalName)
 		}
 	}
