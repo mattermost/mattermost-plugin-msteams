@@ -857,8 +857,8 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 			matches := map[string]bool{}
 			for _, m := range c.GetMembers() {
 				for _, u := range usersIDs {
-					userID, err := m.GetBackingStore().Get("userId")
-					if err == nil && userID != nil && *(userID.(*string)) == u {
+					userID, err2 := m.GetBackingStore().Get("userId")
+					if err2 == nil && userID != nil && *(userID.(*string)) == u {
 						matches[u] = true
 						break
 					}
