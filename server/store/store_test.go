@@ -102,24 +102,25 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 
 func TestStore(t *testing.T) {
 	testFunctions := map[string]func(*testing.T, *SQLStore, *plugintest.API){
-		"testStoreChannelLinkAndGetLinkByChannelID":         testStoreChannelLinkAndGetLinkByChannelID,
-		"testGetLinkByChannelIDForInvalidID":                testGetLinkByChannelIDForInvalidID,
-		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID": testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
-		"testGetLinkByMSTeamsChannelIDForInvalidID":         testGetLinkByMSTeamsChannelIDForInvalidID,
-		"testStoreChannelLinkdAndDeleteLinkByChannelID":     testStoreChannelLinkdAndDeleteLinkByChannelID,
-		"testDeleteLinkByChannelIDForInvalidID":             testDeleteLinkByChannelIDForInvalidID,
-		"testLinkPostsAndGetPostInfoByMSTeamsID":            testLinkPostsAndGetPostInfoByMSTeamsID,
-		"testGetPostInfoByMSTeamsIDForInvalidID":            testGetPostInfoByMSTeamsIDForInvalidID,
-		"testLinkPostsAndGetPostInfoByMattermostID":         testLinkPostsAndGetPostInfoByMattermostID,
-		"testGetPostInfoByMattermostIDForInvalidID":         testGetPostInfoByMattermostIDForInvalidID,
-		"testSetUserInfoAndTeamsToMattermostUserID":         testSetUserInfoAndTeamsToMattermostUserID,
-		"testTeamsToMattermostUserIDForInvalidID":           testTeamsToMattermostUserIDForInvalidID,
-		"testSetUserInfoAndMattermostToTeamsUserID":         testSetUserInfoAndMattermostToTeamsUserID,
-		"testMattermostToTeamsUserIDForInvalidID":           testMattermostToTeamsUserIDForInvalidID,
-		"testSetUserInfoAndGetTokenForMattermostUser":       testSetUserInfoAndGetTokenForMattermostUser,
-		"testGetTokenForMattermostUserForInvalidUserID":     testGetTokenForMattermostUserForInvalidUserID,
-		"testSetUserInfoAndGetTokenForMSTeamsUser":          testSetUserInfoAndGetTokenForMSTeamsUser,
-		"testGetTokenForMSTeamsUserForInvalidID":            testGetTokenForMSTeamsUserForInvalidID,
+		"testStoreChannelLinkAndGetLinkByChannelID":                  testStoreChannelLinkAndGetLinkByChannelID,
+		"testGetLinkByChannelIDForInvalidID":                         testGetLinkByChannelIDForInvalidID,
+		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID":          testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
+		"testGetLinkByMSTeamsChannelIDForInvalidID":                  testGetLinkByMSTeamsChannelIDForInvalidID,
+		"testStoreChannelLinkdAndDeleteLinkByChannelID":              testStoreChannelLinkdAndDeleteLinkByChannelID,
+		"testDeleteLinkByChannelIDForInvalidID":                      testDeleteLinkByChannelIDForInvalidID,
+		"testLinkPostsAndGetPostInfoByMSTeamsID":                     testLinkPostsAndGetPostInfoByMSTeamsID,
+		"testGetPostInfoByMSTeamsIDForInvalidID":                     testGetPostInfoByMSTeamsIDForInvalidID,
+		"testLinkPostsAndGetPostInfoByMattermostID":                  testLinkPostsAndGetPostInfoByMattermostID,
+		"testGetPostInfoByMattermostIDForInvalidID":                  testGetPostInfoByMattermostIDForInvalidID,
+		"testSetUserInfoAndTeamsToMattermostUserID":                  testSetUserInfoAndTeamsToMattermostUserID,
+		"testTeamsToMattermostUserIDForInvalidID":                    testTeamsToMattermostUserIDForInvalidID,
+		"testSetUserInfoAndMattermostToTeamsUserID":                  testSetUserInfoAndMattermostToTeamsUserID,
+		"testMattermostToTeamsUserIDForInvalidID":                    testMattermostToTeamsUserIDForInvalidID,
+		"testSetUserInfoAndGetTokenForMattermostUser":                testSetUserInfoAndGetTokenForMattermostUser,
+		"testGetTokenForMattermostUserForInvalidUserID":              testGetTokenForMattermostUserForInvalidUserID,
+		"testSetUserInfoAndGetTokenForMSTeamsUser":                   testSetUserInfoAndGetTokenForMSTeamsUser,
+		"testGetTokenForMSTeamsUserForInvalidID":                     testGetTokenForMSTeamsUserForInvalidID,
+		"testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil": testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -495,6 +496,20 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
+}
+
+func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", nil)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
+	assert.Nil(resp)
+	assert.Contains(getErr.Error(), "token not found")
 }
 
 func testGetTokenForMattermostUserForInvalidUserID(t *testing.T, store *SQLStore, api *plugintest.API) {

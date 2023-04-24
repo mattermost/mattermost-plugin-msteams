@@ -715,6 +715,25 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	return photo, nil
 }
 
+func (tc *ClientImpl) GetUser(userID string) (*User, error) {
+	u, err := tc.client.UsersById(userID).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	displayName := ""
+	if u.GetDisplayName() != nil {
+		displayName = *u.GetDisplayName()
+	}
+
+	user := User{
+		DisplayName: displayName,
+		ID:          *u.GetId(),
+	}
+
+	return &user, nil
+}
+
 func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	u, err := url.Parse(weburl)
 	if err != nil {
