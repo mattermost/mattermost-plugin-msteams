@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -240,40 +241,16 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 }
 
 func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	messageChan := make(chan string)
-	go func(userID string, messageChan chan string) {
-		token, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
+	state, _ := json.Marshal(map[string]string{})
 
-		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
-		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
+	codeVerifier := model.NewId()
+	appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier))
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please, try again.")
+	}
 
-		msteamsUserID, err := client.GetMyID()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
-
-		err = p.store.SetUserInfo(userID, msteamsUserID, token)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
-
-		messageChan <- "Your account has been connected."
-	}(args.UserId, messageChan)
-
-	message := <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	message = <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	close(messageChan)
+	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, string(state), codeVerifier)
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
@@ -282,40 +259,17 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
-	messageChan := make(chan string)
-	go func(userID string, messageChan chan string) {
-		token, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	state, _ := json.Marshal(map[string]string{"auth_type": "bot"})
 
-		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
-		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	codeVerifier := model.NewId()
+	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please, try again.")
+	}
 
-		msteamsUserID, err := client.GetMyID()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, string(state), codeVerifier)
 
-		err = p.store.SetUserInfo(userID, msteamsUserID, token)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
-
-		messageChan <- "The bot account has been connected"
-	}(p.userID, messageChan)
-
-	message := <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	message = <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	close(messageChan)
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
 	return &model.CommandResponse{}, nil
 }
 

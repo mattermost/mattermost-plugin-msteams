@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/jmoiron/sqlx"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -19,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"golang.org/x/oauth2"
 )
 
 func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugintest.API, func()) {
@@ -441,7 +441,7 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, ap
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &msteams.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
@@ -463,7 +463,7 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, ap
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &msteams.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
@@ -485,7 +485,7 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 		return make([]byte, 16)
 	}
 
-	token := &msteams.Token{
+	token := &oauth2.Token{
 		Token:     "mockAccessToken-3",
 		ExpiresOn: time.Now(),
 	}
@@ -526,7 +526,7 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, api
 		return make([]byte, 16)
 	}
 
-	token := &msteams.Token{
+	token := &oauth2.Token{
 		Token:     "mockAccessToken-4",
 		ExpiresOn: time.Now(),
 	}

@@ -3,6 +3,8 @@ package msteams
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +27,7 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"gitlab.com/golang-commonmark/markdown"
+	"golang.org/x/oauth2"
 )
 
 type ClientImpl struct {
@@ -34,7 +37,7 @@ type ClientImpl struct {
 	clientID     string
 	clientSecret string
 	clientType   string // can be "app" or "token"
-	token        *Token
+	token        *oauth2.Token
 	logError     func(msg string, keyValuePairs ...any)
 }
 
@@ -114,15 +117,14 @@ type ActivityIds struct {
 	ReplyID   string
 }
 
-type Token struct {
-	Token     string
-	ExpiresOn time.Time
+type AccessToken struct {
+	token *oauth2.Token
 }
 
-func (cc *Token) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
+func (at *AccessToken) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	return azcore.AccessToken{
-		Token:     cc.Token,
-		ExpiresOn: cc.ExpiresOn,
+		Token:     at.token.AccessToken,
+		ExpiresOn: at.token.Expiry,
 	}, nil
 }
 
@@ -139,7 +141,7 @@ func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...an
 	}
 }
 
-func NewTokenClient(tenantID, clientID string, token *Token, logError func(string, ...any)) Client {
+func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
@@ -147,7 +149,7 @@ func NewTokenClient(tenantID, clientID string, token *Token, logError func(strin
 		logError:   logError,
 	}
 
-	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(client.token, append(teamsDefaultScopes, "offline_access"))
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(&AccessToken{client.token}, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		logError("Unable to create the client from the token", "error", err)
 		return nil
@@ -162,49 +164,6 @@ func NewTokenClient(tenantID, clientID string, token *Token, logError func(strin
 	client.client = msgraphsdk.NewGraphServiceClient(adapter)
 
 	return client
-}
-
-func NewUnauthenticatedClient(tenantID, clientID string, logError func(string, ...any)) Client {
-	return &ClientImpl{
-		ctx:        context.Background(),
-		clientType: "unauthenticated",
-		tenantID:   tenantID,
-		clientID:   clientID,
-		logError:   logError,
-	}
-}
-
-func (tc *ClientImpl) RequestUserToken(message chan string) (*Token, error) {
-	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
-		TenantID: tc.tenantID,
-		ClientID: tc.clientID,
-		UserPrompt: func(ctx context.Context, dc azidentity.DeviceCodeMessage) error {
-			message <- dc.Message
-			return nil
-		},
-		ClientOptions: azcore.ClientOptions{
-			Retry: policy.RetryOptions{
-				MaxRetries:    3,
-				RetryDelay:    4 * time.Second,
-				MaxRetryDelay: 120 * time.Second,
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = msgraphsdk.NewGraphServiceClientWithCredentials(cred, append(teamsDefaultScopes, "offline_access"))
-	if err != nil {
-		return nil, err
-	}
-
-	token, err := cred.GetToken(tc.ctx, policy.TokenRequestOptions{Scopes: teamsDefaultScopes})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Token{Token: token.Token, ExpiresOn: token.ExpiresOn}, nil
 }
 
 func (tc *ClientImpl) Connect() error {
@@ -1070,4 +1029,28 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 		}
 	}
 	return channels, nil
+}
+
+func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+		},
+		RedirectURL: redirectURL,
+	}
+
+	sha2 := sha256.New()
+	io.WriteString(sha2, codeVerifier)
+	codeChallenge := base64.RawURLEncoding.EncodeToString(sha2.Sum(nil))
+
+	return conf.AuthCodeURL(state,
+		oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("prompt", "select_account"),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+	)
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -57,7 +58,7 @@ type Plugin struct {
 
 	activityHandler *handlers.ActivityHandler
 
-	clientBuilderWithToken func(string, string, *msteams.Token, func(string, ...any)) msteams.Client
+	clientBuilderWithToken func(string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {

@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"golang.org/x/oauth2"
 )
 
 func newTestPlugin() *Plugin {
@@ -36,7 +37,7 @@ func newTestPlugin() *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(tenantID string, clientId string, token *msteams.Token, logError func(string, ...any)) msteams.Client {
+		clientBuilderWithToken: func(tenantID string, clientId string, token *oauth2.Token, logError func(string, ...any)) msteams.Client {
 			return clientMock
 		},
 	}
@@ -95,7 +96,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&msteams.Token{}, nil).Times(1)
+	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	now := time.Now()
 	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
 		MattermostID:        "post-id",
@@ -155,7 +156,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&msteams.Token{}, nil).Times(1)
+	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post", "error", "Unable to send the message").Return(nil)
@@ -218,7 +219,7 @@ func TestGetClientForUser(t *testing.T) {
 		{
 			Name: "GetClientForUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 		},
 	} {
@@ -254,7 +255,7 @@ func TestGetClientForTeamsUser(t *testing.T) {
 		{
 			Name: "GetClientForTeamsUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 		},
 	} {
@@ -350,7 +351,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamUserID(), mock.AnythingOfType("*msteams.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
+				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{

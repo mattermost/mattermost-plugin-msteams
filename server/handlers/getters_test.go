@@ -17,6 +17,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"golang.org/x/oauth2"
 )
 
 type pluginMock struct {
@@ -244,7 +245,7 @@ func TestGetChatChannelID(t *testing.T) {
 				}, nil)
 			},
 			setupStore: func() {
-				var token *msteams.Token
+				var token *oauth2.Token
 				store.On("TeamsToMattermostUserID", "mock-userID").Return("", errors.New("Error while getting mattermost userID"))
 				store.On("SetUserInfo", "mock-Id", "mock-userID", token).Return(errors.New("Error while setting user info"))
 			},

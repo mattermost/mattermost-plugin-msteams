@@ -6,7 +6,6 @@ import (
 
 type Client interface {
 	Connect() error
-	RequestUserToken(message chan string) (*Token, error)
 	CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error)

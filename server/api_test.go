@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 func TestSubscriptionValidation(t *testing.T) {
@@ -100,7 +101,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&msteams.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -118,7 +119,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&msteams.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -136,7 +137,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&msteams.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
 			202,
 			"",
@@ -154,7 +155,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&msteams.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 				plugin.API.(*plugintest.API).On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", "Invalid webhook secret").Return(nil)
 			},
 			400,
@@ -458,7 +459,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get the teams list",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
@@ -468,7 +469,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListTeams").Return([]msteams.Team{
@@ -546,7 +547,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			Name:        "AutocompleteChannels: Unable to get the channels list",
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
@@ -557,7 +558,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			Name:        "AutocompleteChannels: Valid",
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&msteams.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListChannels", "mockData-3").Return([]msteams.Channel{
