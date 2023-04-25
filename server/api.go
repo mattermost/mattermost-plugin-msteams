@@ -138,8 +138,19 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 			}
+		} else if event.LifecycleEvent == "subscriptionRemoved" {
+			_, err := a.p.msteamsAppClient.SubscribeToChannels(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
+			if err != nil {
+				a.p.API.LogError("Unable to subscribe to channels", "error", err)
+				return
+			}
+
+			_, err = a.p.msteamsAppClient.SubscribeToChats(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
+			if err != nil {
+				a.p.API.LogError("Unable to subscribe to chats", "error", err)
+				return
+			}
 		}
-		// TODO: handle "missed" lifecycle event to resync
 	}
 
 	w.WriteHeader(http.StatusOK)
