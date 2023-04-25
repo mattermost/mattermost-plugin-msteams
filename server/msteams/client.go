@@ -121,7 +121,7 @@ type AccessToken struct {
 	token *oauth2.Token
 }
 
-func (at *AccessToken) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
+func (at *AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	return azcore.AccessToken{
 		Token:     at.token.AccessToken,
 		ExpiresOn: at.token.Expiry,
@@ -145,6 +145,8 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError fun
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
+		tenantID:   tenantID,
+		clientID:   clientID,
 		token:      token,
 		logError:   logError,
 	}
@@ -270,6 +272,9 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string) (*Message, erro
 	md := markdown.New(markdown.XHTMLOutput(true))
 	content := md.RenderToString([]byte(emoji.Parse(message)))
 
+	// TODO: Add support for parent id
+	_ = parentID
+
 	contentType := models.HTML_BODYTYPE
 
 	body := models.NewItemBody()
@@ -346,10 +351,7 @@ func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) e
 }
 
 func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
-	if err := tc.client.ChatsById(chatID).MessagesById(msgID).Delete(tc.ctx, nil); err != nil {
-		return err
-	}
-	return nil
+	return tc.client.ChatsById(chatID).MessagesById(msgID).Delete(tc.ctx, nil)
 }
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
@@ -862,10 +864,7 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 	setReaction.SetReactionType(&emoji)
 	setReaction.SetAdditionalData(userInfo)
 
-	if err := tc.client.ChatsById(chatID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
-		return err
-	}
-	return nil
+	return tc.client.ChatsById(chatID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil)
 }
 
 func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
@@ -906,10 +905,7 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 	unsetReaction.SetReactionType(&emoji)
 	unsetReaction.SetAdditionalData(userInfo)
 
-	if err := tc.client.ChatsById(chatID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
-		return err
-	}
-	return nil
+	return tc.client.ChatsById(chatID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil)
 }
 
 func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {

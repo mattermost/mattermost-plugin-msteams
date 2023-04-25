@@ -177,11 +177,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	if err := s.createIndex("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID"); err != nil {
-		return err
-	}
-
-	return nil
+	return s.createIndex("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID")
 }
 
 func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
@@ -216,7 +212,7 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLin
 }
 
 func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error) {
-	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsTeamID": teamID, "msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
 	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)

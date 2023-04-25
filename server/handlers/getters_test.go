@@ -304,7 +304,7 @@ func TestGetChatChannelID(t *testing.T) {
 			testCase.setupAPI()
 			ah.plugin = p
 
-			resp, err := ah.getChatChannelID(testCase.chat, testCase.messageID)
+			resp, err := ah.getChatChannelID(testCase.chat)
 			assert.Equal(t, resp, testCase.expectedResponse)
 			if testCase.expectedError != "" {
 				assert.EqualError(t, err, testCase.expectedError)

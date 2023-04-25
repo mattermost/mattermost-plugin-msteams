@@ -80,7 +80,7 @@ func getAutocompleteData() *model.AutocompleteData {
 	return cmd
 }
 
-func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	split := strings.Fields(args.Command)
 	command := split[0]
 	var parameters []string
@@ -97,37 +97,37 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	}
 
 	if action == "link" {
-		return p.executeLinkCommand(c, args, parameters)
+		return p.executeLinkCommand(args, parameters)
 	}
 
 	if action == "unlink" {
-		return p.executeUnlinkCommand(c, args)
+		return p.executeUnlinkCommand(args)
 	}
 
 	if action == "show" {
-		return p.executeShowCommand(c, args)
+		return p.executeShowCommand(args)
 	}
 
 	if action == "connect" {
-		return p.executeConnectCommand(c, args)
+		return p.executeConnectCommand(args)
 	}
 
 	if action == "connect-bot" {
-		return p.executeConnectBotCommand(c, args)
+		return p.executeConnectBotCommand(args)
 	}
 
 	if action == "disconnect" {
-		return p.executeDisconnectCommand(c, args)
+		return p.executeDisconnectCommand(args)
 	}
 
 	if action == "disconnect-bot" {
-		return p.executeDisconnectBotCommand(c, args)
+		return p.executeDisconnectBotCommand(args)
 	}
 
 	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
 }
 
-func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
@@ -185,7 +185,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
@@ -212,7 +212,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
@@ -240,7 +240,7 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	state, _ := json.Marshal(map[string]string{})
 
 	codeVerifier := model.NewId()
@@ -254,7 +254,7 @@ func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArg
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
@@ -273,7 +273,7 @@ func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.Command
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
 	if err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
@@ -296,7 +296,7 @@ func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.Command
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}

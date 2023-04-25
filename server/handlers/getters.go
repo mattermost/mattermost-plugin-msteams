@@ -140,7 +140,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 	return u.Id, err
 }
 
-func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
+func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		mmUserID, err := ah.getOrCreateSyntheticUser(member.UserID, member.DisplayName)

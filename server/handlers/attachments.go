@@ -9,7 +9,7 @@ import (
 )
 
 // handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(userID, filename, weburl string) ([]byte, error) {
+func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, error) {
 	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(userID, a.Name, a.ContentURL)
+		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
 			continue
