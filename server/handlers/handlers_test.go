@@ -145,7 +145,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(1)
-				p.On("GetStore").Return(store).Times(3)
+				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -175,7 +175,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetUserID(), nil).Times(1)
 			},
 		},
