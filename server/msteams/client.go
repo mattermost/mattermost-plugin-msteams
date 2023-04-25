@@ -1044,7 +1044,7 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 	}
 
 	sha2 := sha256.New()
-	io.WriteString(sha2, codeVerifier)
+	_, _ = io.WriteString(sha2, codeVerifier)
 	codeChallenge := base64.RawURLEncoding.EncodeToString(sha2.Sum(nil))
 
 	return conf.AuthCodeURL(state,
