@@ -57,7 +57,10 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, _ = w.Write(photo)
+
+	if _, err := w.Write(photo); err != nil {
+		a.p.API.LogError("Unable to write the response", "Error", err.Error())
+	}
 }
 
 // processActivity handles the activity received from teams subscriptions
