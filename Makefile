@@ -53,6 +53,7 @@ ifneq ($(HAS_SERVER),)
 	fi; \
 
 	@echo Running golangci-lint
+	go mod tidy
 	golangci-lint run --timeout 15m0s --verbose ./server/...
 endif
 
