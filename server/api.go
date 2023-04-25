@@ -142,13 +142,11 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			_, err := a.p.msteamsAppClient.SubscribeToChannels(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
 			if err != nil {
 				a.p.API.LogError("Unable to subscribe to channels", "error", err)
-				return
 			}
 
 			_, err = a.p.msteamsAppClient.SubscribeToChats(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
 			if err != nil {
 				a.p.API.LogError("Unable to subscribe to chats", "error", err)
-				return
 			}
 		}
 	}
