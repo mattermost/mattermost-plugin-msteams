@@ -297,7 +297,7 @@ func TestGetChatChannelID(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupStore()
@@ -370,7 +370,7 @@ func TestGetMessageFromChannel(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()
@@ -445,7 +445,7 @@ func TestGetReplyFromChannel(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()
@@ -627,7 +627,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()

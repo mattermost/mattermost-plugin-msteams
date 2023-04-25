@@ -35,8 +35,7 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 	// Create postgres container
 	if driverName == model.DatabaseDriverPostgres {
 		postgresPort := nat.Port("5432/tcp")
-		ctx := context.Background()
-		postgres, _ := testcontainers.GenericContainer(ctx,
+		postgres, _ := testcontainers.GenericContainer(context.Background(),
 			testcontainers.GenericContainerRequest{
 				ContainerRequest: testcontainers.ContainerRequest{
 					Image:        "postgres",
@@ -53,12 +52,8 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 				Started: true,
 			})
 
-		ip, _ := postgres.Host(ctx)
-		port, _ := postgres.MappedPort(ctx, "5432")
-		conn, err := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@%s:%s?sslmode=disable", ip, port))
-		if err != nil {
-			log.Fatalf("failed to connect to the container: %s", err.Error())
-		}
+		hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
+		conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
 		tearDownContainer := func() {
 			if err := postgres.Terminate(context.Background()); err != nil {
 				log.Fatalf("failed to terminate container: %s", err.Error())
@@ -486,8 +481,8 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 	}
 
 	token := &oauth2.Token{
-		Token:     "mockAccessToken-3",
-		ExpiresOn: time.Now(),
+		AccessToken:  "mockAccessToken-3",
+		RefreshToken: "mockRefreshToken-3",
 	}
 
 	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
@@ -527,8 +522,8 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, api
 	}
 
 	token := &oauth2.Token{
-		Token:     "mockAccessToken-4",
-		ExpiresOn: time.Now(),
+		AccessToken:  "mockAccessToken-4",
+		RefreshToken: "mockRefreshToken-4",
 	}
 
 	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
