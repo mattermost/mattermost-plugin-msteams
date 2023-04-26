@@ -1,12 +1,32 @@
 package handlers
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
 )
+
+func (ah *ActivityHandler) GetAvatarURL(userID string) string {
+	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
+	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
+	if err != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get user avatar", "Error", err.Error())
+		return defaultAvatarURL
+	}
+
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
+	if strings.Contains(resp.Header.Get("Content-Type"), "image") {
+		return ah.plugin.GetURL() + "/avatar/" + userID
+	}
+
+	return defaultAvatarURL
+}
 
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := convertToMD(msg.Text)
@@ -35,8 +55,8 @@ func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Mess
 
 	if senderID == ah.plugin.GetBotUserID() {
 		post.AddProp("override_username", msg.UserDisplayName)
-		post.AddProp("override_icon_url", ah.plugin.GetURL()+"/avatar/"+msg.UserID)
 		post.AddProp("from_webhook", "true")
+		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
 	return post, nil
 }
