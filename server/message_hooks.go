@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"strings"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -28,7 +27,12 @@ func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*mode
 				if err != nil {
 					return post, ""
 				}
-				if strings.HasSuffix(user.Email, "@msteamssync") {
+
+				if user.RemoteId == nil {
+					continue
+				}
+
+				if isMSTeamsUser(*user.RemoteId, user.Username) {
 					p.API.SendEphemeralPost(post.UserId, &model.Post{
 						Message:   "Attachments not supported in direct messages with MSTeams members",
 						UserId:    p.userID,

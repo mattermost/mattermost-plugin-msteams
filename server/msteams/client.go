@@ -699,9 +699,17 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		displayName = *u.DisplayName
 	}
 
+	email := ""
+	if u.Mail != nil {
+		email = *u.Mail
+	} else if u.UserPrincipalName != nil {
+		email = *u.UserPrincipalName
+	}
+
 	user := User{
 		DisplayName: displayName,
 		ID:          *u.ID,
+		Mail:        email,
 	}
 
 	return &user, nil

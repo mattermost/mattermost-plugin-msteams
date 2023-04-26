@@ -354,7 +354,7 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
-		username := slug.Make(msUser.DisplayName) + "-" + msUser.ID
+		username := slug.Make(msUser.DisplayName) + "_" + msUser.ID
 
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
@@ -379,7 +379,7 @@ func (p *Plugin) syncUsers() {
 			if err != nil {
 				p.API.LogError("Unable to sync user", "error", err)
 			}
-		} else if username != mmUser.Username || msUser.DisplayName != mmUser.FirstName {
+		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
 			_, err := p.API.UpdateUser(mmUser)
@@ -426,4 +426,19 @@ func getRandomString(characterSet string, length int) string {
 	}
 
 	return randomString.String()
+}
+
+func isMSTeamsUser(remoteID, username string) bool {
+	data := strings.Split(username, "_")
+	if len(data) == 2 {
+		msUserID := data[1]
+
+		userUUID := uuid.Parse(msUserID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserID := encoding.EncodeToString(userUUID)
+
+		return remoteID == shortUserID
+	}
+
+	return false
 }
