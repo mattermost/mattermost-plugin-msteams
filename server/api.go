@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/model"
+	"golang.org/x/oauth2"
 )
 
 type API struct {
@@ -33,6 +36,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 
 	return api
 }
@@ -57,7 +61,10 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, _ = w.Write(photo)
+
+	if _, err := w.Write(photo); err != nil {
+		a.p.API.LogError("Unable to write the response", "Error", err.Error())
+	}
 }
 
 // processActivity handles the activity received from teams subscriptions
@@ -269,36 +276,91 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	messageChan := make(chan string)
-	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			return
-		}
+	state, _ := json.Marshal(map[string]string{})
 
-		token, err := tokenSource.Token()
-		if err != nil {
-			return
-		}
+	codeVerifier := model.NewId()
+	_ = a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier))
 
-		client := msteams.NewTokenClient(a.p.configuration.TenantID, a.p.configuration.ClientID, token, a.p.API.LogError)
-		if err = client.Connect(); err != nil {
-			return
-		}
+	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, string(state), codeVerifier)
 
-		msteamsUserID, err := client.GetMyID()
-		if err != nil {
-			return
-		}
-
-		err = a.p.store.SetUserInfo(userID, msteamsUserID, token)
-		if err != nil {
-			return
-		}
-	}(userID, messageChan)
-
-	message := <-messageChan
-
-	data, _ := json.Marshal(map[string]string{"message": message})
+	data, _ := json.Marshal(map[string]string{"message": fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL)})
 	_, _ = w.Write(data)
+}
+
+func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
+	conf := &oauth2.Config{
+		ClientID:     a.p.configuration.ClientID,
+		ClientSecret: a.p.configuration.ClientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", a.p.configuration.TenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", a.p.configuration.TenantID),
+		},
+		RedirectURL: a.p.GetURL() + "/oauth-redirect",
+	}
+
+	code := r.URL.Query().Get("code")
+	stateData := r.URL.Query().Get("state")
+	state := map[string]string{}
+	err := json.Unmarshal([]byte(stateData), &state)
+	if err != nil {
+		a.p.API.LogError("Unable to get the code", "error", err.Error())
+		http.Error(w, "failed to get the code", http.StatusBadRequest)
+		return
+	}
+
+	mmUserID := userID
+	if authType, ok := state["auth_type"]; ok && authType == "bot" {
+		mmUserID = a.p.GetBotUserID()
+	}
+
+	codeVerifierBytes, appErr := a.p.API.KVGet("_code_verifier_" + mmUserID)
+	if appErr != nil {
+		a.p.API.LogError("Unable to get the code verifier", "error", appErr.Error())
+		http.Error(w, "failed to get the code verifier", http.StatusBadRequest)
+		return
+	}
+	appErr = a.p.API.KVDelete("_code_verifier_" + mmUserID)
+	if appErr != nil {
+		a.p.API.LogError("Unable to delete the used code verifier", "error", appErr.Error())
+	}
+
+	ctx := context.Background()
+	token, err := conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", string(codeVerifierBytes)))
+	if err != nil {
+		a.p.API.LogError("Unable to read avatar", "error", err.Error())
+		http.Error(w, "failed to get the code", http.StatusBadRequest)
+		return
+	}
+
+	client := msteams.NewTokenClient(a.p.configuration.TenantID, a.p.configuration.ClientID, token, a.p.API.LogError)
+	if err = client.Connect(); err != nil {
+		a.p.API.LogError("Unable connect to the client", "error", err.Error())
+		http.Error(w, "failed to connect to the client", http.StatusBadRequest)
+		return
+	}
+
+	msteamsUserID, err := client.GetMyID()
+	if err != nil {
+		a.p.API.LogError("Unable to get the MS Teams user id", "error", err.Error())
+		http.Error(w, "failed to get the MS Teams user id", http.StatusBadRequest)
+		return
+	}
+
+	err = a.p.store.SetUserInfo(mmUserID, msteamsUserID, token)
+	if err != nil {
+		a.p.API.LogError("Unable to store the token", "error", err.Error())
+		http.Error(w, "failed to store the token", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Add("Content-Type", "text/html")
+	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
 }

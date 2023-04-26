@@ -21,7 +21,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func newTestPlugin() *Plugin {
+func newTestPlugin(t *testing.T) *Plugin {
 	clientMock := &mocks.Client{}
 	plugin := &Plugin{
 		MattermostPlugin: plugin.MattermostPlugin{
@@ -41,10 +41,13 @@ func newTestPlugin() *Plugin {
 			return clientMock
 		},
 	}
+	plugin.store.(*storemocks.Store).Test(t)
+
 	plugin.msteamsAppClient.(*mocks.Client).On("ClearSubscriptions").Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannels", mock.Anything, plugin.configuration.WebhookSecret).Return("channel-subscription-id", nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChats", mock.Anything, plugin.configuration.WebhookSecret).Return("chats-subscription-id", nil)
+	plugin.msteamsAppClient.(*mocks.Client).Test(t)
 	bot := &model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
@@ -65,6 +68,7 @@ func newTestPlugin() *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).Test(t)
 
 	_ = plugin.OnActivate()
 	plugin.userID = "bot-user-id"
@@ -72,7 +76,7 @@ func newTestPlugin() *Plugin {
 }
 
 func TestMessageHasBeenPostedNewMessage(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	channel := model.Channel{
 		Id:     "channel-id",
@@ -111,7 +115,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewMessageWithoutChannelLink(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	channel := model.Channel{
 		Id:     "channel-id",
@@ -132,7 +136,7 @@ func TestMessageHasBeenPostedNewMessageWithoutChannelLink(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	channel := model.Channel{
 		Id:     "channel-id",
@@ -195,7 +199,7 @@ func TestGetURL(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			resp := p.GetURL()
 			assert.Equal("mockSiteURL/plugins/com.mattermost.msteams-sync", resp)
@@ -225,7 +229,7 @@ func TestGetClientForUser(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupStore(p.store.(*storemocks.Store))
 			resp, err := p.GetClientForUser(testutils.GetID())
 			if test.ExpectedError != "" {
@@ -261,7 +265,7 @@ func TestGetClientForTeamsUser(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupStore(p.store.(*storemocks.Store))
 			resp, err := p.GetClientForTeamsUser(testutils.GetTeamUserID())
 			if test.ExpectedError != "" {
@@ -364,7 +368,7 @@ func TestSyncUsers(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
@@ -400,7 +404,7 @@ func TestConnectTeamsAppClient(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			err := p.connectTeamsAppClient()
@@ -445,7 +449,7 @@ func TestStart(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			mutex, _ := cluster.NewMutex(p.API, clusterMutexKey)
 			p.clusterMutex = mutex
 			test.SetupAPI(p.API.(*plugintest.API))
@@ -477,7 +481,7 @@ func TestGeneratePluginSecrets(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			p.configuration.WebhookSecret = ""
 			p.configuration.EncryptionKey = ""
 			test.SetupAPI(p.API.(*plugintest.API))
