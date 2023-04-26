@@ -327,7 +327,7 @@ func TestGetChatChannelID(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupStore()
@@ -335,7 +335,7 @@ func TestGetChatChannelID(t *testing.T) {
 			testCase.setupClient(client)
 			ah.plugin = p
 
-			resp, err := ah.getChatChannelID(testCase.chat, testCase.messageID)
+			resp, err := ah.getChatChannelID(testCase.chat)
 			assert.Equal(t, resp, testCase.expectedResponse)
 			if testCase.expectedError != "" {
 				assert.EqualError(t, err, testCase.expectedError)
@@ -401,7 +401,7 @@ func TestGetMessageFromChannel(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()
@@ -476,7 +476,7 @@ func TestGetReplyFromChannel(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()
@@ -658,7 +658,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything)
+			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()

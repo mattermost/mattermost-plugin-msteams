@@ -62,7 +62,7 @@ type Plugin struct {
 	clientBuilderWithToken func(string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 }
 
-func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	api := NewAPI(p, p.store)
 	api.ServeHTTP(w, r)
 }
@@ -149,7 +149,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		go p.syncUsersPeriodically(ctx, p.configuration.SyncUsers)
 	}
 
-	go p.startSubscriptions(ctx)
+	go p.startSubscriptions()
 	if syncSince != nil {
 		go p.syncSince(*syncSince)
 	}
@@ -160,7 +160,7 @@ func (p *Plugin) syncSince(syncSince time.Time) {
 	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
-func (p *Plugin) startSubscriptions(ctx context.Context) {
+func (p *Plugin) startSubscriptions() {
 	p.clusterMutex.Lock()
 	defer p.clusterMutex.Unlock()
 

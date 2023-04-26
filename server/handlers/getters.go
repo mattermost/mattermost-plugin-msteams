@@ -23,8 +23,8 @@ func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID stri
 	}
 
 	msg, err := client.GetChatMessage(chat.ID, messageID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
+	if err != nil || msg == nil {
+		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err, "msg", msg)
 		return nil, err
 	}
 	return msg, nil
@@ -72,13 +72,13 @@ func (ah *ActivityHandler) getUserIDForChannelLink(teamID string, channelID stri
 func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err.Error())
+		if err != nil || chat == nil {
+			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err, "chat", chat)
 			return nil, nil, err
 		}
 		msg, err := ah.getMessageFromChat(chat, activityIds.MessageID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
+		if err != nil || msg == nil {
+			ah.plugin.GetAPI().LogError("Unable to get original message", "error", err, "msg", msg)
 			return nil, nil, err
 		}
 		return msg, chat, nil
@@ -141,7 +141,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 	return u.Id, err
 }
 
-func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
+func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		mmUserID, err := ah.getOrCreateSyntheticUser(member.UserID, member.DisplayName)

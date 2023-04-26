@@ -177,11 +177,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	if err := s.createIndex("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID"); err != nil {
-		return err
-	}
-
-	return nil
+	return s.createIndex("msteamssync_posts", "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID")
 }
 
 func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
@@ -216,7 +212,7 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLin
 }
 
 func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error) {
-	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsChannelID": channelID})
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsTeamID": teamID, "msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
 	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
@@ -345,6 +341,10 @@ func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, erro
 		return nil, err
 	}
 
+	if tokendata == "" {
+		return nil, errors.New("token not found")
+	}
+
 	var token oauth2.Token
 	err = json.Unmarshal([]byte(tokendata), &token)
 	if err != nil {
@@ -371,6 +371,10 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 		return nil, err
 	}
 
+	if tokendata == "" {
+		return nil, errors.New("token not found")
+	}
+
 	var token oauth2.Token
 	err = json.Unmarshal([]byte(tokendata), &token)
 	if err != nil {
@@ -380,18 +384,19 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 }
 
 func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
-	tokendata := []byte{}
+	var encryptedToken string
 	if token != nil {
 		var err error
+		var tokendata []byte
 		tokendata, err = json.Marshal(token)
 		if err != nil {
 			return err
 		}
-	}
 
-	encryptedToken, err := encrypt(s.encryptionKey(), string(tokendata))
-	if err != nil {
-		return err
+		encryptedToken, err = encrypt(s.encryptionKey(), string(tokendata))
+		if err != nil {
+			return err
+		}
 	}
 
 	if s.driverName == "postgres" {
