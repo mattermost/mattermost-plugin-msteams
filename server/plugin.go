@@ -430,8 +430,8 @@ func getRandomString(characterSet string, length int) string {
 
 func isMSTeamsUser(remoteID, username string) bool {
 	data := strings.Split(username, "_")
-	if len(data) == 2 {
-		msUserID := data[1]
+	if len(data) >= 2 {
+		msUserID := data[len(data)-1]
 
 		userUUID := uuid.Parse(msUserID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
