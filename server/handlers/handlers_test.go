@@ -39,7 +39,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("Error while getting original chat")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything, "chat", mock.Anything).Times(1)
 				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
@@ -52,7 +52,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(1)
+				p.On("GetAPI").Return(mockAPI).Times(3)
 				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -68,6 +68,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chat in not-linked users)").Times(1)
+				mockAPI.On("LogError", "Unable to get original post", "error", mock.Anything, "msg", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything, "msg", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},
@@ -145,7 +147,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(1)
-				p.On("GetStore").Return(store).Times(3)
+				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -175,7 +177,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetUserID(), nil).Times(1)
 			},
 		},
@@ -536,7 +537,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("error while getting original chat")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything, "chat", mock.Anything).Times(1)
 				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
@@ -549,7 +550,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(1)
+				p.On("GetAPI").Return(mockAPI).Times(3)
 				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -565,6 +566,8 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chat in not-linked users)").Times(1)
+				mockAPI.On("LogError", "Unable to get original post", "error", mock.Anything, "msg", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything, "msg", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},

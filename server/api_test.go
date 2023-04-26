@@ -25,7 +25,7 @@ import (
 )
 
 func TestSubscriptionValidation(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/changes?validationToken=test", nil)
@@ -44,7 +44,7 @@ func TestSubscriptionValidation(t *testing.T) {
 }
 
 func TestSubscriptionInvalidRequest(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/changes", strings.NewReader(""))
@@ -63,7 +63,7 @@ func TestSubscriptionInvalidRequest(t *testing.T) {
 }
 
 func TestSubscriptionNewMesage(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 	ttcases := []struct {
 		Name          string
 		Activities    Activities
@@ -188,7 +188,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 }
 
 func TestGetAvatarFromCache(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
 
@@ -209,7 +209,7 @@ func TestGetAvatarFromCache(t *testing.T) {
 }
 
 func TestGetAvatarFromServer(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
@@ -232,7 +232,7 @@ func TestGetAvatarFromServer(t *testing.T) {
 }
 
 func TestGetAvatarNotFound(t *testing.T) {
-	plugin := newTestPlugin()
+	plugin := newTestPlugin(t)
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
@@ -314,7 +314,7 @@ func TestProcessActivity(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			plugin := newTestPlugin()
+			plugin := newTestPlugin(t)
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
@@ -417,7 +417,7 @@ func TestProcessLifecycle(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			plugin := newTestPlugin()
+			plugin := newTestPlugin(t)
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
@@ -501,7 +501,7 @@ func TestAutocompleteTeams(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			plugin := newTestPlugin()
+			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
@@ -590,7 +590,7 @@ func TestAutocompleteChannels(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			plugin := newTestPlugin()
+			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
@@ -676,7 +676,7 @@ func TestNeedsConnect(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			plugin := newTestPlugin()
+			plugin := newTestPlugin(t)
 			plugin.configuration.EnforceConnectedUsers = test.EnforceConnectedUsers
 			plugin.configuration.EnabledTeams = test.EnabledTeams
 			test.SetupPlugin(plugin.API.(*plugintest.API))

@@ -139,7 +139,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 			return
 		}
 
-		channelID, err = ah.getChatChannelID(chat, msg.UserID)
+		channelID, err = ah.getChatChannelID(chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
 			return
