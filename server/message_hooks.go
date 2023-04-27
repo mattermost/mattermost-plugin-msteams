@@ -61,7 +61,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
 			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, 10)
 			if appErr != nil {
 				return
@@ -98,7 +98,7 @@ func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reactio
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogError("Unable to handle message reaction set", "error", err.Error())
@@ -141,7 +141,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.configuration.SyncDirectMessages {
+		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogError("Unable to handle message reaction unset", "error", err.Error())
@@ -174,7 +174,7 @@ func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *mode
 		if channel.Type != model.ChannelTypeGroup && channel.Type != model.ChannelTypeDirect {
 			return
 		}
-		if !p.configuration.SyncDirectMessages {
+		if !p.getConfiguration().SyncDirectMessages {
 			return
 		}
 
