@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"strings"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -12,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
+func (p *Plugin) MessageWillBePosted(_ *plugin.Context, post *model.Post) (*model.Post, string) {
 	if len(post.FileIds) > 0 && p.configuration.SyncDirectMessages {
 		channel, err := p.API.GetChannel(post.ChannelId)
 		if err != nil {
@@ -28,7 +27,12 @@ func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*mode
 				if err != nil {
 					return post, ""
 				}
-				if strings.HasSuffix(user.Email, "@msteamssync") {
+
+				if user.RemoteId == nil {
+					continue
+				}
+
+				if isMSTeamsUser(*user.RemoteId, user.Username) {
 					p.API.SendEphemeralPost(post.UserId, &model.Post{
 						Message:   "Attachments not supported in direct messages with MSTeams members",
 						UserId:    p.userID,
@@ -42,7 +46,7 @@ func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*mode
 	return post, ""
 }
 
-func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
+func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	p.API.LogDebug("Create message hook", "post", post)
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
@@ -86,7 +90,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	}
 }
 
-func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reaction) {
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
 		return
@@ -118,7 +122,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	}
 }
 
-func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.Reaction) {
+func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
 	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
 	if reaction.ChannelId == "removefromplugin" {
 		p.API.LogError("Ignore reaction that has been trigger from the plugin handler")
@@ -156,7 +160,7 @@ func (p *Plugin) ReactionHasBeenRemoved(c *plugin.Context, reaction *model.React
 	}
 }
 
-func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
+func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *model.Post) {
 	p.API.LogDebug("Updating message hook", "newPost", newPost, "oldPost", oldPost)
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {

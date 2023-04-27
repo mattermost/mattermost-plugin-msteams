@@ -20,6 +20,7 @@ import (
 )
 
 func TestMessageWillBePosted(t *testing.T) {
+	mockRemoteID := "d5d9wgt1yp8o9gr1cktz8r1nxc"
 	for _, test := range []struct {
 		Name            string
 		SetupAPI        func(*plugintest.API)
@@ -51,17 +52,21 @@ func TestMessageWillBePosted(t *testing.T) {
 			ExpectedPost: testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()),
 		},
 		{
-			Name: "MessageWillBePosted: User email with suffix '@msteamssync'",
+			Name: "MessageWillBePosted: User is ms teams user",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@msteamssync"), nil).Times(2)
+				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@msteamssync"), nil).Times(1)
+				api.On("GetUser", testutils.GetID()).Return(&model.User{
+					Username: "test_1ec7fa1a-3203-4f0f-9892-62a37392427b",
+					RemoteId: &mockRemoteID,
+				}, nil).Times(1)
 				api.On("SendEphemeralPost", testutils.GetID(), mock.Anything).Return(nil).Times(1)
 			},
 			ExpectedMessage: "Attachments not supported in direct messages with MSTeams members",
 		},
 		{
-			Name: "MessageWillBePosted: User with different email",
+			Name: "MessageWillBePosted: User is not ms teams user",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
@@ -72,7 +77,7 @@ func TestMessageWillBePosted(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			post, resp := p.MessageWillBePosted(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()))
@@ -173,7 +178,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
@@ -295,7 +300,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
@@ -473,7 +478,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
@@ -557,7 +562,7 @@ func TestSetChatReaction(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -637,7 +642,7 @@ func TestSetReaction(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -728,7 +733,7 @@ func TestUnsetChatReaction(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -808,7 +813,7 @@ func TestUnsetReaction(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -926,7 +931,7 @@ func TestSendChat(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1060,7 +1065,7 @@ func TestSend(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1155,7 +1160,7 @@ func TestDelete(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1246,7 +1251,7 @@ func TestDeleteChat(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1387,7 +1392,7 @@ func TestUpdate(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1532,7 +1537,7 @@ func TestUpdateChat(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
@@ -1643,7 +1648,7 @@ func TestGetChatIDForChannel(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			p := newTestPlugin()
+			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))

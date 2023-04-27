@@ -115,7 +115,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
 		return
 	}
 
@@ -131,28 +131,30 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	var senderID string
 	var channelID string
-	senderID, err := ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-	if err != nil || senderID == "" {
-		senderID = ah.plugin.GetBotUserID()
-	}
-
 	if chat != nil {
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
 			return
 		}
 
-		channelID, err = ah.getChatChannelID(chat, msg.UserID)
+		channelID, err = ah.getChatChannelID(chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
 			return
 		}
+		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
+		senderID, _ = ah.getOrCreateSyntheticUser(msg.UserID, "")
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
 			channelID = channelLink.MattermostChannel
 		}
+	}
+
+	if err != nil || senderID == "" {
+		senderID = ah.plugin.GetBotUserID()
 	}
 
 	if channelID == "" {
@@ -206,7 +208,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chate in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
 		return
 	}
 

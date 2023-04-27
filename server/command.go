@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -79,7 +80,7 @@ func getAutocompleteData() *model.AutocompleteData {
 	return cmd
 }
 
-func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	split := strings.Fields(args.Command)
 	command := split[0]
 	var parameters []string
@@ -96,37 +97,37 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	}
 
 	if action == "link" {
-		return p.executeLinkCommand(c, args, parameters)
+		return p.executeLinkCommand(args, parameters)
 	}
 
 	if action == "unlink" {
-		return p.executeUnlinkCommand(c, args)
+		return p.executeUnlinkCommand(args)
 	}
 
 	if action == "show" {
-		return p.executeShowCommand(c, args)
+		return p.executeShowCommand(args)
 	}
 
 	if action == "connect" {
-		return p.executeConnectCommand(c, args)
+		return p.executeConnectCommand(args)
 	}
 
 	if action == "connect-bot" {
-		return p.executeConnectBotCommand(c, args)
+		return p.executeConnectBotCommand(args)
 	}
 
 	if action == "disconnect" {
-		return p.executeDisconnectCommand(c, args)
+		return p.executeDisconnectCommand(args)
 	}
 
 	if action == "disconnect-bot" {
-		return p.executeDisconnectBotCommand(c, args)
+		return p.executeDisconnectBotCommand(args)
 	}
 
 	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
 }
 
-func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
@@ -184,7 +185,7 @@ func (p *Plugin) executeLinkCommand(c *plugin.Context, args *model.CommandArgs, 
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
@@ -211,7 +212,7 @@ func (p *Plugin) executeUnlinkCommand(c *plugin.Context, args *model.CommandArgs
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
@@ -239,100 +240,47 @@ func (p *Plugin) executeShowCommand(c *plugin.Context, args *model.CommandArgs) 
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeConnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	messageChan := make(chan string)
-	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
+func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	state, _ := json.Marshal(map[string]string{})
 
-		token, err := tokenSource.Token()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
+	codeVerifier := model.NewId()
+	appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier))
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please, try again.")
+	}
 
-		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
-		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
-
-		msteamsUserID, err := client.GetMyID()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
-
-		err = p.store.SetUserInfo(userID, msteamsUserID, token)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect your account, %s", err.Error())
-			return
-		}
-
-		messageChan <- "Your account has been connected."
-	}(args.UserId, messageChan)
-
-	message := <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	message = <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	close(messageChan)
+	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, string(state), codeVerifier)
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeConnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
-	messageChan := make(chan string)
-	go func(userID string, messageChan chan string) {
-		tokenSource, err := msteams.NewUnauthenticatedClient(p.configuration.TenantID, p.configuration.ClientID, p.API.LogError).RequestUserToken(messageChan)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	state, _ := json.Marshal(map[string]string{"auth_type": "bot"})
 
-		token, err := tokenSource.Token()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	codeVerifier := model.NewId()
+	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please, try again.")
+	}
 
-		client := msteams.NewTokenClient(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError)
-		if err = client.Connect(); err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
+	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, string(state), codeVerifier)
 
-		msteamsUserID, err := client.GetMyID()
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
-
-		err = p.store.SetUserInfo(userID, msteamsUserID, token)
-		if err != nil {
-			messageChan <- fmt.Sprintf("Error: unable to connect the bot account, %s", err.Error())
-			return
-		}
-
-		messageChan <- "The bot account has been connected"
-	}(p.userID, messageChan)
-
-	message := <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	message = <-messageChan
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, message)
-	close(messageChan)
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if _, err := p.store.MattermostToTeamsUserID(args.UserId); err != nil {
+func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	_, err := p.store.MattermostToTeamsUserID(args.UserId)
+	if err != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
+		return &model.CommandResponse{}, nil
+	}
+
+	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
 		return &model.CommandResponse{}, nil
 	}
@@ -346,7 +294,7 @@ func (p *Plugin) executeDisconnectCommand(c *plugin.Context, args *model.Command
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeDisconnectBotCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
 	}

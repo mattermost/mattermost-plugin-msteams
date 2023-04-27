@@ -22,7 +22,6 @@ func TestHandleDownloadFile(t *testing.T) {
 	for _, testCase := range []struct {
 		description   string
 		userID        string
-		filename      string
 		weburl        string
 		expectedError string
 		setupPlugin   func(plugin *mocksPlugin.PluginIface)
@@ -31,19 +30,17 @@ func TestHandleDownloadFile(t *testing.T) {
 		{
 			description: "Successfully file downloaded",
 			userID:      testutils.GetUserID(),
-			filename:    "file1.txt",
 			weburl:      "https://example.com/file1.txt",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 			},
 			setupClient: func() {
-				client.On("GetFileURL", "https://example.com/file1.txt").Return("https://example.com/file1.txt", nil)
+				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
 			},
 		},
 		{
 			description:   "Unable to get client for a user",
 			userID:        "mock-userID",
-			filename:      "file1.txt",
 			weburl:        "https://example.com/file1.txt",
 			expectedError: "Error while getting the client for a user",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
@@ -54,13 +51,12 @@ func TestHandleDownloadFile(t *testing.T) {
 		{
 			description:   "Unable to get file url",
 			userID:        testutils.GetUserID(),
-			filename:      "file1.txt",
 			expectedError: "Error while getting a file url",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 			},
 			setupClient: func() {
-				client.On("GetFileURL", "").Return("", errors.New("Error while getting a file url"))
+				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting a file url"))
 			},
 		},
 	} {
@@ -70,7 +66,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			testCase.setupClient()
 			ah.plugin = p
 
-			data, err := ah.handleDownloadFile(testCase.userID, testCase.filename, testCase.weburl)
+			data, err := ah.handleDownloadFile(testCase.userID, testCase.weburl)
 			if testCase.expectedError != "" {
 				assert.Nil(t, data)
 				assert.EqualError(t, err, testCase.expectedError)

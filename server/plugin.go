@@ -7,6 +7,7 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"math"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,7 +62,7 @@ type Plugin struct {
 	clientBuilderWithToken func(string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 }
 
-func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	api := NewAPI(p, p.store)
 	api.ServeHTTP(w, r)
 }
@@ -148,7 +149,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		go p.syncUsersPeriodically(ctx, p.configuration.SyncUsers)
 	}
 
-	go p.startSubscriptions(ctx)
+	go p.startSubscriptions()
 	if syncSince != nil {
 		go p.syncSince(*syncSince)
 	}
@@ -159,7 +160,7 @@ func (p *Plugin) syncSince(syncSince time.Time) {
 	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
-func (p *Plugin) startSubscriptions(ctx context.Context) {
+func (p *Plugin) startSubscriptions() {
 	p.clusterMutex.Lock()
 	defer p.clusterMutex.Unlock()
 
@@ -347,9 +348,13 @@ func (p *Plugin) syncUsers() {
 	}
 
 	for _, msUser := range msUsers {
-		mmUser, ok := mmUsersMap[msUser.ID+"@msteamssync"]
+		if msUser.Mail == "" {
+			continue
+		}
 
-		username := slug.Make(msUser.DisplayName) + "-" + msUser.ID
+		mmUser, ok := mmUsersMap[msUser.Mail]
+
+		username := slug.Make(msUser.DisplayName) + "_" + msUser.ID
 
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
@@ -357,8 +362,8 @@ func (p *Plugin) syncUsers() {
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  model.NewId(),
-				Email:     msUser.ID + "@msteamssync",
+				Password:  generateRandomPassword(),
+				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
@@ -374,7 +379,7 @@ func (p *Plugin) syncUsers() {
 			if err != nil {
 				p.API.LogError("Unable to sync user", "error", err)
 			}
-		} else if username != mmUser.Username || msUser.DisplayName != mmUser.FirstName {
+		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
 			_, err := p.API.UpdateUser(mmUser)
@@ -394,4 +399,46 @@ func generateSecret() (string, error) {
 	s := base64.RawStdEncoding.EncodeToString(b)
 	s = s[:32]
 	return s, nil
+}
+
+func generateRandomPassword() string {
+	lowerCharSet := "abcdedfghijklmnopqrst"
+	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	specialCharSet := "!@#$%&*"
+	numberSet := "0123456789"
+	allCharSet := lowerCharSet + upperCharSet + specialCharSet + numberSet
+
+	var password strings.Builder
+
+	password.WriteString(getRandomString(lowerCharSet, 1))
+	password.WriteString(getRandomString(upperCharSet, 1))
+	password.WriteString(getRandomString(specialCharSet, 1))
+	password.WriteString(getRandomString(numberSet, 1))
+	password.WriteString(getRandomString(allCharSet, 20))
+	return password.String()
+}
+
+func getRandomString(characterSet string, length int) string {
+	var randomString strings.Builder
+	for i := 0; i < length; i++ {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(length)))
+		randomString.WriteString(string(characterSet[num.Int64()]))
+	}
+
+	return randomString.String()
+}
+
+func isMSTeamsUser(remoteID, username string) bool {
+	data := strings.Split(username, "_")
+	if len(data) >= 2 {
+		msUserID := data[len(data)-1]
+
+		userUUID := uuid.Parse(msUserID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserID := encoding.EncodeToString(userUUID)
+
+		return remoteID == shortUserID
+	}
+
+	return false
 }

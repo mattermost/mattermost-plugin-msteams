@@ -2,13 +2,10 @@ package msteams
 
 import (
 	"io"
-
-	"golang.org/x/oauth2"
 )
 
 type Client interface {
 	Connect() error
-	RequestUserToken(message chan string) (oauth2.TokenSource, error)
 	CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error)
@@ -32,8 +29,9 @@ type Client interface {
 	GetMessage(teamID, channelID, messageID string) (*Message, error)
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)
+	GetUser(userID string) (*User, error)
 	GetMyID() (string, error)
-	GetFileURL(weburl string) (string, error)
+	GetFileContent(weburl string) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
 	ListTeams() ([]Team, error)

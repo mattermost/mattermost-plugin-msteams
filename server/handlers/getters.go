@@ -23,8 +23,8 @@ func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID stri
 	}
 
 	msg, err := client.GetChatMessage(chat.ID, messageID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
+	if err != nil || msg == nil {
+		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err, "msg", msg)
 		return nil, err
 	}
 	return msg, nil
@@ -72,13 +72,13 @@ func (ah *ActivityHandler) getUserIDForChannelLink(teamID string, channelID stri
 func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err.Error())
+		if err != nil || chat == nil {
+			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err, "chat", chat)
 			return nil, nil, err
 		}
 		msg, err := ah.getMessageFromChat(chat, activityIds.MessageID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
+		if err != nil || msg == nil {
+			ah.plugin.GetAPI().LogError("Unable to get original message", "error", err, "msg", msg)
 			return nil, nil, err
 		}
 		return msg, chat, nil
@@ -105,33 +105,43 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 
 func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) (string, error) {
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(userID)
-	if err != nil || mmUserID == "" {
-		u, appErr := ah.plugin.GetAPI().GetUserByEmail(userID + "@msteamssync")
-		if appErr != nil {
-			var appErr2 *model.AppError
-			memberUUID := uuid.Parse(userID)
-			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-			shortUserID := encoding.EncodeToString(memberUUID)
-			u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
-				Username:  slug.Make(displayName) + "-" + userID,
-				FirstName: displayName,
-				Email:     userID + "@msteamssync",
-				Password:  model.NewId(),
-				RemoteId:  &shortUserID,
-			})
-			if appErr2 != nil {
-				return "", appErr2
-			}
-		}
-		if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
-			ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
-		}
-		mmUserID = u.Id
+	if err == nil && mmUserID != "" {
+		return mmUserID, err
 	}
-	return mmUserID, err
+
+	user, clientErr := ah.plugin.GetClientForApp().GetUser(userID)
+	if clientErr != nil {
+		return "", clientErr
+	}
+
+	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
+	if appErr != nil {
+		userDisplayName := displayName
+		if displayName == "" {
+			userDisplayName = user.DisplayName
+		}
+		var appErr2 *model.AppError
+		memberUUID := uuid.Parse(userID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserID := encoding.EncodeToString(memberUUID)
+		u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
+			Username:  slug.Make(userDisplayName) + "_" + userID,
+			FirstName: userDisplayName,
+			Email:     user.Mail,
+			Password:  model.NewId(),
+			RemoteId:  &shortUserID,
+		})
+		if appErr2 != nil {
+			return "", appErr2
+		}
+	}
+	if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
+		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
+	}
+	return u.Id, err
 }
 
-func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat, msteamsUserID string) (string, error) {
+func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		mmUserID, err := ah.getOrCreateSyntheticUser(member.UserID, member.DisplayName)

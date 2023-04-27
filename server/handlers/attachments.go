@@ -2,9 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -12,26 +9,15 @@ import (
 )
 
 // handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(userID, filename, weburl string) ([]byte, error) {
+func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, error) {
 	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	realURL, err := client.GetFileURL(weburl)
+	data, err := client.GetFileContent(weburl)
 	if err != nil {
 		return nil, err
-	}
-	// Actually download the file.
-	res, err := http.DefaultClient.Get(realURL)
-	if err != nil {
-		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
-	}
-	defer res.Body.Close()
-
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("download %s failed %#v", weburl, err)
 	}
 
 	return data, nil
@@ -58,7 +44,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(userID, a.Name, a.ContentURL)
+		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
 			continue

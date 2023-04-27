@@ -42,7 +42,7 @@ func TestMsgToPost(t *testing.T) {
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,
-					"override_icon_url":                    "https://example.com//avatar/sfmq19kpztg5iy47ebe51hb31w",
+					"override_icon_url":                    "https://example.com//public/msteams-sync-icon.svg",
 					"override_username":                    "mock-UserDisplayName",
 				},
 				FileIds: model.StringArray{},
@@ -54,7 +54,7 @@ func TestMsgToPost(t *testing.T) {
 			testCase.setupPlugin(p)
 			ah.plugin = p
 			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.message, testCase.senderID)
-			assert.Equal(t, post, testCase.post)
+			assert.Equal(t, testCase.post, post)
 		})
 	}
 }
