@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	msgraph "github.com/yaegashi/msgraph.go/beta"
 )
 
 func TestConvertToMessage(t *testing.T) {
@@ -22,43 +22,45 @@ func TestConvertToMessage(t *testing.T) {
 	attachmentURL := "mockAttachmentURL"
 	for _, test := range []struct {
 		Name           string
-		ChatMessage    *msgraph.ChatMessage
+		ChatMessage    models.ChatMessageable
 		ExpectedResult Message
 	}{
 		{
 			Name: "ConvertToMessage: With data filled",
-			ChatMessage: &msgraph.ChatMessage{
-				From: &msgraph.IdentitySet{
-					User: &msgraph.Identity{
-						ID:          &teamsUserID,
-						DisplayName: &teamsUserDisplayName,
-					},
-				},
-				ReplyToID: &teamsReplyID,
-				Body: &msgraph.ItemBody{
-					Content: &content,
-				},
-				Subject:              &subject,
-				LastModifiedDateTime: &time.Time{},
-				Attachments: []msgraph.ChatMessageAttachment{
-					{
-						ContentType: &attachmentContentType,
-						Content:     &attachmentContent,
-						Name:        &attachmentName,
-						ContentURL:  &attachmentURL,
-					},
-				},
-				Reactions: []msgraph.ChatMessageReaction{
-					{
-						ReactionType: &reactionType,
-						User: &msgraph.IdentitySet{
-							User: &msgraph.Identity{
-								ID: &teamsUserID,
-							},
-						},
-					},
-				},
-			},
+			ChatMessage: func() models.ChatMessageable {
+				from := models.NewIdentitySet()
+				user := models.NewIdentity()
+				user.SetId(&teamsUserID)
+				user.SetDisplayName(&teamsUserDisplayName)
+				from.SetUser(user)
+
+				body := models.NewItemBody()
+				body.SetContent(&content)
+
+				attachment := models.NewChatMessageAttachment()
+				attachment.SetContentType(&attachmentContentType)
+				attachment.SetContent(&attachmentContent)
+				attachment.SetName(&attachmentName)
+				attachment.SetContentUrl(&attachmentURL)
+
+				reactionUserSet := models.NewIdentitySet()
+				reactionUser := models.NewIdentity()
+				reactionUser.SetId(&teamsUserID)
+				reactionUserSet.SetUser(reactionUser)
+				reaction := models.NewChatMessageReaction()
+				reaction.SetUser(reactionUserSet)
+				reaction.SetReactionType(&reactionType)
+
+				message := models.NewChatMessage()
+				message.SetFrom(from)
+				message.SetReplyToId(&teamsReplyID)
+				message.SetBody(body)
+				message.SetSubject(&subject)
+				message.SetLastModifiedDateTime(&time.Time{})
+				message.SetAttachments([]models.ChatMessageAttachmentable{attachment})
+				message.SetReactions([]models.ChatMessageReactionable{reaction})
+				return message
+			}(),
 			ExpectedResult: Message{
 				UserID:          teamsUserID,
 				UserDisplayName: teamsUserDisplayName,
@@ -87,9 +89,11 @@ func TestConvertToMessage(t *testing.T) {
 		},
 		{
 			Name: "ConvertToMessage: With no data filled",
-			ChatMessage: &msgraph.ChatMessage{
-				LastModifiedDateTime: &time.Time{},
-			},
+			ChatMessage: func() models.ChatMessageable {
+				message := models.NewChatMessage()
+				message.SetLastModifiedDateTime(&time.Time{})
+				return message
+			}(),
 			ExpectedResult: Message{
 				Attachments:  []Attachment{},
 				Reactions:    []Reaction{},

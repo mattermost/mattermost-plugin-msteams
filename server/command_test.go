@@ -9,7 +9,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -19,7 +18,7 @@ import (
 )
 
 func TestExecuteUnlinkCommand(t *testing.T) {
-	p := newTestPlugin()
+	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -153,13 +152,13 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
-			_, _ = p.executeUnlinkCommand(&plugin.Context{}, testCase.args)
+			_, _ = p.executeUnlinkCommand(testCase.args)
 		})
 	}
 }
 
 func TestExecuteShowCommand(t *testing.T) {
-	p := newTestPlugin()
+	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -234,13 +233,13 @@ func TestExecuteShowCommand(t *testing.T) {
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
-			_, _ = p.executeShowCommand(&plugin.Context{}, testCase.args)
+			_, _ = p.executeShowCommand(testCase.args)
 		})
 	}
 }
 
 func TestExecuteDisconnectCommand(t *testing.T) {
-	p := newTestPlugin()
+	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -318,13 +317,13 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
-			_, _ = p.executeDisconnectCommand(&plugin.Context{}, testCase.args)
+			_, _ = p.executeDisconnectCommand(testCase.args)
 		})
 	}
 }
 
 func TestExecuteDisconnectBotCommand(t *testing.T) {
-	p := newTestPlugin()
+	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -409,13 +408,13 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
-			_, _ = p.executeDisconnectBotCommand(&plugin.Context{}, testCase.args)
+			_, _ = p.executeDisconnectBotCommand(testCase.args)
 		})
 	}
 }
 
 func TestExecuteLinkCommand(t *testing.T) {
-	p := newTestPlugin()
+	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -625,7 +624,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", nil, nil).(*mockClient.Client))
-			_, _ = p.executeLinkCommand(&plugin.Context{}, testCase.args, testCase.parameters)
+			_, _ = p.executeLinkCommand(testCase.args, testCase.parameters)
 		})
 	}
 }
