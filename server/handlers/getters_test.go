@@ -67,7 +67,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 		ExpectedError  bool
 	}{
 		{
-			Name:        "Uknown user but matching an already existing synthetic user",
+			Name:        "Unknown user but matching an already existing synthetic user",
 			UserID:      "unknown-user",
 			DisplayName: "Unknown User",
 			SetupStore: func(store *storemocks.Store) {
@@ -77,11 +77,17 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
-			SetupAppClient: func(*mocksClient.Client) {},
+			SetupAppClient: func(client *mocksClient.Client) {
+				client.On("GetUser", "unknown-user").Return(&msteams.User{
+					DisplayName: "New display name",
+					ID:          "unknown-user",
+					Mail:        "unknown-user@msteamssync",
+				}, nil)
+			},
 			ExpectedResult: "new-user-id",
 		},
 		{
-			Name:        "Uknown user without display name not matching an already existing synthetic user",
+			Name:        "Unknown user without display name not matching an already existing synthetic user",
 			UserID:      "unknown-user",
 			DisplayName: "",
 			SetupStore: func(store *storemocks.Store) {
@@ -91,7 +97,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
 				api.On("CreateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.Username != "new-display-name-unknown-user" {
+					if user.Username != "new-display-name_unknown-user" {
 						return false
 					}
 					if user.FirstName != "New display name" {
@@ -104,12 +110,16 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
 			SetupAppClient: func(client *mocksClient.Client) {
-				client.On("GetUser", "unknown-user").Return(&msteams.User{DisplayName: "New display name", ID: "unknown-user"}, nil)
+				client.On("GetUser", "unknown-user").Return(&msteams.User{
+					DisplayName: "New display name",
+					ID:          "unknown-user",
+					Mail:        "unknown-user@msteamssync",
+				}, nil)
 			},
 			ExpectedResult: "new-user-id",
 		},
 		{
-			Name:        "Uknown user with display name not matching an already existing synthetic user",
+			Name:        "Unknown user with display name not matching an already existing synthetic user",
 			UserID:      "unknown-user",
 			DisplayName: "Unknown User",
 			SetupStore: func(store *storemocks.Store) {
@@ -119,7 +129,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
 				api.On("CreateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.Username != "unknown-user-unknown-user" {
+					if user.Username != "unknown-user_unknown-user" {
 						return false
 					}
 					if user.FirstName != "Unknown User" {
@@ -131,7 +141,13 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 					return true
 				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 			},
-			SetupAppClient: func(*mocksClient.Client) {},
+			SetupAppClient: func(client *mocksClient.Client) {
+				client.On("GetUser", "unknown-user").Return(&msteams.User{
+					DisplayName: "New display name",
+					ID:          "unknown-user",
+					Mail:        "unknown-user@msteamssync",
+				}, nil)
+			},
 			ExpectedResult: "new-user-id",
 		},
 	} {
@@ -154,6 +170,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 
 func TestGetChatChannelID(t *testing.T) {
 	ah := ActivityHandler{}
+	client := mocksClient.NewClient(t)
 	mockAPI := &plugintest.API{}
 	store := storemocks.NewStore(t)
 
@@ -166,6 +183,7 @@ func TestGetChatChannelID(t *testing.T) {
 		setupPlugin      func(plugin *mocksPlugin.PluginIface)
 		setupAPI         func()
 		setupStore       func()
+		setupClient      func(client *mocksClient.Client)
 	}{
 		{
 			description: "Successfully got the ID of direct channel",
@@ -194,6 +212,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil)
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil)
 			},
+			setupClient:      func(client *mocksClient.Client) {},
 			expectedResponse: testutils.GetChannelID(),
 		},
 		{
@@ -223,6 +242,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil)
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil)
 			},
+			setupClient:      func(client *mocksClient.Client) {},
 			expectedResponse: testutils.GetChannelID(),
 		},
 		{
@@ -238,6 +258,7 @@ func TestGetChatChannelID(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetStore").Return(store)
 				p.On("GetAPI").Return(mockAPI)
+				p.On("GetClientForApp").Return(client)
 			},
 			setupAPI: func() {
 				mockAPI.On("GetUserByEmail", "mock-userID@msteamssync").Return(&model.User{
@@ -248,6 +269,13 @@ func TestGetChatChannelID(t *testing.T) {
 				var token *oauth2.Token
 				store.On("TeamsToMattermostUserID", "mock-userID").Return("", errors.New("Error while getting mattermost userID"))
 				store.On("SetUserInfo", "mock-Id", "mock-userID", token).Return(errors.New("Error while setting user info"))
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetUser", "mock-userID").Return(&msteams.User{
+					DisplayName: "New display name",
+					ID:          "unknown-user",
+					Mail:        "mock-userID@msteamssync",
+				}, nil)
 			},
 			expectedError:    "Error while setting user info",
 			expectedResponse: "",
@@ -269,6 +297,7 @@ func TestGetChatChannelID(t *testing.T) {
 			setupStore: func() {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()).Return("mock-mmUserID", nil)
 			},
+			setupClient:      func(client *mocksClient.Client) {},
 			expectedError:    "not enough user for creating a channel",
 			expectedResponse: "",
 		},
@@ -293,6 +322,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil)
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil)
 			},
+			setupClient:   func(client *mocksClient.Client) {},
 			expectedError: "dm/gm not found",
 		},
 	} {
@@ -302,6 +332,7 @@ func TestGetChatChannelID(t *testing.T) {
 			testCase.setupPlugin(p)
 			testCase.setupStore()
 			testCase.setupAPI()
+			testCase.setupClient(client)
 			ah.plugin = p
 
 			resp, err := ah.getChatChannelID(testCase.chat)

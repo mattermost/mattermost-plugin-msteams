@@ -56,6 +56,7 @@ type Chat struct {
 type User struct {
 	DisplayName string
 	ID          string
+	Mail        string
 }
 
 type ChatMember struct {
@@ -687,9 +688,17 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		displayName = *u.GetDisplayName()
 	}
 
+	email := ""
+	if u.GetMail() != nil {
+		email = *u.GetMail()
+	} else if u.GetUserPrincipalName() != nil {
+		email = *u.GetUserPrincipalName()
+	}
+
 	user := User{
 		DisplayName: displayName,
 		ID:          *u.GetId(),
+		Mail:        email,
 	}
 
 	return &user, nil
@@ -937,7 +946,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 func (tc *ClientImpl) ListUsers() ([]User, error) {
 	requestParameters := &users.UsersRequestBuilderGetQueryParameters{
-		Select: []string{"displayName", "id"},
+		Select: []string{"displayName", "id", "mail", "userPrincipalName"},
 	}
 	configuration := &users.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -957,6 +966,12 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		users[i] = User{
 			DisplayName: displayName,
 			ID:          *u.GetId(),
+		}
+
+		if u.GetMail() != nil {
+			users[i].Mail = strings.ToLower(*u.GetMail())
+		} else if u.GetUserPrincipalName() != nil {
+			users[i].Mail = strings.ToLower(*u.GetUserPrincipalName())
 		}
 	}
 	return users, nil
