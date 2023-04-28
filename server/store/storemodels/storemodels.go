@@ -17,10 +17,18 @@ type PostInfo struct {
 	MSTeamsLastUpdateAt time.Time
 }
 
+type GlobalSubscription struct {
+	SubscriptionID string
+	Type           string
+	ExpiresOn      time.Time
+	Secret         string
+}
+
 type ChatSubscription struct {
 	SubscriptionID string
 	UserID         string
 	ExpiresOn      time.Time
+	Secret         string
 }
 
 type ChannelSubscription struct {
@@ -28,4 +36,5 @@ type ChannelSubscription struct {
 	TeamID         string
 	ChannelID      string
 	ExpiresOn      time.Time
+	Secret         string
 }

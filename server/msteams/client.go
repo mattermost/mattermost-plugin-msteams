@@ -43,6 +43,10 @@ type ClientImpl struct {
 
 type Subscription struct {
 	ID        string
+	Type      string
+	ChannelID string
+	TeamID    string
+	UserID    string
 	ExpiresOn time.Time
 }
 
@@ -498,15 +502,15 @@ func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL string, webhookSecret
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) RefreshSubscription(subscriptionID string) error {
+func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.SubscriptionsById(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
 		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
-		return err
+		return nil, err
 	}
-	return nil
+	return &expirationDateTime, nil
 }
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {

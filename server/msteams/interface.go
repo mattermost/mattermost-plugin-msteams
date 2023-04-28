@@ -2,6 +2,7 @@ package msteams
 
 import (
 	"io"
+	"time"
 )
 
 type Client interface {
@@ -19,7 +20,7 @@ type Client interface {
 	SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error)
 	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error)
 	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*Subscription, error)
-	RefreshSubscription(subscriptionID string) error
+	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error
 	GetTeam(teamID string) (*Team, error)
 	GetChannel(teamID, channelID string) (*Channel, error)
