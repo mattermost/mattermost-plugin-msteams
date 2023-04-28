@@ -93,7 +93,7 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 	return nil
 }
 
-func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, secret, channelID string) error {
+func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string) error {
 	err := m.client.DeleteSubscription(subscriptionID)
 	if err != nil {
 		return err
