@@ -44,6 +44,20 @@ func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	return r0
 }
 
+// DeleteSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) DeleteSubscription(subscriptionID string) error {
+	ret := _m.Called(subscriptionID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetAvatarCache provides a mock function with given fields: userID
 func (_m *Store) GetAvatarCache(userID string) ([]byte, error) {
 	ret := _m.Called(userID)

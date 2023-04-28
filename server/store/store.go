@@ -46,6 +46,7 @@ type Store interface {
 	SaveChatSubscription(storemodels.ChatSubscription) error
 	SaveChannelSubscription(storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
+	DeleteSubscription(subscriptionID string) error
 }
 
 type SQLStore struct {
@@ -434,9 +435,11 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 	result := []storemodels.ChatSubscription{}
 	for rows.Next() {
 		var subscription storemodels.ChatSubscription
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &subscription.ExpiresOn); scanErr != nil {
+		var expiresOn int64
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn); scanErr != nil {
 			return nil, scanErr
 		}
+		subscription.ExpiresOn = time.UnixMicro(expiresOn)
 		result = append(result, subscription)
 	}
 	return result, nil
@@ -496,11 +499,11 @@ func (s *SQLStore) SaveGlobalSubscription(subscription storemodels.GlobalSubscri
 }
 
 func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscription) error {
-	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"userID": subscription.UserID}).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"msteamsUserID": subscription.UserID}).Exec(); err != nil {
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, userID, secret, expiresOn").Values(subscription.SubscriptionID, subscription.UserID, subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsUserID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.UserID, "user", subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -511,7 +514,7 @@ func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubsc
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, "channel", subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -521,6 +524,13 @@ func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn 
 	query := s.getQueryBuilder().Update("msteamssync_subscriptions").Set("expiresOn", expiresOn.UnixMicro()).Where(sq.Eq{"subscriptionID": subscriptionID})
 	_, err := query.Exec()
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
+	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID}).Exec(); err != nil {
 		return err
 	}
 	return nil
