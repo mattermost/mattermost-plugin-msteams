@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"testing"
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
@@ -10,7 +11,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type FakeHttpTransport struct{}
+
+func (_ FakeHttpTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+	return &http.Response{}, nil
+}
+
 func TestMsgToPost(t *testing.T) {
+	defaultTransport := http.DefaultClient.Transport
+	http.DefaultClient.Transport = &FakeHttpTransport{}
+	defer func() {
+		http.DefaultClient.Transport = defaultTransport
+	}()
 	ah := ActivityHandler{}
 	for _, testCase := range []struct {
 		description string

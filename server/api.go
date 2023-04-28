@@ -114,7 +114,9 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
 			err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn)
-			a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			if err2 != nil {
+				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			}
 		}
 	}
 }
@@ -149,7 +151,9 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 			} else {
 				err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn)
-				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+				if err2 != nil {
+					a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+				}
 			}
 		}
 		// TODO: handle "missed" lifecycle event to resync
