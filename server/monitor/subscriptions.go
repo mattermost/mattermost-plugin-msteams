@@ -79,14 +79,15 @@ func (m *Monitor) checkGlobalSubscriptions() {
 }
 
 func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string) error {
-	err := m.client.DeleteSubscription(subscriptionID)
-	if err != nil {
-		return err
+	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
+		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
+
 	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.evaluationAPI)
 	if err != nil {
 		return err
 	}
+
 	if err := m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
 		return err
 	}
@@ -94,9 +95,8 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 }
 
 func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string) error {
-	err := m.client.DeleteSubscription(subscriptionID)
-	if err != nil {
-		return err
+	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
+		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
 	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret)
@@ -111,22 +111,19 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 }
 
 func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, secret string) error {
-	err := m.client.DeleteSubscription(subscriptionID)
-	if err != nil {
-		return err
+	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
+		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
 	var newSubscription *msteams.Subscription
+	var err error
 	if subscriptionType == "allChannels" {
-		newSubscription, err = m.client.SubscribeToChannels(m.baseURL, m.webhookSecret, !m.evaluationAPI)
-		if err != nil {
-			return err
-		}
+		newSubscription, err = m.client.SubscribeToChannels(m.baseURL, secret, !m.evaluationAPI)
 	} else {
-		newSubscription, err = m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.evaluationAPI)
-		if err != nil {
-			return err
-		}
+		newSubscription, err = m.client.SubscribeToChats(m.baseURL, secret, !m.evaluationAPI)
+	}
+	if err != nil {
+		return err
 	}
 
 	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: subscriptionType, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {

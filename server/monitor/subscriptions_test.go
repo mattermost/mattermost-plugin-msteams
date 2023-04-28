@@ -11,6 +11,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
@@ -282,6 +283,370 @@ func TestMonitorCheckChatSubscriptions(t *testing.T) {
 			testCase.setupStore(store)
 
 			monitor.checkChatsSubscriptions()
+			store.AssertExpectations(t)
+			mockAPI.AssertExpectations(t)
+			client.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMonitorRecreateGlobalSubscription(t *testing.T) {
+	newExpiresOn := time.Now().Add(100 * time.Minute)
+	for _, testCase := range []struct {
+		description      string
+		subscriptionID   string
+		subscriptionType string
+		secret           string
+		expectsError     bool
+		setupClient      func(*mocksClient.Client)
+		setupAPI         func(*plugintest.API)
+		setupStore       func(*mocksStore.Store)
+	}{
+		{
+			description:      "Failed to delete previous subscription",
+			subscriptionID:   "test-id",
+			subscriptionType: "allChannels",
+			secret:           "webhook-secret",
+			expectsError:     true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(errors.New("test")).Times(1)
+				client.On("SubscribeToChannels", "base-url", "webhook-secret", true).Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", mock.Anything).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:      "Failed to subscribe to channels",
+			subscriptionID:   "test-id",
+			subscriptionType: "allChannels",
+			secret:           "webhook-secret",
+			expectsError:     true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannels", "base-url", "webhook-secret", true).Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI:   func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:      "Failed to subscribe to chats",
+			subscriptionID:   "test-id",
+			subscriptionType: "allChats",
+			secret:           "webhook-secret",
+			expectsError:     true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI:   func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:      "Failed to save the global subscription in the database",
+			subscriptionID:   "test-id",
+			subscriptionType: "allChats",
+			secret:           "webhook-secret",
+			expectsError:     true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "new-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(errors.New("test"))
+			},
+		},
+		{
+			description:      "subscription recreated",
+			subscriptionID:   "test-id",
+			subscriptionType: "allChats",
+			secret:           "webhook-secret",
+			expectsError:     false,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "new-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			err := monitor.recreateGlobalSubscription(testCase.subscriptionID, testCase.subscriptionType, testCase.secret)
+			if testCase.expectsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			store.AssertExpectations(t)
+			mockAPI.AssertExpectations(t)
+			client.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMonitorRecreateChannelSubscription(t *testing.T) {
+	newExpiresOn := time.Now().Add(100 * time.Minute)
+	for _, testCase := range []struct {
+		description    string
+		subscriptionID string
+		teamID         string
+		channelID      string
+		secret         string
+		expectsError   bool
+		setupClient    func(*mocksClient.Client)
+		setupAPI       func(*plugintest.API)
+		setupStore     func(*mocksStore.Store)
+	}{
+		{
+			description:    "Failed to delete previous subscription",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(errors.New("test")).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", mock.Anything).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:    "Failed to subscribe to channels",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI:   func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:    "Failed to save the global subscription in the database",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(errors.New("test"))
+			},
+		},
+		{
+			description:    "subscription recreated",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   false,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			err := monitor.recreateChannelSubscription(testCase.subscriptionID, testCase.teamID, testCase.channelID, testCase.secret)
+			if testCase.expectsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			store.AssertExpectations(t)
+			mockAPI.AssertExpectations(t)
+			client.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMonitorRecreateChatSubscription(t *testing.T) {
+	newExpiresOn := time.Now().Add(100 * time.Minute)
+	for _, testCase := range []struct {
+		description    string
+		subscriptionID string
+		userID         string
+		secret         string
+		expectsError   bool
+		setupClient    func(*mocksClient.Client)
+		setupAPI       func(*plugintest.API)
+		setupStore     func(*mocksStore.Store)
+	}{
+		{
+			description:    "Failed to delete previous subscription",
+			subscriptionID: "test-id",
+			userID:         "user-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(errors.New("test")).Times(1)
+				client.On("SubscribeToUserChats", "user-id", "base-url", "webhook-secret", true).Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", mock.Anything).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:    "Failed to subscribe to channels",
+			subscriptionID: "test-id",
+			userID:         "user-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToUserChats", "user-id", "base-url", "webhook-secret", true).Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI:   func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:    "Failed to save the global subscription in the database",
+			subscriptionID: "test-id",
+			userID:         "user-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToUserChats", "user-id", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveChatSubscription", storemodels.ChatSubscription{SubscriptionID: "new-id", UserID: "user-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(errors.New("test"))
+			},
+		},
+		{
+			description:    "subscription recreated",
+			subscriptionID: "test-id",
+			userID:         "user-id",
+			secret:         "webhook-secret",
+			expectsError:   false,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToUserChats", "user-id", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("SaveChatSubscription", storemodels.ChatSubscription{SubscriptionID: "new-id", UserID: "user-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			err := monitor.recreateChatSubscription(testCase.subscriptionID, testCase.userID, testCase.secret)
+			if testCase.expectsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			store.AssertExpectations(t)
+			mockAPI.AssertExpectations(t)
+			client.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMonitorRefreshSubscription(t *testing.T) {
+	newExpiresOn := time.Now().Add(100 * time.Minute)
+	for _, testCase := range []struct {
+		description    string
+		subscriptionID string
+		expectsError   bool
+		setupClient    func(*mocksClient.Client)
+		setupAPI       func(*plugintest.API)
+		setupStore     func(*mocksStore.Store)
+	}{
+		{
+			description:    "Failed to refresh the subscription",
+			subscriptionID: "test-id",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("RefreshSubscription", "test-id").Return(nil, errors.New("test")).Times(1)
+			},
+			setupAPI:   func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {},
+		},
+		{
+			description:    "Failed to save the global subscription in the database",
+			subscriptionID: "test-id",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("RefreshSubscription", "test-id").Return(&newExpiresOn, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(errors.New("test"))
+			},
+		},
+		{
+			description:    "subscription refreshed",
+			subscriptionID: "test-id",
+			expectsError:   false,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("RefreshSubscription", "test-id").Return(&newExpiresOn, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(nil)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			err := monitor.refreshSubscription(testCase.subscriptionID)
+			if testCase.expectsError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			store.AssertExpectations(t)
 			mockAPI.AssertExpectations(t)
 			client.AssertExpectations(t)
