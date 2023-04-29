@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type FakeHttpTransport struct{}
+type FakeHTTPTransport struct{}
 
-func (_ FakeHttpTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+func (FakeHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return &http.Response{}, nil
 }
 
 func TestMsgToPost(t *testing.T) {
 	defaultTransport := http.DefaultClient.Transport
-	http.DefaultClient.Transport = &FakeHttpTransport{}
+	http.DefaultClient.Transport = &FakeHTTPTransport{}
 	defer func() {
 		http.DefaultClient.Transport = defaultTransport
 	}()

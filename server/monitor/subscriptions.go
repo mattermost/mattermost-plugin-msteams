@@ -88,10 +88,7 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 		return err
 	}
 
-	if err := m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		return err
-	}
-	return nil
+	return m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
 }
 
 func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string) error {
@@ -104,10 +101,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return err
 	}
 
-	if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		return err
-	}
-	return nil
+	return m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
 }
 
 func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, secret string) error {
@@ -126,10 +120,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, s
 		return err
 	}
 
-	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: subscriptionType, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		return err
-	}
-	return nil
+	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: subscriptionType, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
 }
 
 func (m *Monitor) refreshSubscription(subscriptionID string) error {
@@ -137,8 +128,5 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 	if err != nil {
 		return err
 	}
-	if err := m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime); err != nil {
-		return err
-	}
-	return nil
+	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }

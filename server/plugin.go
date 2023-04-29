@@ -145,7 +145,9 @@ func (p *Plugin) start(syncSince *time.Time) {
 	}
 
 	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.configuration.WebhookSecret, p.configuration.EvaluationAPI)
-	p.monitor.Start()
+	if err = p.monitor.Start(); err != nil {
+		p.API.LogError("Unable to start the monitoring system", "error", err)
+	}
 
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
@@ -194,12 +196,16 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
-	p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		Type:           "allChannels",
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.configuration.WebhookSecret,
 	})
+	if err != nil {
+		p.API.LogError("Unable to save the channels subscription for monitoring system", "error", err)
+		return
+	}
 
 	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
 	if err != nil {
@@ -207,12 +213,16 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
-	p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
 		SubscriptionID: chatsSubscription.ID,
 		Type:           "allChats",
 		ExpiresOn:      chatsSubscription.ExpiresOn,
 		Secret:         p.configuration.WebhookSecret,
 	})
+	if err != nil {
+		p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
+		return
+	}
 }
 
 func (p *Plugin) stop() {

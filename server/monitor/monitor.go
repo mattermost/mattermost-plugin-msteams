@@ -34,7 +34,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, baseURL strin
 
 func (m *Monitor) Start() error {
 	if m.ctx != nil {
-		return errors.New("The monitor is already running")
+		return errors.New("the monitor is already running")
 	}
 
 	m.api.LogDebug("Running the msteams sync monitoring system")
