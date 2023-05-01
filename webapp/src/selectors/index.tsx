@@ -1,5 +1,4 @@
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
-import {id} from '../manifest';
 
 export const getServerRoute = (state) => {
     const config = getConfig(state);
