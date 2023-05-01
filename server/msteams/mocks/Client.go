@@ -190,6 +190,29 @@ func (_m *Client) GetFileContent(weburl string) ([]byte, error) {
 	return r0, r1
 }
 
+// GetMe provides a mock function with given fields:
+func (_m *Client) GetMe() (*msteams.User, error) {
+	ret := _m.Called()
+
+	var r0 *msteams.User
+	if rf, ok := ret.Get(0).(func() *msteams.User); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.User)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetMessage provides a mock function with given fields: teamID, channelID, messageID
 func (_m *Client) GetMessage(teamID string, channelID string, messageID string) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, messageID)

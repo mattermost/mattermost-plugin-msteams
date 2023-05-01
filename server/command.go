@@ -274,7 +274,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 }
 
 func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	_, err := p.store.MattermostToTeamsUserID(args.UserId)
+	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
 	if err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the account is not connected")
 		return &model.CommandResponse{}, nil
@@ -285,7 +285,8 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return &model.CommandResponse{}, nil
 	}
 
-	if err := p.store.DeleteUserInfo(args.UserId); err != nil {
+	err = p.store.SetUserInfo(args.UserId, teamsUserID, nil)
+	if err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 		return &model.CommandResponse{}, nil
 	}

@@ -338,17 +338,30 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msteamsUserID, err := client.GetMyID()
+	msteamsUser, err := client.GetMe()
 	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams user id", "error", err.Error())
-		http.Error(w, "failed to get the MS Teams user id", http.StatusBadRequest)
+		a.p.API.LogError("Unable to get the MS Teams user", "error", err.Error())
+		http.Error(w, "failed to get the MS Teams user", http.StatusInternalServerError)
 		return
 	}
 
-	err = a.p.store.SetUserInfo(mmUserID, msteamsUserID, token)
+	mmUser, userErr := a.p.API.GetUser(mmUserID)
+	if userErr != nil {
+		a.p.API.LogError("Unable to get the MM user", "error", userErr.Error())
+		http.Error(w, "failed to get the MM user", http.StatusInternalServerError)
+		return
+	}
+
+	if msteamsUser.Mail != mmUser.Email {
+		a.p.API.LogError("Unable to connect users with different emails")
+		http.Error(w, "cannot connect users with different emails", http.StatusBadRequest)
+		return
+	}
+
+	err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token)
 	if err != nil {
 		a.p.API.LogError("Unable to store the token", "error", err.Error())
-		http.Error(w, "failed to store the token", http.StatusBadRequest)
+		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
 
