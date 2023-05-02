@@ -219,10 +219,10 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 			}
 
 			wg := sync.WaitGroup{}
-			for i := 0; i < (len(msChannelMembers) / batchSize) + 1; i++ {
+			for i := 0; i < (len(msChannelMembers)/batchSize)+1; i++ {
 				wg.Add(1)
 				go func(i int) {
-					for j := i*batchSize; j < getMin((i*batchSize) + batchSize, len(msChannelMembers)); j++ {
+					for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(msChannelMembers)); j++ {
 						u := msChannelMembers[j]
 						_, ok := mmUsersMap[u.Mail]
 						if !ok {
@@ -240,7 +240,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 									FirstName: u.DisplayName,
 									Username:  username,
 								})
-							
+
 								if appErr != nil {
 									p.API.LogError("Unable to create new user", "error", appErr)
 									continue
@@ -268,10 +268,10 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 				}(i)
 			}
 
-			for i := 0; i < (len(mmUsers) / batchSize) + 1; i++ {
+			for i := 0; i < (len(mmUsers)/batchSize)+1; i++ {
 				wg.Add(1)
 				go func(i int) {
-					for j := i*batchSize; j < getMin((i*batchSize) + batchSize, len(mmUsers)); j++ {
+					for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(mmUsers)); j++ {
 						u := mmUsers[j]
 						_, ok := msUsersMap[u.Email]
 						if !ok {

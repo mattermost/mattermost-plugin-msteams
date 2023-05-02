@@ -116,7 +116,7 @@ type ActivityIds struct {
 	ChannelID string
 	MessageID string
 	ReplyID   string
-	MemberID string
+	MemberID  string
 }
 
 type AccessToken struct {
@@ -427,7 +427,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	subscription.SetChangeType(&changeType)
 
 	if existingSubscription != nil {
-		if ((existingSubscription.GetChangeType() != nil && *existingSubscription.GetChangeType() != changeType) || (existingSubscription.GetLifecycleNotificationUrl() != nil && *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL) || (existingSubscription.GetNotificationUrl() != nil && *existingSubscription.GetNotificationUrl() != notificationURL) ||  (existingSubscription.GetClientState() != nil && *existingSubscription.GetClientState() != webhookSecret)) {
+		if (existingSubscription.GetChangeType() != nil && *existingSubscription.GetChangeType() != changeType) || (existingSubscription.GetLifecycleNotificationUrl() != nil && *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL) || (existingSubscription.GetNotificationUrl() != nil && *existingSubscription.GetNotificationUrl() != notificationURL) || (existingSubscription.GetClientState() != nil && *existingSubscription.GetClientState() != webhookSecret) {
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
 				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
@@ -1097,7 +1097,7 @@ func (tc *ClientImpl) ListChannelMembers(teamID, channelID string) ([]User, erro
 			users[i] = User{
 				DisplayName: displayName,
 				ID:          *userID,
-				Mail: *email,
+				Mail:        *email,
 			}
 		}
 	}
@@ -1143,11 +1143,7 @@ func (tc *ClientImpl) RemoveChannelMember(teamID, channelID, userID string) erro
 
 	user := result.GetValue()
 	membershipID := user[0].GetId()
-	if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MembersById(*membershipID).Delete(tc.ctx, nil); err != nil {
-		return err
-	}
-
-	return nil
+	return tc.client.TeamsById(teamID).ChannelsById(channelID).MembersById(*membershipID).Delete(tc.ctx, nil)
 }
 
 func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {

@@ -648,7 +648,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	return chatID, nil
 }
 
-func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
+func (p *Plugin) UserHasJoinedChannel(_ *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
 	link, err := p.store.GetLinkByChannelID(channelMember.ChannelId)
 	if err != nil || link == nil {
 		return
@@ -659,7 +659,7 @@ func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.Ch
 		p.API.LogError("Unable to get MS teams userID", "err", err)
 		return
 	}
-	
+
 	client := p.GetClientForApp()
 	if err := client.AddChannelMember(link.MSTeamsTeam, link.MSTeamsChannel, teamsUserID); err != nil {
 		p.API.LogError("Unable to add user to MS teams channel", "err", err)
@@ -667,7 +667,7 @@ func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.Ch
 	}
 }
 
-func (p *Plugin) UserHasLeftChannel(c *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
+func (p *Plugin) UserHasLeftChannel(_ *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
 	link, err := p.store.GetLinkByChannelID(channelMember.ChannelId)
 	if err != nil || link == nil {
 		return
