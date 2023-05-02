@@ -87,7 +87,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
-		if activity.ClientState != a.p.configuration.WebhookSecret {
+		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
 		}
@@ -136,7 +136,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	a.p.API.LogDebug("Lifecycle activity request", "activities", lifecycleEvents)
 
 	for _, event := range lifecycleEvents.Value {
-		if event.ClientState != a.p.configuration.WebhookSecret {
+		if event.ClientState != a.p.getConfiguration().WebhookSecret {
 			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
 			continue
 		}
@@ -240,18 +240,18 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]bool{
-		"canSkip":      a.p.configuration.AllowSkipConnectUsers,
+		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
 	}
 
-	if a.p.configuration.EnforceConnectedUsers {
+	if a.p.getConfiguration().EnforceConnectedUsers {
 		userID := r.Header.Get("Mattermost-User-ID")
 		client, _ := a.p.GetClientForUser(userID)
 		if client == nil {
-			if a.p.configuration.EnabledTeams == "" {
+			if a.p.getConfiguration().EnabledTeams == "" {
 				response["needsConnect"] = true
 			} else {
-				enabledTeams := strings.Fields(a.p.configuration.EnabledTeams)
+				enabledTeams := strings.Fields(a.p.getConfiguration().EnabledTeams)
 
 				teams, _ := a.p.API.GetTeamsForUser(userID)
 				for _, enabledTeam := range enabledTeams {
