@@ -14,6 +14,20 @@ type Client struct {
 	mock.Mock
 }
 
+// AddChannelMember provides a mock function with given fields: teamID, channelID, userID
+func (_m *Client) AddChannelMember(teamID string, channelID string, userID string) error {
+	ret := _m.Called(teamID, channelID, userID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(teamID, channelID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Connect provides a mock function with given fields:
 func (_m *Client) Connect() error {
 	ret := _m.Called()
@@ -190,6 +204,27 @@ func (_m *Client) GetFileContent(weburl string) ([]byte, error) {
 	return r0, r1
 }
 
+// GetMember provides a mock function with given fields: teamID, membershipID
+func (_m *Client) GetMember(teamID string, membershipID string) (msteams.User, error) {
+	ret := _m.Called(teamID, membershipID)
+
+	var r0 msteams.User
+	if rf, ok := ret.Get(0).(func(string, string) msteams.User); ok {
+		r0 = rf(teamID, membershipID)
+	} else {
+		r0 = ret.Get(0).(msteams.User)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(teamID, membershipID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetMessage provides a mock function with given fields: teamID, channelID, messageID
 func (_m *Client) GetMessage(teamID string, channelID string, messageID string) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, messageID)
@@ -326,6 +361,29 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return r0, r1
 }
 
+// ListChannelMembers provides a mock function with given fields: teamID, channelID
+func (_m *Client) ListChannelMembers(teamID string, channelID string) ([]msteams.User, error) {
+	ret := _m.Called(teamID, channelID)
+
+	var r0 []msteams.User
+	if rf, ok := ret.Get(0).(func(string, string) []msteams.User); ok {
+		r0 = rf(teamID, channelID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]msteams.User)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(teamID, channelID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListChannels provides a mock function with given fields: teamID
 func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
 	ret := _m.Called(teamID)
@@ -402,6 +460,20 @@ func (_m *Client) RefreshSubscription(subscriptionID string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(subscriptionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// RemoveChannelMember provides a mock function with given fields: teamID, channelID, userID
+func (_m *Client) RemoveChannelMember(teamID string, channelID string, userID string) error {
+	ret := _m.Called(teamID, channelID, userID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(teamID, channelID, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -541,6 +613,27 @@ func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay boo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
 		r1 = rf(baseURL, webhookSecret, pay)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// SubscribeToMembership provides a mock function with given fields: baseURL, webhookSecret
+func (_m *Client) SubscribeToMembership(baseURL string, webhookSecret string) (string, error) {
+	ret := _m.Called(baseURL, webhookSecret)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(baseURL, webhookSecret)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(baseURL, webhookSecret)
 	} else {
 		r1 = ret.Error(1)
 	}

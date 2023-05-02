@@ -7,7 +7,6 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"math"
-	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -193,6 +193,10 @@ func (p *Plugin) startSubscriptions() {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return
 	}
+
+	if _, err := p.msteamsAppClient.SubscribeToMembership(p.GetURL()+"/", p.configuration.WebhookSecret); err != nil {
+		p.API.LogError("Unable to subscribe to membership", "error", err)
+	}
 }
 
 func (p *Plugin) stop() {
@@ -362,7 +366,7 @@ func (p *Plugin) syncUsers() {
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  generateRandomPassword(),
+				Password:  utils.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
@@ -399,46 +403,4 @@ func generateSecret() (string, error) {
 	s := base64.RawStdEncoding.EncodeToString(b)
 	s = s[:32]
 	return s, nil
-}
-
-func generateRandomPassword() string {
-	lowerCharSet := "abcdedfghijklmnopqrst"
-	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	specialCharSet := "!@#$%&*"
-	numberSet := "0123456789"
-	allCharSet := lowerCharSet + upperCharSet + specialCharSet + numberSet
-
-	var password strings.Builder
-
-	password.WriteString(getRandomString(lowerCharSet, 1))
-	password.WriteString(getRandomString(upperCharSet, 1))
-	password.WriteString(getRandomString(specialCharSet, 1))
-	password.WriteString(getRandomString(numberSet, 1))
-	password.WriteString(getRandomString(allCharSet, 20))
-	return password.String()
-}
-
-func getRandomString(characterSet string, length int) string {
-	var randomString strings.Builder
-	for i := 0; i < length; i++ {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(length)))
-		randomString.WriteString(string(characterSet[num.Int64()]))
-	}
-
-	return randomString.String()
-}
-
-func isMSTeamsUser(remoteID, username string) bool {
-	data := strings.Split(username, "_")
-	if len(data) >= 2 {
-		msUserID := data[len(data)-1]
-
-		userUUID := uuid.Parse(msUserID)
-		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-		shortUserID := encoding.EncodeToString(userUUID)
-
-		return remoteID == shortUserID
-	}
-
-	return false
 }

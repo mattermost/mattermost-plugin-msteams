@@ -116,6 +116,7 @@ type ActivityIds struct {
 	ChannelID string
 	MessageID string
 	ReplyID   string
+	MemberID string
 }
 
 type AccessToken struct {
@@ -426,7 +427,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	subscription.SetChangeType(&changeType)
 
 	if existingSubscription != nil {
-		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
+		if ((existingSubscription.GetChangeType() != nil && *existingSubscription.GetChangeType() != changeType) || (existingSubscription.GetLifecycleNotificationUrl() != nil && *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL) || (existingSubscription.GetNotificationUrl() != nil && *existingSubscription.GetNotificationUrl() != notificationURL) ||  (existingSubscription.GetClientState() != nil && *existingSubscription.GetClientState() != webhookSecret)) {
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
 				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
@@ -469,6 +470,12 @@ func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay
 		resource = "chats/getAllMessages?model=B"
 	}
 	changeType := "created,deleted,updated"
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) SubscribeToMembership(baseURL, webhookSecret string) (string, error) {
+	resource := "teams/getAllChannels/getAllMembers"
+	changeType := "created,deleted"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
@@ -796,7 +803,11 @@ func GetResourceIds(resource string) ActivityIds {
 		result.ChannelID = data[1][10 : len(data[1])-2]
 	}
 	if len(data) > 2 && len(data[2]) >= 12 {
-		result.MessageID = data[2][10 : len(data[2])-2]
+		if strings.HasPrefix(data[2], "members(") {
+			result.MemberID = data[2][9 : len(data[2])-2]
+		} else {
+			result.MessageID = data[2][10 : len(data[2])-2]
+		}
 	}
 	if len(data) > 3 && len(data[3]) >= 11 {
 		result.ReplyID = data[3][9 : len(data[3])-2]
@@ -1040,6 +1051,103 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 		}
 	}
 	return channels, nil
+}
+
+func (tc *ClientImpl) GetMember(teamID, membershipID string) (User, error) {
+	r, err := tc.client.TeamsById(teamID).MembersById(membershipID).Get(tc.ctx, nil)
+	if err != nil {
+		return User{}, err
+	}
+
+	email := r.GetBackingStore().Enumerate()["email"].(*string)
+	userID := r.GetBackingStore().Enumerate()["userId"].(*string)
+
+	var user User
+	if email != nil {
+		user.Mail = *email
+	}
+
+	if userID != nil {
+		user.ID = *userID
+	}
+
+	if r.GetDisplayName() != nil {
+		user.DisplayName = *r.GetDisplayName()
+	}
+
+	return user, nil
+}
+
+func (tc *ClientImpl) ListChannelMembers(teamID, channelID string) ([]User, error) {
+	r, err := tc.client.TeamsById(teamID).ChannelsById(channelID).Members().Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]User, len(r.GetValue()))
+	for i, u := range r.GetValue() {
+		displayName := ""
+		if u.GetDisplayName() != nil {
+			displayName = *u.GetDisplayName()
+		}
+
+		email := u.GetBackingStore().Enumerate()["email"].(*string)
+		userID := u.GetBackingStore().Enumerate()["userId"].(*string)
+		if email != nil && userID != nil {
+			users[i] = User{
+				DisplayName: displayName,
+				ID:          *userID,
+				Mail: *email,
+			}
+		}
+	}
+
+	return users, nil
+}
+
+func (tc *ClientImpl) AddChannelMember(teamID, channelID, userID string) error {
+	requestBody := models.NewConversationMember()
+	odataType := "#microsoft.graph.aadUserConversationMember"
+	requestBody.SetOdataType(&odataType)
+	additionalData := map[string]interface{}{
+		"user@odata.bind": "https://graph.microsoft.com/v1.0/users('" + userID + "')",
+	}
+
+	requestBody.SetAdditionalData(additionalData)
+	if _, err := tc.client.TeamsById(teamID).ChannelsById(channelID).Members().Post(tc.ctx, requestBody, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tc *ClientImpl) RemoveChannelMember(teamID, channelID, userID string) error {
+	requestFilter := fmt.Sprintf("(microsoft.graph.aadUserConversationMember/userId eq '%s')", userID)
+	requestParameters := &teams.ItemMembersRequestBuilderGetQueryParameters{
+		Filter: &requestFilter,
+		Select: []string{"id"},
+	}
+
+	configuration := &teams.ItemMembersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	result, err := tc.client.TeamsById(teamID).Members().Get(context.Background(), configuration)
+	if err != nil {
+		return err
+	}
+
+	if result == nil || len(result.GetValue()) == 0 {
+		return nil
+	}
+
+	user := result.GetValue()
+	membershipID := user[0].GetId()
+	if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MembersById(*membershipID).Delete(tc.ctx, nil); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {

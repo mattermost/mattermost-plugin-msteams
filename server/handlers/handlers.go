@@ -1,17 +1,21 @@
 package handlers
 
 import (
+	"encoding/base32"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pborman/uuid"
 )
 
 var emojisReverseMap map[string]string
@@ -95,15 +99,100 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	switch activity.ChangeType {
 	case "created":
 		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		ah.handleCreatedActivity(activityIds)
+		if activityIds.MemberID != "" {
+			ah.handleAddMemberActivity(activityIds)
+		} else {
+			ah.handleCreatedActivity(activityIds)
+		}
 	case "updated":
 		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
 		ah.handleUpdatedActivity(activityIds)
 	case "deleted":
 		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
-		ah.handleDeletedActivity(activityIds)
+		if activityIds.MemberID != "" {
+			ah.handleDeleteMemberActivity(activityIds)
+		} else {
+			ah.handleDeletedActivity(activityIds)
+		}
 	default:
 		ah.plugin.GetAPI().LogWarn("Unandledy activity", "activity", activity, "error", "Not handled activity")
+	}
+}
+
+func (ah *ActivityHandler) handleAddMemberActivity(activityIds msteams.ActivityIds) {
+	link, err := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(activityIds.TeamID, activityIds.ChannelID)
+	if err != nil || link == nil {
+		return
+	}
+
+	user, err := ah.plugin.GetClientForApp().GetMember(activityIds.TeamID, activityIds.MemberID)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to get user details", "error", err)
+		return
+	}
+
+	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
+	if err != nil {
+		userUUID := uuid.Parse(user.ID)
+		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+		shortUserID := encoding.EncodeToString(userUUID)
+		username := slug.Make(user.DisplayName) + "_" + user.ID
+
+		newUser, appErr := ah.plugin.GetAPI().CreateUser(&model.User{
+			Password:  utils.GenerateRandomPassword(),
+			Email:     user.Mail,
+			RemoteId:  &shortUserID,
+			FirstName: user.DisplayName,
+			Username:  username,
+		})
+
+		if appErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to create new user", "error", appErr)
+			return
+		}
+
+		setErr := ah.plugin.GetStore().SetUserInfo(newUser.Id, user.ID, nil)
+		if setErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to store the user", "error", setErr)
+			return
+		}
+
+		mmUserID = newUser.Id
+	}
+
+	if _, err := ah.plugin.GetAPI().GetTeamMember(link.MattermostTeam, mmUserID); err != nil {
+		if _, addErr := ah.plugin.GetAPI().CreateTeamMember(link.MattermostTeam, mmUserID); addErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to add user to the team", "error", addErr)
+			return
+		}
+	}
+
+	if _, err := ah.plugin.GetAPI().AddChannelMember(link.MattermostChannel, mmUserID); err != nil {
+		ah.plugin.GetAPI().LogError("Unable to add user to the channel", "error", err)
+	}
+}
+
+func (ah *ActivityHandler) handleDeleteMemberActivity(activityIds msteams.ActivityIds) {
+	link, err := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(activityIds.TeamID, activityIds.ChannelID)
+	if err != nil || link == nil {
+		return
+	}
+
+	user, err := ah.plugin.GetClientForApp().GetMember(activityIds.TeamID, activityIds.MemberID)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to get user details", "error", err)
+		return
+	}
+
+	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to get MM UserID", "error", err)
+		return
+	}
+
+	delErr := ah.plugin.GetAPI().DeleteChannelMember(link.MattermostChannel, mmUserID)
+	if delErr != nil {
+		ah.plugin.GetAPI().LogError("Unable to delete MM user from the channel", "error", delErr)
 	}
 }
 
