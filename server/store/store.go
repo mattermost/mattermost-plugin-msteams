@@ -20,12 +20,14 @@ const (
 	avatarCacheTime              = 300
 	avatarKey                    = "avatar_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
+	maxLimitForLinks             = 100
 )
 
 type Store interface {
 	Init() error
 	GetAvatarCache(userID string) ([]byte, error)
 	SetAvatarCache(userID string, photo []byte) error
+	GetLinks() ([]*storemodels.ChannelLink, error)
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
@@ -207,6 +209,27 @@ func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
 		return appErr
 	}
 	return nil
+}
+
+func (s *SQLStore) GetLinks() ([]*storemodels.ChannelLink, error) {
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Limit(maxLimitForLinks)
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	var links []*storemodels.ChannelLink
+	for rows.Next() {
+		link := &storemodels.ChannelLink{}
+		if err := rows.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator); err != nil {
+			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			continue
+		}
+
+		links = append(links, link)
+	}
+
+	return links, nil
 }
 
 func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {

@@ -127,6 +127,29 @@ func (_m *Store) GetLinkByMSTeamsChannelID(teamID string, channelID string) (*st
 	return r0, r1
 }
 
+// GetLinks provides a mock function with given fields:
+func (_m *Store) GetLinks() ([]*storemodels.ChannelLink, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.ChannelLink
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelLink); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.ChannelLink)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPostInfoByMSTeamsID provides a mock function with given fields: chatID, postID
 func (_m *Store) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
 	ret := _m.Called(chatID, postID)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -63,6 +64,10 @@ func getAutocompleteData() *model.AutocompleteData {
 	show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
 	cmd.AddCommand(show)
 
+	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
+	showLinks.RoleID = model.SystemAdminRoleId
+	cmd.AddCommand(showLinks)
+
 	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
 	cmd.AddCommand(connect)
 
@@ -106,6 +111,10 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "show" {
 		return p.executeShowCommand(args)
+	}
+
+	if action == "show-links" {
+		return p.executeShowLinksCommand(args)
 	}
 
 	if action == "connect" {
@@ -237,6 +246,78 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	links, err := p.store.GetLinks()
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
+	}
+
+	if len(links) == 0 {
+		return p.cmdError(args.UserId, args.ChannelId, "No links present.")
+	}
+
+	var sb strings.Builder
+	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
+	go func() {
+		gotErrors := false
+		wg := sync.WaitGroup{}
+		batchSize := 10
+		for idx := 0; idx < len(links); idx += batchSize {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				for index := i; index < i+batchSize && index < len(links); index++ {
+					link := links[index]
+					msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
+					if err != nil {
+						p.API.LogDebug("Unable to get the MS Teams team information", "Error", err.Error())
+						gotErrors = true
+						continue
+					}
+
+					msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
+					if err != nil {
+						p.API.LogDebug("Unable to get the MS Teams channel information", "Error", err.Error())
+						gotErrors = true
+						continue
+					}
+
+					mmTeam, teamErr := p.API.GetTeam(link.MattermostTeam)
+					if teamErr != nil {
+						p.API.LogDebug("Unable to get the Mattermost team information", "Error", teamErr.Error())
+						gotErrors = true
+						continue
+					}
+
+					mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
+					if channelErr != nil {
+						p.API.LogDebug("Unable to get the Mattermost channel information", "Error", channelErr.Error())
+						gotErrors = true
+						continue
+					}
+
+					sb.WriteString(fmt.Sprintf(
+						"\n|%s|%s|%s|%s",
+						mmTeam.DisplayName,
+						mmChannel.DisplayName,
+						msteamsTeam.DisplayName,
+						msteamsChannel.DisplayName,
+					))
+				}
+			}(idx)
+		}
+
+		wg.Wait()
+		if gotErrors {
+			sb.WriteString("\nThere were some errors while fetching information about some links. Please check the server logs.")
+		}
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, sb.String())
+	}()
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Please wait while your request is being processed.")
 	return &model.CommandResponse{}, nil
 }
 
