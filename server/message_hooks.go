@@ -648,7 +648,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	return chatID, nil
 }
 
-func (p *Plugin) UserHasJoinedChannel(_ *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
+func (p *Plugin) UserHasJoinedChannel(_ *plugin.Context, channelMember *model.ChannelMember, _ *model.User) {
 	link, err := p.store.GetLinkByChannelID(channelMember.ChannelId)
 	if err != nil || link == nil {
 		return
@@ -667,7 +667,7 @@ func (p *Plugin) UserHasJoinedChannel(_ *plugin.Context, channelMember *model.Ch
 	}
 }
 
-func (p *Plugin) UserHasLeftChannel(_ *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
+func (p *Plugin) UserHasLeftChannel(_ *plugin.Context, channelMember *model.ChannelMember, _ *model.User) {
 	link, err := p.store.GetLinkByChannelID(channelMember.ChannelId)
 	if err != nil || link == nil {
 		return
