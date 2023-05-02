@@ -16,6 +16,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/oauth2"
@@ -116,6 +117,13 @@ func TestStore(t *testing.T) {
 		"testSetUserInfoAndGetTokenForMSTeamsUser":                   testSetUserInfoAndGetTokenForMSTeamsUser,
 		"testGetTokenForMSTeamsUserForInvalidID":                     testGetTokenForMSTeamsUserForInvalidID,
 		"testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil": testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil,
+		"testListGlobalSubscriptionsToCheck":                         testListGlobalSubscriptionsToCheck,
+		"testListChatSubscriptionsToCheck":                           testListChatSubscriptionsToCheck,
+		"testListChannelSubscriptionsToCheck":                        testListChannelSubscriptionsToCheck,
+		"testSaveGlobalSubscription":                                 testSaveGlobalSubscription,
+		"testSaveChatSubscription":                                   testSaveChatSubscription,
+		"testSaveChannelSubscription":                                testSaveChannelSubscription,
+		"testUpdateSubscriptionExpiresOn":                            testUpdateSubscriptionExpiresOn,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -540,4 +548,247 @@ func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *pl
 	resp, getErr := store.GetTokenForMSTeamsUser("invalidTeamsUserID")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	t.Run("no-subscriptions", func(t *testing.T) {
+		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("no-near-to-expire-subscriptions", func(t *testing.T) {
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test") }()
+
+		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("one-subscription-almost-expired-and-other-didn't", func(t *testing.T) {
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test1") }()
+		err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test2") }()
+
+		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		require.NoError(t, err)
+		require.Len(t, subscriptions, 1)
+		assert.Equal(t, "test2", subscriptions[0].SubscriptionID)
+	})
+
+	t.Run("one-subscription-almost-expired-and-other-expired", func(t *testing.T) {
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(-100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test1") }()
+		err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test2") }()
+
+		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Len(t, subscriptions, 2)
+		assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test1")
+		assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
+	})
+}
+
+func testListChatSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	t.Run("no-subscriptions", func(t *testing.T) {
+		subscriptions, err := store.ListChatSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("no-near-to-expire-subscriptions", func(t *testing.T) {
+		err := store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test", UserID: "user-id", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test") }()
+
+		subscriptions, err := store.ListChatSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("multiple-subscriptions-with-different-expiry-dates", func(t *testing.T) {
+		err := store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test1", UserID: "user-id-1", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test1") }()
+		err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test2", UserID: "user-id-2", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test2") }()
+		err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test3", UserID: "user-id-3", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test3") }()
+		err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test4", UserID: "user-id-4", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test4") }()
+		err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test5", UserID: "user-id-5", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test5") }()
+		err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test6", UserID: "user-id-6", Secret: "secret", ExpiresOn: time.Now().Add(-100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test6") }()
+
+		subscriptions, err := store.ListChatSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Len(t, subscriptions, 3)
+		ids := []string{}
+		for _, s := range subscriptions {
+			ids = append(ids, s.SubscriptionID)
+		}
+		assert.NotContains(t, ids, "test1")
+		assert.NotContains(t, ids, "test2")
+		assert.NotContains(t, ids, "test3")
+		assert.Contains(t, ids, "test4")
+		assert.Contains(t, ids, "test5")
+		assert.Contains(t, ids, "test6")
+	})
+}
+
+func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	t.Run("no-subscriptions", func(t *testing.T) {
+		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("no-near-to-expire-subscriptions", func(t *testing.T) {
+		err := store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test") }()
+
+		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Empty(t, subscriptions)
+	})
+
+	t.Run("multiple-subscriptions-with-different-expiry-dates", func(t *testing.T) {
+		err := store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test1", TeamID: "team-id", ChannelID: "channel-id-1", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test1") }()
+		err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test2", TeamID: "team-id", ChannelID: "channel-id-2", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test2") }()
+		err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test3", TeamID: "team-id", ChannelID: "channel-id-3", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test3") }()
+		err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test4", TeamID: "team-id", ChannelID: "channel-id-4", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test4") }()
+		err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test5", TeamID: "team-id", ChannelID: "channel-id-5", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test5") }()
+		err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test6", TeamID: "team-id", ChannelID: "channel-id-6", Secret: "secret", ExpiresOn: time.Now().Add(-100 * time.Minute)})
+		require.NoError(t, err)
+		defer func() { _ = store.DeleteSubscription("test6") }()
+
+		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		require.NoError(t, err)
+		assert.Len(t, subscriptions, 3)
+		ids := []string{}
+		for _, s := range subscriptions {
+			ids = append(ids, s.SubscriptionID)
+		}
+		assert.NotContains(t, ids, "test1")
+		assert.NotContains(t, ids, "test2")
+		assert.NotContains(t, ids, "test3")
+		assert.Contains(t, ids, "test4")
+		assert.Contains(t, ids, "test5")
+		assert.Contains(t, ids, "test6")
+	})
+}
+
+func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test2") }()
+
+	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test3", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test3") }()
+	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test4", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test4") }()
+
+	subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 2)
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
+}
+
+func testSaveChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test1", UserID: "user-1", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+	err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test2", UserID: "user-1", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test2") }()
+
+	err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test3", UserID: "user-2", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test3") }()
+	err = store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: "test4", UserID: "user-2", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test4") }()
+
+	subscriptions, err := store.ListChatSubscriptionsToCheck()
+	require.NoError(t, err)
+	assert.Len(t, subscriptions, 2)
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
+}
+
+func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test1", TeamID: "team-id", ChannelID: "channel-id-1", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+	err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test2", TeamID: "team-id", ChannelID: "channel-id-1", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test2") }()
+
+	err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test3", TeamID: "team-id", ChannelID: "channel-id-2", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test3") }()
+	err = store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test4", TeamID: "team-id", ChannelID: "channel-id-2", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test4") }()
+
+	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	require.NoError(t, err)
+	assert.Len(t, subscriptions, 2)
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
+	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
+}
+
+func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: "test1", TeamID: "team-id", ChannelID: "channel-id-1", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
+
+	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(100*time.Minute))
+	require.NoError(t, err)
+
+	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 0)
+
+	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(2*time.Minute))
+	require.NoError(t, err)
+
+	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
 }

@@ -109,9 +109,13 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 // TODO: Deduplicate this calls in case multiple activities are sent after the subscription receives the notification
 func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
-		err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
+		expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
 		if err != nil {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
+		} else {
+			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
+				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			}
 		}
 	}
 }
@@ -141,9 +145,13 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		if event.LifecycleEvent == "reauthorizationRequired" {
-			err := a.p.msteamsAppClient.RefreshSubscription(event.SubscriptionID)
+			expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(event.SubscriptionID)
 			if err != nil {
 				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
+			} else {
+				if err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
+					a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+				}
 			}
 		} else if event.LifecycleEvent == "subscriptionRemoved" {
 			_, err := a.p.msteamsAppClient.SubscribeToChannels(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
