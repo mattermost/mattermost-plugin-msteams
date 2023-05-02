@@ -18,8 +18,7 @@ func (m *Monitor) checkChannelsSubscriptions() {
 
 	for _, subscription := range subscriptions {
 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
-			err := m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret)
-			if err != nil {
+			if err := m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret); err != nil {
 				m.api.LogError("Unable to recreate channel subscription properly", "error", err)
 			}
 		} else {
@@ -47,8 +46,7 @@ func (m *Monitor) checkChatsSubscriptions() {
 				m.api.LogError("Unable to recreate chat subscription properly", "error", err)
 			}
 		} else {
-			err := m.refreshSubscription(subscription.SubscriptionID)
-			if err != nil {
+			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
 				m.api.LogError("Unable to refresh chat subscription properly", "error", err)
 			}
 		}
@@ -65,13 +63,11 @@ func (m *Monitor) checkGlobalSubscriptions() {
 	m.api.LogDebug("Refreshing global subscriptions", "count", len(subscriptions))
 	for _, subscription := range subscriptions {
 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
-			err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Type, subscription.Secret)
-			if err != nil {
+			if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Type, subscription.Secret); err != nil {
 				m.api.LogError("Unable to recreate global subscription properly", "error", err)
 			}
 		} else {
-			err := m.refreshSubscription(subscription.SubscriptionID)
-			if err != nil {
+			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
 				m.api.LogError("Unable to refresh global subscription properly", "error", err)
 			}
 		}
@@ -83,7 +79,7 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
-	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.evaluationAPI)
+	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
 	if err != nil {
 		return err
 	}
@@ -112,9 +108,9 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, s
 	var newSubscription *msteams.Subscription
 	var err error
 	if subscriptionType == "allChannels" {
-		newSubscription, err = m.client.SubscribeToChannels(m.baseURL, secret, !m.evaluationAPI)
+		newSubscription, err = m.client.SubscribeToChannels(m.baseURL, secret, !m.useEvaluationAPI)
 	} else {
-		newSubscription, err = m.client.SubscribeToChats(m.baseURL, secret, !m.evaluationAPI)
+		newSubscription, err = m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
 	}
 	if err != nil {
 		return err

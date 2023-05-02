@@ -469,7 +469,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	}, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "teams/getAllMessages"
 	if pay {
 		resource = "teams/getAllMessages?model=B"
@@ -478,13 +478,13 @@ func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, 
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL string, webhookSecret string) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error) {
 	resource := fmt.Sprintf("/teams/%s/channels/%s/messages", teamID, channelID)
 	changeType := "created,deleted,updated"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "chats/getAllMessages"
 	if pay {
 		resource = "chats/getAllMessages?model=B"
@@ -493,10 +493,10 @@ func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL string, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := fmt.Sprintf("/users/%s/chats/getAllMessages", userID)
 	if pay {
-		resource = "chats/getAllMessages?model=B"
+		resource = fmt.Sprintf("/users/%s/chats/getAllMessages?model=B", userID)
 	}
 	changeType := "created,deleted,updated"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)

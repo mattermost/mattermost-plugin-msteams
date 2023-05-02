@@ -11,24 +11,24 @@ import (
 )
 
 type Monitor struct {
-	client        msteams.Client
-	store         store.Store
-	api           plugin.API
-	ctx           context.Context
-	cancel        context.CancelFunc
-	baseURL       string
-	webhookSecret string
-	evaluationAPI bool
+	client           msteams.Client
+	store            store.Store
+	api              plugin.API
+	ctx              context.Context
+	cancel           context.CancelFunc
+	baseURL          string
+	webhookSecret    string
+	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, evaluationAPI bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
 	return &Monitor{
-		client:        client,
-		store:         store,
-		api:           api,
-		baseURL:       baseURL,
-		webhookSecret: webhookSecret,
-		evaluationAPI: evaluationAPI,
+		client:           client,
+		store:            store,
+		api:              api,
+		baseURL:          baseURL,
+		webhookSecret:    webhookSecret,
+		useEvaluationAPI: useEvaluationAPI,
 	}
 }
 

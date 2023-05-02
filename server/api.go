@@ -113,8 +113,7 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 		if err != nil {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn)
-			if err2 != nil {
+			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
 				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
 			}
 		}
@@ -150,8 +149,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 			} else {
-				err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn)
-				if err2 != nil {
+				if err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
 					a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
 				}
 			}

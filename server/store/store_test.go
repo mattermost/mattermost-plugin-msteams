@@ -567,7 +567,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		assert.Empty(t, subscriptions)
 	})
 
-	t.Run("one-subscription-almost-expired-and-other-dont", func(t *testing.T) {
+	t.Run("one-subscription-almost-expired-and-other-didn't", func(t *testing.T) {
 		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
@@ -702,6 +702,7 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 		assert.Contains(t, ids, "test6")
 	})
 }
+
 func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
 	require.NoError(t, err)
