@@ -4,6 +4,7 @@ package mocks
 
 import (
 	io "io"
+	time "time"
 
 	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mock "github.com/stretchr/testify/mock"
@@ -84,6 +85,20 @@ func (_m *Client) DeleteMessage(teamID string, channelID string, parentID string
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
 		r0 = rf(teamID, channelID, parentID, msgID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteSubscription provides a mock function with given fields: subscriptionID
+func (_m *Client) DeleteSubscription(subscriptionID string) error {
+	ret := _m.Called(subscriptionID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(subscriptionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -454,17 +469,26 @@ func (_m *Client) ListUsers() ([]msteams.User, error) {
 }
 
 // RefreshSubscription provides a mock function with given fields: subscriptionID
-func (_m *Client) RefreshSubscription(subscriptionID string) error {
+func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error) {
 	ret := _m.Called(subscriptionID)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
+	var r0 *time.Time
+	if rf, ok := ret.Get(0).(func(string) *time.Time); ok {
 		r0 = rf(subscriptionID)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*time.Time)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // RemoveChannelMember provides a mock function with given fields: teamID, channelID, userID
@@ -578,15 +602,40 @@ func (_m *Client) SetReaction(teamID string, channelID string, parentID string, 
 	return r0
 }
 
+// SubscribeToChannel provides a mock function with given fields: teamID, channelID, baseURL, webhookSecret
+func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string) (*msteams.Subscription, error) {
+	ret := _m.Called(teamID, channelID, baseURL, webhookSecret)
+
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Subscription); ok {
+		r0 = rf(teamID, channelID, baseURL, webhookSecret)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(teamID, channelID, baseURL, webhookSecret)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SubscribeToChannels provides a mock function with given fields: baseURL, webhookSecret, pay
-func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (*msteams.Subscription, error) {
 	ret := _m.Called(baseURL, webhookSecret, pay)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, bool) *msteams.Subscription); ok {
 		r0 = rf(baseURL, webhookSecret, pay)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
 	}
 
 	var r1 error
@@ -600,14 +649,16 @@ func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay 
 }
 
 // SubscribeToChats provides a mock function with given fields: baseURL, webhookSecret, pay
-func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (*msteams.Subscription, error) {
 	ret := _m.Called(baseURL, webhookSecret, pay)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, bool) *msteams.Subscription); ok {
 		r0 = rf(baseURL, webhookSecret, pay)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
 	}
 
 	var r1 error
@@ -621,19 +672,44 @@ func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay boo
 }
 
 // SubscribeToMembership provides a mock function with given fields: baseURL, webhookSecret
-func (_m *Client) SubscribeToMembership(baseURL string, webhookSecret string) (string, error) {
+func (_m *Client) SubscribeToMembership(baseURL string, webhookSecret string) (*msteams.Subscription, error) {
 	ret := _m.Called(baseURL, webhookSecret)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string, string) *msteams.Subscription); ok {
 		r0 = rf(baseURL, webhookSecret)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
 		r1 = rf(baseURL, webhookSecret)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// SubscribeToUserChats provides a mock function with given fields: user, baseURL, webhookSecret, pay
+func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool) (*msteams.Subscription, error) {
+	ret := _m.Called(user, baseURL, webhookSecret, pay)
+
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, string, bool) *msteams.Subscription); ok {
+		r0 = rf(user, baseURL, webhookSecret, pay)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+		r1 = rf(user, baseURL, webhookSecret, pay)
 	} else {
 		r1 = ret.Error(1)
 	}

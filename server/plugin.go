@@ -17,8 +17,10 @@ import (
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -56,6 +58,7 @@ type Plugin struct {
 
 	store        store.Store
 	clusterMutex *cluster.Mutex
+	monitor      *monitor.Monitor
 
 	activityHandler *handlers.ActivityHandler
 
@@ -141,6 +144,11 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	if err = p.monitor.Start(); err != nil {
+		p.API.LogError("Unable to start the monitoring system", "error", err)
+	}
+
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
@@ -182,15 +190,37 @@ func (p *Plugin) startSubscriptions() {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	_, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
 	}
 
-	_, err = p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
+	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: channelsSubscription.ID,
+		Type:           "allChannels",
+		ExpiresOn:      channelsSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	})
+	if err != nil {
+		p.API.LogError("Unable to save the channels subscription for monitoring system", "error", err)
+		return
+	}
+
+	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
+		return
+	}
+
+	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: chatsSubscription.ID,
+		Type:           "allChats",
+		ExpiresOn:      chatsSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	})
+	if err != nil {
+		p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
 		return
 	}
 
@@ -200,6 +230,9 @@ func (p *Plugin) startSubscriptions() {
 }
 
 func (p *Plugin) stop() {
+	if p.monitor != nil {
+		p.monitor.Stop()
+	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
