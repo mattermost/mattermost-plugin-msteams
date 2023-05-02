@@ -79,7 +79,7 @@ func (p *Plugin) GetStore() store.Store {
 }
 
 func (p *Plugin) GetSyncDirectMessages() bool {
-	return p.configuration.SyncDirectMessages
+	return p.getConfiguration().SyncDirectMessages
 }
 
 func (p *Plugin) GetBotUserID() string {
@@ -103,7 +103,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.getConfiguration().TenantID, p.getConfiguration().ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -112,7 +112,7 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.configuration.TenantID, p.configuration.ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.getConfiguration().TenantID, p.getConfiguration().ClientID, token, p.API.LogError), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -121,9 +121,9 @@ func (p *Plugin) connectTeamsAppClient() error {
 
 	if p.msteamsAppClient == nil {
 		p.msteamsAppClient = msteams.NewApp(
-			p.configuration.TenantID,
-			p.configuration.ClientID,
-			p.configuration.ClientSecret,
+			p.getConfiguration().TenantID,
+			p.getConfiguration().ClientID,
+			p.getConfiguration().ClientSecret,
 			p.API.LogError,
 		)
 	}
@@ -144,7 +144,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.configuration.WebhookSecret, p.configuration.EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err)
 	}
@@ -153,8 +153,8 @@ func (p *Plugin) start(syncSince *time.Time) {
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
 
-	if p.configuration.SyncUsers > 0 {
-		go p.syncUsersPeriodically(ctx, p.configuration.SyncUsers)
+	if p.getConfiguration().SyncUsers > 0 {
+		go p.syncUsersPeriodically(ctx, p.getConfiguration().SyncUsers)
 	}
 
 	go p.startSubscriptions()
@@ -190,7 +190,7 @@ func (p *Plugin) startSubscriptions() {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannels(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to channels", "error", err)
 		return
@@ -200,14 +200,14 @@ func (p *Plugin) startSubscriptions() {
 		SubscriptionID: channelsSubscription.ID,
 		Type:           "allChannels",
 		ExpiresOn:      channelsSubscription.ExpiresOn,
-		Secret:         p.configuration.WebhookSecret,
+		Secret:         p.getConfiguration().WebhookSecret,
 	})
 	if err != nil {
 		p.API.LogError("Unable to save the channels subscription for monitoring system", "error", err)
 		return
 	}
 
-	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.configuration.WebhookSecret, !p.configuration.EvaluationAPI)
+	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return
@@ -217,7 +217,7 @@ func (p *Plugin) startSubscriptions() {
 		SubscriptionID: chatsSubscription.ID,
 		Type:           "allChats",
 		ExpiresOn:      chatsSubscription.ExpiresOn,
-		Secret:         p.configuration.WebhookSecret,
+		Secret:         p.getConfiguration().WebhookSecret,
 	})
 	if err != nil {
 		p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
