@@ -1,6 +1,6 @@
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
 
-export const getServerRoute = (state) => {
+export const getServerRoute = (state: any) => {
     const config = getConfig(state);
 
     let basePath = '';
