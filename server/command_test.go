@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -234,6 +235,135 @@ func TestExecuteShowCommand(t *testing.T) {
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
 			_, _ = p.executeShowCommand(testCase.args)
+		})
+	}
+}
+
+func TestExecuteShowLinksCommand(t *testing.T) {
+	p := newTestPlugin(t)
+	mockAPI := &plugintest.API{}
+
+	for _, testCase := range []struct {
+		description string
+		args        *model.CommandArgs
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
+		setupClient func(*mockClient.Client)
+	}{
+		{
+			description: "Successfully executed show-links command",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetTeam", testutils.GetTeamID()).Return(&model.Team{DisplayName: "Test MM team"}, nil).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{DisplayName: "Test MM channel"}, nil).Times(1)
+
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Please wait while your request is being processed.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|Test MS team|Test MS channel|",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinks").Return(testutils.GetChannelLinks(1), nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(&msteams.Team{DisplayName: "Test MS team"}, nil).Times(1)
+				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{DisplayName: "Test MS channel"}, nil).Times(1)
+			},
+		},
+		{
+			description: "Error in getting links",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Something went wrong.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinks").Return(nil, errors.New("error in getting links")).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {},
+		},
+		{
+			description: "No links present",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "No links present.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinks").Return(nil, nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {},
+		},
+		{
+			description: "Error in fetching info from MS Teams",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetTeam", testutils.GetTeamID()).Return(nil, testutils.GetInternalServerAppError("error in getting team info")).Once()
+				api.On("GetTeam", testutils.GetTeamID()).Return(&model.Team{DisplayName: "Test MM team"}, nil).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("error in getting channel info")).Times(1)
+
+				api.On("LogDebug", "Unable to get the MS Teams team information", "Error", "error in getting team info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams channel information", "Error", "error in getting channel info").Once()
+				api.On("LogDebug", "Unable to get the Mattermost team information", "Error", "error in getting team info").Once()
+				api.On("LogDebug", "Unable to get the Mattermost channel information", "Error", "error in getting channel info").Once()
+
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Please wait while your request is being processed.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\nThere were some errors while fetching information about some links. Please check the server logs.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinks").Return(testutils.GetChannelLinks(4), nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(nil, errors.New("error in getting team info")).Times(1)
+				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(&msteams.Team{DisplayName: "Test MS team"}, nil).Times(3)
+				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(nil, errors.New("error in getting channel info")).Times(1)
+				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{DisplayName: "Test MS channel"}, nil).Times(2)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			testCase.setupAPI(mockAPI)
+			p.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			testCase.setupStore(p.store.(*mockStore.Store))
+			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
+			_, _ = p.executeShowLinksCommand(testCase.args)
+			time.Sleep(1 * time.Second)
 		})
 	}
 }
@@ -679,6 +809,13 @@ func TestGetAutocompleteData(t *testing.T) {
 						Trigger:     "show",
 						HelpText:    "Show MS Teams linked channel",
 						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "show-links",
+						HelpText:    "Show all MS Teams linked channels",
+						RoleID:      model.SystemAdminRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
 					},

@@ -43,7 +43,7 @@ func (p *Plugin) cmdError(userID string, channelID string, detailedError string)
 }
 
 func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
-	p.API.SendEphemeralPost(userID, &model.Post{
+	_ = p.API.SendEphemeralPost(userID, &model.Post{
 		Message:   message,
 		UserId:    p.userID,
 		ChannelId: channelID,
@@ -259,6 +259,8 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 		return p.cmdError(args.UserId, args.ChannelId, "No links present.")
 	}
 
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Please wait while your request is being processed.")
+
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	go func() {
@@ -287,20 +289,20 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 
 					mmTeam, teamErr := p.API.GetTeam(link.MattermostTeam)
 					if teamErr != nil {
-						p.API.LogDebug("Unable to get the Mattermost team information", "Error", teamErr.Error())
+						p.API.LogDebug("Unable to get the Mattermost team information", "Error", teamErr.DetailedError)
 						gotErrors = true
 						continue
 					}
 
 					mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
 					if channelErr != nil {
-						p.API.LogDebug("Unable to get the Mattermost channel information", "Error", channelErr.Error())
+						p.API.LogDebug("Unable to get the Mattermost channel information", "Error", channelErr.DetailedError)
 						gotErrors = true
 						continue
 					}
 
 					sb.WriteString(fmt.Sprintf(
-						"\n|%s|%s|%s|%s",
+						"\n|%s|%s|%s|%s|",
 						mmTeam.DisplayName,
 						mmChannel.DisplayName,
 						msteamsTeam.DisplayName,
@@ -317,7 +319,6 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, sb.String())
 	}()
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Please wait while your request is being processed.")
 	return &model.CommandResponse{}, nil
 }
 

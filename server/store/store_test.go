@@ -99,6 +99,7 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 func TestStore(t *testing.T) {
 	testFunctions := map[string]func(*testing.T, *SQLStore, *plugintest.API){
 		"testStoreChannelLinkAndGetLinkByChannelID":                  testStoreChannelLinkAndGetLinkByChannelID,
+		"testStoreChannelLinkAndGetLinks":                            testStoreChannelLinkAndGetLinks,
 		"testGetLinkByChannelIDForInvalidID":                         testGetLinkByChannelIDForInvalidID,
 		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID":          testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
 		"testGetLinkByMSTeamsChannelIDForInvalidID":                  testGetLinkByMSTeamsChannelIDForInvalidID,
@@ -377,6 +378,31 @@ func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore
 	resp, getErr = store.GetLinkByMSTeamsChannelID("mockMattermostTeamID-3", "mockMSTeamsChannelID-3")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
+}
+
+func testStoreChannelLinkAndGetLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-4"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-4").Return(&model.Team{
+		Name: "mockMattermostTeamID-4",
+	}, nil)
+
+	mockChannelLink := &storemodels.ChannelLink{
+		MattermostChannel: "mockMattermostChannelID-4",
+		MattermostTeam:    "mockMattermostTeamID-4",
+		MSTeamsTeam:       "mockMSTeamsTeamID-4",
+		MSTeamsChannel:    "mockMSTeamsChannelID-4",
+		Creator:           "mockCreator",
+	}
+
+	storeErr := store.StoreChannelLink(mockChannelLink)
+	assert.Nil(storeErr)
+
+	links, err := store.GetLinks()
+	assert.Nil(err)
+	assert.Equal(1, len(links))
+	assert.Equal([]*storemodels.ChannelLink{mockChannelLink}, links)
 }
 
 func testDeleteLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
