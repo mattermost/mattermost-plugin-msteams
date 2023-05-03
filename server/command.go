@@ -188,107 +188,14 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	if p.getConfiguration().SyncUsers > 0 {
+		msChannelMembers, msUsersMap := p.getMSTeamsUsersAndMap(client, parameters[0], parameters[1])
+		mmUsers, mmUsersMap := p.getMattermostUsersAndMap(channel.Id)
 		batchSize := 50
+
 		go func() {
-			msChannelMembers, err := client.ListChannelMembers(parameters[0], parameters[1])
-			if err != nil {
-				p.API.LogError("Unable to get MS Teams users to add in the channel", "error", err)
-			}
-
-			mmChannelMembers, getErr := p.API.GetChannelMembers(channel.Id, 0, math.MaxInt32)
-			if getErr != nil {
-				p.API.LogError("Unable to get Mattermost users to add in the channel", "error", getErr)
-			}
-
-			var mmUsers []*model.User
-			mmUsersMap := make(map[string]*model.User, len(mmChannelMembers))
-			for _, u := range mmChannelMembers {
-				user, err := p.API.GetUser(u.UserId)
-				if err != nil {
-					p.API.LogError("Unable to get the user", "error", err)
-					continue
-				}
-
-				mmUsers = append(mmUsers, user)
-				mmUsersMap[user.Email] = user
-			}
-
-			msUsersMap := make(map[string]msteams.User, len(mmUsers))
-			for _, u := range msChannelMembers {
-				msUsersMap[u.Mail] = u
-			}
-
 			wg := sync.WaitGroup{}
-			for i := 0; i < (len(msChannelMembers)/batchSize)+1; i++ {
-				wg.Add(1)
-				go func(i int) {
-					for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(msChannelMembers)); j++ {
-						u := msChannelMembers[j]
-						_, ok := mmUsersMap[u.Mail]
-						if !ok {
-							mmUserID, err := p.store.TeamsToMattermostUserID(u.ID)
-							if err != nil {
-								userUUID := uuid.Parse(u.ID)
-								encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-								shortUserID := encoding.EncodeToString(userUUID)
-								username := slug.Make(u.DisplayName) + "_" + u.ID
-
-								newUser, appErr := p.API.CreateUser(&model.User{
-									Password:  utils.GenerateRandomPassword(),
-									Email:     u.Mail,
-									RemoteId:  &shortUserID,
-									FirstName: u.DisplayName,
-									Username:  username,
-								})
-
-								if appErr != nil {
-									p.API.LogError("Unable to create new user", "error", appErr)
-									continue
-								}
-
-								setErr := p.store.SetUserInfo(newUser.Id, u.ID, nil)
-								if setErr != nil {
-									p.API.LogError("Unable to store the user", "error", setErr)
-									continue
-								}
-							}
-
-							if _, err := p.API.GetTeamMember(args.TeamId, mmUserID); err != nil {
-								if _, addErr := p.API.CreateTeamMember(args.TeamId, mmUserID); addErr != nil {
-									p.API.LogError("Unable to add user to the team", "error", addErr)
-									continue
-								}
-							}
-
-							if _, err := p.API.AddChannelMember(channel.Id, mmUserID); err != nil {
-								p.API.LogError("Unable to add user to the channel", "error", err)
-							}
-						}
-					}
-				}(i)
-			}
-
-			for i := 0; i < (len(mmUsers)/batchSize)+1; i++ {
-				wg.Add(1)
-				go func(i int) {
-					for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(mmUsers)); j++ {
-						u := mmUsers[j]
-						_, ok := msUsersMap[u.Email]
-						if !ok {
-							msTeamsUserID, err := p.store.MattermostToTeamsUserID(u.Id)
-							if err != nil {
-								p.API.LogError("Unable to get teams user ID", "error", err)
-								continue
-							}
-
-							if err := client.AddChannelMember(parameters[0], parameters[1], msTeamsUserID); err != nil {
-								p.API.LogError("Unable to add user to the channel", "error", err)
-							}
-						}
-					}
-				}(i)
-			}
-
+			p.addMattermostUser(wg, args.TeamId, args.ChannelId, msChannelMembers, mmUsersMap, batchSize)
+			p.addMSTeamsUser(wg, client, parameters[0], parameters[1], mmUsers, msUsersMap, batchSize)
 			wg.Wait()
 		}()
 	}
@@ -431,6 +338,120 @@ func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.Co
 
 func getAutocompletePath(path string) string {
 	return "plugins/" + pluginID + "/autocomplete/" + path
+}
+
+func (p *Plugin) getMSTeamsUsersAndMap(client msteams.Client, teamID, channeID string) ([]msteams.User, map[string]msteams.User) {
+	msChannelMembers, err := client.ListChannelMembers(teamID, channeID)
+	if err != nil {
+		p.API.LogError("Unable to get MS Teams users to add in the channel", "error", err)
+		return nil, nil
+	}
+
+	msUsersMap := make(map[string]msteams.User, len(msChannelMembers))
+	for _, u := range msChannelMembers {
+		msUsersMap[u.Mail] = u
+	}
+
+	return msChannelMembers, msUsersMap
+}
+
+func (p *Plugin) getMattermostUsersAndMap(channelID string) ([]*model.User, map[string]*model.User) {
+	mmChannelMembers, getErr := p.API.GetChannelMembers(channelID, 0, math.MaxInt32)
+	if getErr != nil {
+		p.API.LogError("Unable to get Mattermost users to add in the channel", "error", getErr)
+		return nil, nil
+	}
+
+	var mmUsers []*model.User
+	mmUsersMap := make(map[string]*model.User, len(mmChannelMembers))
+	for _, u := range mmChannelMembers {
+		user, err := p.API.GetUser(u.UserId)
+		if err != nil {
+			p.API.LogError("Unable to get the user", "error", err)
+			continue
+		}
+
+		mmUsers = append(mmUsers, user)
+		mmUsersMap[user.Email] = user
+	}
+
+	return mmUsers, mmUsersMap
+}
+
+func (p *Plugin) addMattermostUser(wg sync.WaitGroup, teamID, channelID string, msChannelMembers []msteams.User, mmUsersMap map[string]*model.User, batchSize int) {
+	for i := 0; i < (len(msChannelMembers)/batchSize)+1; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(msChannelMembers)); j++ {
+				u := msChannelMembers[j]
+				_, ok := mmUsersMap[u.Mail]
+				if !ok {
+					mmUserID, err := p.store.TeamsToMattermostUserID(u.ID)
+					if err != nil {
+						userUUID := uuid.Parse(u.ID)
+						encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
+						shortUserID := encoding.EncodeToString(userUUID)
+						username := slug.Make(u.DisplayName) + "_" + u.ID
+
+						newUser, appErr := p.API.CreateUser(&model.User{
+							Password:  utils.GenerateRandomPassword(),
+							Email:     u.Mail,
+							RemoteId:  &shortUserID,
+							FirstName: u.DisplayName,
+							Username:  username,
+						})
+
+						if appErr != nil {
+							p.API.LogError("Unable to create new user", "error", appErr)
+							continue
+						}
+
+						setErr := p.store.SetUserInfo(newUser.Id, u.ID, nil)
+						if setErr != nil {
+							p.API.LogError("Unable to store the user", "error", setErr)
+							continue
+						}
+					}
+
+					if _, err := p.API.GetTeamMember(teamID, mmUserID); err != nil {
+						if _, addErr := p.API.CreateTeamMember(teamID, mmUserID); addErr != nil {
+							p.API.LogError("Unable to add user to the team", "error", addErr)
+							continue
+						}
+					}
+
+					if _, err := p.API.AddChannelMember(channelID, mmUserID); err != nil {
+						p.API.LogError("Unable to add user to the channel", "error", err)
+					}
+				}
+			}
+		}(i)
+	}
+}
+
+func (p *Plugin) addMSTeamsUser(wg sync.WaitGroup, client msteams.Client, teamID, channelID string, mmUsers []*model.User, msUsersMap map[string]msteams.User, batchSize int) {
+	for i := 0; i < (len(mmUsers)/batchSize)+1; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := i * batchSize; j < getMin((i*batchSize)+batchSize, len(mmUsers)); j++ {
+				u := mmUsers[j]
+				_, ok := msUsersMap[u.Email]
+				if !ok {
+					msTeamsUserID, err := p.store.MattermostToTeamsUserID(u.Id)
+					if err != nil {
+						p.API.LogError("Unable to get teams user ID", "error", err)
+						continue
+					}
+
+					if err := client.AddChannelMember(teamID, channelID, msTeamsUserID); err != nil {
+						p.API.LogError("Unable to add user to the channel", "error", err)
+					}
+				}
+			}
+		}(i)
+	}
 }
 
 func getMin(a, b int) int {
