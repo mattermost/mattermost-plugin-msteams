@@ -247,6 +247,29 @@ func (_m *Store) LinkPosts(postInfo storemodels.PostInfo) error {
 	return r0
 }
 
+// ListChannelLinks provides a mock function with given fields:
+func (_m *Store) ListChannelLinks() ([]storemodels.ChannelLink, error) {
+	ret := _m.Called()
+
+	var r0 []storemodels.ChannelLink
+	if rf, ok := ret.Get(0).(func() []storemodels.ChannelLink); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]storemodels.ChannelLink)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListChannelSubscriptionsToCheck provides a mock function with given fields:
 func (_m *Store) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error) {
 	ret := _m.Called()

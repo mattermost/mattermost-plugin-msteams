@@ -558,7 +558,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 	})
 
 	t.Run("no-near-to-expire-subscriptions", func(t *testing.T) {
-		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
@@ -567,13 +567,10 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		assert.Empty(t, subscriptions)
 	})
 
-	t.Run("one-subscription-almost-expired-and-other-didn't", func(t *testing.T) {
-		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(100 * time.Minute)})
+	t.Run("almost-expired", func(t *testing.T) {
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
-		err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
-		require.NoError(t, err)
-		defer func() { _ = store.DeleteSubscription("test2") }()
 
 		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
 		require.NoError(t, err)
@@ -581,19 +578,15 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		assert.Equal(t, "test2", subscriptions[0].SubscriptionID)
 	})
 
-	t.Run("one-subscription-almost-expired-and-other-expired", func(t *testing.T) {
-		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(-100 * time.Minute)})
+	t.Run("expired-subscription", func(t *testing.T) {
+		err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(-100 * time.Minute)})
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
-		err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(2 * time.Minute)})
-		require.NoError(t, err)
-		defer func() { _ = store.DeleteSubscription("test2") }()
 
 		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
 		require.NoError(t, err)
-		assert.Len(t, subscriptions, 2)
-		assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test1")
-		assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
+		assert.Len(t, subscriptions, 1)
+		assert.Equal(t, subscriptions[0].SubscriptionID, "test1")
 	})
 }
 
@@ -704,25 +697,17 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 }
 
 func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test1", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
-	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChannels", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
+	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test2", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test2") }()
 
-	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test3", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
-	require.NoError(t, err)
-	defer func() { _ = store.DeleteSubscription("test3") }()
-	err = store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: "test4", Type: "allChats", Secret: "secret", ExpiresOn: time.Now().Add(1 * time.Minute)})
-	require.NoError(t, err)
-	defer func() { _ = store.DeleteSubscription("test4") }()
-
 	subscriptions, err := store.ListGlobalSubscriptionsToCheck()
 	require.NoError(t, err)
-	require.Len(t, subscriptions, 2)
-	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
-	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
+	require.Len(t, subscriptions, 1)
+	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")
 }
 
 func testSaveChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {

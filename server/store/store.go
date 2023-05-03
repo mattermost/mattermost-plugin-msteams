@@ -27,6 +27,7 @@ type Store interface {
 	GetAvatarCache(userID string) ([]byte, error)
 	SetAvatarCache(userID string, photo []byte) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
+	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
 	StoreChannelLink(link *storemodels.ChannelLink) error
@@ -222,6 +223,25 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLin
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
+}
+
+func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
+	rows, err := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Query()
+	if err != nil {
+		return nil, err
+	}
+
+	links := []storemodels.ChannelLink{}
+	for rows.Next() {
+		var link storemodels.ChannelLink
+		err := rows.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, link)
+	}
+
+	return links, nil
 }
 
 func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error) {
@@ -468,7 +488,7 @@ func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubsc
 
 func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
-	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Or{sq.Eq{"type": "allChannels"}, sq.Eq{"type": "allChats"}}).Where(sq.Lt{"expiresOn": expireTime})
+	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": "allChats"}).Where(sq.Lt{"expiresOn": expireTime})
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
