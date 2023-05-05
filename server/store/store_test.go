@@ -396,13 +396,16 @@ func testStoreChannelLinkAndGetLinks(t *testing.T, store *SQLStore, api *plugint
 		Creator:           "mockCreator",
 	}
 
+	links, err := store.GetLinks()
+	assert.Nil(err)
+	assert.NotContains(links, mockChannelLink)
+
 	storeErr := store.StoreChannelLink(mockChannelLink)
 	assert.Nil(storeErr)
 
-	links, err := store.GetLinks()
+	links, err = store.GetLinks()
 	assert.Nil(err)
-	assert.Equal(1, len(links))
-	assert.Equal([]*storemodels.ChannelLink{mockChannelLink}, links)
+	assert.Contains(links, mockChannelLink)
 }
 
 func testDeleteLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
