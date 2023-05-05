@@ -48,6 +48,10 @@ type Store interface {
 	SaveChannelSubscription(storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
+	GetChannelSubscription(subscriptionID string) (storemodels.ChannelSubscription, error)
+	GetChatSubscription(subscriptionID string) (storemodels.ChatSubscription, error)
+	GetGlobalSubscription(subscriptionID string) (storemodels.GlobalSubscription, error)
+	GetSubscriptionType(subscriptionID string) (string, error)
 }
 
 type SQLStore struct {
@@ -357,7 +361,7 @@ func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 }
 
 func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
-	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}, sq.NotEq{"token": ""})
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}).Where(sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
 	err := row.Scan(&encryptedToken)
@@ -387,7 +391,7 @@ func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, erro
 }
 
 func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
-	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}, sq.NotEq{"token": ""})
+	query := s.getQueryBuilder().Select("token").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}).Where(sq.NotEq{"token": ""})
 	row := query.QueryRow()
 	var encryptedToken string
 	err := row.Scan(&encryptedToken)
@@ -554,6 +558,48 @@ func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
+	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": "channel"}).QueryRow()
+	var subscription storemodels.ChannelSubscription
+	var expiresOn int64
+	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); scanErr != nil {
+		return nil, scanErr
+	}
+	subscription.ExpiresOn = time.UnixMicro(expiresOn)
+	return &subscription, nil
+}
+
+func (s *SQLStore) GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error) {
+	row := s.getQueryBuilder().Select("subscriptionID, msTeamsUserID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": "chat"}).QueryRow()
+	var subscription storemodels.ChatSubscription
+	var expiresOn int64
+	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn); scanErr != nil {
+		return nil, scanErr
+	}
+	subscription.ExpiresOn = time.UnixMicro(expiresOn)
+	return &subscription, nil
+}
+
+func (s *SQLStore) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
+	row := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": "allChats"}).QueryRow()
+	var subscription storemodels.GlobalSubscription
+	var expiresOn int64
+	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn); scanErr != nil {
+		return nil, scanErr
+	}
+	subscription.ExpiresOn = time.UnixMicro(expiresOn)
+	return &subscription, nil
+}
+
+func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
+	row := s.getQueryBuilder().Select("type").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID}).QueryRow()
+	var subscriptionType string
+	if scanErr := row.Scan(&subscriptionType); scanErr != nil {
+		return "", scanErr
+	}
+	return subscriptionType, nil
 }
 
 func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {

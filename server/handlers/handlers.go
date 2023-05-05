@@ -89,8 +89,57 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
+func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
+	subscriptionType, err := ah.plugin.GetStore().GetSubscriptionType(subscriptionID)
+	if err != nil {
+		ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+		return false
+	}
+
+	if subscriptionType == "allChats" {
+		return true
+	}
+
+	switch subscriptionType {
+	case "allChats":
+		return true
+	case "channel":
+		subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
+		if err != nil {
+			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			return false
+		}
+		_, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
+		if err != nil {
+			ah.plugin.GetStore().DeleteSubscription(subscriptionID)
+			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			return false
+		}
+	case "chat":
+		subscription, err := ah.plugin.GetStore().GetChatSubscription(subscriptionID)
+		if err != nil {
+			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			return false
+		}
+		_, err = ah.plugin.GetAPI().GetUser(subscription.UserID)
+		if err != nil {
+			ah.plugin.GetStore().DeleteSubscription(subscriptionID)
+			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			return false
+		}
+
+	}
+
+	return true
+}
+
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	activityIds := msteams.GetResourceIds(activity.Resource)
+
+	if !ah.checkSubscription(activity.SubscriptionID) {
+		ah.plugin.GetAPI().LogError("The subscription is no longer active", "subscriptionID", activity.SubscriptionID)
+		return
+	}
 
 	switch activity.ChangeType {
 	case "created":
