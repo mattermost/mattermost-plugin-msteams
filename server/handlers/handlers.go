@@ -89,6 +89,33 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
+func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool) {
+	if !ah.checkSubscription(event.SubscriptionID) {
+		return
+	}
+
+	if event.LifecycleEvent == "reauthorizationRequired" {
+		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
+		if err != nil {
+			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
+		} else {
+			if err2 := ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
+				ah.plugin.GetAPI().LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			}
+		}
+	} else if event.LifecycleEvent == "subscriptionRemoved" {
+		_, err := ah.plugin.GetClientForApp().SubscribeToChannels(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
+		if err != nil {
+			ah.plugin.GetAPI().LogError("Unable to subscribe to channels", "error", err)
+		}
+
+		_, err = ah.plugin.GetClientForApp().SubscribeToChats(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
+		if err != nil {
+			ah.plugin.GetAPI().LogError("Unable to subscribe to chats", "error", err)
+		}
+	}
+}
+
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	subscriptionType, err := ah.plugin.GetStore().GetSubscriptionType(subscriptionID)
 	if err != nil {
