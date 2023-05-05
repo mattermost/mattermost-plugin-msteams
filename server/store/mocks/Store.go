@@ -81,6 +81,75 @@ func (_m *Store) GetAvatarCache(userID string) ([]byte, error) {
 	return r0, r1
 }
 
+// GetChannelSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChannelSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChatSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.ChatSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChatSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChatSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGlobalSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.GlobalSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.GlobalSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
 	ret := _m.Called(channelID)
@@ -166,6 +235,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetSubscriptionType provides a mock function with given fields: subscriptionID
+func (_m *Store) GetSubscriptionType(subscriptionID string) (string, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
 	} else {
 		r1 = ret.Error(1)
 	}
