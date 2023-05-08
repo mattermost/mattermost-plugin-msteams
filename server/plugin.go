@@ -62,7 +62,7 @@ type Plugin struct {
 
 	activityHandler *handlers.ActivityHandler
 
-	clientBuilderWithToken func(string, string, *oauth2.Token, func(string, ...any)) msteams.Client
+	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.getConfiguration().TenantID, p.getConfiguration().ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -112,7 +112,7 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.getConfiguration().TenantID, p.getConfiguration().ClientID, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
