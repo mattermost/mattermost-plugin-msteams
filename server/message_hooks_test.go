@@ -1663,3 +1663,161 @@ func TestGetChatIDForChannel(t *testing.T) {
 		})
 	}
 }
+
+func TestUserHasJoinedChannel(t *testing.T) {
+	for _, test := range []struct {
+		Name        string
+		SetupAPI    func(*plugintest.API)
+		SetupStore  func(*storemocks.Store)
+		SetupClient func(*clientmocks.Client, *clientmocks.Client)
+	}{
+		{
+			Name:     "UserHasJoinedChannel: No link found",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Once()
+			},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+		},
+		{
+			Name: "UserHasJoinedChannel: Unable to get ms teams user ID",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get MS teams userID", "err", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return("", errors.New("unable to get ms teams user ID")).Once()
+			},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+		},
+		{
+			Name: "UserHasJoinedChannel: Unable to add member in ms teams channel",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to add user to MS teams channel", "err", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return(testutils.GetTeamUserID(), nil).Once()
+			},
+			SetupClient: func(client *clientmocks.Client, uc *clientmocks.Client) {
+				client.On("AddChannelMember", "mockMSTeamsID", "mockMSTeamsChannelID", testutils.GetTeamUserID()).Return(errors.New("unable to add member in ms teams channel")).Once()
+			},
+		},
+		{
+			Name:     "UserHasJoinedChannel: Successfully added member in ms teams channel",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return(testutils.GetTeamUserID(), nil).Once()
+			},
+			SetupClient: func(client *clientmocks.Client, uc *clientmocks.Client) {
+				client.On("AddChannelMember", "mockMSTeamsID", "mockMSTeamsChannelID", testutils.GetTeamUserID()).Return(nil).Once()
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			p := newTestPlugin(t)
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			p.UserHasJoinedChannel(&plugin.Context{}, &model.ChannelMember{
+				ChannelId: testutils.GetChannelID(),
+				UserId:    testutils.GetMattermostID(),
+			}, &model.User{})
+		})
+	}
+}
+
+func TestUserHasLeftChannel(t *testing.T) {
+	for _, test := range []struct {
+		Name        string
+		SetupAPI    func(*plugintest.API)
+		SetupStore  func(*storemocks.Store)
+		SetupClient func(*clientmocks.Client, *clientmocks.Client)
+	}{
+		{
+			Name:     "UserHasLeftChannel: No link found",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Once()
+			},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+		},
+		{
+			Name: "UserHasLeftChannel: Unable to get ms teams user ID",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get MS teams userID", "err", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return("", errors.New("unable to get ms teams user ID")).Once()
+			},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+		},
+		{
+			Name: "UserHasLeftChannel: Unable to remove member from ms teams channel",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to remove user from MS teams channel", "err", mock.Anything)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return(testutils.GetTeamUserID(), nil).Once()
+			},
+			SetupClient: func(client *clientmocks.Client, uc *clientmocks.Client) {
+				client.On("RemoveChannelMember", "mockMSTeamsID", "mockMSTeamsChannelID", testutils.GetTeamUserID()).Return(errors.New("unable to remove member from ms teams channel")).Once()
+			},
+		},
+		{
+			Name:     "UserHasLeftChannel: Successfully removed member in ms teams channel",
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeamID",
+					MattermostChannel: testutils.GetChannelID(),
+					MSTeamsTeam:       "mockMSTeamsID",
+					MSTeamsChannel:    "mockMSTeamsChannelID",
+				}, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetMattermostID()).Return(testutils.GetTeamUserID(), nil).Once()
+			},
+			SetupClient: func(client *clientmocks.Client, uc *clientmocks.Client) {
+				client.On("RemoveChannelMember", "mockMSTeamsID", "mockMSTeamsChannelID", testutils.GetTeamUserID()).Return(nil).Once()
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			p := newTestPlugin(t)
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			p.UserHasLeftChannel(&plugin.Context{}, &model.ChannelMember{
+				ChannelId: testutils.GetChannelID(),
+				UserId:    testutils.GetMattermostID(),
+			}, &model.User{})
+		})
+	}
+}

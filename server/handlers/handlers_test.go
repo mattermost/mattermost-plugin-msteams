@@ -515,6 +515,431 @@ func TestHandleCreatedActivity(t *testing.T) {
 	}
 }
 
+func TestHandleAddMemberActivity(t *testing.T) {
+	for _, testCase := range []struct {
+		description string
+		activityIds msteams.ActivityIds
+		setupPlugin func(*mocksPlugin.PluginIface, *mocksClient.Client, *plugintest.API, *mocksStore.Store)
+		setupClient func(*mocksClient.Client)
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mocksStore.Store)
+	}{
+		{
+			description: "Link don't exist",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetStore").Return(store).Once()
+			},
+			setupClient: func(client *mocksClient.Client) {},
+			setupAPI:    func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(nil, nil).Once()
+			},
+		},
+		{
+			description: "Unable to get user details",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Once()
+				p.On("GetStore").Return(store).Once()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{}, errors.New("unable to get user details")).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to get user details", "error", mock.Anything).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+			},
+		},
+		{
+			description: "User exist in mattermost but unable to add user in the team",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Times(3)
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to add user to the team", "error", mock.Anything).Once()
+				mockAPI.On("GetTeamMember", "mockMattermostTeam", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("user not found in the team")).Once()
+				mockAPI.On("CreateTeamMember", "mockMattermostTeam", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to create team member")).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+			},
+		},
+		{
+			description: "User exist in mattermost but unable to add user in the channel",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Times(3)
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to add user to the channel", "error", mock.Anything).Once()
+				mockAPI.On("GetTeamMember", "mockMattermostTeam", testutils.GetMattermostID()).Return(nil, nil).Once()
+				mockAPI.On("AddChannelMember", "mockMattermostChannel", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to add user to the channel")).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+			},
+		},
+		{
+			description: "User don't exist in mattermost and unable to create new user",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Twice()
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to create new user", "error", mock.Anything).Once()
+				mockAPI.On("CreateUser", mock.AnythingOfType("*model.User")).Return(nil, testutils.GetInternalServerAppError("unable to create new user")).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("user not found")).Once()
+			},
+		},
+		{
+			description: "User don't exist in mattermost and unable to set new user info",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Twice()
+				p.On("GetStore").Return(store).Times(3)
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to store the user", "error", mock.Anything).Once()
+				mockAPI.On("CreateUser", mock.AnythingOfType("*model.User")).Return(&model.User{
+					Id: "mockNewMMUserId",
+				}, nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("user not found")).Once()
+				store.On("SetUserInfo", "mockNewMMUserId", testutils.GetTeamUserID(), mock.AnythingOfType("*oauth2.Token")).Return(errors.New("unable to set user info")).Once()
+			},
+		},
+		{
+			description: "Successfully added new user",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Times(3)
+				p.On("GetStore").Return(store).Times(3)
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("CreateUser", mock.AnythingOfType("*model.User")).Return(&model.User{
+					Id: "mockNewMMUserId",
+				}, nil).Once()
+				mockAPI.On("GetTeamMember", "mockMattermostTeam", "mockNewMMUserId").Return(nil, nil).Once()
+				mockAPI.On("AddChannelMember", "mockMattermostChannel", "mockNewMMUserId").Return(nil, nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("user not found")).Once()
+				store.On("SetUserInfo", "mockNewMMUserId", testutils.GetTeamUserID(), mock.AnythingOfType("*oauth2.Token")).Return(nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p := mocksPlugin.NewPluginIface(t)
+			ah := ActivityHandler{}
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			testCase.setupPlugin(p, client, mockAPI, store)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			ah.plugin = p
+
+			ah.handleAddMemberActivity(testCase.activityIds)
+		})
+	}
+}
+
+func TestHandleDeleteMemberActivity(t *testing.T) {
+	for _, testCase := range []struct {
+		description string
+		activityIds msteams.ActivityIds
+		setupPlugin func(*mocksPlugin.PluginIface, *mocksClient.Client, *plugintest.API, *mocksStore.Store)
+		setupClient func(*mocksClient.Client)
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mocksStore.Store)
+	}{
+		{
+			description: "Link don't exist",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetStore").Return(store).Once()
+			},
+			setupClient: func(client *mocksClient.Client) {},
+			setupAPI:    func(mockAPI *plugintest.API) {},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(nil, nil).Once()
+			},
+		},
+		{
+			description: "Unable to get user details",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Once()
+				p.On("GetStore").Return(store).Once()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{}, errors.New("unable to get user details")).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to get user details", "error", mock.Anything).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+			},
+		},
+		{
+			description: "Unable to get mm user ID",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Once()
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to get MM UserID", "error", mock.Anything).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("unable to get MM UserID")).Once()
+			},
+		},
+		{
+			description: "Unable to delete MM user from the channel",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Twice()
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogError", "Unable to delete MM user from the channel", "error", mock.Anything).Once()
+				mockAPI.On("DeleteChannelMember", "mockMattermostChannel", testutils.GetMattermostID()).Return(testutils.GetInternalServerAppError("unable to delete MM user from the channel")).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+			},
+		},
+		{
+			description: "Successfully handled activity",
+			activityIds: msteams.ActivityIds{
+				ChannelID: "mockMSChannelID",
+				TeamID:    "mockMSTeamID",
+				MessageID: "mockMessageID",
+				MemberID:  "mockMemberID",
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetClientForApp").Return(client).Once()
+				p.On("GetAPI").Return(mockAPI).Once()
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMember", "mockMSTeamID", "mockMemberID").Return(msteams.User{
+					DisplayName: "mockDisplayName",
+					ID:          testutils.GetTeamUserID(),
+					Mail:        "mock@example.com",
+				}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("DeleteChannelMember", "mockMattermostChannel", testutils.GetMattermostID()).Return(nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("GetLinkByMSTeamsChannelID", "mockMSTeamID", "mockMSChannelID").Return(&storemodels.ChannelLink{
+					MattermostTeam:    "mockMattermostTeam",
+					MattermostChannel: "mockMattermostChannel",
+					MSTeamsTeam:       "mockMSTeamID",
+					MSTeamsChannel:    "mockMSChannelID",
+				}, nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p := mocksPlugin.NewPluginIface(t)
+			ah := ActivityHandler{}
+			store := mocksStore.NewStore(t)
+			mockAPI := &plugintest.API{}
+			client := mocksClient.NewClient(t)
+			testCase.setupPlugin(p, client, mockAPI, store)
+			testCase.setupClient(client)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(store)
+
+			ah.plugin = p
+
+			ah.handleDeleteMemberActivity(testCase.activityIds)
+		})
+	}
+}
+
 func TestHandleUpdatedActivity(t *testing.T) {
 	for _, testCase := range []struct {
 		description string
