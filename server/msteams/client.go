@@ -140,13 +140,17 @@ type ActivityIds struct {
 }
 
 type AccessToken struct {
-	token *oauth2.Token
+	tokenSource oauth2.TokenSource
 }
 
-func (at *AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	token, err := at.tokenSource.Token()
+	if err != nil {
+		return azcore.AccessToken{}, err
+	}
 	return azcore.AccessToken{
-		Token:     at.token.AccessToken,
-		ExpiresOn: at.token.Expiry,
+		Token:     token.AccessToken,
+		ExpiresOn: token.Expiry,
 	}, nil
 }
 
@@ -164,7 +168,7 @@ func NewApp(tenantID, clientID, clientSecret string, plugin plugin.API, store st
 	}
 }
 
-func NewTokenClient(tenantID, clientID string, token *oauth2.Token, plugin plugin.API, store store.Store) Client {
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, plugin plugin.API, store store.Store) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
@@ -175,7 +179,20 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, plugin plugi
 		store:      store,
 	}
 
-	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(&AccessToken{client.token}, append(teamsDefaultScopes, "offline_access"))
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+		},
+		RedirectURL: redirectURL,
+	}
+
+	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
+
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		plugin.LogError("Unable to create the client from the token", "error", err)
 		return nil
