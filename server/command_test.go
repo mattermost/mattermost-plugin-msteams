@@ -441,7 +441,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ServiceSettings: model.ServiceSettings{
 						SiteURL: model.NewString("/"),
 					},
-				}, nil).Times(1)
+				}, nil).Times(2)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -455,6 +455,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
+				s.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannel", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
