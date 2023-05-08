@@ -194,8 +194,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 
 		go func() {
 			wg := sync.WaitGroup{}
-			p.addMattermostUser(wg, args.TeamId, args.ChannelId, msChannelMembers, mmUsersMap, batchSize)
-			p.addMSTeamsUser(wg, client, parameters[0], parameters[1], mmUsers, msUsersMap, batchSize)
+			p.addMattermostUser(&wg, args.TeamId, args.ChannelId, msChannelMembers, mmUsersMap, batchSize)
+			p.addMSTeamsUser(&wg, client, parameters[0], parameters[1], mmUsers, msUsersMap, batchSize)
 			wg.Wait()
 		}()
 	}
@@ -378,7 +378,7 @@ func (p *Plugin) getMattermostUsersAndMap(channelID string) ([]*model.User, map[
 	return mmUsers, mmUsersMap
 }
 
-func (p *Plugin) addMattermostUser(wg sync.WaitGroup, teamID, channelID string, msChannelMembers []msteams.User, mmUsersMap map[string]*model.User, batchSize int) {
+func (p *Plugin) addMattermostUser(wg *sync.WaitGroup, teamID, channelID string, msChannelMembers []msteams.User, mmUsersMap map[string]*model.User, batchSize int) {
 	for i := 0; i < (len(msChannelMembers)/batchSize)+1; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -430,7 +430,7 @@ func (p *Plugin) addMattermostUser(wg sync.WaitGroup, teamID, channelID string, 
 	}
 }
 
-func (p *Plugin) addMSTeamsUser(wg sync.WaitGroup, client msteams.Client, teamID, channelID string, mmUsers []*model.User, msUsersMap map[string]msteams.User, batchSize int) {
+func (p *Plugin) addMSTeamsUser(wg *sync.WaitGroup, client msteams.Client, teamID, channelID string, mmUsers []*model.User, msUsersMap map[string]msteams.User, batchSize int) {
 	for i := 0; i < (len(mmUsers)/batchSize)+1; i++ {
 		wg.Add(1)
 		go func(i int) {
