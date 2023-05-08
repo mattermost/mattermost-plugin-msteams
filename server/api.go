@@ -329,7 +329,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := msteams.NewTokenClient(a.p.configuration.TenantID, a.p.configuration.ClientID, token, a.p.API.LogError)
+	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
 	if err = client.Connect(); err != nil {
 		a.p.API.LogError("Unable connect to the client", "error", err.Error())
 		http.Error(w, "failed to connect to the client", http.StatusBadRequest)

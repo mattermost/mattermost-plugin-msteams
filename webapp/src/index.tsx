@@ -8,12 +8,13 @@ import EnforceConnectedAccountModal from './components/enforceConnectedAccountMo
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
+import {getServerRoute} from './selectors';
 
 export default class Plugin {
     enforceConnectedAccountId = '';
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
-        Client.setServerRoute('');
+        Client.setServerRoute(getServerRoute(store.getState()));
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
