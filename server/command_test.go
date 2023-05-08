@@ -189,7 +189,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&msteams.Team{}, nil).Times(1)
-				c.On("GetChannel", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
+				c.On("GetChannelInATeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
 			},
 		},
 		{
@@ -276,8 +276,8 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				s.On("GetLinks").Return(testutils.GetChannelLinks(1), nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(&msteams.Team{DisplayName: "Test MS team"}, nil).Times(1)
-				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{DisplayName: "Test MS channel"}, nil).Times(1)
+				c.On("GetTeams", mock.AnythingOfType("string")).Return([]*msteams.Team{{ID: testutils.GetTeamsTeamID(), DisplayName: "Test MS team"}}, nil).Times(1)
+				c.On("GetChannelsInATeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return([]*msteams.Channel{{ID: testutils.GetTeamsChannelID(), DisplayName: "Test MS channel"}}, nil).Times(1)
 			},
 		},
 		{
@@ -323,14 +323,13 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetTeam", testutils.GetTeamID()).Return(nil, testutils.GetInternalServerAppError("error in getting team info")).Once()
-				api.On("GetTeam", testutils.GetTeamID()).Return(&model.Team{DisplayName: "Test MM team"}, nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("error in getting channel info")).Times(1)
+				api.On("GetTeam", testutils.GetTeamID()).Return(nil, testutils.GetInternalServerAppError("error in getting team info")).Times(4)
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("error in getting channel info")).Times(4)
 
-				api.On("LogDebug", "Unable to get the MS Teams team information", "Error", "error in getting team info").Once()
-				api.On("LogDebug", "Unable to get the MS Teams channel information", "Error", "error in getting channel info").Once()
-				api.On("LogDebug", "Unable to get the Mattermost team information", "Error", "error in getting team info").Once()
-				api.On("LogDebug", "Unable to get the Mattermost channel information", "Error", "error in getting channel info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams channel information for a team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
+				api.On("LogDebug", "Unable to get the Mattermost team information", "TeamID", testutils.GetTeamID(), "Error", "error in getting team info").Times(4)
+				api.On("LogDebug", "Unable to get the Mattermost channel information", "ChannelID", testutils.GetChannelID(), "Error", "error in getting channel info").Times(4)
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -348,10 +347,8 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				s.On("GetLinks").Return(testutils.GetChannelLinks(4), nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(nil, errors.New("error in getting team info")).Times(1)
-				c.On("GetTeam", testutils.GetTeamsTeamID()).Return(&msteams.Team{DisplayName: "Test MS team"}, nil).Times(3)
-				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(nil, errors.New("error in getting channel info")).Times(1)
-				c.On("GetChannel", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{DisplayName: "Test MS channel"}, nil).Times(2)
+				c.On("GetTeams", mock.AnythingOfType("string")).Return(nil, errors.New("error in getting teams info")).Times(4)
+				c.On("GetChannelsInATeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return(nil, errors.New("error in getting channels info")).Times(4)
 			},
 		},
 	} {
@@ -587,7 +584,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannel", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
 		},
 		{
@@ -617,7 +614,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannel", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
 		},
 		{
@@ -754,7 +751,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannel", testutils.GetTeamUserID(), "").Return(nil, errors.New("Error while getting the channel"))
+				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), "").Return(nil, errors.New("Error while getting the channel"))
 			},
 		},
 	} {

@@ -92,8 +92,8 @@ func (_m *Client) DeleteSubscription(subscriptionID string) error {
 	return r0
 }
 
-// GetChannel provides a mock function with given fields: teamID, channelID
-func (_m *Client) GetChannel(teamID string, channelID string) (*msteams.Channel, error) {
+// GetChannelInATeam provides a mock function with given fields: teamID, channelID
+func (_m *Client) GetChannelInATeam(teamID string, channelID string) (*msteams.Channel, error) {
 	ret := _m.Called(teamID, channelID)
 
 	var r0 *msteams.Channel
@@ -108,6 +108,29 @@ func (_m *Client) GetChannel(teamID string, channelID string) (*msteams.Channel,
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
 		r1 = rf(teamID, channelID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChannelsInATeam provides a mock function with given fields: teamID, filterQuery
+func (_m *Client) GetChannelsInATeam(teamID string, filterQuery string) ([]*msteams.Channel, error) {
+	ret := _m.Called(teamID, filterQuery)
+
+	var r0 []*msteams.Channel
+	if rf, ok := ret.Get(0).(func(string, string) []*msteams.Channel); ok {
+		r0 = rf(teamID, filterQuery)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*msteams.Channel)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(teamID, filterQuery)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -288,6 +311,29 @@ func (_m *Client) GetTeam(teamID string) (*msteams.Team, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTeams provides a mock function with given fields: filterQuery
+func (_m *Client) GetTeams(filterQuery string) ([]*msteams.Team, error) {
+	ret := _m.Called(filterQuery)
+
+	var r0 []*msteams.Team
+	if rf, ok := ret.Get(0).(func(string) []*msteams.Team); ok {
+		r0 = rf(filterQuery)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*msteams.Team)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(filterQuery)
 	} else {
 		r1 = ret.Error(1)
 	}

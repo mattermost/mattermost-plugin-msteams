@@ -21,6 +21,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
@@ -552,7 +553,34 @@ func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
 	return &Team{ID: teamID, DisplayName: displayName}, nil
 }
 
-func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
+func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
+	requestParameters := &groups.GroupsRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+		Select: []string{"id", "displayName"},
+	}
+
+	configuration := &groups.GroupsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	res, err := tc.client.Groups().Get(tc.ctx, configuration)
+	if err != nil {
+		return nil, err
+	}
+
+	msTeamsGroups := res.GetValue()
+	teams := make([]*Team, len(msTeamsGroups))
+	for idx, group := range msTeamsGroups {
+		teams[idx] = &Team{
+			ID:          *group.GetId(),
+			DisplayName: *group.GetDisplayName(),
+		}
+	}
+
+	return teams, nil
+}
+
+func (tc *ClientImpl) GetChannelInATeam(teamID, channelID string) (*Channel, error) {
 	res, err := tc.client.TeamsById(teamID).ChannelsById(channelID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, err
@@ -564,6 +592,33 @@ func (tc *ClientImpl) GetChannel(teamID, channelID string) (*Channel, error) {
 	}
 
 	return &Channel{ID: channelID, DisplayName: displayName}, nil
+}
+
+func (tc *ClientImpl) GetChannelsInATeam(teamID, filterQuery string) ([]*Channel, error) {
+	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+		Select: []string{"id", "displayName"},
+	}
+
+	configuration := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	res, err := tc.client.TeamsById(teamID).Channels().Get(tc.ctx, configuration)
+	if err != nil {
+		return nil, err
+	}
+
+	msTeamsChannels := res.GetValue()
+	channels := make([]*Channel, len(msTeamsChannels))
+	for idx, channel := range msTeamsChannels {
+		channels[idx] = &Channel{
+			ID:          *channel.GetId(),
+			DisplayName: *channel.GetDisplayName(),
+		}
+	}
+
+	return channels, nil
 }
 
 func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {

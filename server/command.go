@@ -174,7 +174,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
-	_, err = client.GetChannel(parameters[0], parameters[1])
+	_, err = client.GetChannelInATeam(parameters[0], parameters[1])
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
@@ -232,7 +232,7 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
+	msteamsChannel, err := p.msteamsAppClient.GetChannelInATeam(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
@@ -260,66 +260,155 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Please wait while your request is being processed.")
+	go p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
+	return &model.CommandResponse{}, nil
+}
 
+func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
-	go func() {
-		gotErrors := false
-		wg := sync.WaitGroup{}
-		batchSize := 10
-		for idx := 0; idx < len(links); idx += batchSize {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				for index := i; index < i+batchSize && index < len(links); index++ {
-					link := links[index]
-					msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
-					if err != nil {
-						p.API.LogDebug("Unable to get the MS Teams team information", "Error", err.Error())
-						gotErrors = true
-						continue
-					}
+	gotErrors := false
+	wg := sync.WaitGroup{}
+	batchSize := 10
+	mattermostChannelIDsVsNames := make(map[string]string)
+	mattermostTeamIDsVsNames := make(map[string]string)
 
-					msteamsChannel, err := p.msteamsAppClient.GetChannel(link.MSTeamsTeam, link.MSTeamsChannel)
-					if err != nil {
-						p.API.LogDebug("Unable to get the MS Teams channel information", "Error", err.Error())
-						gotErrors = true
-						continue
-					}
+	msTeamsTeamIDsVsNames := make(map[string]string)
+	msTeamsChannelIDsVsNames := make(map[string]string)
+	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
 
+	// Process all the links in batches using goroutines
+	for idx := 0; idx < len(links); idx += batchSize {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for index := i; index < i+batchSize && index < len(links); index++ {
+				link := links[index]
+				msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
+				msTeamsChannelIDsVsNames[link.MSTeamsChannel] = ""
+
+				// Build the channels query for each team
+				if msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] == "" {
+					msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] = "id in ("
+				} else if channelsQuery := msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam]; channelsQuery[len(channelsQuery)-1:] != "(" {
+					msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += ","
+				}
+
+				msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
+
+				// Get the Mattermost team details
+				if mattermostTeamIDsVsNames[link.MattermostTeam] == "" {
 					mmTeam, teamErr := p.API.GetTeam(link.MattermostTeam)
 					if teamErr != nil {
-						p.API.LogDebug("Unable to get the Mattermost team information", "Error", teamErr.DetailedError)
+						p.API.LogDebug("Unable to get the Mattermost team information", "TeamID", link.MattermostTeam, "Error", teamErr.DetailedError)
 						gotErrors = true
-						continue
 					}
 
-					mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
-					if channelErr != nil {
-						p.API.LogDebug("Unable to get the Mattermost channel information", "Error", channelErr.DetailedError)
-						gotErrors = true
-						continue
+					if mmTeam != nil {
+						mattermostTeamIDsVsNames[link.MattermostTeam] = mmTeam.DisplayName
 					}
-
-					sb.WriteString(fmt.Sprintf(
-						"\n|%s|%s|%s|%s|",
-						mmTeam.DisplayName,
-						mmChannel.DisplayName,
-						msteamsTeam.DisplayName,
-						msteamsChannel.DisplayName,
-					))
 				}
-			}(idx)
+
+				// Get the Mattermost channel details
+				mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
+				if channelErr != nil {
+					p.API.LogDebug("Unable to get the Mattermost channel information", "ChannelID", link.MattermostChannel, "Error", channelErr.DetailedError)
+					gotErrors = true
+					continue
+				}
+
+				mattermostChannelIDsVsNames[link.MattermostChannel] = mmChannel.DisplayName
+			}
+		}(idx)
+	}
+
+	wg.Wait()
+
+	// Get MS Teams display names for each unique team ID and store it
+	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
+	gotErrors = gotErrors || teamDetailsErr
+
+	// Get MS Teams channel details for all channels for each unique team
+	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, &wg)
+	gotErrors = gotErrors || channelDetailsErr
+
+	for _, link := range links {
+		row := fmt.Sprintf(
+			"\n|%s|%s|%s|%s|",
+			mattermostTeamIDsVsNames[link.MattermostTeam],
+			mattermostChannelIDsVsNames[link.MattermostChannel],
+			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
+			msTeamsChannelIDsVsNames[link.MSTeamsChannel],
+		)
+
+		if row != "\n|||||" {
+			sb.WriteString(row)
+		}
+	}
+
+	if gotErrors {
+		sb.WriteString("\nThere were some errors while fetching information about some links. Please check the server logs.")
+	}
+
+	p.sendBotEphemeralPost(userID, channelID, sb.String())
+}
+
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
+	var msTeamsFilterQuery strings.Builder
+	msTeamsFilterQuery.WriteString("id in (")
+	length := len(msTeamsTeamIDsVsNames)
+	count := 0
+	for teamID := range msTeamsTeamIDsVsNames {
+		count++
+		msTeamsFilterQuery.WriteString("'" + teamID + "'")
+		if count != length {
+			msTeamsFilterQuery.WriteString(", ")
+		}
+	}
+
+	msTeamsFilterQuery.WriteString(")")
+	msTeamsTeams, err := p.msteamsAppClient.GetTeams(msTeamsFilterQuery.String())
+	if err != nil {
+		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		return true
+	}
+
+	for _, msTeamsTeam := range msTeamsTeams {
+		msTeamsTeamIDsVsNames[msTeamsTeam.ID] = msTeamsTeam.DisplayName
+	}
+
+	return false
+}
+
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string, wg *sync.WaitGroup) bool {
+	gotErrors := false
+	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
+		if wg != nil {
+			wg.Add(1)
 		}
 
+		go func(teamID, channelsQuery string) {
+			if wg != nil {
+				defer wg.Done()
+			}
+
+			channels, err := p.msteamsAppClient.GetChannelsInATeam(teamID, channelsQuery+")")
+			if err != nil {
+				p.API.LogDebug("Unable to get the MS Teams channel information for a team", "TeamID", teamID, "Error", err.Error())
+				gotErrors = true
+			}
+
+			for _, channel := range channels {
+				msTeamsChannelIDsVsNames[channel.ID] = channel.DisplayName
+			}
+		}(teamID, channelsQuery)
+	}
+
+	if wg != nil {
 		wg.Wait()
-		if gotErrors {
-			sb.WriteString("\nThere were some errors while fetching information about some links. Please check the server logs.")
-		}
-		p.sendBotEphemeralPost(args.UserId, args.ChannelId, sb.String())
-	}()
+	}
 
-	return &model.CommandResponse{}, nil
+	return gotErrors
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
