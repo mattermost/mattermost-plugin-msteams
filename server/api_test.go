@@ -326,7 +326,7 @@ func TestProcessActivity(t *testing.T) {
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -439,7 +439,7 @@ func TestProcessLifecycle(t *testing.T) {
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -523,7 +523,7 @@ func TestAutocompleteTeams(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/teams", nil)
 			r.Header.Add("Mattermost-User-ID", testutils.GetID())
@@ -612,7 +612,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)
 			if test.QueryParams != "" {

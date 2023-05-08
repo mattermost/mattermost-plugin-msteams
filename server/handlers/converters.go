@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -29,7 +30,8 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 }
 
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
-	text := convertToMD(msg.Text)
+	text := ah.handleMentions(msg)
+	text = convertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
 
@@ -59,6 +61,37 @@ func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Mess
 		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
 	return post, nil
+}
+
+func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
+	for _, mention := range msg.Mentions {
+		mmMention := ""
+		if mention.UserID != "" {
+			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to get mm UserID", "Error", err.Error())
+				continue
+			}
+
+			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
+			if getErr != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+				continue
+			}
+
+			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
+		} else {
+			if mention.MentionedText == "Everyone" {
+				mmMention = "@all"
+			} else {
+				mmMention = "@channel"
+			}
+		}
+
+		msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+	}
+
+	return msg.Text
 }
 
 func convertToMD(text string) string {

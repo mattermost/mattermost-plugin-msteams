@@ -11,13 +11,17 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/enescakir/emoji"
+	"github.com/mattermost/mattermost-server/v6/plugin"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -38,7 +42,8 @@ type ClientImpl struct {
 	clientSecret string
 	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
-	logError     func(msg string, keyValuePairs ...any)
+	plugin       plugin.API
+	store        store.Store
 }
 
 type Subscription struct {
@@ -95,6 +100,12 @@ type Reaction struct {
 	Reaction string
 }
 
+type Mention struct {
+	ID            int32
+	UserID        string
+	MentionedText string
+}
+
 type Message struct {
 	ID              string
 	UserID          string
@@ -104,6 +115,7 @@ type Message struct {
 	ReplyToID       string
 	Attachments     []Attachment
 	Reactions       []Reaction
+	Mentions        []Mention
 	ChannelID       string
 	TeamID          string
 	ChatID          string
@@ -140,36 +152,38 @@ func (at *AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions)
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) Client {
+func NewApp(tenantID, clientID, clientSecret string, plugin plugin.API, store store.Store) Client {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
 		tenantID:     tenantID,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		logError:     logError,
+		plugin:       plugin,
+		store:        store,
 	}
 }
 
-func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) Client {
+func NewTokenClient(tenantID, clientID string, token *oauth2.Token, plugin plugin.API, store store.Store) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		tenantID:   tenantID,
 		clientID:   clientID,
 		token:      token,
-		logError:   logError,
+		plugin:     plugin,
+		store:      store,
 	}
 
 	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(&AccessToken{client.token}, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		plugin.LogError("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		plugin.LogError("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
@@ -253,6 +267,9 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	}
 	rmsg.SetAttachments(msteamsAttachments)
 
+	content, mentions := tc.addMentions(content, teamID, channelID, "")
+	rmsg.SetMentions(mentions)
+
 	contentType := models.HTML_BODYTYPE
 
 	body := models.NewItemBody()
@@ -291,6 +308,9 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string) (*Message, erro
 	body.SetContentType(&contentType)
 	body.SetContent(&content)
 	rmsg.SetBody(body)
+
+	content, mentions := tc.addMentions(content, "", "", chatID)
+	rmsg.SetMentions(mentions)
 
 	res, err := tc.client.ChatsById(chatID).Messages().Post(tc.ctx, rmsg, nil)
 	if err != nil {
@@ -371,6 +391,9 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 
 	contentType := models.HTML_BODYTYPE
 
+	content, mentions := tc.addMentions(content, teamID, channelID, "")
+	rmsg.SetMentions(mentions)
+
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
 	body.SetContent(&content)
@@ -395,6 +418,9 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 
 	contentType := models.HTML_BODYTYPE
 
+	content, mentions := tc.addMentions(content, "", "", chatID)
+	rmsg.SetMentions(mentions)
+
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
 	body.SetContent(&content)
@@ -411,7 +437,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
 	if err != nil {
-		tc.logError("Unable to get the subcscriptions list", err)
+		tc.plugin.LogError("Unable to get the subcscriptions list", err)
 		return nil, err
 	}
 
@@ -438,7 +464,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
+				tc.plugin.LogError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
 		} else {
 			updatedSubscription := models.NewSubscription()
@@ -450,16 +476,16 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 				}, nil
 			}
 
-			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
+			tc.plugin.LogError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
+				tc.plugin.LogError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
 		}
 	}
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
-		tc.logError("Unable to create the new subscription", "error", err)
+		tc.plugin.LogError("Unable to create the new subscription", "error", err)
 		return nil, err
 	}
 
@@ -507,7 +533,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.SubscriptionsById(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
+		tc.plugin.LogError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
 		return nil, err
 	}
 	return &expirationDateTime, nil
@@ -515,7 +541,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.SubscriptionsById(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logError("Unable to delete the subscription", "error", err, "subscriptionID", subscriptionID)
+		tc.plugin.LogError("Unable to delete the subscription", "error", err, "subscriptionID", subscriptionID)
 		return err
 	}
 	return nil
@@ -658,6 +684,23 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		})
 	}
 
+	mentions := []Mention{}
+	for _, m := range msg.GetMentions() {
+		mention := Mention{}
+		if m.GetId() != nil && m.GetMentionText() != nil {
+			mention.ID = *m.GetId()
+			mention.MentionedText = *m.GetMentionText()
+		} else {
+			continue
+		}
+
+		if m.GetMentioned() != nil && m.GetMentioned().GetUser() != nil && m.GetMentioned().GetUser().GetId() != nil {
+			mention.UserID = *m.GetMentioned().GetUser().GetId()
+		}
+
+		mentions = append(mentions, mention)
+	}
+
 	reactions := []Reaction{}
 	for _, reaction := range msg.GetReactions() {
 		if reaction.GetReactionType() != nil && reaction.GetUser() != nil && reaction.GetUser().GetUser() != nil && reaction.GetUser().GetUser().GetId() != nil {
@@ -673,6 +716,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		ReplyToID:       replyTo,
 		Subject:         subject,
 		Attachments:     attachments,
+		Mentions:        mentions,
 		TeamID:          teamID,
 		ChannelID:       channelID,
 		ChatID:          chatID,
@@ -1102,4 +1146,100 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 	)
+}
+
+func (tc *ClientImpl) addMentions(message, teamID, channelID, chatID string) (string, []models.ChatMessageMentionable) {
+	specialMentions := map[string]bool{
+		"all":     true,
+		"channel": true,
+		"here":    true,
+	}
+
+	re := regexp.MustCompile(`@([a-z0-9.\-_]+)`)
+	channelMentions := re.FindAllString(message, -1)
+
+	mentions := []models.ChatMessageMentionable{}
+
+	for id, m := range channelMentions {
+		username := m[1:]
+		mentionedText := m
+
+		mention := models.NewChatMessageMention()
+		mentionedID := int32(id)
+		mention.SetId(&mentionedID)
+
+		mentioned := models.NewChatMessageMentionedIdentitySet()
+		conversation := models.NewTeamworkConversationIdentity()
+
+		if specialMentions[username] {
+			if chatID != "" {
+				chat, err := tc.GetChat(chatID)
+				if err != nil {
+					tc.plugin.LogDebug("Unable to get ms teams chat", "Error", err.Error())
+				} else {
+					if chat.Type == "G" {
+						mentionedText = "Everyone"
+					} else {
+						continue
+					}
+				}
+
+				conversation.SetId(&chatID)
+			} else {
+				msChannel, err := tc.GetChannel(teamID, channelID)
+				if err != nil {
+					tc.plugin.LogDebug("Unable to get ms teams channel", "Error", err.Error())
+				} else {
+					mentionedText = msChannel.DisplayName
+				}
+
+				conversation.SetId(&channelID)
+			}
+
+			conversation.SetDisplayName(&mentionedText)
+
+			conversationIdentityType := models.CHANNEL_TEAMWORKCONVERSATIONIDENTITYTYPE
+			conversation.SetConversationIdentityType(&conversationIdentityType)
+			mentioned.SetConversation(conversation)
+		} else {
+			mmUser, err := tc.plugin.GetUserByUsername(username)
+			if err != nil {
+				tc.plugin.LogDebug("Unable to get user by username", "Error", err.Error())
+				continue
+			}
+
+			msteamsUserID, getErr := tc.store.MattermostToTeamsUserID(mmUser.Id)
+			if getErr != nil {
+				tc.plugin.LogDebug("Unable to get msteams user ID", "Error", getErr.Error())
+				continue
+			}
+
+			msteamsUser, getErr := tc.GetUser(msteamsUserID)
+			if getErr != nil {
+				tc.plugin.LogDebug("Unable to get msteams user", "Error", getErr.Error())
+				continue
+			}
+
+			mentionedText = msteamsUser.DisplayName
+
+			identity := models.NewIdentity()
+			identity.SetId(&msteamsUserID)
+			identity.SetDisplayName(&msteamsUser.DisplayName)
+
+			additionalData := map[string]interface{}{
+				"userIdentityType": "aadUser",
+			}
+
+			identity.SetAdditionalData(additionalData)
+			mentioned.SetUser(identity)
+		}
+
+		message = strings.Replace(message, m, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(id), mentionedText), 1)
+		mention.SetMentionText(&mentionedText)
+		mention.SetMentioned(mentioned)
+
+		mentions = append(mentions, mention)
+	}
+
+	return message, mentions
 }
