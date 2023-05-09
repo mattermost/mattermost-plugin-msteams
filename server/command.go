@@ -14,6 +14,7 @@ import (
 )
 
 const msteamsCommand = "msteams-sync"
+const commandWaitingMessage = "Please wait while your request is being processed."
 
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
@@ -174,8 +175,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
-	_, err = client.GetChannelInATeam(parameters[0], parameters[1])
-	if err != nil {
+	if _, err = client.GetChannelInTeam(parameters[0], parameters[1]); err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
@@ -232,7 +232,7 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	msteamsChannel, err := p.msteamsAppClient.GetChannelInATeam(link.MSTeamsTeam, link.MSTeamsChannel)
+	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
@@ -250,8 +250,13 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 }
 
 func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
+	}
+
 	links, err := p.store.GetLinks()
 	if err != nil {
+		p.API.LogDebug("Unable to get links from store", "Error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 	}
 
@@ -259,7 +264,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 		return p.cmdError(args.UserId, args.ChannelId, "No links present.")
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Please wait while your request is being processed.")
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
 	go p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
 	return &model.CommandResponse{}, nil
 }
@@ -267,7 +272,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
-	gotErrors := false
+	errorsFound := false
 	wg := sync.WaitGroup{}
 	batchSize := 10
 	mattermostChannelIDsVsNames := make(map[string]string)
@@ -301,7 +306,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 					mmTeam, teamErr := p.API.GetTeam(link.MattermostTeam)
 					if teamErr != nil {
 						p.API.LogDebug("Unable to get the Mattermost team information", "TeamID", link.MattermostTeam, "Error", teamErr.DetailedError)
-						gotErrors = true
+						errorsFound = true
 					}
 
 					if mmTeam != nil {
@@ -313,7 +318,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 				mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
 				if channelErr != nil {
 					p.API.LogDebug("Unable to get the Mattermost channel information", "ChannelID", link.MattermostChannel, "Error", channelErr.DetailedError)
-					gotErrors = true
+					errorsFound = true
 					continue
 				}
 
@@ -326,11 +331,11 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 
 	// Get MS Teams display names for each unique team ID and store it
 	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
-	gotErrors = gotErrors || teamDetailsErr
+	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
 	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, &wg)
-	gotErrors = gotErrors || channelDetailsErr
+	errorsFound = errorsFound || channelDetailsErr
 
 	for _, link := range links {
 		row := fmt.Sprintf(
@@ -346,8 +351,8 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 		}
 	}
 
-	if gotErrors {
-		sb.WriteString("\nThere were some errors while fetching information about some links. Please check the server logs.")
+	if errorsFound {
+		sb.WriteString("\nThere were some errors while fetching information. Please check the server logs.")
 	}
 
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
@@ -381,7 +386,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 }
 
 func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string, wg *sync.WaitGroup) bool {
-	gotErrors := false
+	errorsFound := false
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		if wg != nil {
 			wg.Add(1)
@@ -392,10 +397,10 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 				defer wg.Done()
 			}
 
-			channels, err := p.msteamsAppClient.GetChannelsInATeam(teamID, channelsQuery+")")
+			channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 			if err != nil {
-				p.API.LogDebug("Unable to get the MS Teams channel information for a team", "TeamID", teamID, "Error", err.Error())
-				gotErrors = true
+				p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+				errorsFound = true
 			}
 
 			for _, channel := range channels {
@@ -408,7 +413,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 		wg.Wait()
 	}
 
-	return gotErrors
+	return errorsFound
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {

@@ -24,8 +24,8 @@ type Client interface {
 	DeleteSubscription(subscriptionID string) error
 	GetTeam(teamID string) (*Team, error)
 	GetTeams(filterQuery string) ([]*Team, error)
-	GetChannelInATeam(teamID, channelID string) (*Channel, error)
-	GetChannelsInATeam(teamID, filterQuery string) ([]*Channel, error)
+	GetChannelInTeam(teamID, channelID string) (*Channel, error)
+	GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error)
 	GetChat(chatID string) (*Chat, error)
 	GetChatMessage(chatID, messageID string) (*Message, error)
 	SetChatReaction(chatID, messageID, userID, emoji string) error

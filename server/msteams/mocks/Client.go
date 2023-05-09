@@ -92,8 +92,8 @@ func (_m *Client) DeleteSubscription(subscriptionID string) error {
 	return r0
 }
 
-// GetChannelInATeam provides a mock function with given fields: teamID, channelID
-func (_m *Client) GetChannelInATeam(teamID string, channelID string) (*msteams.Channel, error) {
+// GetChannelInTeam provides a mock function with given fields: teamID, channelID
+func (_m *Client) GetChannelInTeam(teamID string, channelID string) (*msteams.Channel, error) {
 	ret := _m.Called(teamID, channelID)
 
 	var r0 *msteams.Channel
@@ -115,8 +115,8 @@ func (_m *Client) GetChannelInATeam(teamID string, channelID string) (*msteams.C
 	return r0, r1
 }
 
-// GetChannelsInATeam provides a mock function with given fields: teamID, filterQuery
-func (_m *Client) GetChannelsInATeam(teamID string, filterQuery string) ([]*msteams.Channel, error) {
+// GetChannelsInTeam provides a mock function with given fields: teamID, filterQuery
+func (_m *Client) GetChannelsInTeam(teamID string, filterQuery string) ([]*msteams.Channel, error) {
 	ret := _m.Called(teamID, filterQuery)
 
 	var r0 []*msteams.Channel

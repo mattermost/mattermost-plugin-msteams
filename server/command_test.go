@@ -189,7 +189,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&msteams.Team{}, nil).Times(1)
-				c.On("GetChannelInATeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
+				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
 			},
 		},
 		{
@@ -257,13 +257,14 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("GetTeam", testutils.GetTeamID()).Return(&model.Team{DisplayName: "Test MM team"}, nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{DisplayName: "Test MM channel"}, nil).Times(1)
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Please wait while your request is being processed.",
+					Message:   commandWaitingMessage,
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
@@ -277,8 +278,25 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeams", mock.AnythingOfType("string")).Return([]*msteams.Team{{ID: testutils.GetTeamsTeamID(), DisplayName: "Test MS team"}}, nil).Times(1)
-				c.On("GetChannelsInATeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return([]*msteams.Channel{{ID: testutils.GetTeamsChannelID(), DisplayName: "Test MS channel"}}, nil).Times(1)
+				c.On("GetChannelsInTeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return([]*msteams.Channel{{ID: testutils.GetTeamsChannelID(), DisplayName: "Test MS channel"}}, nil).Times(1)
 			},
+		},
+		{
+			description: "User is not a system admin",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Unable to execute the command, only system admins have access to execute this command.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore:  func(s *mockStore.Store) {},
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Error in getting links",
@@ -287,6 +305,8 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("LogDebug", "Unable to get links from store", "Error", "error in getting links").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -305,6 +325,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
@@ -323,24 +344,25 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("GetTeam", testutils.GetTeamID()).Return(nil, testutils.GetInternalServerAppError("error in getting team info")).Times(4)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("error in getting channel info")).Times(4)
 
 				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
-				api.On("LogDebug", "Unable to get the MS Teams channel information for a team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams channel information for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
 				api.On("LogDebug", "Unable to get the Mattermost team information", "TeamID", testutils.GetTeamID(), "Error", "error in getting team info").Times(4)
 				api.On("LogDebug", "Unable to get the Mattermost channel information", "ChannelID", testutils.GetChannelID(), "Error", "error in getting channel info").Times(4)
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Please wait while your request is being processed.",
+					Message:   commandWaitingMessage,
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\nThere were some errors while fetching information about some links. Please check the server logs.",
+					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\nThere were some errors while fetching information. Please check the server logs.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -348,7 +370,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeams", mock.AnythingOfType("string")).Return(nil, errors.New("error in getting teams info")).Times(4)
-				c.On("GetChannelsInATeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return(nil, errors.New("error in getting channels info")).Times(4)
+				c.On("GetChannelsInTeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return(nil, errors.New("error in getting channels info")).Times(4)
 			},
 		},
 	} {
@@ -584,7 +606,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
 		},
 		{
@@ -614,7 +636,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
 		},
 		{
@@ -751,7 +773,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInATeam", testutils.GetTeamUserID(), "").Return(nil, errors.New("Error while getting the channel"))
+				uc.On("GetChannelInTeam", testutils.GetTeamUserID(), "").Return(nil, errors.New("Error while getting the channel"))
 			},
 		},
 	} {

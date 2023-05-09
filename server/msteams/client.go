@@ -580,7 +580,7 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 	return teams, nil
 }
 
-func (tc *ClientImpl) GetChannelInATeam(teamID, channelID string) (*Channel, error) {
+func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*Channel, error) {
 	res, err := tc.client.TeamsById(teamID).ChannelsById(channelID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, err
@@ -594,7 +594,7 @@ func (tc *ClientImpl) GetChannelInATeam(teamID, channelID string) (*Channel, err
 	return &Channel{ID: channelID, DisplayName: displayName}, nil
 }
 
-func (tc *ClientImpl) GetChannelsInATeam(teamID, filterQuery string) ([]*Channel, error) {
+func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error) {
 	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
 		Filter: &filterQuery,
 		Select: []string{"id", "displayName"},
