@@ -42,13 +42,12 @@ This plugin supports the following features:
 
 ## Basic Knowledge
 
-- [What are subscriptions in Microsoft?](https://learn.microsoft.com/en-us/graph/api/resources/subscription?view=graph-rest-1.0)
-- [What are change notifications present in Microsoft for messages?](https://learn.microsoft.com/en-us/graph/teams-changenotifications-chatmessage)
-- [What are lifecycle notifications?](https://learn.microsoft.com/en-us/graph/webhooks-lifecycle)
 - [What is Microsoft Graph?](https://learn.microsoft.com/en-us/graph/overview)
 - [What is Microsoft Graph API?](https://learn.microsoft.com/en-us/graph/use-the-api)  
     - [Graph API explorer](https://developer.microsoft.com/en-us/graph/graph-explorer)
-
+- [What are subscriptions in Microsoft Graph?](https://learn.microsoft.com/en-us/graph/api/resources/subscription?view=graph-rest-1.0)
+- [What are change notifications present in Microsoft for messages?](https://learn.microsoft.com/en-us/graph/teams-changenotifications-chatmessage)
+- [What are lifecycle notifications?](https://learn.microsoft.com/en-us/graph/webhooks-lifecycle)
 
 ## Installation
 
