@@ -3,17 +3,20 @@
 - [License](#license)
 - [Overview](#overview)
 - [Features](#features)
+- [Basic Knowledge](#basic-knowledge)
 - [Installation](#installation)
 - [Setup](#setup)
 - [Connecting to MS Teams](#connecting-to-ms-teams)
+- [Development](#development)
+
 
 ## License
 
-See the [LICENSE](./LICENSE) file for license rights and limitations.
+See the [LICENSE](../LICENSE) file for license rights and limitations.
 
 ## Overview
 
-This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa. For a stable production release, please download the latest version from the Plugin Marketplace and follow the instructions to [install](#installation) and [configure](#setup) the plugin. If you are a developer who wants to work on this plugin, please switch to the [Developer docs](./docs/developer_docs.md).
+This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa. For a stable production release, please download the latest version from the Plugin Marketplace and follow the instructions to [install](#installation) and [configure](#setup) the plugin.
 
 ## Features
 
@@ -37,6 +40,15 @@ This plugin supports the following features:
 
 - Sync reactions on posts.
 
+## Basic Knowledge
+
+- [What is Microsoft Graph?](https://learn.microsoft.com/en-us/graph/overview)
+- [What is Microsoft Graph API?](https://learn.microsoft.com/en-us/graph/use-the-api)  
+    - [Graph API explorer](https://developer.microsoft.com/en-us/graph/graph-explorer)
+- [What are subscriptions in Microsoft Graph?](https://learn.microsoft.com/en-us/graph/api/resources/subscription?view=graph-rest-1.0)
+- [What are change notifications present in Microsoft for messages?](https://learn.microsoft.com/en-us/graph/teams-changenotifications-chatmessage)
+- [What are lifecycle notifications?](https://learn.microsoft.com/en-us/graph/webhooks-lifecycle)
+
 ## Installation
 
 1. Go to the [releases page of this GitHub repository](github.com/mattermost/mattermost-plugin-msteams-sync/releases) and download the latest release for your Mattermost server.
@@ -45,8 +57,9 @@ This plugin supports the following features:
 
 ## Setup
 
-- [Microsoft Azure Setup](./docs/azure_setup.md)
-- [Plugin Setup](./docs/plugin_setup.md)
+- [Microsoft Azure Setup](./azure_setup.md)
+- [Plugin Setup](./plugin_setup.md)
+
 
 ## Connecting to MS Teams
 
@@ -71,6 +84,81 @@ There are two methods by which you can connect your Mattermost account to your M
     - This command is visible and accessible by system admins only.
     - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link and a code to connect the bot account.
     - Click on that link and enter the code. If it asks for login, enter the Microsoft credentials for the dummy account and click `Continue` to authorize and connect the bot account.
-    - Refer [here](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
+    - Refer [here](./azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
 
     After connecting successfully, you will get an ephemeral message from the MS Teams bot saying "The bot account has been connected".
+
+## Development
+
+### Setup
+
+Make sure you have the following components installed:  
+
+- Go - v1.18 - [Getting Started](https://golang.org/doc/install)
+    > **Note:** If you have installed Go to a custom location, make sure the `$GOROOT` variable is set properly. Refer [Installing to a custom location](https://golang.org/doc/install#install).
+
+- Make
+
+### Building the plugin
+
+Run the following command in the plugin repo to prepare a compiled, distributable plugin zip:
+
+```bash
+make dist
+```
+
+After a successful build, a `.tar.gz` file in the `/dist` folder will be created which can be uploaded to Mattermost. To avoid having to manually install your plugin, deploy your plugin using one of the following options.
+
+### Deploying with Local Mode
+
+If your Mattermost server is running locally, you can enable [local mode](https://docs.mattermost.com/administration/mmctl-cli-tool.html#local-mode) to streamline deploying your plugin. Edit your server configuration as follows:
+
+```
+{
+    "ServiceSettings": {
+        ...
+        "EnableLocalMode": true,
+        "LocalModeSocketLocation": "/var/tmp/mattermost_local.socket"
+    }
+}
+```
+
+and then deploy your plugin:
+
+```bash
+make deploy
+```
+
+You may also customize the Unix socket path:
+
+```bash
+export MM_LOCALSOCKETPATH=/var/tmp/alternate_local.socket
+make deploy
+```
+
+If developing a plugin with a web app, watch for changes and deploy those automatically:
+
+```bash
+export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
+export MM_ADMIN_TOKEN=j44acwd8obn78cdcx7koid4jkr
+make watch
+```
+
+### Deploying with credentials
+
+Alternatively, you can authenticate with the server's API with credentials:
+
+```bash
+export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
+export MM_ADMIN_USERNAME=admin
+export MM_ADMIN_PASSWORD=password
+make deploy
+```
+
+or with a [personal access token](https://docs.mattermost.com/developer/personal-access-tokens.html):
+
+```bash
+export MM_SERVICESETTINGS_SITEURL=http://localhost:8065
+export MM_ADMIN_TOKEN=j44acwd8obn78cdcx7koid4jkr
+make deploy
+```
