@@ -417,6 +417,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -580,6 +585,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -603,7 +613,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
-			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", nil, nil).(*mockClient.Client))
+			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*mockClient.Client))
 			_, _ = p.executeLinkCommand(testCase.args, testCase.parameters)
 		})
 	}

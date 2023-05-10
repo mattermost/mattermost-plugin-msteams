@@ -41,6 +41,15 @@ type ClientImpl struct {
 	logError     func(msg string, keyValuePairs ...any)
 }
 
+type Subscription struct {
+	ID        string
+	Type      string
+	ChannelID string
+	TeamID    string
+	UserID    string
+	ExpiresOn time.Time
+}
+
 type Channel struct {
 	ID          string
 	DisplayName string
@@ -119,13 +128,17 @@ type ActivityIds struct {
 }
 
 type AccessToken struct {
-	token *oauth2.Token
+	tokenSource oauth2.TokenSource
 }
 
-func (at *AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	token, err := at.tokenSource.Token()
+	if err != nil {
+		return azcore.AccessToken{}, err
+	}
 	return azcore.AccessToken{
-		Token:     at.token.AccessToken,
-		ExpiresOn: at.token.Expiry,
+		Token:     token.AccessToken,
+		ExpiresOn: token.Expiry,
 	}, nil
 }
 
@@ -142,7 +155,7 @@ func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...an
 	}
 }
 
-func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError func(string, ...any)) Client {
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logError func(string, ...any)) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
@@ -152,7 +165,20 @@ func NewTokenClient(tenantID, clientID string, token *oauth2.Token, logError fun
 		logError:   logError,
 	}
 
-	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(&AccessToken{client.token}, append(teamsDefaultScopes, "offline_access"))
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+		},
+		RedirectURL: redirectURL,
+	}
+
+	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
+
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		logError("Unable to create the client from the token", "error", err)
 		return nil
@@ -426,11 +452,13 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
 	return nil
 }
 
-func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (string, error) {
+func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (*Subscription, error) {
+	expirationDateTime := time.Now().Add(30 * time.Minute)
+
 	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
 	if err != nil {
 		tc.logError("Unable to get the subcscriptions list", err)
-		return "", err
+		return nil, err
 	}
 
 	var existingSubscription models.Subscriptionable
@@ -445,7 +473,6 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	lifecycleNotificationURL := baseURL + "lifecycle"
 	notificationURL := baseURL + "changes"
 
-	expirationDateTime := time.Now().Add(30 * time.Minute)
 	subscription := models.NewSubscription()
 	subscription.SetResource(&resource)
 	subscription.SetExpirationDateTime(&expirationDateTime)
@@ -460,11 +487,13 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
 			}
 		} else {
-			expirationDateTime := time.Now().Add(30 * time.Minute)
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 			if _, err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err2 != nil {
-				return *existingSubscription.GetId(), nil
+				return &Subscription{
+					ID:        *existingSubscription.GetId(),
+					ExpiresOn: *existingSubscription.GetExpirationDateTime(),
+				}, nil
 			}
 
 			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
@@ -477,13 +506,16 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
 		tc.logError("Unable to create the new subscription", "error", err)
-		return "", err
+		return nil, err
 	}
 
-	return *res.GetId(), nil
+	return &Subscription{
+		ID:        *res.GetId(),
+		ExpiresOn: *res.GetExpirationDateTime(),
+	}, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "teams/getAllMessages"
 	if pay {
 		resource = "teams/getAllMessages?model=B"
@@ -492,7 +524,13 @@ func (tc *ClientImpl) SubscribeToChannels(baseURL string, webhookSecret string, 
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (string, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error) {
+	resource := fmt.Sprintf("/teams/%s/channels/%s/messages", teamID, channelID)
+	changeType := "created,deleted,updated"
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
 	resource := "chats/getAllMessages"
 	if pay {
 		resource = "chats/getAllMessages?model=B"
@@ -501,12 +539,29 @@ func (tc *ClientImpl) SubscribeToChats(baseURL string, webhookSecret string, pay
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) RefreshSubscription(subscriptionID string) error {
+func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string, pay bool) (*Subscription, error) {
+	resource := fmt.Sprintf("/users/%s/chats/getAllMessages", userID)
+	if pay {
+		resource = fmt.Sprintf("/users/%s/chats/getAllMessages?model=B", userID)
+	}
+	changeType := "created,deleted,updated"
+	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
+}
+
+func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.SubscriptionsById(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
 		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
+		return nil, err
+	}
+	return &expirationDateTime, nil
+}
+
+func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
+	if err := tc.client.SubscriptionsById(subscriptionID).Delete(tc.ctx, nil); err != nil {
+		tc.logError("Unable to delete the subscription", "error", err, "subscriptionID", subscriptionID)
 		return err
 	}
 	return nil

@@ -37,7 +37,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(tenantID string, clientId string, token *oauth2.Token, logError func(string, ...any)) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, logError func(string, ...any)) msteams.Client {
 			return clientMock
 		},
 	}
@@ -68,6 +68,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 	plugin.API.(*plugintest.API).Test(t)
 
 	_ = plugin.OnActivate()
@@ -108,7 +109,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 
 	plugin.MessageHasBeenPosted(nil, &post)
@@ -161,7 +162,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogError", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
@@ -200,7 +201,9 @@ func TestGetURL(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			p := newTestPlugin(t)
-			test.SetupAPI(p.API.(*plugintest.API))
+			apiMock := &plugintest.API{}
+			test.SetupAPI(apiMock)
+			p.SetAPI(apiMock)
 			resp := p.GetURL()
 			assert.Equal("mockSiteURL/plugins/com.mattermost.msteams-sync", resp)
 		})

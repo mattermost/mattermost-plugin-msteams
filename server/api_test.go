@@ -255,10 +255,12 @@ func TestGetAvatarNotFound(t *testing.T) {
 }
 
 func TestProcessActivity(t *testing.T) {
+	newTime := time.Now().Add(30 * time.Minute)
 	for _, test := range []struct {
 		Name               string
 		SetupAPI           func(*plugintest.API)
 		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
+		SetupStore         func(*storemocks.Store)
 		RequestBody        string
 		ValidationToken    string
 		ExpectedStatusCode int
@@ -268,6 +270,7 @@ func TestProcessActivity(t *testing.T) {
 			Name:               "ProcessActivity: With validation token present",
 			SetupAPI:           func(api *plugintest.API) {},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:         func(store *storemocks.Store) {},
 			ValidationToken:    "mockValidationToken",
 			ExpectedStatusCode: http.StatusOK,
 			ExpectedResult:     "mockValidationToken",
@@ -276,6 +279,7 @@ func TestProcessActivity(t *testing.T) {
 			Name:               "ProcessActivity: Invalid body",
 			SetupAPI:           func(api *plugintest.API) {},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:         func(store *storemocks.Store) {},
 			RequestBody:        `{`,
 			ExpectedStatusCode: http.StatusBadRequest,
 			ExpectedResult:     "unable to get the activities from the message\n",
@@ -286,6 +290,7 @@ func TestProcessActivity(t *testing.T) {
 				api.On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", mock.Anything).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -300,10 +305,14 @@ func TestProcessActivity(t *testing.T) {
 			Name:     "ProcessActivity: Valid body with valid webhook secret",
 			SetupAPI: func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("RefreshSubscription", mock.Anything).Return(nil)
+				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			RequestBody: `{
 				"Value": [{
+				"SubscriptionID": "mockID",
 				"Resource": "mockResource",
 				"ClientState": "webhooksecret",
 				"ChangeType": "mockChangeType",
@@ -315,8 +324,9 @@ func TestProcessActivity(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
+			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -339,11 +349,13 @@ func TestProcessActivity(t *testing.T) {
 }
 
 func TestProcessLifecycle(t *testing.T) {
+	newTime := time.Now().Add(30 * time.Minute)
 	for _, test := range []struct {
 		Name               string
 		ValidationToken    string
 		SetupAPI           func(*plugintest.API)
 		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
+		SetupStore         func(*storemocks.Store)
 		RequestBody        string
 		ExpectedStatusCode int
 		ExpectedResult     string
@@ -352,6 +364,7 @@ func TestProcessLifecycle(t *testing.T) {
 			Name:            "ProcessLifecycle: With validation token present",
 			SetupAPI:        func(api *plugintest.API) {},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:      func(store *storemocks.Store) {},
 			ValidationToken: "mockValidationToken",
 			RequestBody: `{
 				"Value": [{
@@ -367,6 +380,7 @@ func TestProcessLifecycle(t *testing.T) {
 			Name:               "ProcessLifecycle: Invalid body",
 			SetupAPI:           func(api *plugintest.API) {},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:         func(store *storemocks.Store) {},
 			RequestBody:        `{`,
 			ExpectedStatusCode: http.StatusBadRequest,
 			ExpectedResult:     "unable to get the lifecycle events from the message\n",
@@ -377,6 +391,7 @@ func TestProcessLifecycle(t *testing.T) {
 				api.On("LogError", "Invalid webhook secret recevied in lifecycle event").Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -390,6 +405,7 @@ func TestProcessLifecycle(t *testing.T) {
 			Name:        "ProcessLifecycle: Valid body with valid webhook secret and without refresh needed",
 			SetupAPI:    func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -403,7 +419,10 @@ func TestProcessLifecycle(t *testing.T) {
 			Name:     "ProcessLifecycle: Valid body with valid webhook secret and with refresh needed",
 			SetupAPI: func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("RefreshSubscription", "mockID").Return(nil)
+				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			RequestBody: `{
 				"Value": [{
@@ -418,8 +437,9 @@ func TestProcessLifecycle(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
+			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -503,7 +523,7 @@ func TestAutocompleteTeams(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/teams", nil)
 			r.Header.Add("Mattermost-User-ID", testutils.GetID())
@@ -592,7 +612,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)
 			if test.QueryParams != "" {
