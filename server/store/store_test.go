@@ -15,6 +15,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/mattermost/mattermost-server/v6/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -124,6 +125,7 @@ func TestStore(t *testing.T) {
 		"testSaveChatSubscription":                                   testSaveChatSubscription,
 		"testSaveChannelSubscription":                                testSaveChannelSubscription,
 		"testUpdateSubscriptionExpiresOn":                            testUpdateSubscriptionExpiresOn,
+		"testStoreAndGetDMGMPromptTime":                              testStoreAndGetDMGMPromptTime,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -791,4 +793,19 @@ func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintes
 	subscriptions, err = store.ListChannelSubscriptionsToCheck()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
+}
+
+func testStoreAndGetDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
+	testTime := time.Now()
+	api.On("KVSet", connectionPromptKey+"mockMattermostChannelID-1_mockMattermostUserID-1", mock.Anything).Return(nil)
+	err := store.StoreDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1", testTime)
+	assert.Nil(t, err)
+
+	timeBytes, err := testTime.MarshalJSON()
+	assert.Nil(t, err)
+	api.On("KVGet", connectionPromptKey+"mockMattermostChannelID-1_mockMattermostUserID-1").Return(timeBytes, nil)
+
+	timestamp, err := store.GetDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1")
+	assert.Nil(t, err)
+	assert.True(t, timestamp.Equal(testTime))
 }
