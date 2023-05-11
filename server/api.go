@@ -144,26 +144,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
 			continue
 		}
-		if event.LifecycleEvent == "reauthorizationRequired" {
-			expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(event.SubscriptionID)
-			if err != nil {
-				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
-			} else {
-				if err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
-					a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
-				}
-			}
-		} else if event.LifecycleEvent == "subscriptionRemoved" {
-			_, err := a.p.msteamsAppClient.SubscribeToChannels(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
-			if err != nil {
-				a.p.API.LogError("Unable to subscribe to channels", "error", err)
-			}
-
-			_, err = a.p.msteamsAppClient.SubscribeToChats(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
-			if err != nil {
-				a.p.API.LogError("Unable to subscribe to chats", "error", err)
-			}
-		}
+		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI)
 	}
 
 	w.WriteHeader(http.StatusOK)

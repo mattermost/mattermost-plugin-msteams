@@ -405,9 +405,12 @@ func TestProcessLifecycle(t *testing.T) {
 			Name:        "ProcessLifecycle: Valid body with valid webhook secret and without refresh needed",
 			SetupAPI:    func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetSubscriptionType", "mockID").Return("allChats", nil)
+			},
 			RequestBody: `{
 				"Value": [{
+				"SubscriptionID": "mockID",
 				"Resource": "mockResource",
 				"ClientState": "webhooksecret",
 				"ChangeType": "mockChangeType",
@@ -422,6 +425,7 @@ func TestProcessLifecycle(t *testing.T) {
 				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("GetSubscriptionType", "mockID").Return("allChats", nil)
 				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			RequestBody: `{

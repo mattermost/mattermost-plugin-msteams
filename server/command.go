@@ -170,15 +170,32 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
-	err = p.store.StoreChannelLink(&storemodels.ChannelLink{
+	channelLink := storemodels.ChannelLink{
 		MattermostTeam:    channel.TeamId,
 		MattermostChannel: channel.Id,
 		MSTeamsTeam:       parameters[0],
 		MSTeamsChannel:    parameters[1],
 		Creator:           args.UserId,
-	})
+	}
+	err = p.store.StoreChannelLink(&channelLink)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
+	}
+
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel: "+err.Error())
+	}
+
+	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		SubscriptionID: channelsSubscription.ID,
+		TeamID:         channelLink.MSTeamsTeam,
+		ChannelID:      channelLink.MSTeamsChannel,
+		ExpiresOn:      channelsSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	})
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to save the subscription in the monitoring system: "+err.Error())
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
