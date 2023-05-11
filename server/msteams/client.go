@@ -247,6 +247,35 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 	return *r.GetId(), nil
 }
 
+func (tc *ClientImpl) GetMe() (*User, error) {
+	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
+		Select: []string{"id", "mail", "userPrincipalName"},
+	}
+	configuration := &users.UserItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	r, err := tc.client.Me().Get(tc.ctx, configuration)
+	if err != nil {
+		return nil, err
+	}
+
+	mail := r.GetMail()
+	if mail == nil || *mail == "" {
+		mail = r.GetUserPrincipalName()
+	}
+
+	displayName := r.GetDisplayName()
+	user := &User{ID: *r.GetId()}
+	if displayName != nil {
+		user.DisplayName = *displayName
+	}
+	if mail != nil {
+		user.Mail = *mail
+	}
+
+	return user, nil
+}
+
 func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (*Message, error) {
 	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil)
 }

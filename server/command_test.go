@@ -348,8 +348,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(nil).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(nil).Once()
 			},
 		},
 		{
@@ -386,18 +385,17 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(errors.New("Error while disconnecting the bot account")).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(errors.New("Error while disconnecting the bot account")).Once()
 			},
 		},
 		{
-			description: "Unable to connect the bot account",
+			description: "Unable to disconnect the bot account due to bad permissions",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", "", model.PermissionManageSystem).Return(false).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Unable to connect the bot account, only system admins can connect the bot account.",
+					Message: "Unable to disconnect the bot account, only system admins can disconnect the bot account.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},

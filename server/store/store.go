@@ -37,6 +37,7 @@ type Store interface {
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
+	DeleteUserInfo(mmUserID string) error
 	TeamsToMattermostUserID(userID string) (string, error)
 	MattermostToTeamsUserID(userID string) (string, error)
 	CheckEnabledTeamByTeamID(teamID string) bool
@@ -164,6 +165,40 @@ func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) err
 	return nil
 }
 
+func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
+	if s.driverName == model.DatabaseDriverPostgres {
+		rows, err := s.db.Query(fmt.Sprintf("SELECT constraint_name from information_schema.table_constraints where table_name = '%s' and constraint_type='PRIMARY KEY'", tableName))
+		if err != nil {
+			return err
+		}
+
+		var constraintName string
+		if rows.Next() {
+			if scanErr := rows.Scan(&constraintName); scanErr != nil {
+				return scanErr
+			}
+		}
+
+		if constraintName == "" {
+			if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
+				return err
+			}
+		} else if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s, ADD PRIMARY KEY(%s)", tableName, constraintName, columnList)); err != nil {
+			return err
+		}
+	} else {
+		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", tableName)); err != nil {
+			s.api.LogDebug("Error in dropping primary key", "Error", err.Error())
+		}
+
+		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *SQLStore) Init() error {
 	if err := s.createTable("msteamssync_subscriptions", "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
 		return err
@@ -178,6 +213,10 @@ func (s *SQLStore) Init() error {
 	}
 
 	if err := s.createTable("msteamssync_users", "mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT"); err != nil {
+		return err
+	}
+
+	if err := s.addPrimaryKey("msteamssync_users", "mmUserID, msTeamsUserID"); err != nil {
 		return err
 	}
 
@@ -416,7 +455,7 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 	}
 
 	if s.driverName == "postgres" {
-		if _, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID) DO UPDATE SET msTeamsUserID = EXCLUDED.msTeamsUserID, token = EXCLUDED.token").Exec(); err != nil {
+		if _, err := s.getQueryBuilder().Insert("msteamssync_users").Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID, msTeamsUserID) DO UPDATE SET token = EXCLUDED.token").Exec(); err != nil {
 			return err
 		}
 	} else {
@@ -424,6 +463,14 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 			return err
 		}
 	}
+	return nil
+}
+
+func (s *SQLStore) DeleteUserInfo(mmUserID string) error {
+	if _, err := s.getQueryBuilder().Delete("msteamssync_users").Where(sq.Eq{"mmUserID": mmUserID}).Exec(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
