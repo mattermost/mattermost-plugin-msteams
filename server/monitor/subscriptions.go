@@ -19,8 +19,11 @@ func (m *Monitor) checkChannelsSubscriptions() {
 	for _, subscription := range subscriptions {
 		link, _ := m.store.GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
 		if link == nil {
-			m.store.DeleteSubscription(subscription.SubscriptionID)
-			m.client.DeleteSubscription(subscription.SubscriptionID)
+			if err := m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
+				m.api.LogError("Unable to delete not-needed subscription", "error", err)
+			}
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = m.client.DeleteSubscription(subscription.SubscriptionID)
 			continue
 		}
 

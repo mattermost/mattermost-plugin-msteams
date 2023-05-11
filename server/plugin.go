@@ -195,22 +195,23 @@ func (p *Plugin) startSubscriptions() {
 		p.API.LogError("Unable to list channel links", "error", err)
 		return
 	}
+
 	for _, link := range links {
-		channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-		if err != nil {
-			p.API.LogError("Unable to subscribe to channels", "error", err)
+		channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+		if err2 != nil {
+			p.API.LogError("Unable to subscribe to channels", "error", err2)
 			continue
 		}
 
-		err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 			SubscriptionID: channelsSubscription.ID,
 			TeamID:         link.MSTeamsTeam,
 			ChannelID:      link.MSTeamsChannel,
 			ExpiresOn:      channelsSubscription.ExpiresOn,
 			Secret:         p.getConfiguration().WebhookSecret,
 		})
-		if err != nil {
-			p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err)
+		if err2 != nil {
+			p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
 			continue
 		}
 	}

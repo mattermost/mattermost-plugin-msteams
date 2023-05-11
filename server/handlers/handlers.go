@@ -119,7 +119,8 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	subscriptionType, err := ah.plugin.GetStore().GetSubscriptionType(subscriptionID)
 	if err != nil {
-		ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+		_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
 		return false
 	}
 
@@ -133,28 +134,32 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	case "channel":
 		subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 		if err != nil {
-			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
 			return false
 		}
 		_, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
 		if err != nil {
-			ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
 			return false
 		}
 	case "chat":
 		subscription, err := ah.plugin.GetStore().GetChatSubscription(subscriptionID)
 		if err != nil {
-			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
 			return false
 		}
-		_, err = ah.plugin.GetAPI().GetUser(subscription.UserID)
-		if err != nil {
-			ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-			ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+		if _, appErr := ah.plugin.GetAPI().GetUser(subscription.UserID); appErr != nil {
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
 			return false
 		}
-
 	}
 
 	return true
