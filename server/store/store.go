@@ -19,6 +19,7 @@ import (
 const (
 	avatarCacheTime              = 300
 	avatarKey                    = "avatar_"
+	connectionPromptKey          = "connect_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
 	subscriptionTypeUser         = "user"
 	subscriptionTypeChannel      = "channel"
@@ -55,6 +56,8 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
+	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
+	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
 }
 
 type SQLStore struct {
@@ -603,6 +606,33 @@ func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
 		return "", scanErr
 	}
 	return subscriptionType, nil
+}
+
+func (s *SQLStore) StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error {
+	timeBytes, err := timestamp.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	if err := s.api.KVSet(connectionPromptKey+channelID+"_"+userID, timeBytes); err != nil {
+		return errors.New(err.Error())
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error) {
+	var t time.Time
+	data, err := s.api.KVGet(connectionPromptKey + channelID + "_" + userID)
+	if err != nil {
+		return t, errors.New(err.Error())
+	}
+
+	if err := t.UnmarshalJSON(data); err != nil {
+		return t, err
+	}
+
+	return t, nil
 }
 
 func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {

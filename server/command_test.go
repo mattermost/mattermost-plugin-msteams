@@ -640,6 +640,107 @@ func TestExecuteLinkCommand(t *testing.T) {
 	}
 }
 
+func TestExecuteConnectCommand(t *testing.T) {
+	p := newTestPlugin(t)
+	mockAPI := &plugintest.API{}
+
+	for _, testCase := range []struct {
+		description string
+		setupAPI    func(*plugintest.API)
+	}{
+		{
+			description: "Unable to set in KV store",
+			setupAPI: func(api *plugintest.API) {
+				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the account, please, try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Successful execution of the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p.SetAPI(mockAPI)
+			testCase.setupAPI(mockAPI)
+
+			_, _ = p.executeConnectCommand(&model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			})
+		})
+	}
+}
+
+func TestExecuteConnectBotCommand(t *testing.T) {
+	p := newTestPlugin(t)
+	mockAPI := &plugintest.API{}
+
+	for _, testCase := range []struct {
+		description string
+		setupAPI    func(*plugintest.API)
+	}{
+		{
+			description: "User don't have permission to execute the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Unable to connect the bot account, only system admins can connect the bot account.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Unable to set in KV store",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the bot account, please, try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Successful execution of the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p.SetAPI(mockAPI)
+			testCase.setupAPI(mockAPI)
+
+			_, _ = p.executeConnectBotCommand(&model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			})
+		})
+	}
+}
+
 func TestGetAutocompleteData(t *testing.T) {
 	for _, testCase := range []struct {
 		description      string
