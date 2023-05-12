@@ -3,17 +3,19 @@ package msteams
 import (
 	"io"
 	"time"
+
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 )
 
 type Client interface {
 	Connect() error
 	CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
-	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error)
-	SendChat(chatID, parentID, message string) (*Message, error)
+	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
+	SendChat(chatID, parentID, message string, mentions []models.ChatMessageMentionable) (*Message, error)
 	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error)
-	UpdateMessage(teamID, channelID, parentID, msgID, message string) error
-	UpdateChatMessage(chatID, msgID, message string) error
+	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) error
+	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error)

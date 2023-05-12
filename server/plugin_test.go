@@ -9,13 +9,13 @@ import (
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -38,7 +38,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, plugin plugin.API, store store.Store) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, logError func(string, ...any)) msteams.Client {
 			return clientMock
 		},
 	}
@@ -110,8 +110,8 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }
@@ -163,8 +163,8 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(nil, errors.New("Unable to send the message"))
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogError", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
 
