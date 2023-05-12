@@ -348,8 +348,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(nil).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(nil).Once()
 			},
 		},
 		{
@@ -386,18 +385,17 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
-				var token *oauth2.Token
-				s.On("SetUserInfo", "bot-user-id", testutils.GetUserID(), token).Return(errors.New("Error while disconnecting the bot account")).Times(1)
+				s.On("DeleteUserInfo", "bot-user-id").Return(errors.New("Error while disconnecting the bot account")).Once()
 			},
 		},
 		{
-			description: "Unable to connect the bot account",
+			description: "Unable to disconnect the bot account due to bad permissions",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", "", model.PermissionManageSystem).Return(false).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Unable to connect the bot account, only system admins can connect the bot account.",
+					Message: "Unable to disconnect the bot account, only system admins can disconnect the bot account.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
@@ -441,7 +439,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ServiceSettings: model.ServiceSettings{
 						SiteURL: model.NewString("/"),
 					},
-				}, nil).Times(1)
+				}, nil).Times(2)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -455,6 +453,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
+				s.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannel", testutils.GetTeamUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
@@ -635,6 +634,107 @@ func TestExecuteLinkCommand(t *testing.T) {
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*mockClient.Client))
 			_, _ = p.executeLinkCommand(testCase.args, testCase.parameters)
+		})
+	}
+}
+
+func TestExecuteConnectCommand(t *testing.T) {
+	p := newTestPlugin(t)
+	mockAPI := &plugintest.API{}
+
+	for _, testCase := range []struct {
+		description string
+		setupAPI    func(*plugintest.API)
+	}{
+		{
+			description: "Unable to set in KV store",
+			setupAPI: func(api *plugintest.API) {
+				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the account, please, try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Successful execution of the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p.SetAPI(mockAPI)
+			testCase.setupAPI(mockAPI)
+
+			_, _ = p.executeConnectCommand(&model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			})
+		})
+	}
+}
+
+func TestExecuteConnectBotCommand(t *testing.T) {
+	p := newTestPlugin(t)
+	mockAPI := &plugintest.API{}
+
+	for _, testCase := range []struct {
+		description string
+		setupAPI    func(*plugintest.API)
+	}{
+		{
+			description: "User don't have permission to execute the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Unable to connect the bot account, only system admins can connect the bot account.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Unable to set in KV store",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the bot account, please, try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+		},
+		{
+			description: "Successful execution of the command",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Once()
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p.SetAPI(mockAPI)
+			testCase.setupAPI(mockAPI)
+
+			_, _ = p.executeConnectBotCommand(&model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			})
 		})
 	}
 }
