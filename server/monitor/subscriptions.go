@@ -1,9 +1,9 @@
 package monitor
 
 import (
+	"errors"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
@@ -17,6 +17,16 @@ func (m *Monitor) checkChannelsSubscriptions() {
 	m.api.LogDebug("Refreshing channels subscriptions", "count", len(subscriptions))
 
 	for _, subscription := range subscriptions {
+		link, _ := m.store.GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
+		if link == nil {
+			if err := m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
+				m.api.LogError("Unable to delete not-needed subscription", "error", err)
+			}
+			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+			_ = m.client.DeleteSubscription(subscription.SubscriptionID)
+			continue
+		}
+
 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
 			if err := m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret); err != nil {
 				m.api.LogError("Unable to recreate channel subscription properly", "error", err)
@@ -105,13 +115,11 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, s
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
-	var newSubscription *msteams.Subscription
-	var err error
-	if subscriptionType == "allChannels" {
-		newSubscription, err = m.client.SubscribeToChannels(m.baseURL, secret, !m.useEvaluationAPI)
-	} else {
-		newSubscription, err = m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
+	if subscriptionType != "allChats" {
+		return errors.New("invalid subscription type")
 	}
+
+	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
 	if err != nil {
 		return err
 	}

@@ -48,6 +48,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.msteamsAppClient.(*mocks.Client).On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannels", mock.Anything, plugin.configuration.WebhookSecret).Return("channel-subscription-id", nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChats", mock.Anything, plugin.configuration.WebhookSecret).Return("chats-subscription-id", nil)
+	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannel", mock.Anything, mock.Anything, "/plugins/com.mattermost.msteams-sync/", plugin.configuration.WebhookSecret).Return(&msteams.Subscription{ID: "channel-subscription-id"}, nil)
 	plugin.msteamsAppClient.(*mocks.Client).Test(t)
 	bot := &model.Bot{
 		Username:    botUsername,

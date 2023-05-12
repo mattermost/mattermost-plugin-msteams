@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -358,8 +359,16 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
+		p.handlePromptForConnection(srcUser, post.ChannelId)
 		return "", err
 	}
+
+	client, err := p.GetClientForUser(srcUser)
+	if err != nil {
+		p.handlePromptForConnection(srcUser, post.ChannelId)
+		return "", err
+	}
+
 	teamsUsersIDs := make([]string, len(usersIDs))
 	for idx, userID := range usersIDs {
 		var teamsUserID string
@@ -372,11 +381,6 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "teamsUsersIDs", teamsUsersIDs, "post", post)
 	text := post.Message
-
-	client, err := p.GetClientForUser(srcUser)
-	if err != nil {
-		return "", err
-	}
 
 	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
@@ -402,6 +406,21 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		}
 	}
 	return newMessage.ID, nil
+}
+
+func (p *Plugin) handlePromptForConnection(userID, channelID string) {
+	timestamp, err := p.store.GetDMAndGMChannelPromptTime(channelID, userID)
+	if err != nil {
+		p.API.LogDebug("Unable to get the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
+	}
+
+	if time.Until(timestamp) < -time.Hour*24*30 {
+		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so this message will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
+
+		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
+			p.API.LogDebug("Unable to store the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
+		}
+	}
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {

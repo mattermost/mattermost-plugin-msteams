@@ -37,6 +37,7 @@ type Client interface {
 	GetUserAvatar(userID string) ([]byte, error)
 	GetUser(userID string) (*User, error)
 	GetMyID() (string, error)
+	GetMe() (*User, error)
 	GetFileContent(weburl string) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
