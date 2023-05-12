@@ -144,26 +144,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
 			continue
 		}
-		if event.LifecycleEvent == "reauthorizationRequired" {
-			expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(event.SubscriptionID)
-			if err != nil {
-				a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
-			} else {
-				if err2 := a.p.store.UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
-					a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
-				}
-			}
-		} else if event.LifecycleEvent == "subscriptionRemoved" {
-			_, err := a.p.msteamsAppClient.SubscribeToChannels(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
-			if err != nil {
-				a.p.API.LogError("Unable to subscribe to channels", "error", err)
-			}
-
-			_, err = a.p.msteamsAppClient.SubscribeToChats(a.p.GetURL()+"/", a.p.configuration.WebhookSecret, !a.p.configuration.EvaluationAPI)
-			if err != nil {
-				a.p.API.LogError("Unable to subscribe to chats", "error", err)
-			}
-		}
+		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -355,17 +336,30 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msteamsUserID, err := client.GetMyID()
+	msteamsUser, err := client.GetMe()
 	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams user id", "error", err.Error())
-		http.Error(w, "failed to get the MS Teams user id", http.StatusBadRequest)
+		a.p.API.LogError("Unable to get the MS Teams user", "error", err.Error())
+		http.Error(w, "failed to get the MS Teams user", http.StatusInternalServerError)
 		return
 	}
 
-	err = a.p.store.SetUserInfo(mmUserID, msteamsUserID, token)
+	mmUser, userErr := a.p.API.GetUser(mmUserID)
+	if userErr != nil {
+		a.p.API.LogError("Unable to get the MM user", "error", userErr.Error())
+		http.Error(w, "failed to get the MM user", http.StatusInternalServerError)
+		return
+	}
+
+	if msteamsUser.Mail != mmUser.Email {
+		a.p.API.LogError("Unable to connect users with different emails")
+		http.Error(w, "cannot connect users with different emails", http.StatusBadRequest)
+		return
+	}
+
+	err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token)
 	if err != nil {
 		a.p.API.LogError("Unable to store the token", "error", err.Error())
-		http.Error(w, "failed to store the token", http.StatusBadRequest)
+		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
 

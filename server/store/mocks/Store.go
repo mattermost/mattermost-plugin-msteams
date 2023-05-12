@@ -58,6 +58,20 @@ func (_m *Store) DeleteSubscription(subscriptionID string) error {
 	return r0
 }
 
+// DeleteUserInfo provides a mock function with given fields: mmUserID
+func (_m *Store) DeleteUserInfo(mmUserID string) error {
+	ret := _m.Called(mmUserID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mmUserID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetAvatarCache provides a mock function with given fields: userID
 func (_m *Store) GetAvatarCache(userID string) ([]byte, error) {
 	ret := _m.Called(userID)
@@ -74,6 +88,96 @@ func (_m *Store) GetAvatarCache(userID string) ([]byte, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChannelSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChannelSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChatSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.ChatSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChatSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChatSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
+func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
+	ret := _m.Called(channelID, userID)
+
+	var r0 time.Time
+	if rf, ok := ret.Get(0).(func(string, string) time.Time); ok {
+		r0 = rf(channelID, userID)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(channelID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGlobalSubscription provides a mock function with given fields: subscriptionID
+func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.GlobalSubscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.GlobalSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -173,6 +277,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
+// GetSubscriptionType provides a mock function with given fields: subscriptionID
+func (_m *Store) GetSubscriptionType(subscriptionID string) (string, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTokenForMSTeamsUser provides a mock function with given fields: userID
 func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	ret := _m.Called(userID)
@@ -245,6 +370,29 @@ func (_m *Store) LinkPosts(postInfo storemodels.PostInfo) error {
 	}
 
 	return r0
+}
+
+// ListChannelLinks provides a mock function with given fields:
+func (_m *Store) ListChannelLinks() ([]storemodels.ChannelLink, error) {
+	ret := _m.Called()
+
+	var r0 []storemodels.ChannelLink
+	if rf, ok := ret.Get(0).(func() []storemodels.ChannelLink); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]storemodels.ChannelLink)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ListChannelSubscriptionsToCheck provides a mock function with given fields:
@@ -414,6 +562,20 @@ func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*storemodels.ChannelLink) error); ok {
 		r0 = rf(link)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StoreDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID, timestamp
+func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
+	ret := _m.Called(channelID, userID, timestamp)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, time.Time) error); ok {
+		r0 = rf(channelID, userID, timestamp)
 	} else {
 		r0 = ret.Error(0)
 	}
