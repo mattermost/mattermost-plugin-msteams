@@ -21,7 +21,7 @@ This plugin integrates MS Teams with Mattermost by providing automated syncing o
 ## Features
 
 This plugin supports the following features:
-- Connect to MS Teams account using Device Code OAuth flow.
+- Connect to MS Teams account using the OAuth2 flow.
 
 - Link Mattermost channels with MS Teams channels and sync messages between the linked channels.
 
@@ -67,26 +67,28 @@ There are two methods by which you can connect your Mattermost account to your M
 
 - **Using slash command**
     - Run the slash command `/msteams-sync connect` in any channel.
-    - You will get an ephemeral message from the MS Teams bot containing a link and a code to connect your account.
-    - Click on that link and enter the code. If it asks for login, enter your Microsoft credentials and click `Continue` to authorize and connect your account.
+
+    - You will get an ephemeral message from the MS Teams bot containing a link to connect your account.
+
+    - Click on that link. If it asks for login, enter your Microsoft credentials to connect your account.
 
 - **Using the button in the full screen modal**
     - If the setting "Enforce connected accounts" is enabled in the plugin's config settings, then a full screen modal appears that looks like this - 
     
-    ![image](https://user-images.githubusercontent.com/77336594/226347884-a6469d95-de68-4706-a145-9511d42bd7a4.png)
+    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/ced5e65b-a52a-46f4-a7fa-dac6e2ff8440)
 
-    - Click on the "Connect account" button. If it asks for login, enter your Microsoft credentials and click `Continue` to authorize and connect your account.
+    - Click on the "Connect account" button.
 
-    After connecting successfully, you will get an ephemeral message from the MS Teams bot saying "Your account has been connected".
+    - A window appears containing a link to connect your account.
+
+    - Open that link. If it asks for login, enter your Microsoft credentials to connect your account.
 
 - **Connecting the bot account**
     - Run the slash command `/msteams-sync connect-bot` in any channel.
     - This command is visible and accessible by system admins only.
-    - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link and a code to connect the bot account.
-    - Click on that link and enter the code. If it asks for login, enter the Microsoft credentials for the dummy account and click `Continue` to authorize and connect the bot account.
-    - Refer [here](./azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
-
-    After connecting successfully, you will get an ephemeral message from the MS Teams bot saying "The bot account has been connected".
+    - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link to connect your account.
+    - Click on that link. If it asks for login, enter your Microsoft credentials to connect your account.
+    - Refer [here](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
 
 ## Development
 
