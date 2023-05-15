@@ -258,8 +258,6 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("GetTeam", testutils.GetTeamID()).Return(&model.Team{DisplayName: "Test MM team"}, nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{DisplayName: "Test MM channel"}, nil).Times(1)
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -345,13 +343,9 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("GetTeam", testutils.GetTeamID()).Return(nil, testutils.GetInternalServerAppError("error in getting team info")).Times(4)
-				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("error in getting channel info")).Times(4)
 
 				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
 				api.On("LogDebug", "Unable to get the MS Teams channel information for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
-				api.On("LogDebug", "Unable to get the Mattermost team information", "TeamID", testutils.GetTeamID(), "Error", "error in getting team info").Times(4)
-				api.On("LogDebug", "Unable to get the Mattermost channel information", "ChannelID", testutils.GetChannelID(), "Error", "error in getting channel info").Times(4)
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -362,7 +356,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\nThere were some errors while fetching information. Please check the server logs.",
+					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching information. Please check the server logs.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {

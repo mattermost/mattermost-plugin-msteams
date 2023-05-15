@@ -151,7 +151,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeam: "mm-team-id", MattermostChannel: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
@@ -168,7 +168,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeam: "mm-team-id", MattermostChannel: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
@@ -261,10 +261,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MattermostID: testutils.GetID(),
 				}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeam:    "mockMattermostTeam",
-					MattermostChannel: "mockMattermostChannel",
-					MSTeamsTeam:       "mockTeamsTeamID",
-					MSTeamsChannel:    "mockTeamsChannelID",
+					MattermostTeamID:    "mockMattermostTeam",
+					MattermostChannelID: "mockMattermostChannel",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
@@ -286,10 +286,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MattermostID: testutils.GetID(),
 				}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeam:    "mockMattermostTeam",
-					MattermostChannel: "mockMattermostChannel",
-					MSTeamsTeam:       "mockTeamsTeamID",
-					MSTeamsChannel:    "mockTeamsChannelID",
+					MattermostTeamID:    "mockMattermostTeam",
+					MattermostChannelID: "mockMattermostChannel",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
@@ -427,10 +427,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeam:    "mockMattermostTeam",
-					MattermostChannel: "mockMattermostChannel",
-					MSTeamsTeam:       "mockTeamsTeamID",
-					MSTeamsChannel:    "mockTeamsChannelID",
+					MattermostTeamID:    "mockMattermostTeam",
+					MattermostChannelID: "mockMattermostChannel",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -459,10 +459,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeam:    "mockMattermostTeamID",
-					MattermostChannel: "mockMattermostChannelID",
-					MSTeamsTeam:       "mockTeamsTeamID",
-					MSTeamsChannel:    "mockTeamsChannelID",
+					MattermostTeamID:    "mockMattermostTeamID",
+					MattermostChannelID: "mockMattermostChannelID",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),

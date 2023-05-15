@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -180,11 +181,11 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	err = p.store.StoreChannelLink(&storemodels.ChannelLink{
-		MattermostTeam:    channel.TeamId,
-		MattermostChannel: channel.Id,
-		MSTeamsTeam:       parameters[0],
-		MSTeamsChannel:    parameters[1],
-		Creator:           args.UserId,
+		MattermostTeamID:    channel.TeamId,
+		MattermostChannelID: channel.Id,
+		MSTeamsTeam:         parameters[0],
+		MSTeamsChannel:      parameters[1],
+		Creator:             args.UserId,
 	})
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
@@ -274,20 +275,18 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false
 	wg := sync.WaitGroup{}
-	batchSize := 10
-	mattermostChannelIDsVsNames := make(map[string]string)
-	mattermostTeamIDsVsNames := make(map[string]string)
+	batchSize := math.Sqrt(float64(len(links)))
 
 	msTeamsTeamIDsVsNames := make(map[string]string)
 	msTeamsChannelIDsVsNames := make(map[string]string)
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
 
 	// Process all the links in batches using goroutines
-	for idx := 0; idx < len(links); idx += batchSize {
+	for idx := 0; idx < len(links); idx += int(batchSize) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			for index := i; index < i+batchSize && index < len(links); index++ {
+			for index := i; index < i+int(batchSize) && index < len(links); index++ {
 				link := links[index]
 				msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
 				msTeamsChannelIDsVsNames[link.MSTeamsChannel] = ""
@@ -301,28 +300,6 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 
 				msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
 
-				// Get the Mattermost team details
-				if mattermostTeamIDsVsNames[link.MattermostTeam] == "" {
-					mmTeam, teamErr := p.API.GetTeam(link.MattermostTeam)
-					if teamErr != nil {
-						p.API.LogDebug("Unable to get the Mattermost team information", "TeamID", link.MattermostTeam, "Error", teamErr.DetailedError)
-						errorsFound = true
-					}
-
-					if mmTeam != nil {
-						mattermostTeamIDsVsNames[link.MattermostTeam] = mmTeam.DisplayName
-					}
-				}
-
-				// Get the Mattermost channel details
-				mmChannel, channelErr := p.API.GetChannel(link.MattermostChannel)
-				if channelErr != nil {
-					p.API.LogDebug("Unable to get the Mattermost channel information", "ChannelID", link.MattermostChannel, "Error", channelErr.DetailedError)
-					errorsFound = true
-					continue
-				}
-
-				mattermostChannelIDsVsNames[link.MattermostChannel] = mmChannel.DisplayName
 			}
 		}(idx)
 	}
@@ -340,8 +317,8 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	for _, link := range links {
 		row := fmt.Sprintf(
 			"\n|%s|%s|%s|%s|",
-			mattermostTeamIDsVsNames[link.MattermostTeam],
-			mattermostChannelIDsVsNames[link.MattermostChannel],
+			link.MattermostTeamName,
+			link.MattermostChannelName,
 			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
 			msTeamsChannelIDsVsNames[link.MSTeamsChannel],
 		)

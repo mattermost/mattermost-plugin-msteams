@@ -93,10 +93,10 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	}
 
 	link := storemodels.ChannelLink{
-		MattermostTeam:    "team-id",
-		MattermostChannel: "channel-id",
-		MSTeamsTeam:       "ms-team-id",
-		MSTeamsChannel:    "ms-channel-id",
+		MattermostTeamID:    "team-id",
+		MattermostChannelID: "channel-id",
+		MSTeamsTeam:         "ms-team-id",
+		MSTeamsChannel:      "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
@@ -153,10 +153,10 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	}
 
 	link := storemodels.ChannelLink{
-		MattermostTeam:    "team-id",
-		MattermostChannel: "channel-id",
-		MSTeamsTeam:       "ms-team-id",
-		MSTeamsChannel:    "ms-channel-id",
+		MattermostTeamID:    "team-id",
+		MattermostChannelID: "channel-id",
+		MSTeamsTeam:         "ms-team-id",
+		MSTeamsChannel:      "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)

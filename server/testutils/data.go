@@ -117,10 +117,12 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 	var links []*storemodels.ChannelLink
 	for i := 0; i < count; i++ {
 		links = append(links, &storemodels.ChannelLink{
-			MattermostTeam:    GetTeamID(),
-			MattermostChannel: GetChannelID(),
-			MSTeamsTeam:       GetTeamsTeamID(),
-			MSTeamsChannel:    GetTeamsChannelID(),
+			MattermostTeamID:      GetTeamID(),
+			MattermostChannelID:   GetChannelID(),
+			MattermostTeamName:    "Test MM team",
+			MattermostChannelName: "Test MM channel",
+			MSTeamsTeam:           GetTeamsTeamID(),
+			MSTeamsChannel:        GetTeamsChannelID(),
 		})
 	}
 
