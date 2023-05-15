@@ -180,15 +180,32 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
-	err = p.store.StoreChannelLink(&storemodels.ChannelLink{
+	channelLink := storemodels.ChannelLink{
 		MattermostTeamID:    channel.TeamId,
 		MattermostChannelID: channel.Id,
 		MSTeamsTeam:         parameters[0],
 		MSTeamsChannel:      parameters[1],
 		Creator:             args.UserId,
-	})
+	}
+	err = p.store.StoreChannelLink(&channelLink)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
+	}
+
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel: "+err.Error())
+	}
+
+	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		SubscriptionID: channelsSubscription.ID,
+		TeamID:         channelLink.MSTeamsTeam,
+		ChannelID:      channelLink.MSTeamsChannel,
+		ExpiresOn:      channelsSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	})
+	if err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to save the subscription in the monitoring system: "+err.Error())
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
@@ -255,7 +272,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
 	}
 
-	links, err := p.store.GetLinks()
+	links, err := p.store.ListChannelLinksWithNames()
 	if err != nil {
 		p.API.LogDebug("Unable to get links from store", "Error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
@@ -299,7 +316,6 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 				}
 
 				msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
-
 			}
 		}(idx)
 	}
@@ -445,28 +461,25 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
-
 	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
 	}
 
-	botTeamsUserID, err := p.store.MattermostToTeamsUserID(p.userID)
-	if err != nil {
+	if _, err := p.store.MattermostToTeamsUserID(p.userID); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: unable to find the connected bot account")
 		return &model.CommandResponse{}, nil
 	}
-	err = p.store.SetUserInfo(p.userID, botTeamsUserID, nil)
-	if err != nil {
+
+	if err := p.store.DeleteUserInfo(p.userID); err != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
 		return &model.CommandResponse{}, nil
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected.")
-
 	return &model.CommandResponse{}, nil
 }
 
