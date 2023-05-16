@@ -327,11 +327,11 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	wg.Wait()
 
 	// Get MS Teams display names for each unique team ID and store it
-	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
+	teamDetailsErr := p.GetMSTeamsTeamDetails(&msTeamsTeamIDsVsNames)
 	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
-	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, &wg)
+	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(&msTeamsTeamIDsVsChannelsQuery, &msTeamsChannelIDsVsNames, &wg)
 	errorsFound = errorsFound || channelDetailsErr
 
 	for _, link := range links {
@@ -357,7 +357,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames sync.Map) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames *sync.Map) bool {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
 	msTeamsTeamIDsVsNames.Range(func(key, value any) bool {
@@ -380,7 +380,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames sync.Map) bool {
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames sync.Map, wg *sync.WaitGroup) bool {
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames *sync.Map, wg *sync.WaitGroup) bool {
 	errorsFound := false
 	msTeamsTeamIDsVsChannelsQuery.Range(func(key, value any) bool {
 		if wg != nil {
