@@ -292,11 +292,11 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false
 	wg := sync.WaitGroup{}
-	batchSize := math.Sqrt(float64(len(links)))
+	batchSize := math.Max(math.Sqrt(float64(len(links))), 1000)
 
-	msTeamsTeamIDsVsNames := make(map[string]string)
-	msTeamsChannelIDsVsNames := make(map[string]string)
-	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
+	var msTeamsTeamIDsVsNames sync.Map
+	var msTeamsChannelIDsVsNames sync.Map
+	var msTeamsTeamIDsVsChannelsQuery sync.Map
 
 	// Process all the links in batches using goroutines
 	for idx := 0; idx < len(links); idx += int(batchSize) {
@@ -305,17 +305,21 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 			defer wg.Done()
 			for index := i; index < i+int(batchSize) && index < len(links); index++ {
 				link := links[index]
-				msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
-				msTeamsChannelIDsVsNames[link.MSTeamsChannel] = ""
+				msTeamsTeamIDsVsNames.Store(link.MSTeamsTeam, "")
+				msTeamsChannelIDsVsNames.Store(link.MSTeamsChannel, "")
 
 				// Build the channels query for each team
-				if msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] == "" {
-					msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] = "id in ("
-				} else if channelsQuery := msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam]; channelsQuery[len(channelsQuery)-1:] != "(" {
-					msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += ","
+				channelsQuery, present := msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
+				if !present {
+					msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, "id in (")
+				} else if channelsQueryStr := channelsQuery.(string); channelsQueryStr[len(channelsQueryStr)-1:] != "(" {
+					msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+",")
 				}
 
-				msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
+				channelsQuery, _ = msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
+				channelsQueryStr := channelsQuery.(string)
+
+				msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+"'"+link.MSTeamsChannel+"'")
 			}
 		}(idx)
 	}
@@ -331,12 +335,14 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	errorsFound = errorsFound || channelDetailsErr
 
 	for _, link := range links {
+		msTeamsTeam, _ := msTeamsTeamIDsVsNames.Load(link.MSTeamsTeam)
+		msTeamsChannel, _ := msTeamsChannelIDsVsNames.Load(link.MSTeamsChannel)
 		row := fmt.Sprintf(
 			"\n|%s|%s|%s|%s|",
 			link.MattermostTeamName,
 			link.MattermostChannelName,
-			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
-			msTeamsChannelIDsVsNames[link.MSTeamsChannel],
+			msTeamsTeam.(string),
+			msTeamsChannel.(string),
 		)
 
 		if row != "\n|||||" {
@@ -351,36 +357,32 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames sync.Map) bool {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
-	length := len(msTeamsTeamIDsVsNames)
-	count := 0
-	for teamID := range msTeamsTeamIDsVsNames {
-		count++
-		msTeamsFilterQuery.WriteString("'" + teamID + "'")
-		if count != length {
-			msTeamsFilterQuery.WriteString(", ")
-		}
-	}
+	msTeamsTeamIDsVsNames.Range(func(key, value any) bool {
+		msTeamsFilterQuery.WriteString("'" + key.(string) + "', ")
+		return true
+	})
 
-	msTeamsFilterQuery.WriteString(")")
-	msTeamsTeams, err := p.msteamsAppClient.GetTeams(msTeamsFilterQuery.String())
+	teamsQuery := msTeamsFilterQuery.String()
+	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
+	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
 	if err != nil {
 		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
 		return true
 	}
 
 	for _, msTeamsTeam := range msTeamsTeams {
-		msTeamsTeamIDsVsNames[msTeamsTeam.ID] = msTeamsTeam.DisplayName
+		msTeamsTeamIDsVsNames.Store(msTeamsTeam.ID, msTeamsTeam.DisplayName)
 	}
 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string, wg *sync.WaitGroup) bool {
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames sync.Map, wg *sync.WaitGroup) bool {
 	errorsFound := false
-	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
+	msTeamsTeamIDsVsChannelsQuery.Range(func(key, value any) bool {
 		if wg != nil {
 			wg.Add(1)
 		}
@@ -397,10 +399,12 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 			}
 
 			for _, channel := range channels {
-				msTeamsChannelIDsVsNames[channel.ID] = channel.DisplayName
+				msTeamsChannelIDsVsNames.Store(channel.ID, channel.DisplayName)
 			}
-		}(teamID, channelsQuery)
-	}
+		}(key.(string), value.(string))
+
+		return true
+	})
 
 	if wg != nil {
 		wg.Wait()
