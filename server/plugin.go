@@ -396,8 +396,12 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
-		username := slug.Make(msUser.DisplayName) + "_" + msUser.ID
+		username := slug.Make(msUser.DisplayName)
+		if len(username) >= 28 {
+			username = username[:27]
+		}
 
+		username += "_" + msUser.ID
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)

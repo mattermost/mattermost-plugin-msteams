@@ -124,8 +124,15 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 		memberUUID := uuid.Parse(userID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 		shortUserID := encoding.EncodeToString(memberUUID)
+		username := slug.Make(userDisplayName)
+		if len(username) >= 28 {
+			username = username[:27]
+		}
+
+		username += "_" + userID
+
 		u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
-			Username:  slug.Make(userDisplayName) + "_" + userID,
+			Username:  username,
 			FirstName: userDisplayName,
 			Email:     user.Mail,
 			Password:  model.NewId(),
