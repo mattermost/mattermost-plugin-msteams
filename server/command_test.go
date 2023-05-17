@@ -258,12 +258,15 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 					UserId:  "bot-user-id",
 					Message: "Your account has been disconnected.",
 				}).Return(testutils.GetPost("", testutils.GetUserID())).Times(1)
+
+				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "UserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamUserID(), nil).Times(1)
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamUserID(), token).Return(nil).Times(1)
+				s.On("DeleteDMAndGMChannelPromptTime", testutils.GetUserID()).Return(errors.New("error in deleting prompt time")).Once()
 			},
 		},
 		{
