@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -290,28 +289,22 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false
-	wg := sync.WaitGroup{}
-
 	msTeamsTeamIDsVsNames := make(map[string]string)
-	var msTeamsChannelIDsVsNames sync.Map
-	var msTeamsTeamIDsVsChannelsQuery sync.Map
+	msTeamsChannelIDsVsNames := make(map[string]string)
+	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
 
 	for _, link := range links {
 		msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
-		msTeamsChannelIDsVsNames.Store(link.MSTeamsChannel, "")
+		msTeamsChannelIDsVsNames[link.MSTeamsChannel] = ""
 
 		// Build the channels query for each team
-		channelsQuery, present := msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
-		if !present {
-			msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, "id in (")
-		} else if channelsQueryStr := channelsQuery.(string); channelsQueryStr[len(channelsQueryStr)-1:] != "(" {
-			msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+",")
+		if msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] == "" {
+			msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] = "id in ("
+		} else if channelsQuery := msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam]; channelsQuery[len(channelsQuery)-1:] != "(" {
+			msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += ","
 		}
 
-		channelsQuery, _ = msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
-		channelsQueryStr := channelsQuery.(string)
-
-		msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+"'"+link.MSTeamsChannel+"'")
+		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
 	}
 
 	// Get MS Teams display names for each unique team ID and store it
@@ -319,17 +312,16 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
-	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(&msTeamsTeamIDsVsChannelsQuery, &msTeamsChannelIDsVsNames, &wg)
+	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
 	errorsFound = errorsFound || channelDetailsErr
 
 	for _, link := range links {
-		msTeamsChannel, _ := msTeamsChannelIDsVsNames.Load(link.MSTeamsChannel)
 		row := fmt.Sprintf(
 			"\n|%s|%s|%s|%s|",
 			link.MattermostTeamName,
 			link.MattermostChannelName,
 			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
-			msTeamsChannel.(string),
+			msTeamsChannelIDsVsNames[link.MSTeamsChannel],
 		)
 
 		if row != "\n|||||" {
@@ -366,34 +358,18 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames *sync.Map, wg *sync.WaitGroup) bool {
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
 	errorsFound := false
-	msTeamsTeamIDsVsChannelsQuery.Range(func(key, value any) bool {
-		if wg != nil {
-			wg.Add(1)
+	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
+		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
+		if err != nil {
+			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			errorsFound = true
 		}
 
-		go func(teamID, channelsQuery string) {
-			if wg != nil {
-				defer wg.Done()
-			}
-
-			channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
-			if err != nil {
-				p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
-				errorsFound = true
-			}
-
-			for _, channel := range channels {
-				msTeamsChannelIDsVsNames.Store(channel.ID, channel.DisplayName)
-			}
-		}(key.(string), value.(string))
-
-		return true
-	})
-
-	if wg != nil {
-		wg.Wait()
+		for _, channel := range channels {
+			msTeamsChannelIDsVsNames[channel.ID] = channel.DisplayName
+		}
 	}
 
 	return errorsFound
