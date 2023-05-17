@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -29,11 +30,7 @@ func (p *Plugin) MessageWillBePosted(_ *plugin.Context, post *model.Post) (*mode
 					return post, ""
 				}
 
-				if user.RemoteId == nil {
-					continue
-				}
-
-				if isMSTeamsUser(*user.RemoteId, user.Username) {
+				if user.RemoteId != nil && strings.Contains(user.Username, "msteams") {
 					p.API.SendEphemeralPost(post.UserId, &model.Post{
 						Message:   "Attachments not supported in direct messages with MSTeams members",
 						UserId:    p.userID,

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/base64"
+	"fmt"
 	"math"
 	"math/big"
 	"net/http"
@@ -396,19 +397,15 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
-		username := slug.Make(msUser.DisplayName)
-		if len(username) >= 28 {
-			username = username[:27]
-		}
-
-		username += "_" + msUser.ID
+		msDisplayName := slug.Make(msUser.DisplayName)
+		username := "msteams:" + msDisplayName
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  generateRandomPassword(),
+				Password:  p.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
@@ -417,8 +414,35 @@ func (p *Plugin) syncUsers() {
 
 			newUser, appErr := p.API.CreateUser(newMMUser)
 			if appErr != nil {
-				p.API.LogError("Unable to sync user", "error", appErr)
-				continue
+				if strings.Contains(appErr.Error(), "account with that username already exists") {
+					value, sErr := p.API.KVGet(msDisplayName)
+					if sErr != nil {
+						p.API.LogError("Unable to get value from KV store", "error", sErr.Error())
+						continue
+					}
+
+					prevID, cErr := p.GetUserSuffixID(string(value))
+					if cErr != nil {
+						p.API.LogError("Unable to convert string to int", "error", cErr.Error())
+						continue
+					}
+
+					newMMUser.Username += "-" + prevID
+					newUser1, appErr1 := p.API.CreateUser(newMMUser)
+					if appErr1 != nil {
+						p.API.LogError("Unable to sync user", "error", appErr1.Error())
+						continue
+					}
+
+					newUser = newUser1
+					if setErr := p.API.KVSet(msDisplayName, []byte(prevID)); setErr != nil {
+						p.API.LogError("Unable to set value in KV store", "error", setErr.Error())
+						continue
+					}
+				} else {
+					p.API.LogError("Unable to sync user", "error", appErr.Error())
+					continue
+				}
 			}
 
 			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
@@ -430,7 +454,33 @@ func (p *Plugin) syncUsers() {
 			mmUser.FirstName = msUser.DisplayName
 			_, err := p.API.UpdateUser(mmUser)
 			if err != nil {
-				p.API.LogError("Unable to sync user", "error", err)
+				if strings.Contains(err.Error(), "account with that username already exists") {
+					value, sErr := p.API.KVGet(msDisplayName)
+					if sErr != nil {
+						p.API.LogError("Unable to get value from KV store", "error", sErr.Error())
+						continue
+					}
+
+					prevID, cErr := p.GetUserSuffixID(string(value))
+					if cErr != nil {
+						p.API.LogError("Unable to convert string to int", "error", cErr.Error())
+						continue
+					}
+
+					mmUser.Username += "-" + prevID
+					if _, appErr1 := p.API.UpdateUser(mmUser); appErr1 != nil {
+						p.API.LogError("Unable to sync user", "error", appErr1.Error())
+						continue
+					}
+
+					if setErr := p.API.KVSet(msDisplayName, []byte(prevID)); setErr != nil {
+						p.API.LogError("Unable to set value in KV store", "error", setErr.Error())
+						continue
+					}
+				} else {
+					p.API.LogError("Unable to sync user", "error", err.Error())
+					continue
+				}
 			}
 		}
 	}
@@ -447,7 +497,7 @@ func generateSecret() (string, error) {
 	return s, nil
 }
 
-func generateRandomPassword() string {
+func (p *Plugin) GenerateRandomPassword() string {
 	lowerCharSet := "abcdedfghijklmnopqrst"
 	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	specialCharSet := "!@#$%&*"
@@ -474,17 +524,16 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
-func isMSTeamsUser(remoteID, username string) bool {
-	data := strings.Split(username, "_")
-	if len(data) >= 2 {
-		msUserID := data[len(data)-1]
-
-		userUUID := uuid.Parse(msUserID)
-		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-		shortUserID := encoding.EncodeToString(userUUID)
-
-		return remoteID == shortUserID
+func (p *Plugin) GetUserSuffixID(prevID string) (string, error) {
+	if prevID == "" {
+		return "1", nil
 	}
 
-	return false
+	prevIDValue, cErr := strconv.Atoi(prevID)
+	prevID = fmt.Sprint(prevIDValue + 1)
+	if cErr != nil {
+		return "", cErr
+	}
+
+	return prevID, nil
 }

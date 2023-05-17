@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/base32"
+	"strings"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -124,24 +125,50 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 		memberUUID := uuid.Parse(userID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 		shortUserID := encoding.EncodeToString(memberUUID)
-		username := slug.Make(userDisplayName)
-		if len(username) >= 28 {
-			username = username[:27]
-		}
+		msDisplayName := slug.Make(userDisplayName)
+		username := "msteams:" + msDisplayName
 
-		username += "_" + userID
-
-		u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
+		newMMUser := &model.User{
 			Username:  username,
 			FirstName: userDisplayName,
 			Email:     user.Mail,
-			Password:  model.NewId(),
+			Password:  ah.plugin.GenerateRandomPassword(),
 			RemoteId:  &shortUserID,
-		})
+		}
+
+		u, appErr2 = ah.plugin.GetAPI().CreateUser(newMMUser)
 		if appErr2 != nil {
-			return "", appErr2
+			if strings.Contains(appErr2.Error(), "account with that username already exists") {
+				value, sErr := ah.plugin.GetAPI().KVGet(msDisplayName)
+				if sErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to get value from KV store", "error", sErr.Error())
+					return "", sErr
+				}
+
+				prevID, cErr := ah.plugin.GetUserSuffixID(string(value))
+				if cErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to convert string to int", "error", cErr.Error())
+					return "", cErr
+				}
+
+				newMMUser.Username += "-" + prevID
+				newUser, appErr1 := ah.plugin.GetAPI().CreateUser(newMMUser)
+				if appErr1 != nil {
+					ah.plugin.GetAPI().LogError("Unable to sync user", "error", appErr1.Error())
+					return "", appErr1
+				}
+
+				u = newUser
+				if setErr := ah.plugin.GetAPI().KVSet(msDisplayName, []byte(prevID)); setErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to set value in KV store", "error", setErr.Error())
+					return "", setErr
+				}
+			} else {
+				return "", appErr
+			}
 		}
 	}
+
 	if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
 		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
 	}
