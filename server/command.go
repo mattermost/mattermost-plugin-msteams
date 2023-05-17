@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 
@@ -292,42 +291,31 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false
 	wg := sync.WaitGroup{}
-	batchSize := math.Max(math.Sqrt(float64(len(links))), 1000)
 
-	var msTeamsTeamIDsVsNames sync.Map
+	msTeamsTeamIDsVsNames := make(map[string]string)
 	var msTeamsChannelIDsVsNames sync.Map
 	var msTeamsTeamIDsVsChannelsQuery sync.Map
 
-	// Process all the links in batches using goroutines
-	for idx := 0; idx < len(links); idx += int(batchSize) {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			for index := i; index < i+int(batchSize) && index < len(links); index++ {
-				link := links[index]
-				msTeamsTeamIDsVsNames.Store(link.MSTeamsTeam, "")
-				msTeamsChannelIDsVsNames.Store(link.MSTeamsChannel, "")
+	for _, link := range links {
+		msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
+		msTeamsChannelIDsVsNames.Store(link.MSTeamsChannel, "")
 
-				// Build the channels query for each team
-				channelsQuery, present := msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
-				if !present {
-					msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, "id in (")
-				} else if channelsQueryStr := channelsQuery.(string); channelsQueryStr[len(channelsQueryStr)-1:] != "(" {
-					msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+",")
-				}
+		// Build the channels query for each team
+		channelsQuery, present := msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
+		if !present {
+			msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, "id in (")
+		} else if channelsQueryStr := channelsQuery.(string); channelsQueryStr[len(channelsQueryStr)-1:] != "(" {
+			msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+",")
+		}
 
-				channelsQuery, _ = msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
-				channelsQueryStr := channelsQuery.(string)
+		channelsQuery, _ = msTeamsTeamIDsVsChannelsQuery.Load(link.MSTeamsTeam)
+		channelsQueryStr := channelsQuery.(string)
 
-				msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+"'"+link.MSTeamsChannel+"'")
-			}
-		}(idx)
+		msTeamsTeamIDsVsChannelsQuery.Store(link.MSTeamsTeam, channelsQueryStr+"'"+link.MSTeamsChannel+"'")
 	}
 
-	wg.Wait()
-
 	// Get MS Teams display names for each unique team ID and store it
-	teamDetailsErr := p.GetMSTeamsTeamDetails(&msTeamsTeamIDsVsNames)
+	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
 	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
@@ -335,13 +323,12 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	errorsFound = errorsFound || channelDetailsErr
 
 	for _, link := range links {
-		msTeamsTeam, _ := msTeamsTeamIDsVsNames.Load(link.MSTeamsTeam)
 		msTeamsChannel, _ := msTeamsChannelIDsVsNames.Load(link.MSTeamsChannel)
 		row := fmt.Sprintf(
 			"\n|%s|%s|%s|%s|",
 			link.MattermostTeamName,
 			link.MattermostChannelName,
-			msTeamsTeam.(string),
+			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
 			msTeamsChannel.(string),
 		)
 
@@ -357,13 +344,12 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames *sync.Map) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
-	msTeamsTeamIDsVsNames.Range(func(key, value any) bool {
-		msTeamsFilterQuery.WriteString("'" + key.(string) + "', ")
-		return true
-	})
+	for teamID := range msTeamsTeamIDsVsNames {
+		msTeamsFilterQuery.WriteString("'" + teamID + "', ")
+	}
 
 	teamsQuery := msTeamsFilterQuery.String()
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
@@ -374,7 +360,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames *sync.Map) bool {
 	}
 
 	for _, msTeamsTeam := range msTeamsTeams {
-		msTeamsTeamIDsVsNames.Store(msTeamsTeam.ID, msTeamsTeam.DisplayName)
+		msTeamsTeamIDsVsNames[msTeamsTeam.ID] = msTeamsTeam.DisplayName
 	}
 
 	return false
