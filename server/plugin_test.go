@@ -15,6 +15,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -111,7 +112,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }
@@ -164,7 +165,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "message", []*msteams.Attachment(nil)).Return(nil, errors.New("Unable to send the message"))
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogError", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
 

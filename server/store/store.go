@@ -61,6 +61,7 @@ type Store interface {
 	GetSubscriptionType(subscriptionID string) (string, error)
 	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
 	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
+	DeleteDMAndGMChannelPromptTime(userID string) error
 }
 
 type SQLStore struct {
@@ -703,6 +704,37 @@ func (s *SQLStore) GetDMAndGMChannelPromptTime(channelID, userID string) (time.T
 	}
 
 	return t, nil
+}
+
+func (s *SQLStore) DeleteDMAndGMChannelPromptTime(userID string) error {
+	var userKeys []string
+	page := 0
+	perPage := 100
+	for {
+		keys, err := s.api.KVList(page, perPage)
+		if err != nil {
+			return errors.New(err.Error())
+		}
+
+		for _, key := range keys {
+			if strings.HasPrefix(key, connectionPromptKey) && strings.Contains(key, userID) {
+				userKeys = append(userKeys, key)
+			}
+		}
+
+		if len(keys) < perPage {
+			break
+		}
+		page++
+	}
+
+	for _, key := range userKeys {
+		if err := s.api.KVDelete(key); err != nil {
+			return errors.New(err.Error())
+		}
+	}
+
+	return nil
 }
 
 func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {

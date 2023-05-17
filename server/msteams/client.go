@@ -17,7 +17,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/enescakir/emoji"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -27,7 +26,6 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
-	"gitlab.com/golang-commonmark/markdown"
 	"golang.org/x/oauth2"
 )
 
@@ -96,6 +94,12 @@ type Reaction struct {
 	Reaction string
 }
 
+type Mention struct {
+	ID            int32
+	UserID        string
+	MentionedText string
+}
+
 type Message struct {
 	ID              string
 	UserID          string
@@ -105,6 +109,7 @@ type Message struct {
 	ReplyToID       string
 	Attachments     []Attachment
 	Reactions       []Reaction
+	Mentions        []Mention
 	ChannelID       string
 	TeamID          string
 	ChatID          string
@@ -278,13 +283,11 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 }
 
 func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (*Message, error) {
-	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil)
+	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil, nil)
 }
 
-func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment) (*Message, error) {
+func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error) {
 	rmsg := models.NewChatMessage()
-	md := markdown.New(markdown.XHTMLOutput(true))
-	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	msteamsAttachments := []models.ChatMessageAttachmentable{}
 	for _, a := range attachments {
@@ -296,15 +299,16 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		attachment.SetContentUrl(&att.ContentURL)
 		attachment.SetName(&att.Name)
 		msteamsAttachments = append(msteamsAttachments, attachment)
-		content = "<attachment id=\"" + att.ID + "\"></attachment>" + content
+		message = "<attachment id=\"" + att.ID + "\"></attachment>" + message
 	}
 	rmsg.SetAttachments(msteamsAttachments)
+	rmsg.SetMentions(mentions)
 
 	contentType := models.HTML_BODYTYPE
 
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
-	body.SetContent(&content)
+	body.SetContent(&message)
 	rmsg.SetBody(body)
 
 	var res models.ChatMessageable
@@ -324,10 +328,8 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, parentID, message string) (*Message, error) {
+func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []models.ChatMessageMentionable) (*Message, error) {
 	rmsg := models.NewChatMessage()
-	md := markdown.New(markdown.XHTMLOutput(true))
-	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	// TODO: Add support for parent id
 	_ = parentID
@@ -336,8 +338,10 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string) (*Message, erro
 
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
-	body.SetContent(&content)
+	body.SetContent(&message)
 	rmsg.SetBody(body)
+
+	rmsg.SetMentions(mentions)
 
 	res, err := tc.client.ChatsById(chatID).Messages().Post(tc.ctx, rmsg, nil)
 	if err != nil {
@@ -411,16 +415,15 @@ func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
 	return tc.client.ChatsById(chatID).MessagesById(msgID).Delete(tc.ctx, nil)
 }
 
-func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string) error {
+func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) error {
 	rmsg := models.NewChatMessage()
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	contentType := models.HTML_BODYTYPE
+	rmsg.SetMentions(mentions)
 
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
-	body.SetContent(&content)
+	body.SetContent(&message)
 	rmsg.SetBody(body)
 
 	if parentID != "" {
@@ -435,16 +438,16 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 	return nil
 }
 
-func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string) error {
+func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) error {
 	rmsg := models.NewChatMessage()
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(emoji.Parse(message)))
 
 	contentType := models.HTML_BODYTYPE
 
+	rmsg.SetMentions(mentions)
+
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
-	body.SetContent(&content)
+	body.SetContent(&message)
 	rmsg.SetBody(body)
 
 	if _, err := tc.client.ChatsById(chatID).MessagesById(msgID).Patch(tc.ctx, rmsg, nil); err != nil {
@@ -759,6 +762,23 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		})
 	}
 
+	mentions := []Mention{}
+	for _, m := range msg.GetMentions() {
+		mention := Mention{}
+		if m.GetId() != nil && m.GetMentionText() != nil {
+			mention.ID = *m.GetId()
+			mention.MentionedText = *m.GetMentionText()
+		} else {
+			continue
+		}
+
+		if m.GetMentioned() != nil && m.GetMentioned().GetUser() != nil && m.GetMentioned().GetUser().GetId() != nil {
+			mention.UserID = *m.GetMentioned().GetUser().GetId()
+		}
+
+		mentions = append(mentions, mention)
+	}
+
 	reactions := []Reaction{}
 	for _, reaction := range msg.GetReactions() {
 		if reaction.GetReactionType() != nil && reaction.GetUser() != nil && reaction.GetUser().GetUser() != nil && reaction.GetUser().GetUser().GetId() != nil {
@@ -774,6 +794,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		ReplyToID:       replyTo,
 		Subject:         subject,
 		Attachments:     attachments,
+		Mentions:        mentions,
 		TeamID:          teamID,
 		ChannelID:       channelID,
 		ChatID:          chatID,

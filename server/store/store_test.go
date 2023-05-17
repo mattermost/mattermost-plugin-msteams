@@ -133,7 +133,7 @@ func TestStore(t *testing.T) {
 		"testGetChatSubscription":                                    testGetChatSubscription,
 		"testGetChannelSubscription":                                 testGetChannelSubscription,
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
-		"testStoreAndGetDMGMPromptTime":                              testStoreAndGetDMGMPromptTime,
+		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -1033,17 +1033,23 @@ func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	})
 }
 
-func testStoreAndGetDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
+func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
 	testTime := time.Now()
-	api.On("KVSet", connectionPromptKey+"mockMattermostChannelID-1_mockMattermostUserID-1", mock.Anything).Return(nil)
+	key := connectionPromptKey + "mockMattermostChannelID-1_mockMattermostUserID-1"
+	api.On("KVSet", key, mock.Anything).Return(nil)
 	err := store.StoreDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1", testTime)
 	assert.Nil(t, err)
 
 	timeBytes, err := testTime.MarshalJSON()
 	assert.Nil(t, err)
-	api.On("KVGet", connectionPromptKey+"mockMattermostChannelID-1_mockMattermostUserID-1").Return(timeBytes, nil)
+	api.On("KVGet", key).Return(timeBytes, nil)
 
 	timestamp, err := store.GetDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1")
 	assert.Nil(t, err)
 	assert.True(t, timestamp.Equal(testTime))
+
+	api.On("KVList", 0, 100).Return([]string{key}, nil).Once()
+	api.On("KVDelete", key).Return(nil).Once()
+	err = store.DeleteDMAndGMChannelPromptTime("mockMattermostUserID-1")
+	assert.Nil(t, err)
 }
