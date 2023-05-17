@@ -43,6 +43,7 @@ Select **Register** to submit the form.
 - `Team.ReadBasic.All`
 - `Channel.ReadBasic.All`
 - `Chat.ReadWrite`
+- `ChannelMessage.Read.All`
 - `ChatMessage.ReadAll`
 - `offline_access`
 - `User.Read`

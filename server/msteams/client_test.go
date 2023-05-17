@@ -20,6 +20,7 @@ func TestConvertToMessage(t *testing.T) {
 	attachmentContentType := "mockAttachmentContentType"
 	attachmentName := "mockAttachmentName"
 	attachmentURL := "mockAttachmentURL"
+	mentionID := 0
 	for _, test := range []struct {
 		Name           string
 		ChatMessage    models.ChatMessageable
@@ -51,6 +52,25 @@ func TestConvertToMessage(t *testing.T) {
 				reaction.SetUser(reactionUserSet)
 				reaction.SetReactionType(&reactionType)
 
+				mention := models.NewChatMessageMention()
+				mentionedID := int32(mentionID)
+				mention.SetId(&mentionedID)
+
+				identity := models.NewIdentity()
+				identity.SetId(&teamsUserID)
+				identity.SetDisplayName(&teamsUserDisplayName)
+
+				additionalData := map[string]interface{}{
+					"userIdentityType": "aadUser",
+				}
+
+				identity.SetAdditionalData(additionalData)
+				mentioned := models.NewChatMessageMentionedIdentitySet()
+				mentioned.SetUser(identity)
+
+				mention.SetMentionText(&teamsUserDisplayName)
+				mention.SetMentioned(mentioned)
+
 				message := models.NewChatMessage()
 				message.SetFrom(from)
 				message.SetReplyToId(&teamsReplyID)
@@ -59,6 +79,7 @@ func TestConvertToMessage(t *testing.T) {
 				message.SetLastModifiedDateTime(&time.Time{})
 				message.SetAttachments([]models.ChatMessageAttachmentable{attachment})
 				message.SetReactions([]models.ChatMessageReactionable{reaction})
+				message.SetMentions([]models.ChatMessageMentionable{mention})
 				return message
 			}(),
 			ExpectedResult: Message{
@@ -74,6 +95,13 @@ func TestConvertToMessage(t *testing.T) {
 						Content:     attachmentContent,
 						Name:        attachmentName,
 						ContentURL:  attachmentURL,
+					},
+				},
+				Mentions: []Mention{
+					{
+						ID:            int32(mentionID),
+						UserID:        teamsUserID,
+						MentionedText: teamsUserDisplayName,
 					},
 				},
 				Reactions: []Reaction{
@@ -97,6 +125,7 @@ func TestConvertToMessage(t *testing.T) {
 			ExpectedResult: Message{
 				Attachments:  []Attachment{},
 				Reactions:    []Reaction{},
+				Mentions:     []Mention{},
 				LastUpdateAt: time.Time{},
 				ChannelID:    testutils.GetChannelID(),
 				TeamID:       "mockTeamsTeamID",

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -10,7 +12,9 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/pkg/errors"
+	"gitlab.com/golang-commonmark/markdown"
 )
 
 func (p *Plugin) MessageWillBePosted(_ *plugin.Context, post *model.Post) (*model.Post, string) {
@@ -380,7 +384,12 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	newMessage, err := client.SendChat(chatID, parentID, text)
+	md := markdown.New(markdown.XHTMLOutput(true))
+	content := md.RenderToString([]byte(emoji.Parse(text)))
+
+	content, mentions := p.getMentionsData(content, "", "", chatID, client)
+
+	newMessage, err := client.SendChat(chatID, parentID, content, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
@@ -453,7 +462,12 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		attachments = append(attachments, attachment)
 	}
 
-	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, text, attachments)
+	md := markdown.New(markdown.XHTMLOutput(true))
+	content := md.RenderToString([]byte(emoji.Parse(text)))
+
+	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
+
+	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, content, attachments, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
@@ -565,7 +579,12 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, text); err != nil {
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	content := md.RenderToString([]byte(emoji.Parse(text)))
+
+	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
+
+	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
@@ -612,7 +631,12 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		text = user.Username + ":\n\n" + newPost.Message
 	}
 
-	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, text); err != nil {
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	content := md.RenderToString([]byte(emoji.Parse(text)))
+
+	content, mentions := p.getMentionsData(content, "", "", chatID, client)
+
+	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
 		return err
 	}
@@ -661,4 +685,100 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 		return "", err
 	}
 	return chatID, nil
+}
+
+func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, client msteams.Client) (string, []models.ChatMessageMentionable) {
+	specialMentions := map[string]bool{
+		"all":     true,
+		"channel": true,
+		"here":    true,
+	}
+
+	re := regexp.MustCompile(`@([a-z0-9.\-_]+)`)
+	channelMentions := re.FindAllString(message, -1)
+
+	mentions := []models.ChatMessageMentionable{}
+
+	for id, m := range channelMentions {
+		username := m[1:]
+		mentionedText := m
+
+		mention := models.NewChatMessageMention()
+		mentionedID := int32(id)
+		mention.SetId(&mentionedID)
+
+		mentioned := models.NewChatMessageMentionedIdentitySet()
+		conversation := models.NewTeamworkConversationIdentity()
+
+		if specialMentions[username] {
+			if chatID != "" {
+				chat, err := client.GetChat(chatID)
+				if err != nil {
+					p.API.LogDebug("Unable to get ms teams chat", "Error", err.Error())
+				} else {
+					if chat.Type == "G" {
+						mentionedText = "Everyone"
+					} else {
+						continue
+					}
+				}
+
+				conversation.SetId(&chatID)
+			} else {
+				msChannel, err := client.GetChannel(teamID, channelID)
+				if err != nil {
+					p.API.LogDebug("Unable to get ms teams channel", "Error", err.Error())
+				} else {
+					mentionedText = msChannel.DisplayName
+				}
+
+				conversation.SetId(&channelID)
+			}
+
+			conversation.SetDisplayName(&mentionedText)
+
+			conversationIdentityType := models.CHANNEL_TEAMWORKCONVERSATIONIDENTITYTYPE
+			conversation.SetConversationIdentityType(&conversationIdentityType)
+			mentioned.SetConversation(conversation)
+		} else {
+			mmUser, err := p.API.GetUserByUsername(username)
+			if err != nil {
+				p.API.LogDebug("Unable to get user by username", "Error", err.Error())
+				continue
+			}
+
+			msteamsUserID, getErr := p.store.MattermostToTeamsUserID(mmUser.Id)
+			if getErr != nil {
+				p.API.LogDebug("Unable to get msteams user ID", "Error", getErr.Error())
+				continue
+			}
+
+			msteamsUser, getErr := client.GetUser(msteamsUserID)
+			if getErr != nil {
+				p.API.LogDebug("Unable to get msteams user", "Error", getErr.Error())
+				continue
+			}
+
+			mentionedText = msteamsUser.DisplayName
+
+			identity := models.NewIdentity()
+			identity.SetId(&msteamsUserID)
+			identity.SetDisplayName(&msteamsUser.DisplayName)
+
+			additionalData := map[string]interface{}{
+				"userIdentityType": "aadUser",
+			}
+
+			identity.SetAdditionalData(additionalData)
+			mentioned.SetUser(identity)
+		}
+
+		message = strings.Replace(message, m, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(id), mentionedText), 1)
+		mention.SetMentionText(&mentionedText)
+		mention.SetMentioned(mentioned)
+
+		mentions = append(mentions, mention)
+	}
+
+	return message, mentions
 }
