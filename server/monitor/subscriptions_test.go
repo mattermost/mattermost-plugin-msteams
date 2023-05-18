@@ -148,7 +148,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelSubscriptionsToCheck").Return([]storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(-1 * time.Minute)}}, nil)
-				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannel: "channel-id", MattermostTeam: "team-id"}, nil)
+				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannelID: "channel-id", MattermostTeamID: "team-id"}, nil)
 				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
 			},
 		},
@@ -164,7 +164,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelSubscriptionsToCheck").Return([]storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil)
-				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannel: "channel-id", MattermostTeam: "team-id"}, nil)
+				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannelID: "channel-id", MattermostTeamID: "team-id"}, nil)
 				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
 			},
 		},
@@ -179,7 +179,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelSubscriptionsToCheck").Return([]storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(3 * time.Minute)}}, nil)
-				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannel: "channel-id", MattermostTeam: "team-id"}, nil)
+				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannelID: "channel-id", MattermostTeamID: "team-id"}, nil)
 				store.On("UpdateSubscriptionExpiresOn", "test", newExpiresOn).Return(nil)
 			},
 		},

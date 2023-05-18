@@ -725,7 +725,7 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 
 				conversation.SetId(&chatID)
 			} else {
-				msChannel, err := client.GetChannel(teamID, channelID)
+				msChannel, err := client.GetChannelInTeam(teamID, channelID)
 				if err != nil {
 					p.API.LogDebug("Unable to get ms teams channel", "Error", err.Error())
 				} else {

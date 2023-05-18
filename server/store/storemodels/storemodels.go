@@ -3,11 +3,13 @@ package storemodels
 import "time"
 
 type ChannelLink struct {
-	MattermostTeam    string
-	MattermostChannel string
-	MSTeamsTeam       string
-	MSTeamsChannel    string
-	Creator           string
+	MattermostTeamID      string
+	MattermostTeamName    string
+	MattermostChannelID   string
+	MattermostChannelName string
+	MSTeamsTeam           string
+	MSTeamsChannel        string
+	Creator               string
 }
 
 type PostInfo struct {

@@ -21,6 +21,7 @@ const (
 	avatarKey                    = "avatar_"
 	connectionPromptKey          = "connect_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
+	maxLimitForLinks             = 100
 	subscriptionTypeUser         = "user"
 	subscriptionTypeChannel      = "channel"
 	subscriptionTypeAllChats     = "allChats"
@@ -32,6 +33,7 @@ type Store interface {
 	SetAvatarCache(userID string, photo []byte) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
+	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
 	GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error)
 	DeleteLinkByChannelID(channelID string) error
 	StoreChannelLink(link *storemodels.ChannelLink) error
@@ -260,16 +262,37 @@ func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
 	return nil
 }
 
-func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
-	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
-	row := query.QueryRow()
-	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator, Teams.DisplayName, Channels.DisplayName").From("msteamssync_links").LeftJoin("Teams ON Teams.Id = msteamssync_links.mmTeamID").LeftJoin("Channels ON Channels.Id = msteamssync_links.mmChannelID").Limit(maxLimitForLinks)
+	rows, err := query.Query()
 	if err != nil {
 		return nil, err
 	}
 
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
+	var links []*storemodels.ChannelLink
+	for rows.Next() {
+		link := &storemodels.ChannelLink{}
+		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
+			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			continue
+		}
+
+		links = append(links, link)
+	}
+
+	return links, nil
+}
+
+func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
+	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"mmChannelID": channelID})
+	row := query.QueryRow()
+	var link storemodels.ChannelLink
+	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -284,7 +307,7 @@ func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
 	links := []storemodels.ChannelLink{}
 	for rows.Next() {
 		var link storemodels.ChannelLink
-		err := rows.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+		err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
 		if err != nil {
 			return nil, err
 		}
@@ -298,11 +321,11 @@ func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemo
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From("msteamssync_links").Where(sq.Eq{"msTeamsTeamID": teamID, "msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannel, &link.MattermostTeam, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
 	if err != nil {
 		return nil, err
 	}
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
 		return nil, errors.New("link not enabled for this team")
 	}
 	return &link, nil
@@ -319,12 +342,12 @@ func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 }
 
 func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
-	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").Values(link.MattermostChannel, link.MattermostTeam, link.MSTeamsChannel, link.MSTeamsTeam, link.Creator)
+	query := s.getQueryBuilder().Insert("msteamssync_links").Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").Values(link.MattermostChannelID, link.MattermostTeamID, link.MSTeamsChannel, link.MSTeamsTeam, link.Creator)
 	_, err := query.Exec()
 	if err != nil {
 		return err
 	}
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeam) {
+	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
 		return errors.New("link not enabled for this team")
 	}
 	return nil

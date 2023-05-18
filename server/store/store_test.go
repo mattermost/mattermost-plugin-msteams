@@ -30,6 +30,8 @@ func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugint
 	db, tearDownContainer := createTestDB(driverName)
 	store.db = db
 	_ = store.Init()
+	_ = store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
+	_ = store.createTable("Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	return store, api, tearDownContainer
 }
 
@@ -100,6 +102,7 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 func TestStore(t *testing.T) {
 	testFunctions := map[string]func(*testing.T, *SQLStore, *plugintest.API){
 		"testStoreChannelLinkAndGetLinkByChannelID":                  testStoreChannelLinkAndGetLinkByChannelID,
+		"testListChannelLinksWithNames":                              testListChannelLinksWithNames,
 		"testGetLinkByChannelIDForInvalidID":                         testGetLinkByChannelIDForInvalidID,
 		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID":          testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
 		"testGetLinkByMSTeamsChannelIDForInvalidID":                  testGetLinkByMSTeamsChannelIDForInvalidID,
@@ -292,11 +295,11 @@ func testStoreChannelLinkAndGetLinkByChannelID(t *testing.T, store *SQLStore, ap
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID-1",
-		MattermostTeam:    "mockMattermostTeamID-1",
-		MSTeamsTeam:       "mockMSTeamsTeamID-1",
-		MSTeamsChannel:    "mockMSTeamsChannelID-1",
-		Creator:           "mockCreator",
+		MattermostChannelID: "mockMattermostChannelID-1",
+		MattermostTeamID:    "mockMattermostTeamID-1",
+		MSTeamsTeam:         "mockMSTeamsTeamID-1",
+		MSTeamsChannel:      "mockMSTeamsChannelID-1",
+		Creator:             "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
@@ -327,11 +330,11 @@ func testStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T, store *SQLS
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID-2",
-		MattermostTeam:    "mockMattermostTeamID-2",
-		MSTeamsTeam:       "mockMSTeamsTeamID-2",
-		MSTeamsChannel:    "mockMSTeamsChannelID-2",
-		Creator:           "mockCreator",
+		MattermostChannelID: "mockMattermostChannelID-2",
+		MattermostTeamID:    "mockMattermostTeamID-2",
+		MSTeamsTeam:         "mockMSTeamsTeamID-2",
+		MSTeamsChannel:      "mockMSTeamsChannelID-2",
+		Creator:             "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
@@ -362,11 +365,11 @@ func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore
 	}, nil)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID-3",
-		MattermostTeam:    "mockMattermostTeamID-3",
-		MSTeamsTeam:       "mockMSTeamsTeamID-3",
-		MSTeamsChannel:    "mockMSTeamsChannelID-3",
-		Creator:           "mockCreator",
+		MattermostChannelID: "mockMattermostChannelID-3",
+		MattermostTeamID:    "mockMattermostTeamID-3",
+		MSTeamsTeam:         "mockMSTeamsTeamID-3",
+		MSTeamsChannel:      "mockMSTeamsChannelID-3",
+		Creator:             "mockCreator",
 	}
 
 	storeErr := store.StoreChannelLink(mockChannelLink)
@@ -395,6 +398,44 @@ func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
+func testListChannelLinksWithNames(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-4"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-4").Return(&model.Team{
+		Name: "mockMattermostTeamID-4",
+	}, nil)
+
+	mockChannelLink := &storemodels.ChannelLink{
+		MattermostChannelID:   "mockMattermostChannelID-4",
+		MattermostTeamID:      "mockMattermostTeamID-4",
+		MattermostTeamName:    "Mock Mattermost Team",
+		MattermostChannelName: "Mock Mattermost Channel",
+		MSTeamsTeam:           "mockMSTeamsTeamID-4",
+		MSTeamsChannel:        "mockMSTeamsChannelID-4",
+		Creator:               "mockCreator",
+	}
+
+	_, err := store.getQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
+	assert.Nil(err)
+	_, err = store.getQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
+	assert.Nil(err)
+
+	links, err := store.ListChannelLinksWithNames()
+	assert.Nil(err)
+	assert.NotContains(links, mockChannelLink)
+
+	storeErr := store.StoreChannelLink(mockChannelLink)
+	assert.Nil(storeErr)
+	defer func() {
+		_ = store.DeleteLinkByChannelID("mockMattermostChannelID-4")
+	}()
+
+	links, err = store.ListChannelLinksWithNames()
+	assert.Nil(err)
+	assert.Contains(links, mockChannelLink)
+}
+
 func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1", "mockMattermostTeamID-2"} }
 
@@ -410,11 +451,11 @@ func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	require.Len(t, links, 0)
 
 	mockChannelLink := &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID-1",
-		MattermostTeam:    "mockMattermostTeamID-1",
-		MSTeamsTeam:       "mockMSTeamsTeamID-1",
-		MSTeamsChannel:    "mockMSTeamsChannelID-1",
-		Creator:           "mockCreator",
+		MattermostChannelID: "mockMattermostChannelID-1",
+		MattermostTeamID:    "mockMattermostTeamID-1",
+		MSTeamsTeam:         "mockMSTeamsTeamID-1",
+		MSTeamsChannel:      "mockMSTeamsChannelID-1",
+		Creator:             "mockCreator",
 	}
 
 	err = store.StoreChannelLink(mockChannelLink)
@@ -428,11 +469,11 @@ func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	require.Len(t, links, 1)
 
 	mockChannelLink = &storemodels.ChannelLink{
-		MattermostChannel: "mockMattermostChannelID-2",
-		MattermostTeam:    "mockMattermostTeamID-2",
-		MSTeamsTeam:       "mockMSTeamsTeamID-2",
-		MSTeamsChannel:    "mockMSTeamsChannelID-2",
-		Creator:           "mockCreator",
+		MattermostChannelID: "mockMattermostChannelID-2",
+		MattermostTeamID:    "mockMattermostTeamID-2",
+		MSTeamsTeam:         "mockMSTeamsTeamID-2",
+		MSTeamsChannel:      "mockMSTeamsChannelID-2",
+		Creator:             "mockCreator",
 	}
 	err = store.StoreChannelLink(mockChannelLink)
 	require.NoError(t, err)
