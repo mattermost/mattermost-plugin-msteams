@@ -147,7 +147,6 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 				}
 
 				return "", appErr2
-
 			}
 
 			break
