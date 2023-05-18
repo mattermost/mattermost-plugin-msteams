@@ -22,6 +22,7 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
@@ -135,6 +136,44 @@ type ActivityIds struct {
 
 type AccessToken struct {
 	tokenSource oauth2.TokenSource
+}
+
+type GraphAPIError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *GraphAPIError) Error() string {
+	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
+}
+
+func NormalizeGraphAPIError(err error) *GraphAPIError {
+	if err == nil {
+		return nil
+	}
+
+	switch e := err.(type) {
+	case *odataerrors.ODataError:
+		if terr := e.GetError(); terr != nil {
+			return &GraphAPIError{
+				Code:    *terr.GetCode(),
+				Message: *terr.GetMessage(),
+			}
+		}
+	default:
+		return &GraphAPIError{
+			Code:    "",
+			Message: err.Error(),
+		}
+	}
+
+	return nil
+}
+
+var specialSupportedExtensions = map[string]bool{
+	"csv":  true,
+	"xlsx": true,
+	"xls":  true,
 }
 
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
@@ -296,6 +335,23 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		attachment := models.NewChatMessageAttachment()
 		attachment.SetId(&att.ID)
 		attachment.SetContentType(&contentType)
+
+		fileNameAndExtension := strings.Split(att.Name, ".")
+		if specialSupportedExtensions[fileNameAndExtension[len(fileNameAndExtension)-1]] {
+			teamsURL, err := url.Parse(att.ContentURL)
+			if err != nil {
+				tc.logError("Unable to parse URL", "Error", err.Error())
+				continue
+			}
+
+			q := teamsURL.Query()
+			fileQueryParam := q.Get("file")
+			q.Del("file")
+			teamsURL.RawQuery = q.Encode()
+			teamsURL.RawQuery += fmt.Sprintf("&file=%s", fileQueryParam)
+			att.ContentURL = teamsURL.String()
+		}
+
 		attachment.SetContentUrl(&att.ContentURL)
 		attachment.SetName(&att.Name)
 		msteamsAttachments = append(msteamsAttachments, attachment)
@@ -316,13 +372,13 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		var err error
 		res, err = tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).Replies().Post(tc.ctx, rmsg, nil)
 		if err != nil {
-			return nil, err
+			return nil, NormalizeGraphAPIError(err)
 		}
 	} else {
 		var err error
 		res, err = tc.client.TeamsById(teamID).ChannelsById(channelID).Messages().Post(tc.ctx, rmsg, nil)
 		if err != nil {
-			return nil, err
+			return nil, NormalizeGraphAPIError(err)
 		}
 	}
 	return convertToMessage(res, teamID, channelID, ""), nil
@@ -906,19 +962,25 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 		}
 	}
 
-	item, err := itemRequest.Get(tc.ctx, nil)
-	if err != nil {
-		return nil, err
+	// TODO: Check why this is not defined in the above loop
+	if itemRequest != nil {
+		item, err := itemRequest.Get(tc.ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+		if !ok {
+			return nil, errors.New("downloadUrl not found")
+		}
+
+		data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		return data, nil
 	}
-	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
-	if !ok {
-		return nil, errors.New("downloadUrl not found")
-	}
-	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+
+	return nil, nil
 }
 
 func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
