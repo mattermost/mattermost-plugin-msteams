@@ -44,8 +44,8 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
-func (pm *pluginMock) GetUserSuffixID(string) (string, error) {
-	return "", nil
+func (pm *pluginMock) CheckAndGetUsername(*model.AppError, string, int) string {
+	return ""
 }
 
 func newTestHandler() *ActivityHandler {
@@ -103,7 +103,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
 				api.On("CreateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.Username != "msteams:new-display-name" {
+					if user.Username != "msteams_new-display-name" {
 						return false
 					}
 					if user.FirstName != "New display name" {
@@ -135,7 +135,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUserByEmail", "unknown-user@msteamssync").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
 				api.On("CreateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.Username != "msteams:unknown-user" {
+					if user.Username != "msteams_unknown-user" {
 						return false
 					}
 					if user.FirstName != "Unknown User" {

@@ -145,7 +145,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err)
 	}
@@ -391,14 +391,14 @@ func (p *Plugin) syncUsers() {
 	}
 
 	for _, msUser := range msUsers {
+		userSuffixID := 1
 		if msUser.Mail == "" {
 			continue
 		}
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
-		msDisplayName := slug.Make(msUser.DisplayName)
-		username := "msteams:" + msDisplayName
+		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
@@ -412,37 +412,26 @@ func (p *Plugin) syncUsers() {
 				Username:  username,
 			}
 
-			newUser, appErr := p.API.CreateUser(newMMUser)
-			if appErr != nil {
-				if strings.Contains(appErr.Error(), "account with that username already exists") {
-					value, sErr := p.API.KVGet(msDisplayName)
-					if sErr != nil {
-						p.API.LogError("Unable to get value from KV store", "error", sErr.Error())
+			var newUser *model.User
+			for {
+				newUser, appErr = p.API.CreateUser(newMMUser)
+				if appErr != nil {
+					newUsername := p.CheckAndGetUsername(appErr, newMMUser.Username, userSuffixID)
+					if newUsername != "" {
+						newMMUser.Username = newUsername
+						userSuffixID++
 						continue
 					}
 
-					prevID, cErr := p.GetUserSuffixID(string(value))
-					if cErr != nil {
-						p.API.LogError("Unable to convert string to int", "error", cErr.Error())
-						continue
-					}
-
-					newMMUser.Username += "-" + prevID
-					newUser1, appErr1 := p.API.CreateUser(newMMUser)
-					if appErr1 != nil {
-						p.API.LogError("Unable to sync user", "error", appErr1.Error())
-						continue
-					}
-
-					newUser = newUser1
-					if setErr := p.API.KVSet(msDisplayName, []byte(prevID)); setErr != nil {
-						p.API.LogError("Unable to set value in KV store", "error", setErr.Error())
-						continue
-					}
-				} else {
 					p.API.LogError("Unable to sync user", "error", appErr.Error())
-					continue
+					break
 				}
+
+				break
+			}
+
+			if newUser.Id == "" {
+				continue
 			}
 
 			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
@@ -452,35 +441,21 @@ func (p *Plugin) syncUsers() {
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
-			_, err := p.API.UpdateUser(mmUser)
-			if err != nil {
-				if strings.Contains(err.Error(), "account with that username already exists") {
-					value, sErr := p.API.KVGet(msDisplayName)
-					if sErr != nil {
-						p.API.LogError("Unable to get value from KV store", "error", sErr.Error())
+			for {
+				_, err := p.API.UpdateUser(mmUser)
+				if err != nil {
+					newUsername := p.CheckAndGetUsername(err, mmUser.Username, userSuffixID)
+					if newUsername != "" {
+						mmUser.Username = newUsername
+						userSuffixID++
 						continue
 					}
 
-					prevID, cErr := p.GetUserSuffixID(string(value))
-					if cErr != nil {
-						p.API.LogError("Unable to convert string to int", "error", cErr.Error())
-						continue
-					}
-
-					mmUser.Username += "-" + prevID
-					if _, appErr1 := p.API.UpdateUser(mmUser); appErr1 != nil {
-						p.API.LogError("Unable to sync user", "error", appErr1.Error())
-						continue
-					}
-
-					if setErr := p.API.KVSet(msDisplayName, []byte(prevID)); setErr != nil {
-						p.API.LogError("Unable to set value in KV store", "error", setErr.Error())
-						continue
-					}
-				} else {
 					p.API.LogError("Unable to sync user", "error", err.Error())
-					continue
+					break
 				}
+
+				break
 			}
 		}
 	}
@@ -524,16 +499,11 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
-func (p *Plugin) GetUserSuffixID(prevID string) (string, error) {
-	if prevID == "" {
-		return "1", nil
+func (p *Plugin) CheckAndGetUsername(err *model.AppError, username string, userSuffixID int) string {
+	if err.Id == "app.user.save.username_exists.app_error" {
+		username += "-" + fmt.Sprint(userSuffixID)
+		return username
 	}
 
-	prevIDValue, cErr := strconv.Atoi(prevID)
-	prevID = fmt.Sprint(prevIDValue + 1)
-	if cErr != nil {
-		return "", cErr
-	}
-
-	return prevID, nil
+	return ""
 }

@@ -34,7 +34,7 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	GetUserSuffixID(string) (string, error)
+	CheckAndGetUsername(*model.AppError, string, int) string
 }
 
 type ActivityHandler struct {

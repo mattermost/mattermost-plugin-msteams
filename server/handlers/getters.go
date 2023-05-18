@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/base32"
-	"strings"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -125,8 +124,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 		memberUUID := uuid.Parse(userID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 		shortUserID := encoding.EncodeToString(memberUUID)
-		msDisplayName := slug.Make(userDisplayName)
-		username := "msteams:" + msDisplayName
+		username := "msteams_" + slug.Make(userDisplayName)
 
 		newMMUser := &model.User{
 			Username:  username,
@@ -136,36 +134,22 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 			RemoteId:  &shortUserID,
 		}
 
-		u, appErr2 = ah.plugin.GetAPI().CreateUser(newMMUser)
-		if appErr2 != nil {
-			if strings.Contains(appErr2.Error(), "account with that username already exists") {
-				value, sErr := ah.plugin.GetAPI().KVGet(msDisplayName)
-				if sErr != nil {
-					ah.plugin.GetAPI().LogError("Unable to get value from KV store", "error", sErr.Error())
-					return "", sErr
+		userSuffixID := 1
+		for {
+			u, appErr2 = ah.plugin.GetAPI().CreateUser(newMMUser)
+
+			if appErr2 != nil {
+				newUsername := ah.plugin.CheckAndGetUsername(appErr2, newMMUser.Username, userSuffixID)
+				if newUsername != "" {
+					newMMUser.Username = newUsername
+					userSuffixID++
+					continue
 				}
 
-				prevID, cErr := ah.plugin.GetUserSuffixID(string(value))
-				if cErr != nil {
-					ah.plugin.GetAPI().LogError("Unable to convert string to int", "error", cErr.Error())
-					return "", cErr
-				}
-
-				newMMUser.Username += "-" + prevID
-				newUser, appErr1 := ah.plugin.GetAPI().CreateUser(newMMUser)
-				if appErr1 != nil {
-					ah.plugin.GetAPI().LogError("Unable to sync user", "error", appErr1.Error())
-					return "", appErr1
-				}
-
-				u = newUser
-				if setErr := ah.plugin.GetAPI().KVSet(msDisplayName, []byte(prevID)); setErr != nil {
-					ah.plugin.GetAPI().LogError("Unable to set value in KV store", "error", setErr.Error())
-					return "", setErr
-				}
-			} else {
-				return "", appErr
+				return "", appErr2
 			}
+
+			break
 		}
 	}
 
