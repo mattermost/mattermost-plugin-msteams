@@ -44,9 +44,6 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
-func (pm *pluginMock) CheckAndGetUsername(*model.AppError, string, int) string {
-	return ""
-}
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{

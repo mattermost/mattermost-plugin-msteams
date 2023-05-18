@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/base32"
+	"fmt"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -139,14 +140,14 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 			u, appErr2 = ah.plugin.GetAPI().CreateUser(newMMUser)
 
 			if appErr2 != nil {
-				newUsername := ah.plugin.CheckAndGetUsername(appErr2, newMMUser.Username, userSuffixID)
-				if newUsername != "" {
-					newMMUser.Username = newUsername
+				if appErr2.Id == "app.user.save.username_exists.app_error" {
+					newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
 					userSuffixID++
 					continue
 				}
 
 				return "", appErr2
+
 			}
 
 			break

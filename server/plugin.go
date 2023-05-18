@@ -416,9 +416,8 @@ func (p *Plugin) syncUsers() {
 			for {
 				newUser, appErr = p.API.CreateUser(newMMUser)
 				if appErr != nil {
-					newUsername := p.CheckAndGetUsername(appErr, newMMUser.Username, userSuffixID)
-					if newUsername != "" {
-						newMMUser.Username = newUsername
+					if appErr.Id == "app.user.save.username_exists.app_error" {
+						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
 						userSuffixID++
 						continue
 					}
@@ -444,9 +443,8 @@ func (p *Plugin) syncUsers() {
 			for {
 				_, err := p.API.UpdateUser(mmUser)
 				if err != nil {
-					newUsername := p.CheckAndGetUsername(err, mmUser.Username, userSuffixID)
-					if newUsername != "" {
-						mmUser.Username = newUsername
+					if err.Id == "app.user.save.username_exists.app_error" {
+						mmUser.Username += "-" + fmt.Sprint(userSuffixID)
 						userSuffixID++
 						continue
 					}
@@ -497,13 +495,4 @@ func getRandomString(characterSet string, length int) string {
 	}
 
 	return randomString.String()
-}
-
-func (p *Plugin) CheckAndGetUsername(err *model.AppError, username string, userSuffixID int) string {
-	if err.Id == "app.user.save.username_exists.app_error" {
-		username += "-" + fmt.Sprint(userSuffixID)
-		return username
-	}
-
-	return ""
 }
