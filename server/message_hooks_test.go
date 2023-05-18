@@ -59,7 +59,7 @@ func TestMessageWillBePosted(t *testing.T) {
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 10).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@msteamssync"), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(&model.User{
-					Username: "test_1ec7fa1a-3203-4f0f-9892-62a37392427b",
+					Username: "msteams_mockUser",
 					RemoteId: &mockRemoteID,
 				}, nil).Times(1)
 				api.On("SendEphemeralPost", testutils.GetID(), mock.Anything).Return(nil).Times(1)

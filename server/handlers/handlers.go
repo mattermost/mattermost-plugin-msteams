@@ -33,6 +33,7 @@ type PluginIface interface {
 	GetClientForApp() msteams.Client
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
+	GenerateRandomPassword() string
 }
 
 type ActivityHandler struct {

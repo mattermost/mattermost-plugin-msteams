@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/base64"
+	"fmt"
 	"math"
 	"math/big"
 	"net/http"
@@ -144,7 +145,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL(), p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err)
 	}
@@ -390,30 +391,45 @@ func (p *Plugin) syncUsers() {
 	}
 
 	for _, msUser := range msUsers {
+		userSuffixID := 1
 		if msUser.Mail == "" {
 			continue
 		}
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
-		username := slug.Make(msUser.DisplayName) + "_" + msUser.ID
-
+		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !ok {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  generateRandomPassword(),
+				Password:  p.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
 
-			newUser, appErr := p.API.CreateUser(newMMUser)
-			if appErr != nil {
-				p.API.LogError("Unable to sync user", "error", appErr)
+			var newUser *model.User
+			for {
+				newUser, appErr = p.API.CreateUser(newMMUser)
+				if appErr != nil {
+					if appErr.Id == "app.user.save.username_exists.app_error" {
+						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+						userSuffixID++
+						continue
+					}
+
+					p.API.LogError("Unable to sync user", "error", appErr.Error())
+					break
+				}
+
+				break
+			}
+
+			if newUser.Id == "" {
 				continue
 			}
 
@@ -424,9 +440,20 @@ func (p *Plugin) syncUsers() {
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
-			_, err := p.API.UpdateUser(mmUser)
-			if err != nil {
-				p.API.LogError("Unable to sync user", "error", err)
+			for {
+				_, err := p.API.UpdateUser(mmUser)
+				if err != nil {
+					if err.Id == "app.user.save.username_exists.app_error" {
+						mmUser.Username += "-" + fmt.Sprint(userSuffixID)
+						userSuffixID++
+						continue
+					}
+
+					p.API.LogError("Unable to sync user", "error", err.Error())
+					break
+				}
+
+				break
 			}
 		}
 	}
@@ -443,7 +470,7 @@ func generateSecret() (string, error) {
 	return s, nil
 }
 
-func generateRandomPassword() string {
+func (p *Plugin) GenerateRandomPassword() string {
 	lowerCharSet := "abcdedfghijklmnopqrst"
 	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	specialCharSet := "!@#$%&*"
@@ -468,19 +495,4 @@ func getRandomString(characterSet string, length int) string {
 	}
 
 	return randomString.String()
-}
-
-func isMSTeamsUser(remoteID, username string) bool {
-	data := strings.Split(username, "_")
-	if len(data) >= 2 {
-		msUserID := data[len(data)-1]
-
-		userUUID := uuid.Parse(msUserID)
-		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-		shortUserID := encoding.EncodeToString(userUUID)
-
-		return remoteID == shortUserID
-	}
-
-	return false
 }
