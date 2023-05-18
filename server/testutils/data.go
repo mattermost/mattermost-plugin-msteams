@@ -3,8 +3,13 @@ package testutils
 import (
 	"net/http"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
+
+func GetTeamID() string {
+	return "pqoeurndhroajdemq4nfmw"
+}
 
 func GetChannelID() string {
 	return "bnqnzipmnir4zkkj95ggba5pde"
@@ -98,4 +103,28 @@ func GetReaction() *model.Reaction {
 		PostId:    GetID(),
 		ChannelId: GetChannelID(),
 	}
+}
+
+func GetTeamsTeamID() string {
+	return "test-teams-team"
+}
+
+func GetTeamsChannelID() string {
+	return "test-teams-channel"
+}
+
+func GetChannelLinks(count int) []*storemodels.ChannelLink {
+	var links []*storemodels.ChannelLink
+	for i := 0; i < count; i++ {
+		links = append(links, &storemodels.ChannelLink{
+			MattermostTeamID:      GetTeamID(),
+			MattermostChannelID:   GetChannelID(),
+			MattermostTeamName:    "Test MM team",
+			MattermostChannelName: "Test MM channel",
+			MSTeamsTeam:           GetTeamsTeamID(),
+			MSTeamsChannel:        GetTeamsChannelID(),
+		})
+	}
+
+	return links
 }

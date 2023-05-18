@@ -230,7 +230,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		senderID, _ = ah.getOrCreateSyntheticUser(msg.UserID, "")
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
-			channelID = channelLink.MattermostChannel
+			channelID = channelLink.MattermostChannelID
 		}
 	}
 
@@ -324,7 +324,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			ah.plugin.GetAPI().LogError("Unable to find the subscription")
 			return
 		}
-		channelID = channelLink.MattermostChannel
+		channelID = channelLink.MattermostChannelID
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
 			return
