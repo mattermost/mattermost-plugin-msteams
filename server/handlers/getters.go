@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/base32"
+	"fmt"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -124,17 +125,34 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 		memberUUID := uuid.Parse(userID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 		shortUserID := encoding.EncodeToString(memberUUID)
-		u, appErr2 = ah.plugin.GetAPI().CreateUser(&model.User{
-			Username:  slug.Make(userDisplayName) + "_" + userID,
+		username := "msteams_" + slug.Make(userDisplayName)
+
+		newMMUser := &model.User{
+			Username:  username,
 			FirstName: userDisplayName,
 			Email:     user.Mail,
-			Password:  model.NewId(),
+			Password:  ah.plugin.GenerateRandomPassword(),
 			RemoteId:  &shortUserID,
-		})
-		if appErr2 != nil {
-			return "", appErr2
+		}
+
+		userSuffixID := 1
+		for {
+			u, appErr2 = ah.plugin.GetAPI().CreateUser(newMMUser)
+
+			if appErr2 != nil {
+				if appErr2.Id == "app.user.save.username_exists.app_error" {
+					newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+					userSuffixID++
+					continue
+				}
+
+				return "", appErr2
+			}
+
+			break
 		}
 	}
+
 	if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
 		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
 	}
