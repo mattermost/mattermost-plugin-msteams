@@ -1,9 +1,10 @@
 # FAQ
-- [How is encryption handled at rest and in motion?](##How is encryption handled at rest and in motion?)
-- [Are there any database or network security considerations?](##Are there any database or network security considerations?)
-- [Are there any compliance considerations (ie. GDPR, PCI)?](##Are there any compliance considerations (ie. GDPR, PCI)?)
-- [How often will users Sync from MS Teams to Mattermost?](##How often will users Sync from MS Teams to Mattermost?)
-- [Is a service account required for this integration to sync users from MS Teams to Mattermost?](##Is a service account required for this integration to sync users from MS Teams to Mattermost?)
+- [How is encryption handled at rest and in motion?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
+- [Are there any database or network security considerations?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
+- [Are there any compliance considerations (ie. GDPR, PCI)?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
+- [How often will users Sync from MS Teams to Mattermost?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
+- [Is a service account required for this integration to sync users from MS Teams to Mattermost?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
+- [How is the plugin architectured?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#how-is-the-plugin-architectured)
 
 ## How is encryption handled at rest and in motion?
 
