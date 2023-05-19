@@ -1,5 +1,5 @@
 # FAQ
-- [## How is encryption handled at rest and in motion?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations))
+- [How is encryption handled at rest and in motion?](https://github.com/darias416/mattermost-plugin-msteams-sync/blob/FAQs/docs/FAQs.md#are-there-any-database-or-network-security-considerations)
 - [Are there any database or network security considerations?](## Are there any database or network security considerations?)
 - [Are there any compliance considerations (ie. GDPR, PCI)?](## Are there any compliance considerations (ie. GDPR, PCI)?)
 - [How often will users Sync from MS Teams to Mattermost?](## How often will users Sync from MS Teams to Mattermost?)
