@@ -66,12 +66,14 @@ func New(plugin PluginIface) *ActivityHandler {
 func (ah *ActivityHandler) Start() {
 	for i := 0; i < numberOfWorkers; i++ {
 		go func() {
-			select {
-			case activity := <-ah.queue:
-				ah.handleActivity(activity)
-			case <-ah.quit:
-				// we have received a signal to stop
-				return
+			for {
+				select {
+				case activity := <-ah.queue:
+					ah.handleActivity(activity)
+				case <-ah.quit:
+					// we have received a signal to stop
+					return
+				}
 			}
 		}()
 	}
