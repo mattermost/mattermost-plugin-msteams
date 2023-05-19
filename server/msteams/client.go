@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -171,9 +172,9 @@ func NormalizeGraphAPIError(err error) *GraphAPIError {
 }
 
 var specialSupportedExtensions = map[string]bool{
-	"csv":  true,
-	"xlsx": true,
-	"xls":  true,
+	".csv":  true,
+	".xlsx": true,
+	".xls":  true,
 }
 
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
@@ -336,8 +337,8 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		attachment.SetId(&att.ID)
 		attachment.SetContentType(&contentType)
 
-		fileNameAndExtension := strings.Split(att.Name, ".")
-		if specialSupportedExtensions[fileNameAndExtension[len(fileNameAndExtension)-1]] {
+		extension := filepath.Ext(att.Name)
+		if specialSupportedExtensions[extension] {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
 				tc.logError("Unable to parse URL", "Error", err.Error())
@@ -348,6 +349,11 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 			fileQueryParam := q.Get("file")
 			q.Del("file")
 			teamsURL.RawQuery = q.Encode()
+
+			// We are deleting the file query param from the content URL as it is present in
+			// the middle and when MS Teams processes the content URL, it needs the file query param at the end
+			// otherwise, it gives the error: "contentUrl extension and name extension do not match"
+			// So, we are appending the file query param at the end
 			teamsURL.RawQuery += fmt.Sprintf("&file=%s", fileQueryParam)
 			att.ContentURL = teamsURL.String()
 		}
@@ -963,24 +969,24 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	}
 
 	// TODO: Check why this is not defined in the above loop
-	if itemRequest != nil {
-		item, err := itemRequest.Get(tc.ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
-		if !ok {
-			return nil, errors.New("downloadUrl not found")
-		}
-
-		data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		return data, nil
+	if itemRequest == nil {
+		return nil, nil
 	}
 
-	return nil, nil
+	item, err := itemRequest.Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+	if !ok {
+		return nil, errors.New("downloadUrl not found")
+	}
+
+	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {

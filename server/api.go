@@ -350,9 +350,20 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msteamsUser.Mail != mmUser.Email {
+	if mmUser.Id != a.p.GetBotUserID() && msteamsUser.Mail != mmUser.Email {
 		a.p.API.LogError("Unable to connect users with different emails")
 		http.Error(w, "cannot connect users with different emails", http.StatusBadRequest)
+		return
+	}
+
+	storedToken, err := a.p.store.GetTokenForMSTeamsUser(msteamsUser.ID)
+	if err != nil {
+		a.p.API.LogError("Unable to get the token for MS Teams user", "Error", err.Error())
+	}
+
+	if storedToken != nil {
+		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.")
+		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusInternalServerError)
 		return
 	}
 
