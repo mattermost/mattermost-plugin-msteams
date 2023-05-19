@@ -1,9 +1,9 @@
 # FAQ
-- [How is encryption handled at rest and in motion?](##How is encryption handled at rest and in motion?)
-- [Are there any database or network security considerations?](##Are there any database or network security considerations?)
-- [Are there any compliance considerations (ie. GDPR, PCI)?](##Are there any compliance considerations (ie. GDPR, PCI)?)
-- [How often will users Sync from MS Teams to Mattermost?](##How often will users Sync from MS Teams to Mattermost?)
-- [Is a service account required for this integration to sync users from MS Teams to Mattermost?](##Is a service account required for this integration to sync users from MS Teams to Mattermost?)
+- [How is encryption handled at rest and in motion?](## How is encryption handled at rest and in motion?)
+- [Are there any database or network security considerations?](## Are there any database or network security considerations?)
+- [Are there any compliance considerations (ie. GDPR, PCI)?](## Are there any compliance considerations (ie. GDPR, PCI)?)
+- [How often will users Sync from MS Teams to Mattermost?](## How often will users Sync from MS Teams to Mattermost?)
+- [Is a service account required for this integration to sync users from MS Teams to Mattermost?](## Is a service account required for this integration to sync users from MS Teams to Mattermost?)
 
 ## How is encryption handled at rest and in motion?
 
