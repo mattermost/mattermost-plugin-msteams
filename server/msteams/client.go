@@ -175,6 +175,10 @@ var specialSupportedExtensions = map[string]bool{
 	".csv":  true,
 	".xlsx": true,
 	".xls":  true,
+	".doc":  true,
+	".docx": true,
+	".ppt":  true,
+	".pptx": true,
 }
 
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
@@ -416,12 +420,12 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []mode
 func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
 	folderInfo, err := tc.client.TeamsById(teamID).ChannelsById(channelID).FilesFolder().Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	uploadSession, err := tc.client.DrivesById(*folderInfo.GetParentReference().GetDriveId()).ItemsById(*folderInfo.GetId()+":/"+filename+":").CreateUploadSession().Post(tc.ctx, nil, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	req, err := http.NewRequest("PUT", *uploadSession.GetUploadUrl(), data)
