@@ -34,16 +34,18 @@ Select **Register** to submit the form.
 
 9. Click on **Delegated permissions**, and scroll down to select the following permissions:
 
+- `Channel.ReadBasic.All`
+- `ChannelMessage.Read.All`
+- `ChannelMessage.ReadWrite`
 - `ChannelMessage.Send`
 - `Chat.Create`
+- `Chat.ReadWrite`
+- `ChatMessage.ReadAll`
+- `Directory.Read.All`
 - `Files.Read.All`
 - `Files.ReadWrite.All`
-- `Team.ReadBasic.All`
-- `Channel.ReadBasic.All`
-- `Chat.ReadWrite`
-- `ChannelMessage.Read.All`
-- `ChatMessage.ReadAll`
 - `offline_access`
+- `Team.ReadBasic.All`
 - `User.Read`
 
 10. Click on **Add permissions** to submit the form.
@@ -52,11 +54,12 @@ Select **Register** to submit the form.
 
 12. Select the following permissions:
 
+- `Channel.ReadBasic.All`
 - `ChannelMessage.Read.All`
 - `Chat.Read.All`
-- `User.Read.All`
-- `Channel.ReadBasic.All`
+- `Group.Read.All`
 - `Team.ReadBasic.All`
+- `User.Read.All`
 
 13. Click on **Add permissions** to submit the form.
 
