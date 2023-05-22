@@ -371,13 +371,14 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 }
 
 func (ah *ActivityHandler) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
-	if len(reactions) == 0 {
-		return
-	}
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
+		return
+	}
+
+	if len(reactions) == 0 && len(postReactions) == 0 {
 		return
 	}
 
