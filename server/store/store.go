@@ -96,6 +96,7 @@ func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) 
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	var result int
 	if rows.Next() {
@@ -129,6 +130,7 @@ func (s *SQLStore) addColumnForMySQL(tableName, columnName, columnDefinition str
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	var result int
 	if rows.Next() {
@@ -182,6 +184,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 		if err != nil {
 			return err
 		}
+		defer rows.Close()
 
 		var constraintName string
 		if rows.Next() {
@@ -268,6 +271,7 @@ func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, erro
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var links []*storemodels.ChannelLink
 	for rows.Next() {
@@ -303,6 +307,7 @@ func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	links := []storemodels.ChannelLink{}
 	for rows.Next() {
@@ -532,6 +537,7 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	result := []storemodels.ChatSubscription{}
 	for rows.Next() {
@@ -553,6 +559,7 @@ func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubsc
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	result := []storemodels.ChannelSubscription{}
 	for rows.Next() {
@@ -574,6 +581,7 @@ func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscri
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	result := []storemodels.GlobalSubscription{}
 	for rows.Next() {
