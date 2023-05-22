@@ -171,16 +171,6 @@ func NormalizeGraphAPIError(err error) *GraphAPIError {
 	return nil
 }
 
-var specialSupportedExtensions = map[string]bool{
-	".csv":  true,
-	".xlsx": true,
-	".xls":  true,
-	".doc":  true,
-	".docx": true,
-	".ppt":  true,
-	".pptx": true,
-}
-
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	token, err := at.tokenSource.Token()
 	if err != nil {
@@ -342,7 +332,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		attachment.SetContentType(&contentType)
 
 		extension := filepath.Ext(att.Name)
-		if specialSupportedExtensions[extension] {
+		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
 				tc.logError("Unable to parse URL", "Error", err.Error())
