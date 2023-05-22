@@ -17,8 +17,8 @@ export default function EnforceConnectedAccountModal() {
 
     const connectAccount = useCallback(() => {
         Client.connect().then((result) => {
-            setConnecting(true)
-            window.open(result?.connectUrl, '_blank')
+            setConnecting(true);
+            window.open(result?.connectUrl, '_blank');
         });
     }, []);
 
