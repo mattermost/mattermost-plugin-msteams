@@ -272,7 +272,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, string(state), codeVerifier)
 
-	data, _ := json.Marshal(map[string]string{"message": fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL)})
+	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 	_, _ = w.Write(data)
 }
 
