@@ -429,7 +429,7 @@ func (p *Plugin) syncUsers() {
 				break
 			}
 
-			if newUser.Id == "" {
+			if newUser == nil || newUser.Id == "" {
 				continue
 			}
 
