@@ -171,16 +171,6 @@ func NormalizeGraphAPIError(err error) *GraphAPIError {
 	return nil
 }
 
-var specialSupportedExtensions = map[string]bool{
-	".csv":  true,
-	".xlsx": true,
-	".xls":  true,
-	".doc":  true,
-	".docx": true,
-	".ppt":  true,
-	".pptx": true,
-}
-
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	token, err := at.tokenSource.Token()
 	if err != nil {
@@ -292,7 +282,7 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 	}
 	r, err := tc.client.Me().Get(tc.ctx, configuration)
 	if err != nil {
-		return "", err
+		return "", NormalizeGraphAPIError(err)
 	}
 	return *r.GetId(), nil
 }
@@ -306,7 +296,7 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 	}
 	r, err := tc.client.Me().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	mail := r.GetMail()
@@ -342,7 +332,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		attachment.SetContentType(&contentType)
 
 		extension := filepath.Ext(att.Name)
-		if specialSupportedExtensions[extension] {
+		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
 				tc.logError("Unable to parse URL", "Error", err.Error())
@@ -411,7 +401,7 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []mode
 
 	res, err := tc.client.ChatsById(chatID).Messages().Post(tc.ctx, rmsg, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	return convertToMessage(res, "", "", chatID), nil
@@ -467,18 +457,18 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {
 	if parentID != "" {
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(msgID).Delete(tc.ctx, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	} else {
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(msgID).Delete(tc.ctx, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
 }
 
 func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
-	return tc.client.ChatsById(chatID).MessagesById(msgID).Delete(tc.ctx, nil)
+	return NormalizeGraphAPIError(tc.client.ChatsById(chatID).MessagesById(msgID).Delete(tc.ctx, nil))
 }
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) error {
@@ -494,11 +484,11 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 
 	if parentID != "" {
 		if _, err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(msgID).Patch(tc.ctx, rmsg, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	} else {
 		if _, err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(msgID).Patch(tc.ctx, rmsg, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
@@ -517,7 +507,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	rmsg.SetBody(body)
 
 	if _, err := tc.client.ChatsById(chatID).MessagesById(msgID).Patch(tc.ctx, rmsg, nil); err != nil {
-		return err
+		return NormalizeGraphAPIError(err)
 	}
 	return nil
 }
@@ -527,8 +517,8 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
 	if err != nil {
-		tc.logError("Unable to get the subcscriptions list", err)
-		return nil, err
+		tc.logError("Unable to get the subcscriptions list", NormalizeGraphAPIError(err))
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	var existingSubscription models.Subscriptionable
@@ -554,29 +544,29 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
 			}
 		} else {
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 			if _, err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err2 != nil {
+				tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 				return &Subscription{
 					ID:        *existingSubscription.GetId(),
 					ExpiresOn: *existingSubscription.GetExpirationDateTime(),
 				}, nil
 			}
 
-			tc.logError("Unable to refresh the subscription", "error", err, "subscription", existingSubscription)
 			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", err2, "subscription", existingSubscription)
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
 			}
 		}
 	}
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
-		tc.logError("Unable to create the new subscription", "error", err)
-		return nil, err
+		tc.logError("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	return &Subscription{
@@ -623,16 +613,16 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.SubscriptionsById(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logError("Unable to refresh the subscription", "error", err, "subscriptionID", subscriptionID)
-		return nil, err
+		tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
 }
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.SubscriptionsById(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logError("Unable to delete the subscription", "error", err, "subscriptionID", subscriptionID)
-		return err
+		tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		return NormalizeGraphAPIError(err)
 	}
 	return nil
 }
@@ -640,7 +630,7 @@ func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
 	res, err := tc.client.TeamsById(teamID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	displayName := ""
@@ -663,7 +653,7 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 
 	res, err := tc.client.Groups().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	msTeamsGroups := res.GetValue()
@@ -681,7 +671,7 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*Channel, error) {
 	res, err := tc.client.TeamsById(teamID).ChannelsById(channelID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	displayName := ""
@@ -704,7 +694,7 @@ func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel,
 
 	res, err := tc.client.TeamsById(teamID).Channels().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	msTeamsChannels := res.GetValue()
@@ -728,7 +718,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 	}
 	res, err := tc.client.ChatsById(chatID).Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	chatType := ""
@@ -872,7 +862,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message, error) {
 	res, err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
@@ -880,7 +870,7 @@ func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message,
 func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error) {
 	res, err := tc.client.ChatsById(chatID).MessagesById(messageID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return convertToMessage(res, "", "", chatID), nil
 }
@@ -888,7 +878,7 @@ func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error)
 func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
 	res, err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).RepliesById(replyID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	return convertToMessage(res, teamID, channelID, ""), nil
@@ -897,7 +887,7 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	photo, err := tc.client.UsersById(userID).Photo().Content().Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	return photo, nil
@@ -906,7 +896,7 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	u, err := tc.client.UsersById(userID).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	displayName := ""
@@ -990,7 +980,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 
 	msDrives, err := tc.client.SitesById(*site.GetId()).Drives().Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	var itemRequest *drives.ItemItemsDriveItemItemRequestBuilder
 	var driveID string
@@ -1013,7 +1003,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 
 	item, err := itemRequest.Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 	if !ok {
@@ -1022,7 +1012,7 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 
 	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return data, nil
 }
@@ -1032,7 +1022,7 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 	// with the proper session
 	data, err := drives.NewItemItemsItemContentRequestBuilder(url, tc.client.RequestAdapter).Get(tc.ctx, nil)
 	if err != nil {
-		return "", err
+		return "", NormalizeGraphAPIError(err)
 	}
 	return string(data), nil
 }
@@ -1080,7 +1070,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	}
 	res, err := tc.client.Me().Chats().Get(tc.ctx, configuration)
 	if err != nil {
-		return "", err
+		return "", NormalizeGraphAPIError(err)
 	}
 
 	chatType := models.GROUP_CHATTYPE
@@ -1124,7 +1114,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	newChat.SetMembers(members)
 	resn, err := tc.client.Chats().Post(tc.ctx, newChat, nil)
 	if err != nil {
-		return "", err
+		return "", NormalizeGraphAPIError(err)
 	}
 	return *resn.GetId(), nil
 }
@@ -1139,7 +1129,7 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) e
 	setReaction.SetReactionType(&emoji)
 	setReaction.SetAdditionalData(userInfo)
 
-	return tc.client.ChatsById(chatID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil)
+	return NormalizeGraphAPIError(tc.client.ChatsById(chatID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil))
 }
 
 func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
@@ -1155,7 +1145,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		setReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	} else {
 		setReaction := teams.NewItemChannelsItemMessagesItemRepliesItemSetReactionPostRequestBody()
@@ -1163,7 +1153,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		setReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(messageID).SetReaction().Post(tc.ctx, setReaction, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
@@ -1180,7 +1170,7 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 	unsetReaction.SetReactionType(&emoji)
 	unsetReaction.SetAdditionalData(userInfo)
 
-	return tc.client.ChatsById(chatID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil)
+	return NormalizeGraphAPIError(tc.client.ChatsById(chatID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil))
 }
 
 func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error {
@@ -1196,7 +1186,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		unsetReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	} else {
 		unsetReaction := teams.NewItemChannelsItemMessagesItemRepliesItemUnsetReactionPostRequestBody()
@@ -1204,7 +1194,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		unsetReaction.SetAdditionalData(userInfo)
 
 		if err := tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(messageID).UnsetReaction().Post(tc.ctx, unsetReaction, nil); err != nil {
-			return err
+			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
@@ -1219,7 +1209,7 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 	}
 	r, err := tc.client.Users().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	users := make([]User, len(r.GetValue()))
@@ -1252,7 +1242,7 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 	}
 	r, err := tc.client.Me().JoinedTeams().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	teams := make([]Team, len(r.GetValue()))
 
@@ -1285,7 +1275,7 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 	}
 	r, err := tc.client.TeamsById(teamID).Channels().Get(tc.ctx, configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	channels := make([]Channel, len(r.GetValue()))
 	for i, c := range r.GetValue() {

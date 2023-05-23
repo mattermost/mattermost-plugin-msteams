@@ -8,7 +8,7 @@ import './enforceConnectedAccountModal.css';
 export default function EnforceConnectedAccountModal() {
     const [open, setOpen] = useState(false);
     const [canSkip, setCanSkip] = useState(false);
-    const [connectMessage, setConnectMessage] = useState('');
+    const [connecting, setConnecting] = useState(false);
     const iconURL = `/plugins/${pluginId}/public/msteams-sync-icon.svg`;
 
     const skip = useCallback(() => {
@@ -17,7 +17,8 @@ export default function EnforceConnectedAccountModal() {
 
     const connectAccount = useCallback(() => {
         Client.connect().then((result) => {
-            setConnectMessage(result.message);
+            setConnecting(true);
+            window.open(result?.connectUrl, '_blank');
         });
     }, []);
 
@@ -32,13 +33,13 @@ export default function EnforceConnectedAccountModal() {
         const result = await Client.needsConnect();
         if (!result.needsConnect) {
             setOpen(false);
-            setConnectMessage('');
+            setConnecting(false);
         }
     }, []);
 
     useEffect(() => {
         let interval: any = 0;
-        if (connectMessage) {
+        if (connecting) {
             interval = setInterval(checkConnected, 1000);
         }
         return () => {
@@ -46,7 +47,7 @@ export default function EnforceConnectedAccountModal() {
                 clearInterval(interval);
             }
         };
-    }, [connectMessage]);
+    }, [connecting]);
 
     if (!open) {
         return null;
@@ -56,8 +57,8 @@ export default function EnforceConnectedAccountModal() {
         <div className='EnforceConnectedAccountModal'>
             <img src={iconURL}/>
             <h1>{'Connect your Microsoft Teams Account'}</h1>
-            {!connectMessage && <p>{'For using this server you need to connect your Mattermost account with your MS Teams account, to procced just click in the button'}</p>}
-            {!connectMessage && (
+            {!connecting && <p>{'For using this server you need to connect your Mattermost account with your MS Teams account, to procced just click in the button'}</p>}
+            {!connecting && (
                 <button
                     className='btn btn-primary'
                     onClick={connectAccount}
@@ -65,8 +66,8 @@ export default function EnforceConnectedAccountModal() {
                     {'Connect account'}
                 </button>
             )}
-            {connectMessage && <p className='connectMessage'>{connectMessage}</p>}
-            {canSkip && !connectMessage && (
+            {connecting && <p className='connectUrl'>{'Please go to the new window and complete the login process'}</p>}
+            {canSkip && !connecting && (
                 <a
                     className='skipLink'
                     onClick={skip}
