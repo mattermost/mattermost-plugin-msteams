@@ -930,6 +930,40 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	return &user, nil
 }
 
+func (tc *ClientImpl) GetUserByMail(mail string) (*User, error) {
+	requestFilter := fmt.Sprintf("mail eq '%s'", mail)
+	requestParameters := &users.UsersRequestBuilderGetQueryParameters{
+		Filter: &requestFilter,
+	}
+
+	configuration := &users.UsersRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+
+	result, err := tc.client.Users().Get(context.Background(), configuration)
+	if err != nil {
+		tc.logError("Unable to get the user", "Error", err.Error())
+		return nil, err
+	}
+
+	value := result.GetValue()
+	if len(value) == 0 {
+		tc.logError("Unable to find the user")
+		return nil, errors.New("unable to find the user")
+	}
+
+	displayName := ""
+	if value[0].GetDisplayName() != nil {
+		displayName = *value[0].GetDisplayName()
+	}
+
+	return &User{
+		DisplayName: displayName,
+		ID:          *value[0].GetId(),
+		Mail:        mail,
+	}, nil
+}
+
 func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	u, err := url.Parse(weburl)
 	if err != nil {

@@ -67,16 +67,32 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 	for _, mention := range msg.Mentions {
 		mmMention := ""
 		if mention.UserID != "" {
+			var mmUser *model.User
+			var getErr *model.AppError
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm UserID", "Error", err.Error())
-				continue
-			}
+				msUser, mErr := ah.plugin.GetClientForApp().GetUser(mention.UserID)
+				if mErr != nil {
+					ah.plugin.GetAPI().LogDebug("Unable to get ms user", "Error", mErr.Error())
+					continue
+				}
 
-			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
-			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
-				continue
+				mmUser, getErr = ah.plugin.GetAPI().GetUserByEmail(msUser.Mail)
+				if getErr != nil {
+					ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+					continue
+				}
+
+				sErr := ah.plugin.GetStore().SetUserInfo(mmUser.Id, mention.UserID, nil)
+				if sErr != nil {
+					ah.plugin.GetAPI().LogDebug("Unable to store user info", "Error", sErr.Error())
+				}
+			} else {
+				mmUser, getErr = ah.plugin.GetAPI().GetUser(mmUserID)
+				if getErr != nil {
+					ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+					continue
+				}
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)

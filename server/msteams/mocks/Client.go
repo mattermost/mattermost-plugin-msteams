@@ -413,6 +413,29 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return r0, r1
 }
 
+// GetUserByMail provides a mock function with given fields: mail
+func (_m *Client) GetUserByMail(mail string) (*msteams.User, error) {
+	ret := _m.Called(mail)
+
+	var r0 *msteams.User
+	if rf, ok := ret.Get(0).(func(string) *msteams.User); ok {
+		r0 = rf(mail)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.User)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(mail)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListChannels provides a mock function with given fields: teamID
 func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
 	ret := _m.Called(teamID)

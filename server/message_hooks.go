@@ -747,17 +747,13 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 				continue
 			}
 
-			msteamsUserID, getErr := p.store.MattermostToTeamsUserID(mmUser.Id)
-			if getErr != nil {
-				p.API.LogDebug("Unable to get msteams user ID", "Error", getErr.Error())
-				continue
-			}
-
-			msteamsUser, getErr := client.GetUser(msteamsUserID)
+			msteamsUser, getErr := client.GetUserByMail(mmUser.Email)
 			if getErr != nil {
 				p.API.LogDebug("Unable to get msteams user", "Error", getErr.Error())
 				continue
 			}
+
+			msteamsUserID := msteamsUser.ID
 
 			mentionedText = msteamsUser.DisplayName
 

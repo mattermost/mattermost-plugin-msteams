@@ -38,6 +38,7 @@ type Client interface {
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)
 	GetUser(userID string) (*User, error)
+	GetUserByMail(mail string) (*User, error)
 	GetMyID() (string, error)
 	GetMe() (*User, error)
 	GetFileContent(weburl string) ([]byte, error)
