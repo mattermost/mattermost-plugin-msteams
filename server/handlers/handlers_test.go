@@ -884,9 +884,13 @@ func TestHandleReactions(t *testing.T) {
 		{
 			description: "Reactions list is empty",
 			reactions:   []msteams.Reaction{},
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
-			setupAPI:    func(mockAPI *plugintest.API) {},
-			setupStore:  func(store *mocksStore.Store) {},
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetAPI").Return(mockAPI).Times(2)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{}, nil).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {},
 		},
 		{
 			description: "Unable to get the reactions",
@@ -986,9 +990,7 @@ func TestHandleReactions(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 
-			if len(testCase.reactions) != 0 {
-				mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
-			}
+			mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 
 			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), testCase.reactions)
 		})
