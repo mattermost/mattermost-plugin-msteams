@@ -310,7 +310,7 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 		user.DisplayName = *displayName
 	}
 	if mail != nil {
-		user.Mail = *mail
+		user.Mail = strings.ToLower(*mail)
 	}
 
 	return user, nil
@@ -914,7 +914,7 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	user := User{
 		DisplayName: displayName,
 		ID:          *u.GetId(),
-		Mail:        email,
+		Mail:        strings.ToLower(email),
 	}
 
 	return &user, nil
