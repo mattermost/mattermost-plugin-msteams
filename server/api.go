@@ -350,7 +350,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if mmUser.Id != a.p.GetBotUserID() && strings.ToLower(msteamsUser.Mail) != mmUser.Email {
+	if mmUser.Id != a.p.GetBotUserID() && msteamsUser.Mail != mmUser.Email {
 		a.p.API.LogError("Unable to connect users with different emails")
 		http.Error(w, "cannot connect users with different emails", http.StatusBadRequest)
 		return
