@@ -468,12 +468,16 @@ func TestProcessLifecycle(t *testing.T) {
 func TestAutocompleteTeams(t *testing.T) {
 	for _, test := range []struct {
 		Name           string
+		SetupAPI       func(*plugintest.API)
 		SetupStore     func(*storemocks.Store)
 		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
 		ExpectedResult []model.AutocompleteListItem
 	}{
 		{
 			Name: "AutocompleteTeams: Unable to get client for the user",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
@@ -482,6 +486,9 @@ func TestAutocompleteTeams(t *testing.T) {
 		},
 		{
 			Name: "AutocompleteTeams: Unable to get the teams list",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the MS Teams teams", "Error", "unable to get the teams list").Once()
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
@@ -492,6 +499,9 @@ func TestAutocompleteTeams(t *testing.T) {
 		},
 		{
 			Name: "AutocompleteTeams: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Successfully fetched the list of teams", "Count", 2).Once()
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
@@ -526,6 +536,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
+			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
@@ -548,18 +559,23 @@ func TestAutocompleteChannels(t *testing.T) {
 	for _, test := range []struct {
 		Name           string
 		QueryParams    string
+		SetupAPI       func(*plugintest.API)
 		SetupStore     func(*storemocks.Store)
 		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
 		ExpectedResult []model.AutocompleteListItem
 	}{
 		{
 			Name:           "AutocompleteChannels: Query params not present",
+			SetupAPI:       func(a *plugintest.API) {},
 			SetupStore:     func(store *storemocks.Store) {},
 			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
-			Name:        "AutocompleteChannels: Unable to get client for the user",
+			Name: "AutocompleteChannels: Unable to get client for the user",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -568,7 +584,10 @@ func TestAutocompleteChannels(t *testing.T) {
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
-			Name:        "AutocompleteChannels: Unable to get the channels list",
+			Name: "AutocompleteChannels: Unable to get the channels list",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the channels for MS Teams team", "TeamID", "mockData-3", "Error", "unable to get the channels list").Once()
+			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -579,7 +598,10 @@ func TestAutocompleteChannels(t *testing.T) {
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
-			Name:        "AutocompleteChannels: Valid",
+			Name: "AutocompleteChannels: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Successfully fetched the list of channels for MS Teams team", "TeamID", "mockData-3", "Count", 2).Once()
+			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -615,6 +637,7 @@ func TestAutocompleteChannels(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
+			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
