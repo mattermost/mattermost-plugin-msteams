@@ -6,6 +6,7 @@
 - [Installation](#installation)
 - [Setup](#setup)
 - [Connecting to MS Teams](#connecting-to-ms-teams)
+- [FAQs](#faqs)
 
 ## License
 
@@ -76,3 +77,7 @@ There are two methods by which you can connect your Mattermost account to your M
     - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link to connect your account.
     - Click on that link. If it asks for login, enter your Microsoft credentials to connect your account.
     - Refer [here](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
+
+- **FAQs**
+    - Read about the FAQs [here](./docs/faqs.md)
+    
