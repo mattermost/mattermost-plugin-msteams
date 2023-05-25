@@ -382,7 +382,7 @@ func (p *Plugin) syncUsers() {
 	}
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
-		p.API.LogError("Unable to get MM users during sync user job", "error", appErr)
+		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
