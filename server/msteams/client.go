@@ -27,6 +27,7 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
+	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"golang.org/x/oauth2"
 )
@@ -521,13 +522,18 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	pageIterator, err := msgraphcore.NewPageIterator[models.Subscriptionable](subscriptionsRes, tc.client.GetAdapter(), models.CreateSubscriptionCollectionResponseFromDiscriminatorValue)
+
 	var existingSubscription models.Subscriptionable
-	for _, s := range subscriptionsRes.GetValue() {
-		subscription := s
+	err = pageIterator.Iterate(context.Background(), func(subscription models.Subscriptionable) bool {
 		if subscription.GetResource() != nil && (*subscription.GetResource() == resource || *subscription.GetResource()+"?model=B" == resource) {
 			existingSubscription = subscription
-			break
+			return false
 		}
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	lifecycleNotificationURL := baseURL + "lifecycle"
@@ -1178,24 +1184,32 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	users := make([]User, len(r.GetValue()))
-	for i, u := range r.GetValue() {
+	pageIterator, err := msgraphcore.NewPageIterator[models.Userable](r, tc.client.GetAdapter(), models.CreateUserCollectionResponseFromDiscriminatorValue)
+
+	users := []User{}
+	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
 		displayName := ""
 		if u.GetDisplayName() != nil {
 			displayName = *u.GetDisplayName()
 		}
 
-		users[i] = User{
+		user := User{
 			DisplayName: displayName,
 			ID:          *u.GetId(),
 		}
 
 		if u.GetMail() != nil {
-			users[i].Mail = strings.ToLower(*u.GetMail())
+			user.Mail = strings.ToLower(*u.GetMail())
 		} else if u.GetUserPrincipalName() != nil {
-			users[i].Mail = strings.ToLower(*u.GetUserPrincipalName())
+			user.Mail = strings.ToLower(*u.GetUserPrincipalName())
 		}
+		users = append(users, user)
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
 	}
+
 	return users, nil
 }
 
@@ -1210,9 +1224,11 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
-	teams := make([]Team, len(r.GetValue()))
 
-	for i, t := range r.GetValue() {
+	pageIterator, err := msgraphcore.NewPageIterator[models.Teamable](r, tc.client.GetAdapter(), models.CreateTeamCollectionResponseFromDiscriminatorValue)
+
+	teams := []Team{}
+	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
 		description := ""
 		if t.GetDescription() != nil {
 			description = *t.GetDescription()
@@ -1223,11 +1239,15 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 			displayName = *t.GetDisplayName()
 		}
 
-		teams[i] = Team{
+		teams = append(teams, Team{
 			DisplayName: displayName,
 			Description: description,
 			ID:          *t.GetId(),
-		}
+		})
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return teams, nil
 }
@@ -1243,8 +1263,11 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
-	channels := make([]Channel, len(r.GetValue()))
-	for i, c := range r.GetValue() {
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.Channelable](r, tc.client.GetAdapter(), models.CreateChannelCollectionResponseFromDiscriminatorValue)
+
+	channels := []Channel{}
+	err = pageIterator.Iterate(context.Background(), func(c models.Channelable) bool {
 		description := ""
 		if c.GetDescription() != nil {
 			description = *c.GetDescription()
@@ -1255,11 +1278,15 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 			displayName = *c.GetDisplayName()
 		}
 
-		channels[i] = Channel{
+		channels = append(channels, Channel{
 			DisplayName: displayName,
 			Description: description,
 			ID:          *c.GetId(),
-		}
+		})
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
 	}
 	return channels, nil
 }
