@@ -374,14 +374,15 @@ func (p *Plugin) syncUsersPeriodically(ctx context.Context, minutes int) {
 }
 
 func (p *Plugin) syncUsers() {
+	p.API.LogDebug("Starting sync user job")
 	msUsers, err := p.msteamsAppClient.ListUsers()
 	if err != nil {
-		p.API.LogError("Unable to sync users", "error", err)
+		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return
 	}
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
-		p.API.LogError("Unable to sync users", "error", appErr)
+		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
@@ -395,6 +396,8 @@ func (p *Plugin) syncUsers() {
 		if msUser.Mail == "" {
 			continue
 		}
+
+		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
 
@@ -422,7 +425,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to sync user", "error", appErr.Error())
+					p.API.LogError("Unable to create new MM user during sync job", "email", msUser.Mail, "error", appErr.Error())
 					break
 				}
 
@@ -435,7 +438,7 @@ func (p *Plugin) syncUsers() {
 
 			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
 			if err != nil {
-				p.API.LogError("Unable to sync user", "error", err)
+				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -449,7 +452,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to sync user", "error", err.Error())
+					p.API.LogError("Unable to update user during sync user job", "email", mmUser.Email, "error", err.Error())
 					break
 				}
 

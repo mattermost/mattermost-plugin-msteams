@@ -292,9 +292,9 @@ func TestSyncUsers(t *testing.T) {
 		SetupClient func(*mocks.Client)
 	}{
 		{
-			Name: "SyncUsers: Unable to get the user list",
+			Name: "SyncUsers: Unable to get the MS Teams user list",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to sync users", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to list MS Teams users during sync user job", "error", mock.Anything).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {},
 			SetupClient: func(client *mocks.Client) {
@@ -302,9 +302,9 @@ func TestSyncUsers(t *testing.T) {
 			},
 		},
 		{
-			Name: "SyncUsers: Unable to get the users",
+			Name: "SyncUsers: Unable to get the MM users",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to sync users", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to get MM users during sync user job", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Active:  true,
 					Page:    0,
@@ -324,7 +324,7 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to create the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to sync user", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to create new MM user during sync job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Active:  true,
 					Page:    0,
@@ -347,7 +347,7 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to store the user info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to sync user", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to set user info during sync user job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Active:  true,
 					Page:    0,
