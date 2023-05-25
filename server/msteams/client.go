@@ -523,6 +523,9 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	}
 
 	pageIterator, err := msgraphcore.NewPageIterator[models.Subscriptionable](subscriptionsRes, tc.client.GetAdapter(), models.CreateSubscriptionCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
 
 	var existingSubscription models.Subscriptionable
 	err = pageIterator.Iterate(context.Background(), func(subscription models.Subscriptionable) bool {
@@ -1185,6 +1188,9 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 	}
 
 	pageIterator, err := msgraphcore.NewPageIterator[models.Userable](r, tc.client.GetAdapter(), models.CreateUserCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
 
 	users := []User{}
 	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
@@ -1226,6 +1232,9 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 	}
 
 	pageIterator, err := msgraphcore.NewPageIterator[models.Teamable](r, tc.client.GetAdapter(), models.CreateTeamCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
 
 	teams := []Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
@@ -1265,6 +1274,9 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 	}
 
 	pageIterator, err := msgraphcore.NewPageIterator[models.Channelable](r, tc.client.GetAdapter(), models.CreateChannelCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
 
 	channels := []Channel{}
 	err = pageIterator.Iterate(context.Background(), func(c models.Channelable) bool {
