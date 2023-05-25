@@ -425,7 +425,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to create new mm user during sync job", "email", msUser.Mail, "error", appErr.Error())
+					p.API.LogError("Unable to create new MM user during sync job", "email", msUser.Mail, "error", appErr.Error())
 					break
 				}
 
