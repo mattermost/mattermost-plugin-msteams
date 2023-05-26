@@ -973,6 +973,32 @@ func TestGetAutocompleteData(t *testing.T) {
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
 					},
+					{
+						Trigger:  "promote",
+						HelpText: "Promote a user from synthetic user account to regular mattermost account",
+						RoleID:   model.SystemAdminRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								HelpText: "Username of the existing mattermost user",
+								Type:     "TextInput",
+								Required: true,
+								Data: &model.AutocompleteTextArg{
+									Hint:    "username",
+									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+							{
+								HelpText: "The new username after the user is promoted",
+								Type:     "TextInput",
+								Required: true,
+								Data: &model.AutocompleteTextArg{
+									Hint:    "new username",
+									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
 				},
 			},
 		},
@@ -980,6 +1006,185 @@ func TestGetAutocompleteData(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			autocompleteData := getAutocompleteData()
 			assert.Equal(t, testCase.autocompleteData, autocompleteData)
+		})
+	}
+}
+
+func TestExecutePromoteCommand(t *testing.T) {
+	p := newTestPlugin(t)
+
+	for _, testCase := range []struct {
+		description string
+		params      []string
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
+	}{
+		{
+			description: "No params",
+			params:      []string{},
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Invalid promote command, please pass the current username and promoted username as parameters.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {},
+		},
+		{
+			description: "Too many params",
+			params:      []string{"user1", "user2", "user3"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Invalid promote command, please pass the current username and promoted username as parameters.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {},
+		},
+		{
+
+			description: "Not admin permissions",
+			params:      []string{"valid-user", "valid-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Unable to execute the command, only system admins have access to execute this command.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {},
+		},
+		{
+			description: "Not existing user",
+			params:      []string{"not-existing-user", "not-existing-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "not-existing-user").Return(nil, &model.AppError{}).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error: Unable to promote account not-existing-user, user not found",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {},
+		},
+		{
+			description: "Existing user but not without msteams relation",
+			params:      []string{"existing-user", "existing-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "existing-user").Return(&model.User{Id: "test", Username: "existing-user", RemoteId: model.NewString("test")}, nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error: Unable to promote account existing-user, it is not a known msteams user account",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("", errors.New("not-found")).Times(1)
+			},
+		},
+		{
+			description: "Existing user, with msteams relation but without remote id",
+			params:      []string{"existing-user", "existing-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "existing-user").Return(&model.User{Id: "test", Username: "existing-user", RemoteId: nil}, nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error: Unable to promote account existing-user, it is already a regular account",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user, but new username is already taken",
+			params:      []string{"valid-user", "new-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
+				api.On("GetUserByUsername", "new-user").Return(&model.User{Id: "test2", Username: "new-user", RemoteId: nil}, nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error: the promoted username already exists, please use a different username.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user and valid new username, but error on update",
+			params:      []string{"valid-user", "new-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
+				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
+				api.On("UpdateUser", mock.Anything).Return(nil, &model.AppError{}).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error: Unable to promote account valid-user",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user and valid new username",
+			params:      []string{"valid-user", "new-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
+				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
+				api.On("UpdateUser", &model.User{Id: "test", Username: "new-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "new-user", RemoteId: nil}, nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Account valid-user has been promoted and updated the username to new-user",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user and valid new username with same username",
+			params:      []string{"valid-user", "valid-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Times(2)
+				api.On("UpdateUser", &model.User{Id: "test", Username: "valid-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "valid-user", RemoteId: nil}, nil).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Account valid-user has been promoted and updated the username to valid-user",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockAPI := &plugintest.API{}
+
+			p.SetAPI(mockAPI)
+			testCase.setupAPI(mockAPI)
+			testCase.setupStore(p.store.(*mockStore.Store))
+
+			_, _ = p.executePromoteUserCommand(&model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			}, testCase.params)
 		})
 	}
 }
