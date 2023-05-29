@@ -380,12 +380,15 @@ func (p *Plugin) syncUsers() {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return
 	}
+
+	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
+	p.API.LogDebug("Count of MM users", "count", len(mmUsers))
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
 	for _, u := range mmUsers {
 		mmUsersMap[u.Email] = u
