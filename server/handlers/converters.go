@@ -31,6 +31,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := ah.handleMentions(msg)
+	text = handleEmojis(text)
 	text = convertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -92,6 +93,25 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 	}
 
 	return msg.Text
+}
+
+func handleEmojis(text string) string {
+	emojisData := strings.Split(text, "</emoji>")
+
+	for idx, emojiData := range emojisData {
+		if idx == len(emojisData)-1 {
+			break
+		}
+
+		emoji := emojiRE.FindString(emojiData)
+		emojiIdx := strings.Index(emojiData, "<emoji")
+		titleIdx := strings.Index(emoji, "title")
+		if emojiIdx != -1 && titleIdx != -1 {
+			text = strings.Replace(text, emojiData[emojiIdx:]+"</emoji>", emoji[5:titleIdx-2], 1)
+		}
+	}
+
+	return text
 }
 
 func convertToMD(text string) string {
