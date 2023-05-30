@@ -105,17 +105,19 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 		}
 
 		emojiIdx := strings.Index(emojiData, "<emoji")
-		emojiData = emojiData[emojiIdx:] + "</emoji>"
-		doc, err := html.Parse(strings.NewReader(emojiData))
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "EmojiData", emojiData, "Error", err.Error())
-			continue
-		}
+		if emojiIdx != -1 {
+			emojiData = emojiData[emojiIdx:] + "</emoji>"
+			doc, err := html.Parse(strings.NewReader(emojiData))
+			if err != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "EmojiData", emojiData, "Error", err.Error())
+				continue
+			}
 
-		for _, a := range doc.FirstChild.FirstChild.NextSibling.FirstChild.Attr {
-			if a.Key == "alt" {
-				text = strings.Replace(text, emojiData, a.Val, 1)
-				break
+			for _, a := range doc.FirstChild.FirstChild.NextSibling.FirstChild.Attr {
+				if a.Key == "alt" {
+					text = strings.Replace(text, emojiData, a.Val, 1)
+					break
+				}
 			}
 		}
 	}
