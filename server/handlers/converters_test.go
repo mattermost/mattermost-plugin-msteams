@@ -239,6 +239,7 @@ func TestConvertToMD(t *testing.T) {
 }
 
 func TestHandleEmojis(t *testing.T) {
+	ah := ActivityHandler{}
 	for _, testCase := range []struct {
 		description    string
 		text           string
@@ -271,7 +272,9 @@ func TestHandleEmojis(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			text := handleEmojis(testCase.text)
+			p := mocksPlugin.NewPluginIface(t)
+			ah.plugin = p
+			text := ah.handleEmojis(testCase.text)
 			assert.Equal(t, text, testCase.expectedOutput)
 		})
 	}

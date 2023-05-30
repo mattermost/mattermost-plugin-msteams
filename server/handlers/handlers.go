@@ -17,7 +17,6 @@ import (
 var emojisReverseMap map[string]string
 
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
-var emojiRE = regexp.MustCompile(`alt=".*"`)
 
 const (
 	lastReceivedChangeKey = "last_received_change"
