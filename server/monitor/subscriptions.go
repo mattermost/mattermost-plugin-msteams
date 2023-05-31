@@ -32,9 +32,11 @@ func (m *Monitor) checkChannelsSubscriptions() {
 				m.api.LogError("Unable to recreate channel subscription properly", "error", err)
 			}
 		} else {
-			err := m.refreshSubscription(subscription.SubscriptionID)
-			if err != nil {
-				m.api.LogError("Unable to refresh channel subscription properly", "error", err)
+			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
+				m.api.LogDebug("Unable to refresh channel subscription properly", "error", err)
+				if err := m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret); err != nil {
+					m.api.LogError("Unable to recreate channel subscription properly", "error", err)
+				}
 			}
 		}
 	}
@@ -51,13 +53,15 @@ func (m *Monitor) checkChatsSubscriptions() {
 
 	for _, subscription := range subscriptions {
 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
-			err := m.recreateChatSubscription(subscription.SubscriptionID, subscription.UserID, subscription.Secret)
-			if err != nil {
+			if err := m.recreateChatSubscription(subscription.SubscriptionID, subscription.UserID, subscription.Secret); err != nil {
 				m.api.LogError("Unable to recreate chat subscription properly", "error", err)
 			}
 		} else {
 			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogError("Unable to refresh chat subscription properly", "error", err)
+				m.api.LogDebug("Unable to refresh chat subscription properly", "error", err)
+				if err := m.recreateChatSubscription(subscription.SubscriptionID, subscription.UserID, subscription.Secret); err != nil {
+					m.api.LogError("Unable to recreate chat subscription properly", "error", err)
+				}
 			}
 		}
 	}
@@ -78,7 +82,10 @@ func (m *Monitor) checkGlobalSubscriptions() {
 			}
 		} else {
 			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogError("Unable to refresh global subscription properly", "error", err)
+				m.api.LogDebug("Unable to refresh global subscription properly", "error", err)
+				if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Type, subscription.Secret); err != nil {
+					m.api.LogError("Unable to recreate global subscription properly", "error", err)
+				}
 			}
 		}
 	}
@@ -116,6 +123,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, s
 	}
 
 	if subscriptionType != "allChats" {
+		_ = m.store.DeleteSubscription(subscriptionID)
 		return errors.New("invalid subscription type")
 	}
 
