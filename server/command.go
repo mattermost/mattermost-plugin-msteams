@@ -82,6 +82,12 @@ func getAutocompleteData() *model.AutocompleteData {
 	disconnectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(disconnectBot)
 
+	promoteUser := model.NewAutocompleteData("promote", "", "Promote a user from synthetic user account to regular mattermost account")
+	promoteUser.AddTextArgument("Username of the existing mattermost user", "username", `^[a-z0-9\.\-_:]+$`)
+	promoteUser.AddTextArgument("The new username after the user is promoted", "new username", `^[a-z0-9\.\-_:]+$`)
+	promoteUser.RoleID = model.SystemAdminRoleId
+	cmd.AddCommand(promoteUser)
+
 	return cmd
 }
 
@@ -131,6 +137,10 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "disconnect-bot" {
 		return p.executeDisconnectBotCommand(args)
+	}
+
+	if action == "promote" {
+		return p.executePromoteUserCommand(args, parameters)
 	}
 
 	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
@@ -450,6 +460,61 @@ func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.Co
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The bot account has been disconnected.")
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	if len(parameters) != 2 {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Invalid promote command, please pass the current username and promoted username as parameters.")
+		return &model.CommandResponse{}, nil
+	}
+
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
+		return &model.CommandResponse{}, nil
+	}
+
+	username := parameters[0]
+	newUsername := parameters[1]
+
+	var user *model.User
+	var appErr *model.AppError
+	if strings.HasPrefix(username, "@") {
+		user, appErr = p.API.GetUserByUsername(username[1:])
+	} else {
+		user, appErr = p.API.GetUserByUsername(username)
+	}
+	if appErr != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", user not found")
+		return &model.CommandResponse{}, nil
+	}
+
+	userID, err := p.store.MattermostToTeamsUserID(user.Id)
+	if err != nil || userID == "" {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", it is not a known msteams user account")
+		return &model.CommandResponse{}, nil
+	}
+
+	if user.RemoteId == nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", it is already a regular account")
+		return &model.CommandResponse{}, nil
+	}
+
+	newUser, appErr := p.API.GetUserByUsername(newUsername)
+	if appErr == nil && newUser != nil && newUser.Id != user.Id {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: the promoted username already exists, please use a different username.")
+		return &model.CommandResponse{}, nil
+	}
+
+	user.RemoteId = nil
+	user.Username = newUsername
+	_, appErr = p.API.UpdateUser(user)
+	if appErr != nil {
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)
+		return &model.CommandResponse{}, nil
+	}
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Account "+username+" has been promoted and updated the username to "+newUsername)
 	return &model.CommandResponse{}, nil
 }
 
