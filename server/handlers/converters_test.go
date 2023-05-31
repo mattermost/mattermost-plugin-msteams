@@ -237,3 +237,45 @@ func TestConvertToMD(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleEmojis(t *testing.T) {
+	ah := ActivityHandler{}
+	for _, testCase := range []struct {
+		description    string
+		text           string
+		expectedOutput string
+	}{
+		{
+			description:    "Text with emoji in end",
+			text:           `<div><div>hi <emoji id="lipssealed" alt="🤫" title=""></emoji><emoji id="1f61b_facewithtongue" alt="😛" title=""></emoji></div></div>`,
+			expectedOutput: "<div><div>hi 🤫😛</div></div>",
+		},
+		{
+			description:    "Text between emoji",
+			text:           `<div><div>hiii <emoji id="lipssealed" alt="🤫" title=""></emoji> hi <emoji id="1f61b_facewithtongue" alt="😛" title=""></emoji></div></div>`,
+			expectedOutput: "<div><div>hiii 🤫 hi 😛</div></div>",
+		},
+		{
+			description:    "Text with emoji in start",
+			text:           `<div><div><emoji id="lipssealed" alt="🤫" title=""></emoji><emoji id="1f61b_facewithtongue" alt="😛" title=""></emoji> hi</div></div>`,
+			expectedOutput: "<div><div>🤫😛 hi</div></div>",
+		},
+		{
+			description:    "Text with only emoji",
+			text:           `<div><div><emoji id="lipssealed" alt="🤫" title=""></emoji><emoji id="1f61b_facewithtongue" alt="😛" title=""></emoji></div></div>`,
+			expectedOutput: "<div><div>🤫😛</div></div>",
+		},
+		{
+			description:    "Text with random formatting",
+			text:           `<div><div> hi   <emoji id="lipssealed" alt="🤫" title=""></emoji> hello  <emoji id="1f61b_facewithtongue" alt="😛" title=""></emoji> hey    </div></div>`,
+			expectedOutput: "<div><div> hi   🤫 hello  😛 hey    </div></div>",
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p := mocksPlugin.NewPluginIface(t)
+			ah.plugin = p
+			text := ah.handleEmojis(testCase.text)
+			assert.Equal(t, text, testCase.expectedOutput)
+		})
+	}
+}

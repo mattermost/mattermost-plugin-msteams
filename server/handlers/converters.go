@@ -8,6 +8,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattn/godown"
+	"golang.org/x/net/html"
 )
 
 func (ah *ActivityHandler) GetAvatarURL(userID string) string {
@@ -31,6 +32,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := ah.handleMentions(msg)
+	text = ah.handleEmojis(text)
 	text = convertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -92,6 +94,35 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 	}
 
 	return msg.Text
+}
+
+func (ah *ActivityHandler) handleEmojis(text string) string {
+	emojisData := strings.Split(text, "</emoji>")
+
+	for idx, emojiData := range emojisData {
+		if idx == len(emojisData)-1 {
+			break
+		}
+
+		emojiIdx := strings.Index(emojiData, "<emoji")
+		if emojiIdx != -1 {
+			emojiData = emojiData[emojiIdx:] + "</emoji>"
+			doc, err := html.Parse(strings.NewReader(emojiData))
+			if err != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "EmojiData", emojiData, "Error", err.Error())
+				continue
+			}
+
+			for _, a := range doc.FirstChild.FirstChild.NextSibling.FirstChild.Attr {
+				if a.Key == "alt" {
+					text = strings.Replace(text, emojiData, a.Val, 1)
+					break
+				}
+			}
+		}
+	}
+
+	return text
 }
 
 func convertToMD(text string) string {
