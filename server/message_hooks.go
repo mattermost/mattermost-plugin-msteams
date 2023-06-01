@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ func (p *Plugin) MessageWillBePosted(_ *plugin.Context, post *model.Post) (*mode
 			return post, ""
 		}
 		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-			members, err := p.API.GetChannelMembers(channel.Id, 0, 10)
+			members, err := p.API.GetChannelMembers(channel.Id, 0, math.MaxInt32)
 			if err != nil {
 				return post, ""
 			}
@@ -68,7 +69,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, 10)
+			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 			if appErr != nil {
 				return
 			}
@@ -184,7 +185,7 @@ func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *mode
 			return
 		}
 
-		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, 10)
+		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
 			return
 		}
@@ -586,7 +587,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
-		return err
+		// If the error is regarding payment required for metered APIs, ignore it and continue because
+		// the post is updated regardless
+		if !strings.Contains(err.Error(), "code: PaymentRequired") {
+			return err
+		}
 	}
 
 	var updatedMessage *msteams.Message
@@ -663,7 +668,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 		return "", errors.New("invalid channel type, chatID is only available for direct messages and group messages")
 	}
 
-	members, appErr := p.API.GetChannelMembers(channelID, 0, 10)
+	members, appErr := p.API.GetChannelMembers(channelID, 0, math.MaxInt32)
 	if appErr != nil {
 		return "", appErr
 	}
