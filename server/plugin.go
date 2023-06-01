@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
@@ -239,7 +240,8 @@ func (p *Plugin) Decrypt(ciphertext []byte) ([]byte, error) {
 		p.API.LogDebug("Unable to get private key", "error", err)
 		return nil, err
 	}
-	plaintext, err := key.Decrypt(rand.Reader, ciphertext, nil)
+	hash := sha1.New()
+	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
 	if err != nil {
 		p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
 		return nil, err

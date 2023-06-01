@@ -127,6 +127,7 @@ type Activity struct {
 	SubscriptionExpirationDateTime time.Time
 	SubscriptionID                 string
 	EncryptedContent               EncryptedContent
+	Content                        []byte
 }
 
 type EncryptedContent struct {
