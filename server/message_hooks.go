@@ -587,6 +587,8 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
 		p.API.LogWarn("Error updating the post", "error", err)
+		// If the error is regarding payment required for metered APIs, ignore it and continue because
+		// the post is updated regardless
 		if !strings.Contains(err.Error(), "code: PaymentRequired") {
 			return err
 		}
