@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -87,6 +88,17 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
+		if activity.EncryptedContent.Data != "" {
+			sDec, err := base64.StdEncoding.DecodeString(activity.EncryptedContent.Data)
+			if err != nil {
+				a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
+			}
+			decripted, err := a.p.Decrypt(sDec)
+			if err != nil {
+				a.p.API.LogDebug("Unable to decrypt encrypted data", "error", err, "data", sDec)
+			}
+			a.p.API.LogDebug("DECRIPTED DATA", "data", string(decripted))
+		}
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
@@ -144,7 +156,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
 			continue
 		}
-		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI)
+		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI, a.p.getBase64Certificate())
 	}
 
 	w.WriteHeader(http.StatusOK)

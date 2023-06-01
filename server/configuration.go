@@ -30,6 +30,8 @@ type configuration struct {
 	SyncUsers             int    `json:"syncusers"`
 	EnforceConnectedUsers bool   `json:"enforceconnectedusers"`
 	AllowSkipConnectUsers bool   `json:"allowskipconnectusers"`
+	CertificatePublic     string `json:"certificatepublic"`
+	CertificateKey        string `json:"certificatekey"`
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if

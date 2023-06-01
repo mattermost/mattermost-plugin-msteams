@@ -92,7 +92,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
-func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool) {
+func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool, certificate string) {
 	if !ah.checkSubscription(event.SubscriptionID) {
 		return
 	}
@@ -107,12 +107,12 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 			}
 		}
 	} else if event.LifecycleEvent == "subscriptionRemoved" {
-		_, err := ah.plugin.GetClientForApp().SubscribeToChannels(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
+		_, err := ah.plugin.GetClientForApp().SubscribeToChannels(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI, certificate)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to subscribe to channels", "error", err)
 		}
 
-		_, err = ah.plugin.GetClientForApp().SubscribeToChats(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
+		_, err = ah.plugin.GetClientForApp().SubscribeToChats(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI, certificate)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to subscribe to chats", "error", err)
 		}

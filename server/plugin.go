@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"math/big"
@@ -64,6 +67,8 @@ type Plugin struct {
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
+	publicKey              *rsa.PublicKey
+	privateKey             *rsa.PrivateKey
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -145,7 +150,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err)
 	}
@@ -167,6 +172,79 @@ func (p *Plugin) start(syncSince *time.Time) {
 func (p *Plugin) syncSince(syncSince time.Time) {
 	// TODO: Implement the sync mechanism
 	p.API.LogDebug("Syncing since", "date", syncSince)
+}
+
+func (p *Plugin) getBase64Certificate() string {
+	certificate := p.getConfiguration().CertificatePublic
+	if certificate == "" {
+		return ""
+	}
+	block, _ := pem.Decode([]byte(certificate))
+	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(block))
+}
+
+func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
+	keyPemString := p.getConfiguration().CertificateKey
+	if keyPemString == "" {
+		return nil, errors.New("certificate private key not configured")
+	}
+	privPem, _ := pem.Decode([]byte(keyPemString))
+	var privPemBytes []byte
+	if privPem.Type != "RSA PRIVATE KEY" {
+		p.API.LogDebug("RSA private key is of the wrong type", "type", privPem.Type)
+	}
+	privPemBytes = privPem.Bytes
+
+	var err error
+	var parsedKey interface{}
+	if parsedKey, err = x509.ParsePKCS1PrivateKey(privPemBytes); err != nil {
+		if parsedKey, err = x509.ParsePKCS8PrivateKey(privPemBytes); err != nil { // note this returns type `interface{}`
+			if parsedKey, err = x509.ParseECPrivateKey(privPemBytes); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	var privateKey *rsa.PrivateKey
+	var ok bool
+	privateKey, ok = parsedKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("Not valid key")
+	}
+
+	// publicPemString := p.getConfiguration().CertificatePublic
+	// pubPem, _ := pem.Decode([]byte(publicPemString))
+	// if pubPem == nil || pubPem.Type != "RSA PUBLIC KEY" {
+	// 	// return nil, errors.New("invalid key type")
+	// 	p.API.LogDebug("RSA public key is of the wrong type", "type", privPem.Type)
+	// }
+
+	// if parsedKey, err = x509.ParsePKIXPublicKey(pubPem.Bytes); err != nil {
+	// 	return nil, err
+	// }
+
+	// var pubKey *rsa.PublicKey
+	// if pubKey, ok = parsedKey.(*rsa.PublicKey); !ok {
+	// 	return nil, errors.New("not valid public certificate")
+	// }
+
+	// privateKey.PublicKey = *pubKey
+
+	return privateKey, nil
+}
+
+func (p *Plugin) Decrypt(ciphertext []byte) ([]byte, error) {
+	key, err := p.getPrivateKey()
+	if err != nil {
+		p.API.LogDebug("Unable to get private key", "error", err)
+		return nil, err
+	}
+	plaintext, err := key.Decrypt(rand.Reader, ciphertext, nil)
+	if err != nil {
+		p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
+		return nil, err
+	}
+	return plaintext, nil
 }
 
 func (p *Plugin) startSubscriptions() {
@@ -198,7 +276,7 @@ func (p *Plugin) startSubscriptions() {
 	}
 
 	for _, link := range links {
-		channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+		channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 		if err2 != nil {
 			p.API.LogError("Unable to subscribe to channels", "error", err2)
 			continue
@@ -217,7 +295,7 @@ func (p *Plugin) startSubscriptions() {
 		}
 	}
 
-	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
+	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err != nil {
 		p.API.LogError("Unable to subscribe to chats", "error", err)
 		return

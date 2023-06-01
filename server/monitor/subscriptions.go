@@ -96,7 +96,7 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
-	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
+	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
 	}
 
-	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret)
+	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret, m.certificate)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, subscriptionType, s
 		return errors.New("invalid subscription type")
 	}
 
-	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
+	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		return err
 	}

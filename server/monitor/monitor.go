@@ -18,10 +18,11 @@ type Monitor struct {
 	cancel           context.CancelFunc
 	baseURL          string
 	webhookSecret    string
+	certificate      string
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
@@ -29,6 +30,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, baseURL strin
 		baseURL:          baseURL,
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,
+		certificate:      certificate,
 	}
 }
 
