@@ -208,7 +208,7 @@ func (p *Plugin) startSubscriptions() {
 		if err != nil {
 			p.API.LogError("Unable to subscribe to chats", "error", err)
 			// Mark this subscription to be created and retried by the monitor system
-			p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+			_ = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
 				SubscriptionID: "fake-subscription-id",
 				Type:           "allChats",
 				ExpiresOn:      time.Now(),
@@ -242,7 +242,7 @@ func (p *Plugin) startSubscriptions() {
 			if err2 != nil {
 				p.API.LogError("Unable to subscribe to channels", "error", err2)
 				// Mark this subscription to be created and retried by the monitor system
-				p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 					SubscriptionID: "fake-subscription-id",
 					TeamID:         link.MSTeamsTeam,
 					ChannelID:      link.MSTeamsChannel,
