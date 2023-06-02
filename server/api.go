@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -56,16 +58,17 @@ func decrypt(key []byte, ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < aes.BlockSize {
 		return nil, errors.New("ciphertext too short")
 	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
+	iv := key[:16]
 
 	// CBC mode always works in whole blocks.
-	if len(ciphertext)%aes.BlockSize != 0 {
+	if len(ciphertext)%block.BlockSize() != 0 {
 		return nil, errors.New("ciphertext is not a multiple of the block size")
 	}
 	mode := cipher.NewCBCDecrypter(block, iv)
 	result := make([]byte, len(ciphertext))
 	mode.CryptBlocks(result, ciphertext)
+	resultPadding := int(result[len(result)-1])
+	result = result[:len(result)-resultPadding]
 	return result, nil
 }
 
@@ -95,6 +98,45 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	sDec, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode key", "error", err)
+		return nil, err
+	}
+	msKey, err := a.p.Decrypt(sDec)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt key", "error", err, "data", sDec)
+		return nil, err
+	}
+	a.p.API.LogDebug("DECRIPTED DATA Key", "data", string(msKey))
+	msData, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
+		return nil, err
+	}
+	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode data signature", "error", err)
+		return nil, err
+	}
+	mac := hmac.New(sha256.New, msKey)
+	mac.Write(msData)
+	expectedMac := mac.Sum(nil)
+	if !hmac.Equal(expectedMac, msDataSignature) {
+		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't matches"))
+		return nil, errors.New("The key signature doesn't matches")
+	}
+
+	data, err := decrypt(msKey, msData)
+	if err != nil {
+		a.p.API.LogDebug("Unable decrypt data", "error", err)
+		return nil, err
+	}
+	a.p.API.LogDebug("DECRIPTED DATA", "data", string(data))
+	return data, nil
+}
+
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
@@ -116,25 +158,11 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	errors := ""
 	for _, activity := range activities.Value {
 		if activity.EncryptedContent.Data != "" {
-			sDec, err := base64.StdEncoding.DecodeString(activity.EncryptedContent.DataKey)
+			content, err := a.processEncryptedContent(activity.EncryptedContent)
 			if err != nil {
-				a.p.API.LogDebug("Unable to decode key", "error", err)
+				a.p.API.LogError("Invalid encrypted content", "error", err)
 			}
-			msKey, err := a.p.Decrypt(sDec)
-			if err != nil {
-				a.p.API.LogDebug("Unable to decrypt key", "error", err, "data", sDec)
-			}
-			a.p.API.LogDebug("DECRIPTED DATA Key", "data", string(msKey))
-			msData, err := base64.StdEncoding.DecodeString(activity.EncryptedContent.Data)
-			if err != nil {
-				a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
-			}
-			data, err := decrypt(msKey, msData)
-			if err != nil {
-				a.p.API.LogDebug("Unable decrypt data", "error", err)
-			}
-			a.p.API.LogDebug("DECRIPTED DATA", "data", string(data))
-			activity.Content = data
+			activity.Content = content
 		}
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"

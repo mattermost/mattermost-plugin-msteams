@@ -133,6 +133,7 @@ type Activity struct {
 type EncryptedContent struct {
 	Data                            string
 	DataKey                         string
+	DataSignature                   string
 	EncryptionCertificateId         string
 	EncryptionCertificateThumbprint string
 }
