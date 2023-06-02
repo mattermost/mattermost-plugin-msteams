@@ -7,7 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -129,7 +129,7 @@ func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedC
 		a.p.API.LogDebug("Unable to get private key", "error", err)
 		return nil, err
 	}
-	hash := sha1.New()
+	hash := sha1.New() //nolint:gosec
 	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
 	if err != nil {
 		a.p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
