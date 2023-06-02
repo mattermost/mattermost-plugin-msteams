@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
@@ -190,17 +189,11 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, errors.New("certificate private key not configured")
 	}
 	privPem, _ := pem.Decode([]byte(keyPemString))
-	var privPemBytes []byte
-	if privPem.Type != "RSA PRIVATE KEY" {
-		p.API.LogDebug("RSA private key is of the wrong type", "type", privPem.Type)
-	}
-	privPemBytes = privPem.Bytes
-
 	var err error
 	var parsedKey interface{}
-	if parsedKey, err = x509.ParsePKCS1PrivateKey(privPemBytes); err != nil {
-		if parsedKey, err = x509.ParsePKCS8PrivateKey(privPemBytes); err != nil { // note this returns type `interface{}`
-			if parsedKey, err = x509.ParseECPrivateKey(privPemBytes); err != nil {
+	if parsedKey, err = x509.ParsePKCS1PrivateKey(privPem.Bytes); err != nil {
+		if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
+			if parsedKey, err = x509.ParseECPrivateKey(privPem.Bytes); err != nil {
 				return nil, err
 			}
 		}
@@ -213,40 +206,7 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, errors.New("Not valid key")
 	}
 
-	// publicPemString := p.getConfiguration().CertificatePublic
-	// pubPem, _ := pem.Decode([]byte(publicPemString))
-	// if pubPem == nil || pubPem.Type != "RSA PUBLIC KEY" {
-	// 	// return nil, errors.New("invalid key type")
-	// 	p.API.LogDebug("RSA public key is of the wrong type", "type", privPem.Type)
-	// }
-
-	// if parsedKey, err = x509.ParsePKIXPublicKey(pubPem.Bytes); err != nil {
-	// 	return nil, err
-	// }
-
-	// var pubKey *rsa.PublicKey
-	// if pubKey, ok = parsedKey.(*rsa.PublicKey); !ok {
-	// 	return nil, errors.New("not valid public certificate")
-	// }
-
-	// privateKey.PublicKey = *pubKey
-
 	return privateKey, nil
-}
-
-func (p *Plugin) Decrypt(ciphertext []byte) ([]byte, error) {
-	key, err := p.getPrivateKey()
-	if err != nil {
-		p.API.LogDebug("Unable to get private key", "error", err)
-		return nil, err
-	}
-	hash := sha1.New()
-	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
-	if err != nil {
-		p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
-		return nil, err
-	}
-	return plaintext, nil
 }
 
 func (p *Plugin) startSubscriptions() {

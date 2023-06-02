@@ -5,6 +5,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -47,31 +50,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	return api
 }
 
-func decrypt(key []byte, ciphertext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	// The IV needs to be unique, but not secure. Therefore it's common to
-	// include it at the beginning of the ciphertext.
-	if len(ciphertext) < aes.BlockSize {
-		return nil, errors.New("ciphertext too short")
-	}
-	iv := key[:16]
-
-	// CBC mode always works in whole blocks.
-	if len(ciphertext)%block.BlockSize() != 0 {
-		return nil, errors.New("ciphertext is not a multiple of the block size")
-	}
-	mode := cipher.NewCBCDecrypter(block, iv)
-	result := make([]byte, len(ciphertext))
-	mode.CryptBlocks(result, ciphertext)
-	resultPadding := int(result[len(result)-1])
-	result = result[:len(result)-resultPadding]
-	return result, nil
-}
-
 // getAvatar returns the microsoft teams avatar
 func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -98,19 +76,8 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	sDec, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
-	if err != nil {
-		a.p.API.LogDebug("Unable to decode key", "error", err)
-		return nil, err
-	}
-	msKey, err := a.p.Decrypt(sDec)
-	if err != nil {
-		a.p.API.LogDebug("Unable to decrypt key", "error", err, "data", sDec)
-		return nil, err
-	}
-	a.p.API.LogDebug("DECRIPTED DATA Key", "data", string(msKey))
-	msData, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
+func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
 	if err != nil {
 		a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
 		return nil, err
@@ -120,20 +87,69 @@ func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent)
 		a.p.API.LogDebug("Unable to decode data signature", "error", err)
 		return nil, err
 	}
-	mac := hmac.New(sha256.New, msKey)
-	mac.Write(msData)
+
+	mac := hmac.New(sha256.New, key)
+	mac.Write(ciphertext)
 	expectedMac := mac.Sum(nil)
 	if !hmac.Equal(expectedMac, msDataSignature) {
 		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't matches"))
 		return nil, errors.New("The key signature doesn't matches")
 	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
 
-	data, err := decrypt(msKey, msData)
+	if len(ciphertext) < aes.BlockSize {
+		return nil, errors.New("ciphertext too short")
+	}
+	iv := key[:16]
+
+	if len(ciphertext)%block.BlockSize() != 0 {
+		return nil, errors.New("ciphertext is not a multiple of the block size")
+	}
+
+	mode := cipher.NewCBCDecrypter(block, iv)
+	result := make([]byte, len(ciphertext))
+	mode.CryptBlocks(result, ciphertext)
+	resultPadding := int(result[len(result)-1])
+	result = result[:len(result)-resultPadding]
+	return result, nil
+}
+
+func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode key", "error", err)
+		return nil, err
+	}
+
+	key, err := a.p.getPrivateKey()
+	if err != nil {
+		a.p.API.LogDebug("Unable to get private key", "error", err)
+		return nil, err
+	}
+	hash := sha1.New()
+	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
+		return nil, err
+	}
+	return plaintext, nil
+}
+
+func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	msKey, err := a.decryptEncryptedContentDataKey(encryptedContent)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt key", "error", err)
+		return nil, err
+	}
+
+	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
 	if err != nil {
 		a.p.API.LogDebug("Unable decrypt data", "error", err)
 		return nil, err
 	}
-	a.p.API.LogDebug("DECRIPTED DATA", "data", string(data))
 	return data, nil
 }
 
