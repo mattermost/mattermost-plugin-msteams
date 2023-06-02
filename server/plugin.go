@@ -207,6 +207,13 @@ func (p *Plugin) startSubscriptions() {
 		chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
 		if err != nil {
 			p.API.LogError("Unable to subscribe to chats", "error", err)
+			// Mark this subscription to be created and retried by the monitor system
+			p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+				SubscriptionID: "fake-subscription-id",
+				Type:           "allChats",
+				ExpiresOn:      time.Now(),
+				Secret:         p.getConfiguration().WebhookSecret,
+			})
 			<-ws
 			return
 		}
@@ -234,6 +241,14 @@ func (p *Plugin) startSubscriptions() {
 			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
 			if err2 != nil {
 				p.API.LogError("Unable to subscribe to channels", "error", err2)
+				// Mark this subscription to be created and retried by the monitor system
+				p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+					SubscriptionID: "fake-subscription-id",
+					TeamID:         link.MSTeamsTeam,
+					ChannelID:      link.MSTeamsChannel,
+					ExpiresOn:      time.Now(),
+					Secret:         p.getConfiguration().WebhookSecret,
+				})
 				<-ws
 				return
 			}
