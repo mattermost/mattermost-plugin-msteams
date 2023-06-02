@@ -179,10 +179,10 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	switch activity.ChangeType {
 	case "created":
 		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		var msg *msteams.Message = nil
+		var msg *msteams.Message
 		if len(activity.Content) > 0 {
 			var err error
-			msg, err = msteams.GetMessageFromJson(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
 			}
@@ -190,10 +190,10 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		ah.handleCreatedActivity(msg, activityIds)
 	case "updated":
 		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
-		var msg *msteams.Message = nil
+		var msg *msteams.Message
 		if len(activity.Content) > 0 {
 			var err error
-			msg, err = msteams.GetMessageFromJson(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
 			}

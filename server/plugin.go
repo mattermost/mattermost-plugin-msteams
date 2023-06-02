@@ -67,8 +67,6 @@ type Plugin struct {
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
-	publicKey              *rsa.PublicKey
-	privateKey             *rsa.PrivateKey
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {

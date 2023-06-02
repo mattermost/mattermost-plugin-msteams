@@ -510,7 +510,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 
 			ah.plugin = p
 
-			ah.handleCreatedActivity(testCase.activityIds)
+			ah.handleCreatedActivity(nil, testCase.activityIds)
 		})
 	}
 }
@@ -787,7 +787,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			testCase.setupStore(store)
 
 			ah.plugin = p
-			ah.handleUpdatedActivity(testCase.activityIds)
+			ah.handleUpdatedActivity(nil, testCase.activityIds)
 		})
 	}
 }

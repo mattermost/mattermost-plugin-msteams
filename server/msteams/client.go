@@ -131,11 +131,10 @@ type Activity struct {
 }
 
 type EncryptedContent struct {
-	Data                            string
-	DataKey                         string
-	DataSignature                   string
-	EncryptionCertificateId         string
-	EncryptionCertificateThumbprint string
+	Data                    string
+	DataKey                 string
+	DataSignature           string
+	EncryptionCertificateID string
 }
 
 type ActivityIds struct {
@@ -910,12 +909,12 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func GetMessageFromJson(data []byte, teamID, channelID, chatID string) (*Message, error) {
+func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*Message, error) {
 	msg := struct {
 		ID   string
 		From struct {
 			User struct {
-				Id          string
+				ID          string
 				DisplayName string
 			}
 		}
@@ -948,7 +947,7 @@ func GetMessageFromJson(data []byte, teamID, channelID, chatID string) (*Message
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return nil, err
 	}
-	userID := msg.From.User.Id
+	userID := msg.From.User.ID
 	userDisplayName := msg.From.User.DisplayName
 	replyTo := msg.ReplyToID
 
