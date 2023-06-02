@@ -910,6 +910,91 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
+func GetMessageFromJson(data []byte, teamID, channelID, chatID string) (*Message, error) {
+	msg := struct {
+		ID   string
+		From struct {
+			User struct {
+				Id          string
+				DisplayName string
+			}
+		}
+		ReplyToID string
+		Subject   string
+		Body      struct {
+			Content string
+		}
+		LastModifiedDateTime time.Time
+		Attachments          []Attachment
+		Mentions             []struct {
+			ID          int32
+			MentionText string
+			Mentioned   struct {
+				User struct {
+					ID string
+				}
+			}
+		}
+		Reactions []struct {
+			ReactionType string
+			User         struct {
+				User struct {
+					ID string
+				}
+			}
+		}
+	}{}
+
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return nil, err
+	}
+	userID := msg.From.User.Id
+	userDisplayName := msg.From.User.DisplayName
+	replyTo := msg.ReplyToID
+
+	text := msg.Body.Content
+	msgID := msg.ID
+	subject := msg.Subject
+	lastUpdateAt := msg.LastModifiedDateTime
+
+	attachments := msg.Attachments
+
+	mentions := []Mention{}
+	for _, m := range msg.Mentions {
+		mention := Mention{}
+		if m.ID != 0 && m.MentionText != "" {
+			mention.ID = m.ID
+			mention.MentionedText = m.MentionText
+		} else {
+			continue
+		}
+
+		mention.UserID = m.Mentioned.User.ID
+		mentions = append(mentions, mention)
+	}
+
+	reactions := []Reaction{}
+	for _, reaction := range msg.Reactions {
+		reactions = append(reactions, Reaction{UserID: reaction.User.User.ID, Reaction: reaction.ReactionType})
+	}
+
+	return &Message{
+		ID:              msgID,
+		UserID:          userID,
+		UserDisplayName: userDisplayName,
+		Text:            text,
+		ReplyToID:       replyTo,
+		Subject:         subject,
+		Attachments:     attachments,
+		Mentions:        mentions,
+		TeamID:          teamID,
+		ChannelID:       channelID,
+		ChatID:          chatID,
+		Reactions:       reactions,
+		LastUpdateAt:    lastUpdateAt,
+	}, nil
+}
+
 func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	photo, err := tc.client.UsersById(userID).Photo().Content().Get(tc.ctx, nil)
 	if err != nil {

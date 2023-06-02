@@ -179,10 +179,26 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	switch activity.ChangeType {
 	case "created":
 		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		ah.handleCreatedActivity(activityIds)
+		var msg *msteams.Message = nil
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJson(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
+			}
+		}
+		ah.handleCreatedActivity(msg, activityIds)
 	case "updated":
 		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
-		ah.handleUpdatedActivity(activityIds)
+		var msg *msteams.Message = nil
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJson(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
+			}
+		}
+		ah.handleUpdatedActivity(msg, activityIds)
 	case "deleted":
 		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
 		ah.handleDeletedActivity(activityIds)
@@ -191,8 +207,8 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	}
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleCreatedActivity(msg *msteams.Message, activityIds msteams.ActivityIds) {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return
@@ -284,8 +300,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds) {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleUpdatedActivity(msg *msteams.Message, activityIds msteams.ActivityIds) {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return

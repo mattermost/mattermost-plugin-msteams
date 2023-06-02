@@ -70,12 +70,15 @@ func (ah *ActivityHandler) getUserIDForChannelLink(teamID string, channelID stri
 	return ah.plugin.GetBotUserID()
 }
 
-func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
+func (ah *ActivityHandler) getMessageAndChatFromActivityIds(msg *msteams.Message, activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
 		if err != nil || chat == nil {
 			ah.plugin.GetAPI().LogError("Unable to get original chat", "error", err, "chat", chat)
 			return nil, nil, err
+		}
+		if msg != nil {
+			return msg, chat, nil
 		}
 		msg, err := ah.getMessageFromChat(chat, activityIds.MessageID)
 		if err != nil || msg == nil {
@@ -83,6 +86,10 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 			return nil, nil, err
 		}
 		return msg, chat, nil
+	}
+
+	if msg != nil {
+		return msg, nil, nil
 	}
 
 	userID := ah.getUserIDForChannelLink(activityIds.TeamID, activityIds.ChannelID)
