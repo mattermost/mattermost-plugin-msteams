@@ -197,42 +197,65 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
-	for _, link := range links {
-		channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-		if err2 != nil {
-			p.API.LogError("Unable to subscribe to channels", "error", err2)
-			continue
-		}
+	wg := sync.WaitGroup{}
+	ws := make(chan struct{}, 20)
 
-		err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-			SubscriptionID: channelsSubscription.ID,
-			TeamID:         link.MSTeamsTeam,
-			ChannelID:      link.MSTeamsChannel,
-			ExpiresOn:      channelsSubscription.ExpiresOn,
+	wg.Add(1)
+	ws <- struct{}{}
+	go func() {
+		defer wg.Done()
+		chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
+		if err != nil {
+			p.API.LogError("Unable to subscribe to chats", "error", err)
+			<-ws
+			return
+		}
+		p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
+
+		err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+			SubscriptionID: chatsSubscription.ID,
+			Type:           "allChats",
+			ExpiresOn:      chatsSubscription.ExpiresOn,
 			Secret:         p.getConfiguration().WebhookSecret,
 		})
-		if err2 != nil {
-			p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
-			continue
+		if err != nil {
+			p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
+			<-ws
+			return
 		}
-	}
+		<-ws
+	}()
 
-	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
-	if err != nil {
-		p.API.LogError("Unable to subscribe to chats", "error", err)
-		return
-	}
+	for _, link := range links {
+		ws <- struct{}{}
+		wg.Add(1)
+		go func(link storemodels.ChannelLink) {
+			defer wg.Done()
+			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+			if err2 != nil {
+				p.API.LogError("Unable to subscribe to channels", "error", err2)
+				<-ws
+				return
+			}
 
-	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-		SubscriptionID: chatsSubscription.ID,
-		Type:           "allChats",
-		ExpiresOn:      chatsSubscription.ExpiresOn,
-		Secret:         p.getConfiguration().WebhookSecret,
-	})
-	if err != nil {
-		p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
-		return
+			err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+				SubscriptionID: channelsSubscription.ID,
+				TeamID:         link.MSTeamsTeam,
+				ChannelID:      link.MSTeamsChannel,
+				ExpiresOn:      channelsSubscription.ExpiresOn,
+				Secret:         p.getConfiguration().WebhookSecret,
+			})
+			if err2 != nil {
+				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
+				<-ws
+				return
+			}
+			p.API.LogDebug("Subscription to channel created", "subscriptionID", channelsSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
+			<-ws
+		}(link)
 	}
+	wg.Wait()
+	p.API.LogDebug("Start subscription finished")
 }
 
 func (p *Plugin) stop() {
