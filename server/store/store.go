@@ -62,6 +62,7 @@ type Store interface {
 	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
 	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
 	DeleteDMAndGMChannelPromptTime(userID string) error
+	RecoverPost(postID string) error
 }
 
 type SQLStore struct {
@@ -740,6 +741,16 @@ func (s *SQLStore) DeleteDMAndGMChannelPromptTime(userID string) error {
 		if err := s.api.KVDelete(key); err != nil {
 			return errors.New(err.Error())
 		}
+	}
+
+	return nil
+}
+
+func (s *SQLStore) RecoverPost(postID string) error {
+	query := s.getQueryBuilder().Update("Posts").Set("DeleteAt", 0).Where(sq.Eq{"Id": postID}, sq.NotEq{"DeleteAt": 0})
+	_, err := query.Exec()
+	if err != nil {
+		return err
 	}
 
 	return nil

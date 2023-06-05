@@ -333,10 +333,17 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			return
 		}
 	} else {
-		post, err := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to find the original post", "error", err.Error())
-			return
+		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+		if postErr != nil {
+			if strings.Contains(postErr.Error(), "Unable to get the post.") {
+				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
+					ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+				}
+				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+			} else {
+				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
+				return
+			}
 		}
 		channelID = post.ChannelId
 	}
@@ -361,8 +368,14 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 
 	_, appErr := ah.plugin.GetAPI().UpdatePost(post)
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to update post", "post", post, "error", appErr)
-		return
+		if strings.Contains(appErr.Error(), "Unable to get the post.") {
+			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
+				ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+			}
+		} else {
+			ah.plugin.GetAPI().LogError("Unable to update post", "post", post, "error", appErr)
+			return
+		}
 	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
@@ -370,7 +383,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	ah.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 }
 
-func (ah *ActivityHandler) handleReactions(postID string, channelID string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions []msteams.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
