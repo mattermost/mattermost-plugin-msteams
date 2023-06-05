@@ -748,8 +748,7 @@ func (s *SQLStore) DeleteDMAndGMChannelPromptTime(userID string) error {
 
 func (s *SQLStore) RecoverPost(postID string) error {
 	query := s.getQueryBuilder().Update("Posts").Set("DeleteAt", 0).Where(sq.Eq{"Id": postID}, sq.NotEq{"DeleteAt": 0})
-	_, err := query.Exec()
-	if err != nil {
+	if _, err := query.Exec(); err != nil {
 		return err
 	}
 

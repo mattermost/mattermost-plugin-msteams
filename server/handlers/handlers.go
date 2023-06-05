@@ -338,6 +338,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			if strings.Contains(postErr.Error(), "Unable to get the post.") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
 					ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+					return
 				}
 				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 			} else {
@@ -371,6 +372,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		if strings.Contains(appErr.Error(), "Unable to get the post.") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+				return
 			}
 		} else {
 			ah.plugin.GetAPI().LogError("Unable to update post", "post", post, "error", appErr)
