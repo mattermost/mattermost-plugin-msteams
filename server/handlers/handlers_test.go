@@ -752,7 +752,9 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(nil, testutils.GetInternalServerAppError("Unable to get the post.")).Times(1)
+				getPostError := testutils.GetInternalServerAppError("Unable to get the post.")
+				getPostError.Id = "app.post.get.app_error"
+				mockAPI.On("GetPost", "mockMattermostID").Return(nil, getPostError).Times(1)
 				mockAPI.On("LogError", "Unable to recover the post", "post", mock.Anything, "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {

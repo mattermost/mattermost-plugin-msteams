@@ -335,7 +335,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	} else {
 		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 		if postErr != nil {
-			if strings.Contains(postErr.Error(), "Unable to get the post.") {
+			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
 					ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
 					return
@@ -367,9 +367,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 
 	post.Id = postInfo.MattermostID
 
-	_, appErr := ah.plugin.GetAPI().UpdatePost(post)
-	if appErr != nil {
-		if strings.Contains(appErr.Error(), "Unable to get the post.") {
+	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
+		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
 				return
