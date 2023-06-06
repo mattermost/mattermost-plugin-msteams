@@ -184,7 +184,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 			var err error
 			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
 		ah.handleCreatedActivity(msg, activityIds)
@@ -195,7 +195,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 			var err error
 			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity)
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
 		ah.handleUpdatedActivity(msg, activityIds)
