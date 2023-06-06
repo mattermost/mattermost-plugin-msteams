@@ -522,6 +522,20 @@ func (_m *Store) MattermostToTeamsUserID(userID string) (string, error) {
 	return r0, r1
 }
 
+// RecoverPost provides a mock function with given fields: postID
+func (_m *Store) RecoverPost(postID string) error {
+	ret := _m.Called(postID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(postID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SaveChannelSubscription provides a mock function with given fields: _a0
 func (_m *Store) SaveChannelSubscription(_a0 storemodels.ChannelSubscription) error {
 	ret := _m.Called(_a0)
