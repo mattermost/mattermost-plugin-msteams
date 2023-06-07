@@ -20,7 +20,7 @@ type Client interface {
 	DeleteChatMessage(chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool, certificate string) (*Subscription, error)
 	SubscribeToChats(baseURL, webhookSecret string, pay bool, certificate string) (*Subscription, error)
-	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string, certificate string) (*Subscription, error)
+	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate string) (*Subscription, error)
 	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool, certificate string) (*Subscription, error)
 	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error

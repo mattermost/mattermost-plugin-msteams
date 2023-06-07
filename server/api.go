@@ -92,8 +92,8 @@ func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.E
 	mac.Write(ciphertext)
 	expectedMac := mac.Sum(nil)
 	if !hmac.Equal(expectedMac, msDataSignature) {
-		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't matches"))
-		return nil, errors.New("The key signature doesn't matches")
+		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't match"))
+		return nil, errors.New("The key signature doesn't match")
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -147,7 +147,7 @@ func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent)
 
 	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
 	if err != nil {
-		a.p.API.LogDebug("Unable decrypt data", "error", err)
+		a.p.API.LogDebug("Unable to decrypt data", "error", err)
 		return nil, err
 	}
 	return data, nil

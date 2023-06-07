@@ -522,7 +522,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	return nil
 }
 
-func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string, certificate string) (*Subscription, error) {
+func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType, certificate string) (*Subscription, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 
 	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
