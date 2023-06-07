@@ -173,8 +173,8 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
-		if activity.EncryptedContent.Data != "" {
-			content, err := a.processEncryptedContent(activity.EncryptedContent)
+		if activity.EncryptedContent != nil {
+			content, err := a.processEncryptedContent(*activity.EncryptedContent)
 			if err != nil {
 				a.p.API.LogError("Invalid encrypted content", "error", err)
 			}

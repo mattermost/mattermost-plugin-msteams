@@ -126,7 +126,7 @@ type Activity struct {
 	LifecycleEvent                 string
 	SubscriptionExpirationDateTime time.Time
 	SubscriptionID                 string
-	EncryptedContent               EncryptedContent
+	EncryptedContent               *EncryptedContent
 	Content                        []byte
 }
 
