@@ -18,6 +18,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -143,6 +144,22 @@ type AccessToken struct {
 type GraphAPIError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+type ChatAttachmentUser struct {
+	UserIdentityType string `json:"userIdentityType"`
+	ID               string `json:"id"`
+	DisplayName      string `json:"displayName"`
+}
+
+type ChatAttachmentSender struct {
+	User ChatAttachmentUser `json:"user"`
+}
+
+type ChatAttachment struct {
+	MessageID      string               `json:"messageId"`
+	MessagePreview string               `json:"messagePreview"`
+	MessageSender  ChatAttachmentSender `json:"messageSender"`
 }
 
 func (e *GraphAPIError) Error() string {
@@ -385,11 +402,36 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) SendChat(chatID, message string, parentChat *Message, mentions []models.ChatMessageMentionable) (*Message, error) {
 	rmsg := models.NewChatMessage()
 
-	// TODO: Add support for parent id
-	_ = parentID
+	if parentChat != nil && parentChat.ID != "" {
+		parentChat.Text = utils.ConvertToMD(parentChat.Text)
+		contentType := "messageReference"
+		contentData, err := json.Marshal(ChatAttachment{
+			MessageID:      parentChat.ID,
+			MessagePreview: parentChat.Text,
+			MessageSender: ChatAttachmentSender{
+				ChatAttachmentUser{
+					UserIdentityType: "aadUser",
+					ID:               parentChat.UserID,
+					DisplayName:      parentChat.UserDisplayName,
+				},
+			},
+		})
+
+		if err != nil {
+			tc.logError("Unable to convert content to marshal", "error", err)
+		} else {
+			message = fmt.Sprintf("<attachment id=\"%s\"></attachment> %s", parentChat.ID, message)
+			content := string(contentData)
+			attachment := models.NewChatMessageAttachment()
+			attachment.SetId(&parentChat.ID)
+			attachment.SetContentType(&contentType)
+			attachment.SetContent(&content)
+			rmsg.SetAttachments([]models.ChatMessageAttachmentable{attachment})
+		}
+	}
 
 	contentType := models.HTML_BODYTYPE
 

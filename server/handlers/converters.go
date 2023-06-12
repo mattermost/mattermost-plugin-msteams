@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattn/godown"
 	"golang.org/x/net/html"
 )
 
@@ -33,7 +33,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
-	text = convertToMD(text)
+	text = utils.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
 
@@ -123,16 +123,4 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	}
 
 	return text
-}
-
-func convertToMD(text string) string {
-	if !strings.Contains(text, "<div>") && !strings.Contains(text, "<p>") {
-		return text
-	}
-	var sb strings.Builder
-	err := godown.Convert(&sb, strings.NewReader(text), nil)
-	if err != nil {
-		return text
-	}
-	return sb.String()
 }
