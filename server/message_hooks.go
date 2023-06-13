@@ -239,6 +239,17 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
+	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -271,9 +282,24 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+	if err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+		p.API.LogWarn("Error setting reaction", "error", err.Error())
+		return err
+	}
+
+	var teamsMessage *msteams.Message
+	if parentID != "" {
+		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
+	} else {
+		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
+	}
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		return err
 	}
 
@@ -301,6 +327,17 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	if err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
+		return err
+	}
+
+	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		return err
 	}
 
@@ -338,6 +375,22 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 	if err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
+		return err
+	}
+
+	var teamsMessage *msteams.Message
+	if parentID != "" {
+		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
+	} else {
+		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
+	}
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		return err
 	}
 
