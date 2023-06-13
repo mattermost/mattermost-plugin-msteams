@@ -188,13 +188,9 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 	}
 	privPem, _ := pem.Decode([]byte(keyPemString))
 	var err error
-	var parsedKey interface{}
-	if parsedKey, err = x509.ParsePKCS1PrivateKey(privPem.Bytes); err != nil {
-		if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
-			if parsedKey, err = x509.ParseECPrivateKey(privPem.Bytes); err != nil {
-				return nil, err
-			}
-		}
+	var parsedKey any
+	if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
+		return nil, err
 	}
 
 	var privateKey *rsa.PrivateKey
