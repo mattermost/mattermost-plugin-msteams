@@ -146,20 +146,20 @@ type GraphAPIError struct {
 	Message string `json:"message"`
 }
 
-type ChatAttachmentUser struct {
+type ChatMessageAttachmentUser struct {
 	UserIdentityType string `json:"userIdentityType"`
 	ID               string `json:"id"`
 	DisplayName      string `json:"displayName"`
 }
 
-type ChatAttachmentSender struct {
-	User ChatAttachmentUser `json:"user"`
+type ChatMessageAttachmentSender struct {
+	User ChatMessageAttachmentUser `json:"user"`
 }
 
-type ChatAttachment struct {
-	MessageID      string               `json:"messageId"`
-	MessagePreview string               `json:"messagePreview"`
-	MessageSender  ChatAttachmentSender `json:"messageSender"`
+type ChatMessageAttachment struct {
+	MessageID      string                      `json:"messageId"`
+	MessagePreview string                      `json:"messagePreview"`
+	MessageSender  ChatMessageAttachmentSender `json:"messageSender"`
 }
 
 func (e *GraphAPIError) Error() string {
@@ -402,31 +402,31 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, message string, parentChat *Message, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, mentions []models.ChatMessageMentionable) (*Message, error) {
 	rmsg := models.NewChatMessage()
 
-	if parentChat != nil && parentChat.ID != "" {
-		parentChat.Text = utils.ConvertToMD(parentChat.Text)
+	if parentMessage != nil && parentMessage.ID != "" {
+		parentMessage.Text = utils.ConvertToMD(parentMessage.Text)
 		contentType := "messageReference"
-		contentData, err := json.Marshal(ChatAttachment{
-			MessageID:      parentChat.ID,
-			MessagePreview: parentChat.Text,
-			MessageSender: ChatAttachmentSender{
-				ChatAttachmentUser{
+		contentData, err := json.Marshal(ChatMessageAttachment{
+			MessageID:      parentMessage.ID,
+			MessagePreview: parentMessage.Text,
+			MessageSender: ChatMessageAttachmentSender{
+				ChatMessageAttachmentUser{
 					UserIdentityType: "aadUser",
-					ID:               parentChat.UserID,
-					DisplayName:      parentChat.UserDisplayName,
+					ID:               parentMessage.UserID,
+					DisplayName:      parentMessage.UserDisplayName,
 				},
 			},
 		})
 
 		if err != nil {
-			tc.logError("Unable to convert content to marshal", "error", err)
+			tc.logError("Unable to convert content to JSON", "error", err)
 		} else {
-			message = fmt.Sprintf("<attachment id=\"%s\"></attachment> %s", parentChat.ID, message)
+			message = fmt.Sprintf("<attachment id=%q></attachment> %s", parentMessage.ID, message)
 			content := string(contentData)
 			attachment := models.NewChatMessageAttachment()
-			attachment.SetId(&parentChat.ID)
+			attachment.SetId(&parentMessage.ID)
 			attachment.SetContentType(&contentType)
 			attachment.SetContent(&content)
 			rmsg.SetAttachments([]models.ChatMessageAttachmentable{attachment})

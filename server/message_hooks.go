@@ -390,15 +390,15 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	content, mentions := p.getMentionsData(content, "", "", chatID, client)
 
-	var parentChat *msteams.Message
+	var parentMessage *msteams.Message
 	if parentID != "" {
-		parentChat, err = client.GetChatMessage(chatID, parentID)
+		parentMessage, err = client.GetChatMessage(chatID, parentID)
 		if err != nil {
 			p.API.LogWarn("Error in getting parent chat", "error", err)
 		}
 	}
 
-	newMessage, err := client.SendChat(chatID, content, parentChat, mentions)
+	newMessage, err := client.SendChat(chatID, content, parentMessage, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
