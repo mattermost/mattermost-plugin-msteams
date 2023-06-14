@@ -241,13 +241,12 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
 		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		return err
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -294,13 +293,12 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
 	}
 	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
 		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		return err
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -332,13 +330,12 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
 		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		return err
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -385,13 +382,12 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
 	}
 	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err)
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
 		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		return err
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -745,6 +741,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	return chatID, nil
 }
 
+// TODO: Add unit tests for this function
 func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, client msteams.Client) (string, []models.ChatMessageMentionable) {
 	specialMentions := map[string]bool{
 		"all":     true,
