@@ -445,7 +445,7 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string, attachments []*
 	return convertToMessage(res, "", "", chatID), nil
 }
 
-func (tc *ClientImpl) UploadFile(teamID, channelID, chatID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
+func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
 	driveID := ""
 	itemID := ""
 	if teamID != "" && channelID != "" {

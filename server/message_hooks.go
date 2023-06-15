@@ -368,7 +368,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		}
 
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile("", "", chatID, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile("", "", fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("Error in uploading attachment", "error", err)
 			continue
@@ -446,7 +446,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		}
 
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile(teamID, channelID, "", fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("error uploading attachment", "error", err)
 			continue
