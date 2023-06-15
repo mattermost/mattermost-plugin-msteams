@@ -380,7 +380,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-	ah.plugin.GetAPI().LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	ah.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 }
 
@@ -448,7 +447,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}
-			ah.plugin.GetAPI().LogError("Added reaction", "reaction", r)
+			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
 		}
 	}
 }
