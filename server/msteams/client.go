@@ -385,11 +385,48 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) SendChat(chatID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error) {
 	rmsg := models.NewChatMessage()
 
 	// TODO: Add support for parent id
 	_ = parentID
+
+	msteamsAttachments := []models.ChatMessageAttachmentable{}
+	for _, a := range attachments {
+		att := a
+		contentType := "reference"
+		attachment := models.NewChatMessageAttachment()
+		attachment.SetId(&att.ID)
+		attachment.SetContentType(&contentType)
+
+		extension := filepath.Ext(att.Name)
+		if !strings.HasSuffix(att.ContentURL, extension) {
+			teamsURL, err := url.Parse(att.ContentURL)
+			if err != nil {
+				tc.logError("Unable to parse URL", "Error", err.Error())
+				continue
+			}
+
+			q := teamsURL.Query()
+			fileQueryParam := q.Get("file")
+			q.Del("file")
+			teamsURL.RawQuery = q.Encode()
+
+			// We are deleting the file query param from the content URL as it is present in
+			// the middle and when MS Teams processes the content URL, it needs the file query param at the end
+			// otherwise, it gives the error: "contentUrl extension and name extension do not match"
+			// So, we are appending the file query param at the end
+			teamsURL.RawQuery += fmt.Sprintf("&file=%s", fileQueryParam)
+			att.ContentURL = teamsURL.String()
+		}
+
+		attachment.SetContentUrl(&att.ContentURL)
+		attachment.SetName(&att.Name)
+		msteamsAttachments = append(msteamsAttachments, attachment)
+		message = "<attachment id=\"" + att.ID + "\"></attachment>" + message
+	}
+
+	rmsg.SetAttachments(msteamsAttachments)
 
 	contentType := models.HTML_BODYTYPE
 
@@ -408,13 +445,34 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string, mentions []mode
 	return convertToMessage(res, "", "", chatID), nil
 }
 
-func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
-	folderInfo, err := tc.client.TeamsById(teamID).ChannelsById(channelID).FilesFolder().Get(tc.ctx, nil)
-	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+func (tc *ClientImpl) UploadFile(teamID, channelID, chatID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
+	driveID := ""
+	itemID := ""
+	if teamID != "" && channelID != "" {
+		folderInfo, err := tc.client.TeamsById(teamID).ChannelsById(channelID).FilesFolder().Get(tc.ctx, nil)
+		if err != nil {
+			return nil, NormalizeGraphAPIError(err)
+		}
+
+		driveID = *folderInfo.GetParentReference().GetDriveId()
+		itemID = *folderInfo.GetId() + ":/" + filename + ":"
+	} else {
+		drive, err := tc.client.Me().Drive().Get(tc.ctx, nil)
+		if err != nil {
+			return nil, NormalizeGraphAPIError(err)
+		}
+
+		driveID = *drive.GetId()
+		item, err := tc.client.DrivesById(driveID).Root().Get(tc.ctx, nil)
+		if err != nil {
+			return nil, NormalizeGraphAPIError(err)
+		}
+
+		itemID = *item.GetId() + ":/" + filename + ":"
 	}
 
-	uploadSession, err := tc.client.DrivesById(*folderInfo.GetParentReference().GetDriveId()).ItemsById(*folderInfo.GetId()+":/"+filename+":").CreateUploadSession().Post(tc.ctx, nil, nil)
+	fmt.Println("\n\n item id ", itemID)
+	uploadSession, err := tc.client.DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(tc.ctx, nil, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}

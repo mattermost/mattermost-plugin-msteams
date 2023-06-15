@@ -505,13 +505,13 @@ func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error)
 	return r0, r1
 }
 
-// SendChat provides a mock function with given fields: chatID, parentID, message, mentions
-func (_m *Client) SendChat(chatID string, parentID string, message string, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
-	ret := _m.Called(chatID, parentID, message, mentions)
+// SendChat provides a mock function with given fields: chatID, parentID, message, attachments, mentions
+func (_m *Client) SendChat(chatID string, parentID string, message string, attachments []*msteams.Attachment, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+	ret := _m.Called(chatID, parentID, message, attachments, mentions)
 
 	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, []models.ChatMessageMentionable) *msteams.Message); ok {
-		r0 = rf(chatID, parentID, message, mentions)
+	if rf, ok := ret.Get(0).(func(string, string, string, []*msteams.Attachment, []models.ChatMessageMentionable) *msteams.Message); ok {
+		r0 = rf(chatID, parentID, message, attachments, mentions)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*msteams.Message)
@@ -519,8 +519,8 @@ func (_m *Client) SendChat(chatID string, parentID string, message string, menti
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, []models.ChatMessageMentionable) error); ok {
-		r1 = rf(chatID, parentID, message, mentions)
+	if rf, ok := ret.Get(1).(func(string, string, string, []*msteams.Attachment, []models.ChatMessageMentionable) error); ok {
+		r1 = rf(chatID, parentID, message, attachments, mentions)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -750,13 +750,13 @@ func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string
 	return r0
 }
 
-// UploadFile provides a mock function with given fields: teamID, channelID, filename, filesize, mimeType, data
-func (_m *Client) UploadFile(teamID string, channelID string, filename string, filesize int, mimeType string, data io.Reader) (*msteams.Attachment, error) {
-	ret := _m.Called(teamID, channelID, filename, filesize, mimeType, data)
+// UploadFile provides a mock function with given fields: teamID, channelID, chatID, filename, filesize, mimeType, data
+func (_m *Client) UploadFile(teamID string, channelID string, chatID string, filename string, filesize int, mimeType string, data io.Reader) (*msteams.Attachment, error) {
+	ret := _m.Called(teamID, channelID, chatID, filename, filesize, mimeType, data)
 
 	var r0 *msteams.Attachment
-	if rf, ok := ret.Get(0).(func(string, string, string, int, string, io.Reader) *msteams.Attachment); ok {
-		r0 = rf(teamID, channelID, filename, filesize, mimeType, data)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, int, string, io.Reader) *msteams.Attachment); ok {
+		r0 = rf(teamID, channelID, chatID, filename, filesize, mimeType, data)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*msteams.Attachment)
@@ -764,8 +764,8 @@ func (_m *Client) UploadFile(teamID string, channelID string, filename string, f
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, int, string, io.Reader) error); ok {
-		r1 = rf(teamID, channelID, filename, filesize, mimeType, data)
+	if rf, ok := ret.Get(1).(func(string, string, string, string, int, string, io.Reader) error); ok {
+		r1 = rf(teamID, channelID, chatID, filename, filesize, mimeType, data)
 	} else {
 		r1 = ret.Error(1)
 	}
