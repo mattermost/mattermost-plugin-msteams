@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -209,14 +208,12 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	fmt.Println("1")
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
-	fmt.Println("2", chat, msg, " fer")
 
 	var senderID string
 	var channelID string
@@ -244,14 +241,10 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		senderID = ah.plugin.GetBotUserID()
 	}
 
-	fmt.Println("3", channelID, " fref")
-
 	if channelID == "" {
 		ah.plugin.GetAPI().LogDebug("Channel not set")
 		return
 	}
-
-	fmt.Println("4")
 
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
@@ -263,8 +256,6 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		}
 	}
 
-	fmt.Println("5")
-
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
@@ -273,8 +264,6 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	ah.plugin.GetAPI().LogDebug("Post generated", "post", post)
 
-	fmt.Println("6")
-
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
@@ -282,10 +271,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
-	fmt.Println("7")
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-	fmt.Println("9", newPost, appErr)
 
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "post", post, "error", appErr)
@@ -293,7 +280,6 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created", "post", newPost)
-	fmt.Println("10")
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
