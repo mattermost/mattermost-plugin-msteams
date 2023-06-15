@@ -311,8 +311,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	fmt.Println("1")
-
 	if msg == nil {
 		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
 		return
@@ -323,8 +321,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	fmt.Println("2")
-
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
@@ -332,22 +328,17 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	fmt.Println("3")
-
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
 
-	fmt.Println("4")
-
 	// Ignore if the change is already applied in the database
 	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
 		return
 	}
 
-	fmt.Println("5")
 	channelID := ""
 	if chat == nil {
 		var channelLink *storemodels.ChannelLink
@@ -378,14 +369,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		channelID = post.ChannelId
 	}
 
-	fmt.Println("5")
-
 	senderID, err := ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	if err != nil || senderID == "" {
 		senderID = ah.plugin.GetBotUserID()
 	}
-
-	fmt.Println("6")
 
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
@@ -397,8 +384,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		}
 	}
 
-	fmt.Println("7")
-
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
@@ -406,7 +391,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	post.Id = postInfo.MattermostID
-	fmt.Println("8")
 
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
@@ -419,7 +403,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			return
 		}
 	}
-	fmt.Println("9")
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.plugin.GetAPI().LogError("Message reactions", "reactions", msg.Reactions, "error", err)
