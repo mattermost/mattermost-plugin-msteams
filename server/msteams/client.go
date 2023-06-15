@@ -423,7 +423,7 @@ func (tc *ClientImpl) SendChat(chatID, parentID, message string, attachments []*
 		attachment.SetContentUrl(&att.ContentURL)
 		attachment.SetName(&att.Name)
 		msteamsAttachments = append(msteamsAttachments, attachment)
-		message = "<attachment id=\"" + att.ID + "\"></attachment>" + message
+		message = fmt.Sprintf("<attachment id=%q></attachment> %s", att.ID, message)
 	}
 
 	rmsg.SetAttachments(msteamsAttachments)
@@ -471,7 +471,6 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, chatID, filename string, fil
 		itemID = *item.GetId() + ":/" + filename + ":"
 	}
 
-	fmt.Println("\n\n item id ", itemID)
 	uploadSession, err := tc.client.DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(tc.ctx, nil, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
