@@ -827,12 +827,7 @@ func TestSendChat(t *testing.T) {
 			Name: "SendChat: Unable to send the chat",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error creating post", "error", mock.Anything)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -841,7 +836,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
-				uclient.On("UploadFile", "", "", testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendChat", "mockChatID", "", "<p>mockMessage</p>\n", []*msteams.Attachment{{
@@ -854,12 +849,7 @@ func TestSendChat(t *testing.T) {
 			Name: "SendChat: Able to send the chat and not able to store the post",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -878,7 +868,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 			},
@@ -887,7 +877,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the file info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Unable to get file attachment", "error", mock.Anything)
+				api.On("LogWarn", "Unable to get file info", "error", mock.Anything)
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -911,12 +901,7 @@ func TestSendChat(t *testing.T) {
 			Name: "SendChat: Unable to get the file attachment from Mattermost",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error in getting file attachment from Mattermost", "error", mock.Anything)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the file attachment from Mattermost")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -939,13 +924,8 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to upload the attachments",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in uploading attachment", "error", mock.Anything)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("LogWarn", "Error in uploading file attachment to Teams", "error", mock.Anything)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -962,19 +942,14 @@ func TestSendChat(t *testing.T) {
 				uclient.On("SendChat", "mockChatID", "", "<p>mockMessage</p>\n", ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(nil, errors.New("error in uploading attachment")).Times(1)
+				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(nil, errors.New("error in uploading attachment")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
 		{
 			Name: "SendChat: Valid",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -988,7 +963,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
-				uclient.On("UploadFile", "", "", testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendChat", "mockChatID", "", "<p>mockMessage</p>\n", []*msteams.Attachment{{
@@ -1042,7 +1017,7 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to get the file info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Unable to get file attachment", "error", mock.Anything).Times(1)
+				api.On("LogWarn", "Unable to get file info", "error", mock.Anything).Times(1)
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1063,13 +1038,8 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to get file attachment from Mattermost",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "error get file attachment from mattermost", "error", mock.Anything).Times(1)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("LogWarn", "Error in getting file attachment from Mattermost", "error", mock.Anything).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the file attachment from Mattermost")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1091,19 +1061,14 @@ func TestSend(t *testing.T) {
 			Name: "Send: Unable to send message with attachments",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error creating post", "error", mock.Anything).Times(1)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{
@@ -1118,12 +1083,7 @@ func TestSend(t *testing.T) {
 			Name: "Send: Able to send message with attachments but unable to store posts",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything).Times(1)
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1135,7 +1095,7 @@ func TestSend(t *testing.T) {
 				}).Return(errors.New("unable to store posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{
@@ -1151,12 +1111,7 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Able to send message with attachments with no error",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("GetFileInfo", testutils.GetID()).Return(&model.FileInfo{
-					Id:       testutils.GetID(),
-					Name:     "mockFileName",
-					Size:     1,
-					MimeType: "mockMimeType",
-				}, nil).Times(1)
+				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1168,7 +1123,7 @@ func TestSend(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), testutils.GetID()+"_"+"mockFileName", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID(), 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{

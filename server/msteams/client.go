@@ -463,12 +463,12 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		}
 
 		driveID = *drive.GetId()
-		item, err := tc.client.DrivesById(driveID).Root().Get(tc.ctx, nil)
+		rootDirectory, err := tc.client.DrivesById(driveID).Root().Get(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
 
-		itemID = *item.GetId() + ":/" + filename + ":"
+		itemID = *rootDirectory.GetId() + ":/" + filename + ":"
 	}
 
 	uploadSession, err := tc.client.DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(tc.ctx, nil, nil)
