@@ -249,6 +249,11 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
+	} else if msg.ChatID != "" {
+		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
+		}
 	}
 
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
@@ -268,6 +273,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
+
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "post", post, "error", appErr)
 		return
@@ -357,6 +363,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
+	} else if msg.ChatID != "" {
+		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
+		}
 	}
 
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
