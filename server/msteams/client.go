@@ -18,7 +18,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -406,7 +406,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, m
 	rmsg := models.NewChatMessage()
 
 	if parentMessage != nil && parentMessage.ID != "" {
-		parentMessage.Text = utils.ConvertToMD(parentMessage.Text)
+		parentMessage.Text = markdown.ConvertToMD(parentMessage.Text)
 		contentType := "messageReference"
 		contentData, err := json.Marshal(ChatMessageAttachment{
 			MessageID:      parentMessage.ID,

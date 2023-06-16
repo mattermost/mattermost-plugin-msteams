@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/utils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"golang.org/x/net/html"
 )
@@ -33,7 +33,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
-	text = utils.ConvertToMD(text)
+	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
 

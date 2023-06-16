@@ -1,4 +1,4 @@
-package utils
+package markdown
 
 import (
 	"strings"
