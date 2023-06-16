@@ -18,37 +18,6 @@ import (
 	"gitlab.com/golang-commonmark/markdown"
 )
 
-func (p *Plugin) MessageWillBePosted(_ *plugin.Context, post *model.Post) (*model.Post, string) {
-	if len(post.FileIds) > 0 && p.configuration.SyncDirectMessages {
-		channel, err := p.API.GetChannel(post.ChannelId)
-		if err != nil {
-			return post, ""
-		}
-		if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-			members, err := p.API.GetChannelMembers(channel.Id, 0, math.MaxInt32)
-			if err != nil {
-				return post, ""
-			}
-			for _, member := range members {
-				user, err := p.API.GetUser(member.UserId)
-				if err != nil {
-					return post, ""
-				}
-
-				if user.RemoteId != nil && strings.Contains(user.Username, "msteams") {
-					p.API.SendEphemeralPost(post.UserId, &model.Post{
-						Message:   "Attachments not supported in direct messages with MSTeams members",
-						UserId:    p.userID,
-						ChannelId: channel.Id,
-					})
-					return nil, "Attachments not supported in direct messages with MSTeams members"
-				}
-			}
-		}
-	}
-	return post, ""
-}
-
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	p.API.LogDebug("Create message hook", "post", post)
 	if post.Props != nil {
@@ -239,6 +208,16 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
+	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
+	}
+
 	return nil
 }
 
@@ -271,10 +250,24 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
-	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+	if err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+		p.API.LogWarn("Error setting reaction", "error", err.Error())
 		return err
+	}
+
+	var teamsMessage *msteams.Message
+	if parentID != "" {
+		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
+	} else {
+		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
+	}
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -302,6 +295,16 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	if err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
+	}
+
+	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -339,6 +342,21 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	if err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return err
+	}
+
+	var teamsMessage *msteams.Message
+	if parentID != "" {
+		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
+	} else {
+		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
+	}
+	if err != nil {
+		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+		return nil
+	}
+
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
 	return nil
@@ -385,12 +403,34 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
+	var attachments []*msteams.Attachment
+	for _, fileID := range post.FileIds {
+		fileInfo, appErr := p.API.GetFileInfo(fileID)
+		if appErr != nil {
+			p.API.LogWarn("Unable to get file info", "error", appErr)
+			continue
+		}
+		fileData, appErr := p.API.GetFile(fileInfo.Id)
+		if appErr != nil {
+			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
+			continue
+		}
+
+		var attachment *msteams.Attachment
+		attachment, err = client.UploadFile("", "", fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		if err != nil {
+			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
+			continue
+		}
+		attachments = append(attachments, attachment)
+	}
+
 	md := markdown.New(markdown.XHTMLOutput(true))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, "", "", chatID, client)
 
-	newMessage, err := client.SendChat(chatID, parentID, content, mentions)
+	newMessage, err := client.SendChat(chatID, parentID, content, attachments, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post", "error", err.Error())
 		return "", err
@@ -445,19 +485,19 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
-			p.API.LogWarn("Unable to get file attachment", "error", appErr)
+			p.API.LogWarn("Unable to get file info", "error", appErr)
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
-			p.API.LogWarn("error get file attachment from mattermost", "error", appErr)
+			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
 			continue
 		}
 
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Id+"_"+fileInfo.Name, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
-			p.API.LogWarn("error uploading attachment", "error", err)
+			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
 			continue
 		}
 		attachments = append(attachments, attachment)
@@ -692,6 +732,7 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	return chatID, nil
 }
 
+// TODO: Add unit tests for this function
 func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, client msteams.Client) (string, []models.ChatMessageMentionable) {
 	specialMentions := map[string]bool{
 		"all":     true,
