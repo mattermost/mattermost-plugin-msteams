@@ -592,6 +592,34 @@ func (_m *Store) SetAvatarCache(userID string, photo []byte) error {
 	return r0
 }
 
+// SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt
+func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
+	ret := _m.Called(postID, lastUpdateAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
+		r0 = rf(postID, lastUpdateAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetPostLastUpdateAtByMattermostID provides a mock function with given fields: postID, lastUpdateAt
+func (_m *Store) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
+	ret := _m.Called(postID, lastUpdateAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
+		r0 = rf(postID, lastUpdateAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetUserInfo provides a mock function with given fields: userID, msTeamsUserID, token
 func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
 	ret := _m.Called(userID, msTeamsUserID, token)

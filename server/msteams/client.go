@@ -149,7 +149,7 @@ func (e *GraphAPIError) Error() string {
 	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
 }
 
-func NormalizeGraphAPIError(err error) *GraphAPIError {
+func NormalizeGraphAPIError(err error) error {
 	if err == nil {
 		return nil
 	}
