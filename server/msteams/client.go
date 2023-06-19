@@ -577,6 +577,25 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 	contentType := models.HTML_BODYTYPE
 	rmsg.SetMentions(mentions)
 
+	var originalMessage models.ChatMessageable
+	var err error
+	if parentID != "" {
+		originalMessage, err = tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(parentID).RepliesById(msgID).Get(tc.ctx, nil)
+	} else {
+		originalMessage, err = tc.client.TeamsById(teamID).ChannelsById(channelID).MessagesById(msgID).Get(tc.ctx, nil)
+	}
+	if err != nil {
+		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+	}
+
+	if originalMessage != nil {
+		attachments := originalMessage.GetAttachments()
+		for _, a := range attachments {
+			message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+		}
+		rmsg.SetAttachments(attachments)
+	}
+
 	body := models.NewItemBody()
 	body.SetContentType(&contentType)
 	body.SetContent(&message)
@@ -597,6 +616,19 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) error {
 	rmsg := models.NewChatMessage()
 
+	originalMessage, err := tc.client.ChatsById(chatID).MessagesById(msgID).Get(tc.ctx, nil)
+	if err != nil {
+		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+	}
+
+	if originalMessage != nil {
+		attachments := originalMessage.GetAttachments()
+		for _, a := range attachments {
+			message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+		}
+		rmsg.SetAttachments(attachments)
+	}
+
 	contentType := models.HTML_BODYTYPE
 
 	rmsg.SetMentions(mentions)
@@ -605,10 +637,10 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	body.SetContentType(&contentType)
 	body.SetContent(&message)
 	rmsg.SetBody(body)
-
 	if _, err := tc.client.ChatsById(chatID).MessagesById(msgID).Patch(tc.ctx, rmsg, nil); err != nil {
 		return NormalizeGraphAPIError(err)
 	}
+
 	return nil
 }
 
