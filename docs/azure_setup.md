@@ -40,7 +40,7 @@ Select **Register** to submit the form.
 - `ChannelMessage.Send`
 - `Chat.Create`
 - `Chat.ReadWrite`
-- `ChatMessage.ReadAll`
+- `ChatMessage.Read`
 - `Directory.Read.All`
 - `Files.Read.All`
 - `Files.ReadWrite.All`
