@@ -628,6 +628,8 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
+	// TODO: Add the logic of processing the attachments and uploading new files to Teams
+	// once Mattermost comes up with the feature of editing attachments
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
