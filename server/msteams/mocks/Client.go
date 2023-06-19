@@ -505,13 +505,13 @@ func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error)
 	return r0, r1
 }
 
-// SendChat provides a mock function with given fields: chatID, message, parentChat, mentions
-func (_m *Client) SendChat(chatID string, message string, parentChat *msteams.Message, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
-	ret := _m.Called(chatID, message, parentChat, mentions)
+// SendChat provides a mock function with given fields: chatID, message, parentMessage, attachments, mentions
+func (_m *Client) SendChat(chatID string, message string, parentMessage *msteams.Message, attachments []*msteams.Attachment, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+	ret := _m.Called(chatID, message, parentMessage, attachments, mentions)
 
 	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, *msteams.Message, []models.ChatMessageMentionable) *msteams.Message); ok {
-		r0 = rf(chatID, message, parentChat, mentions)
+	if rf, ok := ret.Get(0).(func(string, string, *msteams.Message, []*msteams.Attachment, []models.ChatMessageMentionable) *msteams.Message); ok {
+		r0 = rf(chatID, message, parentMessage, attachments, mentions)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*msteams.Message)
@@ -519,8 +519,8 @@ func (_m *Client) SendChat(chatID string, message string, parentChat *msteams.Me
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, *msteams.Message, []models.ChatMessageMentionable) error); ok {
-		r1 = rf(chatID, message, parentChat, mentions)
+	if rf, ok := ret.Get(1).(func(string, string, *msteams.Message, []*msteams.Attachment, []models.ChatMessageMentionable) error); ok {
+		r1 = rf(chatID, message, parentMessage, attachments, mentions)
 	} else {
 		r1 = ret.Error(1)
 	}

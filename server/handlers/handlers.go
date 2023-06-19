@@ -249,6 +249,11 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
+	} else if msg.ChatID != "" {
+		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
+		}
 	}
 
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
@@ -268,6 +273,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
+
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "post", post, "error", appErr)
 		return
@@ -357,6 +363,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
+	} else if msg.ChatID != "" {
+		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
+		}
 	}
 
 	post, err := ah.msgToPost(userID, channelID, msg, senderID)
@@ -380,7 +391,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-	ah.plugin.GetAPI().LogError("Message reactions", "reactions", msg.Reactions, "error", err)
 	ah.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
 }
 
@@ -448,7 +458,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}
-			ah.plugin.GetAPI().LogError("Added reaction", "reaction", r)
+			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
 		}
 	}
 }
