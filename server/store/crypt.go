@@ -1,31 +1,29 @@
 package store
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
 )
 
-func pad(src []byte) []byte {
-	padding := aes.BlockSize - len(src)%aes.BlockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(src, padtext...)
+func encode(encrypted []byte) string {
+	encoded := make([]byte, base64.URLEncoding.EncodedLen(len(encrypted)))
+	base64.URLEncoding.Encode(encoded, encrypted)
+	return string(encoded)
 }
 
-func unpad(src []byte) ([]byte, error) {
-	length := len(src)
-	unpadding := int(src[length-1])
-
-	if unpadding > length {
-		return nil, errors.New("unpad error. This could happen when incorrect encryption key is used")
+func decode(encoded string) ([]byte, error) {
+	decoded := make([]byte, base64.URLEncoding.DecodedLen(len(encoded)))
+	n, err := base64.URLEncoding.Decode(decoded, []byte(encoded))
+	if err != nil {
+		return nil, err
 	}
-
-	return src[:(length - unpadding)], nil
+	return decoded[:n], nil
 }
 
 func encrypt(key []byte, text string) (string, error) {
@@ -34,17 +32,20 @@ func encrypt(key []byte, text string) (string, error) {
 		return "", errors.Wrap(err, "could not create a cipher block, check key")
 	}
 
-	msg := pad([]byte(text))
-	ciphertext := make([]byte, aes.BlockSize+len(msg))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", errors.Wrap(err, "readFull was unsuccessful, check buffer size")
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
 	}
 
-	cfb := cipher.NewCFBEncrypter(block, iv)
-	cfb.XORKeyStream(ciphertext[aes.BlockSize:], msg)
-	finalMsg := base64.URLEncoding.EncodeToString(ciphertext)
-	return finalMsg, nil
+	nonce := make([]byte, aesgcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	sealed := aesgcm.Seal(nil, nonce, []byte(text), nil)
+	ans := encode(append(nonce, sealed...))
+	fmt.Println(ans)
+	return ans, nil
 }
 
 func decrypt(key []byte, text string) (string, error) {
@@ -53,25 +54,26 @@ func decrypt(key []byte, text string) (string, error) {
 		return "", errors.Wrap(err, "could not create a cipher block, check key")
 	}
 
-	decodedMsg, err := base64.URLEncoding.DecodeString(text)
+	aesgcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", errors.Wrap(err, "could not decode the message")
+		return "", err
 	}
 
-	if (len(decodedMsg) % aes.BlockSize) != 0 {
-		return "", errors.New("blocksize must be multiple of decoded message length")
-	}
-
-	iv := decodedMsg[:aes.BlockSize]
-	msg := decodedMsg[aes.BlockSize:]
-
-	cfb := cipher.NewCFBDecrypter(block, iv)
-	cfb.XORKeyStream(msg, msg)
-
-	unpadMsg, err := unpad(msg)
+	decoded, err := decode(text)
 	if err != nil {
-		return "", errors.Wrap(err, "unpad error, check key")
+		return "", err
 	}
 
-	return string(unpadMsg), nil
+	nonceSize := aesgcm.NonceSize()
+	if len(decoded) < nonceSize {
+		return "", errors.New("token too short")
+	}
+
+	nonce, encrypted := decoded[:nonceSize], decoded[nonceSize:]
+	plain, err := aesgcm.Open(nil, nonce, encrypted, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plain), nil
 }
