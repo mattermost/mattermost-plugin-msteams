@@ -1042,7 +1042,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendChat", "mockChatID", "<p>mockMessage</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
@@ -1075,7 +1075,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 			},
@@ -1107,7 +1107,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("GetChatMessage", "mockChatID", "mockParentMessageID").Return(nil, errors.New("error in getting parent chat")).Once()
@@ -1184,7 +1184,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Once()
-				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(nil, errors.New("unable to upload the attachments")).Times(1)
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(nil, errors.New("unable to upload the attachments")).Times(1)
 				uclient.On("GetChatMessage", "mockChatID", "mockParentMessageID").Return(&msteams.Message{
 					ID:              "mockParentMessageID",
 					UserID:          "mockUserID",
@@ -1220,7 +1220,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendChat", "mockChatID", "<p>mockMessage</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
@@ -1326,7 +1326,7 @@ func TestSend(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{
@@ -1353,7 +1353,7 @@ func TestSend(t *testing.T) {
 				}).Return(errors.New("unable to store posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{
@@ -1381,7 +1381,7 @@ func TestSend(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFileName"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage</p>\n", []*msteams.Attachment{
