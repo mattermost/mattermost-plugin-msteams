@@ -361,6 +361,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	return nil
 }
+
 func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUser", srcUser, "usersIDs", usersIDs, "post", post)
 
@@ -416,8 +417,15 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 			continue
 		}
 
+		fileNameData := strings.Split(fileInfo.Name, ".")
+		if len(fileNameData) < 1 {
+			continue
+		}
+
+		fileName, fileExtension := strings.Join(fileNameData[:len(fileNameData)-1], "."), fileNameData[len(fileNameData)-1]
+
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile("", "", fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+"."+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
 			continue
@@ -502,8 +510,15 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 
+		fileNameData := strings.Split(fileInfo.Name, ".")
+		if len(fileNameData) < 1 {
+			continue
+		}
+
+		fileName, fileExtension := strings.Join(fileNameData[:len(fileNameData)-1], "."), fileNameData[len(fileNameData)-1]
+
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+"."+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
 			continue
