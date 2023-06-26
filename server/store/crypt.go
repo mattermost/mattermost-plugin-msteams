@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -43,9 +42,7 @@ func encrypt(key []byte, text string) (string, error) {
 	}
 
 	sealed := aesgcm.Seal(nil, nonce, []byte(text), nil)
-	ans := encode(append(nonce, sealed...))
-	fmt.Println(ans)
-	return ans, nil
+	return encode(append(nonce, sealed...)), nil
 }
 
 func decrypt(key []byte, text string) (string, error) {
