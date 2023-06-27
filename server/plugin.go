@@ -534,7 +534,7 @@ func (p *Plugin) GenerateRandomPassword() string {
 func getRandomString(characterSet string, length int) string {
 	var randomString strings.Builder
 	for i := 0; i < length; i++ {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(length)))
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(characterSet))))
 		randomString.WriteString(string(characterSet[num.Int64()]))
 	}
 
