@@ -266,23 +266,34 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	state, _ := json.Marshal(map[string]string{})
+	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
+	if err := a.store.StoreOAuth2State(state); err != nil {
+		a.p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
 	codeVerifier := model.NewId()
-	_ = a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier))
+	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
+		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
-	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, string(state), codeVerifier)
+	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 
 	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 	_, _ = w.Write(data)
 }
 
+// TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
