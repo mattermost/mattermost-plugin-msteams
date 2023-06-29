@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -386,15 +385,19 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	state, _ := json.Marshal(map[string]string{})
-
-	codeVerifier := model.NewId()
-	appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier))
-	if appErr != nil {
+	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
+	if err := p.store.StoreOAuth2State(state); err != nil {
+		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please, try again.")
 	}
 
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, string(state), codeVerifier)
+	codeVerifier := model.NewId()
+	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
+		p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please, try again.")
+	}
+
+	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -404,7 +407,11 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
-	state, _ := json.Marshal(map[string]string{"auth_type": "bot"})
+	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
+	if err := p.store.StoreOAuth2State(state); err != nil {
+		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please, try again.")
+	}
 
 	codeVerifier := model.NewId()
 	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))

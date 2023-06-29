@@ -288,8 +288,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Header.Get("Mattermost-User-ID")
-
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
 	conf := &oauth2.Config{
 		ClientID:     a.p.configuration.ClientID,
@@ -303,18 +301,19 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := r.URL.Query().Get("code")
-	stateData := r.URL.Query().Get("state")
-	state := map[string]string{}
-	err := json.Unmarshal([]byte(stateData), &state)
-	if err != nil {
-		a.p.API.LogError("Unable to get the code", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+	state := r.URL.Query().Get("state")
+
+	stateArr := strings.Split(state, "_")
+	if len(stateArr) != 2 {
+		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
 
-	mmUserID := userID
-	if authType, ok := state["auth_type"]; ok && authType == "bot" {
-		mmUserID = a.p.GetBotUserID()
+	mmUserID := stateArr[1]
+	if err := a.store.VerifyOAuth2State(state); err != nil {
+		a.p.API.LogError("Unable to complete OAuth.", "UserID", mmUserID, "Error", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	codeVerifierBytes, appErr := a.p.API.KVGet("_code_verifier_" + mmUserID)
