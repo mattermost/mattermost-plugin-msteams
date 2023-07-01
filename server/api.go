@@ -11,8 +11,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-server/v6/model"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type API struct {
@@ -37,6 +38,10 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
+
+	// iFrame support
+	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
+	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
 
 	return api
 }
