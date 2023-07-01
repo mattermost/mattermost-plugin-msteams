@@ -15,10 +15,10 @@ import (
 
 const (
 	AppVersion          = "0.3.0"
-	AppID               = "55560f20-0a0d-11ee-998e-41b7041cf968"
+	AppID               = "2028483e-7b45-4fe4-9237-cab8b5d4db5e"
 	PackageName         = "com.mattermost.msteamsapp"
-	TabAppID            = "ce083ec0-6025-4c3a-82c2-1212848aec68"
-	TabAppURI           = "api://%s/iframe/ce083ec0-6025-4c3a-82c2-1212848aec68"
+	TabAppID            = "c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
+	TabAppURI           = "api://%s/plugins/com.mattermost.msteams-sync/iframe/c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
 	ManifestName        = "manifest.json"
 	LogoColorFilename   = "mm-logo-color.png"
 	LogoOutlineFilename = "mm-logo-outline.png"
@@ -122,8 +122,7 @@ func createManifestZip(files ...zipFile) (io.Reader, error) {
 	return buf, nil
 }
 
-var iFrameHTML = `
-<!DOCTYPE html>
+var iFrameHTML = `<!DOCTYPE html>
 <html>
 
 <head>
@@ -142,8 +141,7 @@ var iFrameHTML = `
 </html>
 `
 
-var manifestJSON = `
-{
+var manifestJSON = `{
 	"$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.15/MicrosoftTeams.schema.json",
 	"manifestVersion": "1.15",
 	"id": "{{APP_ID}}"
@@ -173,7 +171,7 @@ var manifestJSON = `
 	  {
 		"entityId": "f607c5e9-7175-44ee-ba14-10e33a7b4c91",
 		"name": "Mattermost",
-		"contentUrl": "https://{{PUBLIC_HOSTNAME}}/mattermostTab/?name={loginHint}&tenant={tid}&theme={theme}",
+		"contentUrl": "https://{{PUBLIC_HOSTNAME}}/plugins/com.mattermost.msteams-sync/iframe/mattermostTab/?name={loginHint}&tenant={tid}&theme={theme}",
 		"scopes": [
 		  "personal"
 		]
