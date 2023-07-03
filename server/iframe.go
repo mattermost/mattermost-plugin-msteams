@@ -153,7 +153,7 @@ var iFrameHTML = `<!DOCTYPE html>
 var manifestJSON = `{
 	"$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.15/MicrosoftTeams.schema.json",
 	"manifestVersion": "1.15",
-	"id": "{{APP_ID}}"
+	"id": "{{APP_ID}}",
 	"version": "{{VERSION}}",
 	"packageName": "{{PACKAGE_NAME}}",
 	"developer": {
