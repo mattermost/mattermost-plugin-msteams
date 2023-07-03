@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -418,11 +418,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 			continue
 		}
 
-		fileName, fileExtension := getExtension(fileInfo.Name)
-		if fileName == "" || fileExtension == "" {
-			continue
-		}
-
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
@@ -509,11 +505,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 
-		fileName, fileExtension := getExtension(fileInfo.Name)
-		if fileName == "" || fileExtension == "" {
-			continue
-		}
-
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
@@ -851,12 +843,8 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 	return message, mentions
 }
 
-func getExtension(path string) (string, string) {
-	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
-		if path[i] == '.' {
-			return path[:i], path[i:]
-		}
-	}
-
-	return "", ""
+func getFileNameAndExtension(path string) (string, string) {
+	fileExtension := filepath.Ext(path)
+	fileName := strings.TrimSuffix(path, fileExtension)
+	return fileName, fileExtension
 }
