@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 )
 
-func TestIFrame(t *testing.T) {
+func newIFrameTestPlugin(t *testing.T) *Plugin {
 	plugin := newTestPlugin(t)
 	plugin.API = &plugintest.API{}
 
@@ -27,6 +28,13 @@ func TestIFrame(t *testing.T) {
 	config.SetDefaults()
 	config.ServiceSettings.SiteURL = model.NewString(model.ServiceSettingsDefaultSiteURL)
 	plugin.API.(*plugintest.API).On("GetConfig").Return(config).Times(1)
+	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
+
+	return plugin
+}
+
+func TestIFrame(t *testing.T) {
+	plugin := newIFrameTestPlugin(t)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/iframe/mattermostTab", nil)
@@ -50,13 +58,7 @@ func TestIFrame(t *testing.T) {
 }
 
 func TestIFrameManifest(t *testing.T) {
-	plugin := newTestPlugin(t)
-	plugin.API = &plugintest.API{}
-
-	config := &model.Config{}
-	config.SetDefaults()
-	config.ServiceSettings.SiteURL = model.NewString(model.ServiceSettingsDefaultSiteURL)
-	plugin.API.(*plugintest.API).On("GetConfig").Return(config).Times(1)
+	plugin := newIFrameTestPlugin(t)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/iframe-manifest", nil)
@@ -109,4 +111,43 @@ func readZipFile(zipFile *zip.File) ([]byte, error) {
 	defer rc.Close()
 
 	return ioutil.ReadAll(rc)
+}
+
+func TestIFrameStatics(t *testing.T) {
+	plugin := newTestPlugin(t)
+
+	testCases := []struct {
+		filename        string
+		expectedCode    int
+		expectedContent string
+	}{
+		// {filename: "/", expectedCode: 200, expectedContent: "<!DOCTYPE html>"},
+		{filename: "scripts/client.js", expectedCode: 200, expectedContent: "function(e,r)"},
+		{filename: "styles/main.css", expectedCode: 200, expectedContent: "body{"},
+		{filename: "bogus.js", expectedCode: 404, expectedContent: ""},
+	}
+
+	for _, tc := range testCases {
+		filename := path.Join("/iframe", tc.filename)
+
+		t.Run("__"+filename, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, filename, nil)
+
+			plugin.ServeHTTP(nil, w, r)
+
+			result := w.Result()
+			require.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			require.Nil(t, err)
+			require.Equal(t, tc.expectedCode, result.StatusCode)
+			require.NotEmpty(t, bodyBytes)
+
+			if tc.expectedContent != "" {
+				assert.Contains(t, string(bodyBytes), tc.expectedContent)
+			}
+		})
+	}
 }

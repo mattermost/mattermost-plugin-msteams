@@ -8,13 +8,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
 )
 
 const (
-	AppVersion          = "0.3.0"
+	AppVersion          = "0.3.1"
 	AppID               = "2028483e-7b45-4fe4-9237-cab8b5d4db5e"
 	PackageName         = "com.mattermost.msteamsapp"
 	TabAppID            = "c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
@@ -54,20 +55,19 @@ func (a *API) iFrameManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicHostName, _ := url.JoinPath(siteURL, "iframe")
-	host, err := parseDomain(siteURL)
+	publicHostName, protocol, err := parseDomain(siteURL)
 	if err != nil {
 		a.p.API.LogError("SiteURL is invalid for MS Teams app manifest", "Error", err.Error())
 		http.Error(w, "SiteURL is invalid: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tabURI := fmt.Sprintf(TabAppURI, host)
+	tabURI := fmt.Sprintf(TabAppURI, publicHostName)
 
 	manifest := strings.ReplaceAll(manifestJSON, "{{VERSION}}", AppVersion)
 	manifest = strings.ReplaceAll(manifest, "{{APP_ID}}", AppID)
 	manifest = strings.ReplaceAll(manifest, "{{PACKAGE_NAME}}", PackageName)
+	manifest = strings.ReplaceAll(manifest, "{{PROTOCOL}}", protocol)
 	manifest = strings.ReplaceAll(manifest, "{{PUBLIC_HOSTNAME}}", publicHostName)
-	manifest = strings.ReplaceAll(manifest, "{{SITE_URL}}", siteURL)
 	manifest = strings.ReplaceAll(manifest, "{{TAB_APP_ID}}", TabAppID)
 	manifest = strings.ReplaceAll(manifest, "{{TAB_APP_URI}}", tabURI)
 
@@ -90,12 +90,12 @@ func (a *API) iFrameManifest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseDomain(uri string) (string, error) {
+func parseDomain(uri string) (string, string, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return u.Host, nil
+	return u.Host, u.Scheme, nil
 }
 
 type zipFile struct {
@@ -120,6 +120,15 @@ func createManifestZip(files ...zipFile) (io.Reader, error) {
 	}
 
 	return buf, nil
+}
+
+func getIFrameStaticFilesPath(p *Plugin) string {
+	status, appErr := p.API.GetPluginStatus(pluginID)
+	if appErr != nil {
+		p.API.LogError("Error getting plugin status", "error", appErr.Error())
+		return ""
+	}
+	return path.Join(status.PluginPath, "public", "iframe")
 }
 
 var iFrameHTML = `<!DOCTYPE html>
@@ -171,7 +180,7 @@ var manifestJSON = `{
 	  {
 		"entityId": "f607c5e9-7175-44ee-ba14-10e33a7b4c91",
 		"name": "Mattermost",
-		"contentUrl": "https://{{PUBLIC_HOSTNAME}}/plugins/com.mattermost.msteams-sync/iframe/mattermostTab/?name={loginHint}&tenant={tid}&theme={theme}",
+		"contentUrl": "{{PROTOCOL}}://{{PUBLIC_HOSTNAME}}/plugins/com.mattermost.msteams-sync/iframe/mattermostTab?name={loginHint}&tenant={tid}&theme={theme}",
 		"scopes": [
 		  "personal"
 		]
@@ -185,7 +194,7 @@ var manifestJSON = `{
 	  "messageTeamMembers"
 	],
 	"validDomains": [
-	  "{{SITE_URL}}"
+	  "{{PUBLIC_HOSTNAME}}"
 	],
 	"showLoadingIndicator": false,
 	"isFullScreen": true,
