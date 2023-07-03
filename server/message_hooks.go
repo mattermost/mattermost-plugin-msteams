@@ -742,7 +742,6 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	return chatID, nil
 }
 
-// TODO: Add unit tests for this function
 func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, client msteams.Client) (string, []models.ChatMessageMentionable) {
 	specialMentions := map[string]bool{
 		"all":     true,
