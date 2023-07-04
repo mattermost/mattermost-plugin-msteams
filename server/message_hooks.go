@@ -515,7 +515,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		attachments = append(attachments, attachment)
 	}
 
-	md := markdown.New(markdown.XHTMLOutput(true))
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
