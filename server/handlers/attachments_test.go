@@ -49,14 +49,14 @@ func TestHandleDownloadFile(t *testing.T) {
 			setupClient: func() {},
 		},
 		{
-			description:   "Unable to get file url",
+			description:   "Unable to get file content",
 			userID:        testutils.GetUserID(),
-			expectedError: "Error while getting a file url",
+			expectedError: "Error while getting file content",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 			},
 			setupClient: func() {
-				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting a file url"))
+				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting file content"))
 			},
 		},
 	} {

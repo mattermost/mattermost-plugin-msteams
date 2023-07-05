@@ -791,7 +791,22 @@ func TestExecuteConnectCommand(t *testing.T) {
 	for _, testCase := range []struct {
 		description string
 		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
 	}{
+		{
+			description: "Unable to store OAuth state",
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
+			},
+		},
 		{
 			description: "Unable to set in KV store",
 			setupAPI: func(api *plugintest.API) {
@@ -799,8 +814,11 @@ func TestExecuteConnectCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the account, please, try again.",
+					Message:   "Error trying to connect the account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
 		{
@@ -814,11 +832,15 @@ func TestExecuteConnectCommand(t *testing.T) {
 					},
 				}, nil).Once()
 			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
+			},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectCommand(&model.CommandArgs{
 				UserId:    testutils.GetUserID(),
@@ -835,6 +857,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 	for _, testCase := range []struct {
 		description string
 		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
 	}{
 		{
 			description: "User don't have permission to execute the command",
@@ -846,6 +869,22 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 					Message:   "Unable to connect the bot account, only system admins can connect the bot account.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
+			setupStore: func(_ *mockStore.Store) {},
+		},
+		{
+			description: "Unable to store OAuth state",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error trying to connect the bot account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
+			},
 		},
 		{
 			description: "Unable to set in KV store",
@@ -855,8 +894,11 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the bot account, please, try again.",
+					Message:   "Error trying to connect the bot account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
 		{
@@ -871,11 +913,15 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 					},
 				}, nil).Once()
 			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
+			},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectBotCommand(&model.CommandArgs{
 				UserId:    testutils.GetUserID(),

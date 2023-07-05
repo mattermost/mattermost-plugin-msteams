@@ -86,12 +86,18 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
+	refreshedSubscriptions := make(map[string]bool)
 	for _, activity := range activities.Value {
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
 		}
-		a.refreshSubscriptionIfNeeded(activity)
+
+		if !refreshedSubscriptions[activity.SubscriptionID] {
+			refreshedSubscriptions[activity.SubscriptionID] = true
+			a.refreshSubscriptionIfNeeded(activity)
+		}
+
 		err := a.p.activityHandler.Handle(activity)
 		if err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
@@ -106,7 +112,6 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// TODO: Deduplicate this calls in case multiple activities are sent after the subscription receives the notification
 func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
 		expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
@@ -266,29 +271,38 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	state, _ := json.Marshal(map[string]string{})
+	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
+	if err := a.store.StoreOAuth2State(state); err != nil {
+		a.p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
 	codeVerifier := model.NewId()
-	_ = a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier))
+	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
+		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
-	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, string(state), codeVerifier)
+	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 
 	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 	_, _ = w.Write(data)
 }
 
+// TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
-
-	userID := r.Header.Get("Mattermost-User-ID")
 
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
 	conf := &oauth2.Config{
@@ -303,18 +317,19 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := r.URL.Query().Get("code")
-	stateData := r.URL.Query().Get("state")
-	state := map[string]string{}
-	err := json.Unmarshal([]byte(stateData), &state)
-	if err != nil {
-		a.p.API.LogError("Unable to get the code", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+	state := r.URL.Query().Get("state")
+
+	stateArr := strings.Split(state, "_")
+	if len(stateArr) != 2 {
+		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
 
-	mmUserID := userID
-	if authType, ok := state["auth_type"]; ok && authType == "bot" {
-		mmUserID = a.p.GetBotUserID()
+	mmUserID := stateArr[1]
+	if err := a.store.VerifyOAuth2State(state); err != nil {
+		a.p.API.LogError("Unable to complete OAuth.", "UserID", mmUserID, "Error", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	codeVerifierBytes, appErr := a.p.API.KVGet("_code_verifier_" + mmUserID)

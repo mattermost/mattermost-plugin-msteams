@@ -190,11 +190,13 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
+		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
+		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -278,11 +280,13 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
+		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
+		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -460,7 +464,7 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 	}
 
 	if time.Until(timestamp) < -time.Hour*24*30 {
-		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so this message will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
+		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
 
 		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
 			p.API.LogDebug("Unable to store the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
@@ -552,9 +556,10 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
-		p.API.LogError("Error updating post", "error", err)
+		p.API.LogError("Error getting post info", "error", err)
 		return err
 	}
+
 	if postInfo == nil {
 		p.API.LogError("Error deleting post, post not found.")
 		return errors.New("post not found")
@@ -573,17 +578,16 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
-		if err != nil {
-			return err
-		}
+		p.handlePromptForConnection(user.Id, post.ChannelId)
+		return err
 	}
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
-		p.API.LogError("Error updating post", "error", err)
+		p.API.LogError("Error getting post info", "error", err)
 		return err
 	}
+
 	if postInfo == nil {
 		p.API.LogError("Error deleting post, post not found.")
 		return errors.New("post not found")
@@ -679,11 +683,8 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
-		if err != nil {
-			return err
-		}
-		text = user.Username + ":\n\n" + newPost.Message
+		p.handlePromptForConnection(user.Id, newPost.ChannelId)
+		return err
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))

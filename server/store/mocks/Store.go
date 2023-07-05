@@ -662,6 +662,20 @@ func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, 
 	return r0
 }
 
+// StoreOAuth2State provides a mock function with given fields: state
+func (_m *Store) StoreOAuth2State(state string) error {
+	ret := _m.Called(state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(state)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // TeamsToMattermostUserID provides a mock function with given fields: userID
 func (_m *Store) TeamsToMattermostUserID(userID string) (string, error) {
 	ret := _m.Called(userID)
@@ -690,6 +704,20 @@ func (_m *Store) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn ti
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
 		r0 = rf(subscriptionID, expiresOn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// VerifyOAuth2State provides a mock function with given fields: state
+func (_m *Store) VerifyOAuth2State(state string) error {
+	ret := _m.Called(state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(state)
 	} else {
 		r0 = ret.Error(0)
 	}
