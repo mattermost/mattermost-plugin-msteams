@@ -87,6 +87,12 @@
           "type": "text",
           "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
           "default": ""
+        },{
+            "key": "appManifestDownload",
+            "display_name": "Download Manifest",
+            "type": "custom", 
+            "help_text": "",
+            "default": ""            
         }]
     }
 }

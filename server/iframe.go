@@ -19,7 +19,7 @@ const (
 	AppID               = "2028483e-7b45-4fe4-9237-cab8b5d4db5e"
 	PackageName         = "com.mattermost.msteamsapp"
 	TabAppID            = "c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
-	TabAppURI           = "api://%s/plugins/com.mattermost.msteams-sync/iframe/c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
+	TabAppURI           = "api://%s/plugins/" + pluginID + "/iframe/c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
 	ManifestName        = "manifest.json"
 	LogoColorFilename   = "mm-logo-color.png"
 	LogoOutlineFilename = "mm-logo-outline.png"
@@ -70,6 +70,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, r *http.Request) {
 	manifest = strings.ReplaceAll(manifest, "{{PUBLIC_HOSTNAME}}", publicHostName)
 	manifest = strings.ReplaceAll(manifest, "{{TAB_APP_ID}}", TabAppID)
 	manifest = strings.ReplaceAll(manifest, "{{TAB_APP_URI}}", tabURI)
+	manifest = strings.ReplaceAll(manifest, "{{PLUGIN_ID}}", pluginID)
 
 	bufReader, err := createManifestZip(
 		zipFile{name: ManifestName, data: []byte(manifest)},
@@ -180,7 +181,7 @@ var manifestJSON = `{
 	  {
 		"entityId": "f607c5e9-7175-44ee-ba14-10e33a7b4c91",
 		"name": "Mattermost",
-		"contentUrl": "{{PROTOCOL}}://{{PUBLIC_HOSTNAME}}/plugins/com.mattermost.msteams-sync/iframe/mattermostTab?name={loginHint}&tenant={tid}&theme={theme}",
+		"contentUrl": "{{PROTOCOL}}://{{PUBLIC_HOSTNAME}}/plugins/{{PLUGIN_ID}}/iframe/mattermostTab?name={loginHint}&tenant={tid}&theme={theme}",
 		"scopes": [
 		  "personal"
 		]
