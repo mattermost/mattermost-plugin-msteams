@@ -429,7 +429,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		attachments = append(attachments, attachment)
 	}
 
-	md := markdown.New(markdown.XHTMLOutput(true))
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, "", "", chatID, client)
@@ -634,7 +634,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	// TODO: Add the logic of processing the attachments and uploading new files to Teams
 	// once Mattermost comes up with the feature of editing attachments
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
@@ -687,7 +687,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		return err
 	}
 
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.LangPrefix("CodeMirror language-"))
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, "", "", chatID, client)
