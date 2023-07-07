@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	AppVersion          = "0.3.1"
+	AppVersion          = "0.3.2"
 	AppID               = "2028483e-7b45-4fe4-9237-cab8b5d4db5e"
 	PackageName         = "com.mattermost.msteamsapp"
 	TabAppID            = "c0d2e25c-0f6d-421c-8dcb-1702a00286d8"
