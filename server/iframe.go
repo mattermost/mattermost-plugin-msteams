@@ -25,7 +25,7 @@ const (
 )
 
 // iFrame returns the iFrame HTML needed to host Mattermost within a MS Teams app.
-func (a *API) iFrame(w http.ResponseWriter, r *http.Request) {
+func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	config := a.p.API.GetConfig()
 	siteURL := *config.ServiceSettings.SiteURL
 	if siteURL == "" {
@@ -45,7 +45,7 @@ func (a *API) iFrame(w http.ResponseWriter, r *http.Request) {
 
 // iFrameManifest returns the Mattermost for MS Teams app manifest as a zip file.
 // This zip file can be imported as a MS Teams app.
-func (a *API) iFrameManifest(w http.ResponseWriter, r *http.Request) {
+func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 	config := a.p.API.GetConfig()
 	siteURL := *config.ServiceSettings.SiteURL
 	if siteURL == "" {
