@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
@@ -121,15 +120,6 @@ func createManifestZip(files ...zipFile) (io.Reader, error) {
 	}
 
 	return buf, nil
-}
-
-func getIFrameStaticFilesPath(p *Plugin) string {
-	status, appErr := p.API.GetPluginStatus(pluginID)
-	if appErr != nil {
-		p.API.LogError("Error getting plugin status", "error", appErr.Error())
-		return ""
-	}
-	return path.Join(status.PluginPath, "public", "iframe")
 }
 
 var iFrameHTML = `<!DOCTYPE html>
