@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 	"net/http"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -12,14 +14,15 @@ import (
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 )
 
 func newTestPlugin(t *testing.T) *Plugin {
@@ -71,11 +74,21 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{Atomic: false, ExpireInSeconds: 0}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
 	plugin.API.(*plugintest.API).Test(t)
 
 	_ = plugin.OnActivate()
 	plugin.userID = "bot-user-id"
 	return plugin
+}
+
+func getPluginPathForTest() string {
+	curr, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	path := path.Join(curr, "..")
+	return path
 }
 
 func TestMessageHasBeenPostedNewMessage(t *testing.T) {

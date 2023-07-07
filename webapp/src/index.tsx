@@ -5,6 +5,7 @@ import {GlobalState} from 'mattermost-redux/types/store';
 import manifest from './manifest';
 import Client from './client';
 import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
+import MSTeamsAppManifestSetting from './components/appManifestSetting';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -18,6 +19,8 @@ export default class Plugin {
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
+
+        registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
     }
 }
 
