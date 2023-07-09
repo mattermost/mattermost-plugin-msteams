@@ -136,7 +136,7 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 func GetFileInfo() *model.FileInfo {
 	return &model.FileInfo{
 		Id:       GetID(),
-		Name:     "mockFileName",
+		Name:     "mockFile.Name.txt",
 		Size:     1,
 		MimeType: "mockMimeType",
 	}

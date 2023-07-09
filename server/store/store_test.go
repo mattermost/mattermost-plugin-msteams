@@ -134,6 +134,7 @@ func TestStore(t *testing.T) {
 		"testGetChannelSubscription":                                 testGetChannelSubscription,
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
+		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -1052,4 +1053,23 @@ func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *
 	api.On("KVDelete", key).Return(nil).Once()
 	err = store.DeleteDMAndGMChannelPromptTime("mockMattermostUserID-1")
 	assert.Nil(t, err)
+}
+
+func testStoreAndVerifyOAuthState(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
+		Name: "mockMattermostTeamID-1",
+	}, nil)
+
+	state := fmt.Sprintf("%s_%s", model.NewId(), "mockMattermostUserID")
+	key := hashKey(oAuth2KeyPrefix, state)
+	api.On("KVSetWithExpiry", key, []byte(state), int64(oAuth2StateTimeToLive)).Return(nil)
+	err := store.StoreOAuth2State(state)
+	assert.Nil(err)
+
+	api.On("KVGet", key).Return([]byte(state), nil)
+	err = store.VerifyOAuth2State(state)
+	assert.Nil(err)
 }

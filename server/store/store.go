@@ -2,6 +2,7 @@
 package store
 
 import (
+	"crypto/sha512"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,8 @@ const (
 	subscriptionTypeUser         = "user"
 	subscriptionTypeChannel      = "channel"
 	subscriptionTypeAllChats     = "allChats"
+	oAuth2StateTimeToLive        = 300 // seconds
+	oAuth2KeyPrefix              = "oauth2_"
 )
 
 type Store interface {
@@ -65,6 +68,8 @@ type Store interface {
 	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
 	DeleteDMAndGMChannelPromptTime(userID string) error
 	RecoverPost(postID string) error
+	StoreOAuth2State(state string) error
+	VerifyOAuth2State(state string) error
 }
 
 type SQLStore struct {
@@ -800,4 +805,41 @@ func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
 	}
 
 	return builder.RunWith(s.db)
+}
+
+func (s *SQLStore) VerifyOAuth2State(state string) error {
+	key := hashKey(oAuth2KeyPrefix, state)
+	data, appErr := s.api.KVGet(key)
+	if appErr != nil {
+		return errors.New(appErr.Message)
+	}
+
+	if data == nil {
+		return errors.New("authentication attempt expired, please try again")
+	}
+
+	if string(data) != state {
+		return errors.New("invalid oauth state, please try again")
+	}
+
+	return nil
+}
+
+func (s *SQLStore) StoreOAuth2State(state string) error {
+	key := hashKey(oAuth2KeyPrefix, state)
+	if err := s.api.KVSetWithExpiry(key, []byte(state), oAuth2StateTimeToLive); err != nil {
+		return errors.New(err.Message)
+	}
+
+	return nil
+}
+
+func hashKey(prefix, hashableKey string) string {
+	if hashableKey == "" {
+		return prefix
+	}
+
+	h := sha512.New()
+	_, _ = h.Write([]byte(hashableKey))
+	return fmt.Sprintf("%s%x", prefix, h.Sum(nil))
 }

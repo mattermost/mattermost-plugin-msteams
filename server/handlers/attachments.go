@@ -27,6 +27,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 	attachments := []string{}
 	newText := text
 	parentID := ""
+	countAttachments := 0
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -50,12 +51,24 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 			continue
 		}
 
+		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
+		if len(attachmentData) > int(fileSizeAllowed) {
+			ah.plugin.GetAPI().LogError("cannot upload file to mattermost as its size is greater than allowed size", "filename", a.Name)
+			continue
+		}
+
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
 		if appErr != nil {
 			ah.plugin.GetAPI().LogError("upload file to mattermost failed", "filename", a.Name, "error", err)
 			continue
 		}
+
 		attachments = append(attachments, fileInfo.Id)
+		countAttachments++
+		if countAttachments == 10 {
+			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as mattermost supports only 10 attachments per post")
+			break
+		}
 	}
 	return newText, attachments, parentID
 }
