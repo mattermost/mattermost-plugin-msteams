@@ -41,10 +41,11 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	// set session cookie to indicate Mattermost is hosted in an iFrame, which allows
 	// webapp to bypass "Where do you want to view this" page and set SameSite=none.
 	http.SetCookie(w, &http.Cookie{
-		Name:   "MMEMBED",
-		Value:  "1",
-		Path:   "/",
-		Secure: true,
+		Name:     "MMEMBED",
+		Value:    "1",
+		Path:     "/",
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	if _, err := w.Write([]byte(html)); err != nil {
