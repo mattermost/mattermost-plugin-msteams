@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -365,6 +366,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	return nil
 }
+
 func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUser", srcUser, "usersIDs", usersIDs, "post", post)
 
@@ -420,8 +422,9 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 			continue
 		}
 
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile("", "", fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
 			continue
@@ -506,8 +509,9 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile(teamID, channelID, fileInfo.Name+"_"+fileInfo.Id, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
 			continue
@@ -837,4 +841,10 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 	}
 
 	return message, mentions
+}
+
+func getFileNameAndExtension(path string) (string, string) {
+	fileExtension := filepath.Ext(path)
+	fileName := strings.TrimSuffix(path, fileExtension)
+	return fileName, fileExtension
 }
