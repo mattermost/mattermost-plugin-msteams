@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/http"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-server/v6/app/imaging"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
@@ -23,6 +26,7 @@ func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, er
 	return data, nil
 }
 
+// TODO: Add unit tests for this function
 func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
@@ -55,6 +59,21 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		if len(attachmentData) > int(fileSizeAllowed) {
 			ah.plugin.GetAPI().LogError("cannot upload file to mattermost as its size is greater than allowed size", "filename", a.Name)
 			continue
+		}
+
+		contentType := http.DetectContentType(attachmentData)
+		if strings.HasPrefix(contentType, "image") && contentType != "image/svg+xml" {
+			w, h, imageErr := imaging.GetDimensions(bytes.NewReader(attachmentData))
+			if imageErr != nil {
+				ah.plugin.GetAPI().LogError("failed to get image dimensions", "error", imageErr.Error())
+				continue
+			}
+
+			imageRes := int64(w) * int64(h)
+			if imageRes > *ah.plugin.GetAPI().GetConfig().FileSettings.MaxImageResolution {
+				ah.plugin.GetAPI().LogError("image resolution is too high")
+				continue
+			}
 		}
 
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
