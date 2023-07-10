@@ -13,12 +13,15 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -32,6 +35,30 @@ import (
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"golang.org/x/oauth2"
 )
+
+type ConcurrentGraphRequestAdapter struct {
+	msgraphsdk.GraphRequestAdapter
+	mutex sync.Mutex
+}
+
+type ConcurrentSerializationWriterFactory struct {
+	serialization.SerializationWriterFactory
+	mutex sync.Mutex
+}
+
+func (sf *ConcurrentSerializationWriterFactory) GetSerializationWriter(contentType string) (serialization.SerializationWriter, error) {
+	sf.mutex.Lock()
+	defer sf.mutex.Unlock()
+	return sf.SerializationWriterFactory.GetSerializationWriter(contentType)
+}
+
+func (a *ConcurrentGraphRequestAdapter) GetSerializationWriterFactory() serialization.SerializationWriterFactory {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	return a.GraphRequestAdapter.GetSerializationWriterFactory()
+}
+
+var clientMutex sync.Mutex
 
 type ClientImpl struct {
 	client       *msgraphsdk.GraphServiceClient
@@ -248,7 +275,9 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		return nil
 	}
 
-	client.client = msgraphsdk.NewGraphServiceClient(adapter)
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	client.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return client
 }
