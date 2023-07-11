@@ -1,26 +1,44 @@
+import React from 'react';
 import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
+import Rhs from './containers/Rhs';
+
+import Constants from './constants';
+
+import reducer from './reducers';
+
 import manifest from './manifest';
-import Client from './client';
+
 import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from './components/appManifestSetting';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
-import {getServerRoute} from './selectors';
 
 export default class Plugin {
     enforceConnectedAccountId = '';
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
-        Client.setServerRoute(getServerRoute(store.getState()));
+        registry.registerReducer(reducer);
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
+        const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, Constants.pluginTitle);
+
+        // TODO: update icons later
+        registry.registerChannelHeaderButtonAction(
+            <img
+                width={24}
+                height={24}
+                src={Constants.iconUrl}
+            />, () => store.dispatch(toggleRHSPlugin), null, Constants.pluginTitle);
+        if (registry.registerAppBarComponent) {
+            registry.registerAppBarComponent(Constants.iconUrl, () => store.dispatch(toggleRHSPlugin), Constants.pluginTitle);
+        }
     }
 }
 

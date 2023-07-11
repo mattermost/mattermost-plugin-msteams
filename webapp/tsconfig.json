@@ -21,7 +21,6 @@
     "jsx": "react",
     "baseUrl": "./src",
     "typeRoots": [ "./src/types", "./node_modules/@types"],
-    "resolveJsonModule": true
   },
   "include": [
     "src"
