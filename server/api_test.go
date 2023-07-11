@@ -761,28 +761,28 @@ func TestDisconnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(nil).Times(1)
 			},
-			ExpectedResult:     "\"Your account has been disconnected.\"",
+			ExpectedResult:     "Your account has been disconnected.",
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name: "Disconnect: could not find Teams ID",
+			Name: "Disconnect: could not find the Teams ID",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "The account is not connected.", "UserID", testutils.GetUserID()).Once()
+				api.On("LogError", "The account is not connected.", "UserID", testutils.GetUserID(), "Error", "could not find the Teams ID").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), errors.New("could not find Teams ID")).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), errors.New("could not find the Teams ID")).Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
 		},
 		{
-			Name: "Disconnect: could not get token for MM user",
+			Name: "Disconnect: could not get the token for MM user",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "The account is not connected.", "UserID", testutils.GetUserID()).Once()
+				api.On("LogError", "The account is not connected.", "UserID", testutils.GetUserID(), "Error", "could not get the token for MM user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("could not get token for MM user")).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("could not get the token for MM user")).Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
 			ExpectedStatusCode: http.StatusBadRequest,

@@ -312,13 +312,13 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
-		a.p.API.LogError("The account is not connected.", "UserID", userID)
+		a.p.API.LogError("The account is not connected.", "UserID", userID, "Error", err.Error())
 		http.Error(w, "The account is not connected.", http.StatusBadRequest)
 		return
 	}
 
 	if _, err = a.p.store.GetTokenForMattermostUser(userID); err != nil {
-		a.p.API.LogError("The account is not connected.", "UserID", userID)
+		a.p.API.LogError("The account is not connected.", "UserID", userID, "Error", err.Error())
 		http.Error(w, "The account is not connected.", http.StatusBadRequest)
 		return
 	}
@@ -329,8 +329,7 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal("Your account has been disconnected.")
-	_, _ = w.Write(data)
+	_, _ = w.Write([]byte("Your account has been disconnected."))
 }
 
 // TODO: Add unit tests
