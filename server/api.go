@@ -37,6 +37,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/disconnect", api.disconnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 
 	// iFrame support
@@ -300,6 +301,35 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 
 	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
+	_, _ = w.Write(data)
+}
+
+func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
+	if err != nil {
+		a.p.API.LogError("The account is not connected.", "UserID", userID)
+		http.Error(w, "The account is not connected.", http.StatusBadRequest)
+		return
+	}
+
+	if _, err = a.p.store.GetTokenForMattermostUser(userID); err != nil {
+		a.p.API.LogError("The account is not connected.", "UserID", userID)
+		http.Error(w, "The account is not connected.", http.StatusBadRequest)
+		return
+	}
+
+	if err = a.p.store.SetUserInfo(userID, teamsUserID, nil); err != nil {
+		a.p.API.LogError("Error occurred while disconnecting the user.", "UserID", userID, "Error", err.Error())
+		http.Error(w, "Error occurred while disconnecting the user.", http.StatusInternalServerError)
+		return
+	}
+
+	data, _ := json.Marshal("Your account has been disconnected.")
 	_, _ = w.Write(data)
 }
 
