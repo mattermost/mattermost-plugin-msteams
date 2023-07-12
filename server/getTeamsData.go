@@ -44,13 +44,20 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] += "'" + link.MSTeamsChannelID + "'"
 	}
 
+	var resultingErr error
 	// Get MS Teams display names for each unique team ID and store it
-	err := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
+	if err := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames); err != nil {
+		p.API.LogDebug("Error occurred while getting the MS Teams teams details", "Error", err.Error())
+		resultingErr = err
+	}
 
 	// Get MS Teams channel details for all channels for each unique team
-	err = p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
+	if err := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames); err != nil {
+		p.API.LogDebug("Error occurred while getting the MS Teams channels detail", "Error", err.Error())
+		resultingErr = err
+	}
 
-	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err
+	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, resultingErr
 }
 
 func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) error {

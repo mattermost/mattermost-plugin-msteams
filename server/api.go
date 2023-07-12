@@ -351,14 +351,14 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	links, err := a.p.store.ListChannelLinksWithNames()
 	if err != nil {
-		a.p.API.LogDebug("Error occured while getting the linked channels", "Error", err.Error())
-		http.Error(w, "Error occured while getting the linked channels", http.StatusInternalServerError)
+		a.p.API.LogError("Error occurred while getting the linked channels", "Error", err.Error())
+		http.Error(w, "Error occurred while getting the linked channels", http.StatusInternalServerError)
 		return
 	}
 
 	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
 	if err != nil {
-		a.p.API.LogDebug("Unable to get the MS Teams channels and teams detail")
+		a.p.API.LogError("Unable to get the MS Teams channels and teams detail", "Error", err.Error())
 		http.Error(w, "Unable to get the MS Teams channels and teams detail", http.StatusInternalServerError)
 		return
 	}
