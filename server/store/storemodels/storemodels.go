@@ -3,19 +3,21 @@ package storemodels
 import "time"
 
 type ChannelLink struct {
-	MattermostTeamID      string
-	MattermostTeamName    string
-	MattermostChannelID   string
-	MattermostChannelName string
-	MSTeamsTeam           string
-	MSTeamsChannel        string
-	Creator               string
+	MattermostTeamID      string `json:"mattermostTeamID,omitempty"`
+	MattermostTeamName    string `json:"mattermostTeamName,omitempty"`
+	MattermostChannelID   string `json:"mattermostChannelID,omitempty"`
+	MattermostChannelName string `json:"mattermostChannelName,omitempty"`
+	MSTeamsTeamID         string `json:"msTeamsTeamID,omitempty"`
+	MSTeamsChannelID      string `json:"msTeamsChannelID,omitempty"`
+	MSTeamsTeamName       string `json:"msTeamsTeamName,omitempty"`
+	MSTeamsChannelName    string `json:"msTeamsChannelName,omitempty"`
+	Creator               string `json:"creator,omitempty"`
 }
 
 type PostInfo struct {
 	MattermostID        string
 	MSTeamsID           string
-	MSTeamsChannel      string
+	MSTeamsChannelID    string
 	MSTeamsLastUpdateAt time.Time
 }
 

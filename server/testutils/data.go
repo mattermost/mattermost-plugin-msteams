@@ -125,8 +125,8 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 			MattermostChannelID:   GetChannelID(),
 			MattermostTeamName:    "Test MM team",
 			MattermostChannelName: "Test MM channel",
-			MSTeamsTeam:           GetTeamsTeamID(),
-			MSTeamsChannel:        GetTeamsChannelID(),
+			MSTeamsTeamID:         GetTeamsTeamID(),
+			MSTeamsChannelID:      GetTeamsChannelID(),
 		})
 	}
 

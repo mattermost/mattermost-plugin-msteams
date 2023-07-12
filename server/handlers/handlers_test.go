@@ -384,9 +384,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetMSTeamsChannelID(),
 				}).Return(errors.New("unable to update the post")).Times(1)
 			},
 		},
@@ -442,9 +442,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetMSTeamsChannelID(),
 				}).Return(nil).Times(1)
 			},
 		},
@@ -486,9 +486,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 					Creator: "mockCreator",
 				}, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					Creator:             "mockCreator",
@@ -712,7 +712,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 			},
@@ -759,7 +759,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 				store.On("RecoverPost", "mockMattermostID").Return(errors.New("unable to recover"))
@@ -808,7 +808,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamUserID(), nil).Times(2)

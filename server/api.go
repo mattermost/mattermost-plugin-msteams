@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -34,15 +35,16 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
 
-	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
-	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
-	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
-	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods(http.MethodGet)
-	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods(http.MethodGet)
-	router.HandleFunc("/needsConnect", api.needsConnect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/connect", api.connect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/disconnect", api.disconnect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
+	router.HandleFunc("/changes", api.processActivity).Methods("POST")
+	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
+	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
+	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
+	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/disconnect", api.disconnect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/get-connected-channels", api.getConnectedChannels).Methods("GET", "OPTIONS")
+	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods(http.MethodGet)
@@ -339,6 +341,53 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+	links, err := a.p.store.ListChannelLinksWithNames()
+	if err != nil {
+		a.p.API.LogDebug("Error occured while getting the linked channels", "Error", err.Error())
+		http.Error(w, "Error occured while getting the linked channels", http.StatusInternalServerError)
+		return
+	}
+
+	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+	if err != nil {
+		a.p.API.LogDebug("Unable to get the MS Teams channels and teams detail")
+		http.Error(w, "Unable to get the MS Teams channels and teams detail", http.StatusInternalServerError)
+		return
+	}
+
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+	paginatedLinks := []*storemodels.ChannelLink{}
+	for index, link := range links {
+		if len(paginatedLinks) == limit {
+			break
+		}
+
+		if index >= offset {
+			paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
+				MattermostTeamID:      link.MattermostTeamID,
+				MattermostChannelID:   link.MattermostChannelID,
+				MSTeamsTeamID:         link.MSTeamsTeamID,
+				MSTeamsChannelID:      link.MSTeamsChannelID,
+				MattermostChannelName: link.MattermostChannelName,
+				MattermostTeamName:    link.MattermostTeamName,
+				MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
+				MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+			})
+		}
+	}
+
+	data, _ := json.Marshal(paginatedLinks)
+
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(data)
 }
 
 // TODO: Add unit tests
