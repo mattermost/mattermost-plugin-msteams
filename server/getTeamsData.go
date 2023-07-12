@@ -27,6 +27,7 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 
 	for _, link := range channelLinks {
 		if checkChannelPermissions && !p.API.HasPermissionToChannel(userID, link.MattermostChannelID, model.PermissionCreatePost) {
+			p.API.LogInfo("User does not have the permissions for the requested channel", "UserID", userID, "ChannelID", link.MattermostChannelID)
 			continue
 		}
 

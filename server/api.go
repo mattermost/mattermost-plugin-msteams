@@ -370,7 +370,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if index >= offset {
+		if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
 			paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
 				MattermostTeamID:      link.MattermostTeamID,
 				MattermostChannelID:   link.MattermostChannelID,
