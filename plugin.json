@@ -1,6 +1,6 @@
 {
     "id": "com.mattermost.msteams-sync",
-    "name": "MSTeams Sync",
+    "name": "Mattermost for Microsoft Teams",
     "description": "Plugin to sync Mattermost channels with Microsoft Teams channels",
     "homepage_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
     "support_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/issues",
