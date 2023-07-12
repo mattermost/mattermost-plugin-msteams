@@ -75,13 +75,8 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
-	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "invalid Content-Type", http.StatusBadRequest)
-		return	
-	}
-
 	if validationToken != "" {
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
@@ -139,13 +134,8 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 // processLifecycle handles the lifecycle events received from teams subscriptions
 func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
-	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "invalid Content-Type", http.StatusBadRequest)
-		return	
-	}
-
 	if validationToken != "" {
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
