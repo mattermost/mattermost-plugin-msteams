@@ -745,13 +745,11 @@ func TestNeedsConnect(t *testing.T) {
 
 func TestDisconnect(t *testing.T) {
 	for _, test := range []struct {
-		Name                  string
-		SetupPlugin           func(*plugintest.API)
-		SetupStore            func(*storemocks.Store)
-		EnforceConnectedUsers bool
-		EnabledTeams          string
-		ExpectedResult        string
-		ExpectedStatusCode    int
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
 	}{
 		{
 			Name:        "Disconnect: user successfully disconnected",
@@ -804,8 +802,6 @@ func TestDisconnect(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			plugin.configuration.EnforceConnectedUsers = test.EnforceConnectedUsers
-			plugin.configuration.EnabledTeams = test.EnabledTeams
 			test.SetupPlugin(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			w := httptest.NewRecorder()
