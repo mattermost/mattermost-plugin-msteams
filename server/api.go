@@ -53,7 +53,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
-	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
 	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
 
