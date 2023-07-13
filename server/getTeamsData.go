@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
@@ -94,6 +95,22 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	}
 
 	return errorsFound
+}
+
+func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, error) {
+	client, err := p.GetClientForUser(userID)
+	if err != nil {
+		p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		return nil, err
+	}
+
+	teams, err := client.ListTeams()
+	if err != nil {
+		p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
+		return nil, err
+	}
+
+	return teams, nil
 }
 
 func (p *Plugin) GetOffsetAndLimitFromQueryParams(r *http.Request) (offset, limit int) {

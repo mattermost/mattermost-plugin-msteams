@@ -45,6 +45,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/get-connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/get-ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
 
 	// Command autocomplete APIs
@@ -180,17 +181,8 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	client, err := a.p.GetClientForUser(userID)
+	teams, err := a.p.GetMSTeamsTeamList(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
-		return
-	}
-
-	teams, err := client.ListTeams()
-	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -208,6 +200,24 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, _ := json.Marshal(out)
+	_, _ = w.Write(data)
+}
+
+func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	teams, err := a.p.GetMSTeamsTeamList(userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team list.", http.StatusInternalServerError)
+		return
+	}
+
+	data, _ := json.Marshal(teams)
+	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(data)
 }
 
