@@ -834,8 +834,6 @@ func TestGetConnectedChannels(t *testing.T) {
 		SetupPlugin           func(*plugintest.API)
 		SetupStore            func(*storemocks.Store)
 		SetupClient           func(*clientmocks.Client)
-		EnforceConnectedUsers bool
-		EnabledTeams          string
 		ExpectedResult        string
 		ExpectedStatusCode    int
 	}{
@@ -911,8 +909,6 @@ func TestGetConnectedChannels(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			plugin.configuration.EnforceConnectedUsers = test.EnforceConnectedUsers
-			plugin.configuration.EnabledTeams = test.EnabledTeams
 			test.SetupPlugin(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
