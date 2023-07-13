@@ -966,3 +966,78 @@ func TestGetConnectedChannels(t *testing.T) {
 		})
 	}
 }
+
+func TestMSTeamsTeamList(t *testing.T) {
+	for _, test := range []struct {
+		Name                  string
+		SetupPlugin           func(*plugintest.API)
+		SetupStore            func(*storemocks.Store)
+		SetupClient           func(*clientmocks.Client)
+		ExpectedResult        string
+		ExpectedStatusCode    int
+	}{
+		{
+			Name:        "MSTeamsTeamList: MS Teams team listed successfully",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(c *clientmocks.Client) {
+				c.On("ListTeams").Return([]msteams.Team{
+					{
+						ID:          "mockTeamsTeamID-1",
+						DisplayName: "mockDisplayName-1",
+						Description: "mockDescription-1",
+					},
+					{
+						ID:          "mockTeamsTeamID-2",
+						DisplayName: "mockDisplayName-2",
+						Description: "mockDescription-2",
+					},
+				}, nil).Times(1)
+			},
+			ExpectedResult:     `[{"ID":"mockTeamsTeamID-1","DisplayName":"mockDisplayName-1","Description":"mockDescription-1"},{"ID":"mockTeamsTeamID-2","DisplayName":"mockDisplayName-2","Description":"mockDescription-2"}]`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name: "MSTeamsTeamList: error occurred while getting MS Teams team list",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the MS Teams teams", "Error", "error occurred while getting MS Teams team list").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(c *clientmocks.Client) {
+				c.On("ListTeams").Return(nil, errors.New("error occurred while getting MS Teams team list")).Times(1)
+			},
+			ExpectedResult:     "Error occurred while fetching the MS Teams team list.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			test.SetupPlugin(plugin.API.(*plugintest.API))
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/get-ms-teams-team-list", nil)
+			r.Header.Add("Mattermost-User-ID", testutils.GetUserID())
+			queryParams := url.Values{
+				"per_page": {"10"},
+				"page":     {"0"},
+			}
+
+			r.URL.RawQuery = queryParams.Encode()
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(result.StatusCode, test.ExpectedStatusCode)
+		})
+	}
+}

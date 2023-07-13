@@ -216,7 +216,19 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(teams)
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+	paginatedTeams := []msteams.Team{}
+	for index, team := range teams {
+		if len(paginatedTeams) == limit {
+			break
+		}
+
+		if index >= offset {
+			paginatedTeams = append(paginatedTeams, team)
+		}
+	}
+
+	data, _ := json.Marshal(paginatedTeams)
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(data)
 }
