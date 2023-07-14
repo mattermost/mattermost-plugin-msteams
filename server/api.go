@@ -20,7 +20,10 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-ID"
-	QueryParamSearchTerm   = "search_term"
+
+	// Query params
+	QueryParamTeamID     = "team_id"
+	QueryParamSearchTerm = "search_term"
 )
 
 type API struct {
@@ -47,6 +50,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
 	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
 	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
+	router.HandleFunc("/ms-teams-team-channels", api.getMSTeamsTeamChannels).Methods(http.MethodGet)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
@@ -246,6 +250,33 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+	teamID := r.URL.Query().Get(QueryParamTeamID)
+
+	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team channels.", http.StatusInternalServerError)
+		return
+	}
+
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
+	paginatedChannels := []msteams.Channel{}
+	for index, channel := range channels {
+		if len(paginatedChannels) == limit {
+			break
+		}
+
+		if index >= offset {
+			paginatedChannels = append(paginatedChannels, channel)
+		}
+	}
+
+	data, _ := json.Marshal(paginatedChannels)
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(data)
+}
+
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	response := map[string]bool{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
@@ -404,37 +435,6 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.writeJSON(w, http.StatusOK, paginatedTeams)
-}
-
-func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
-	userID := r.Header.Get("Mattermost-User-ID")
-	teams, err := a.p.GetMSTeamsTeamList(userID)
-	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team list.", http.StatusInternalServerError)
-		return
-	}
-
-	sort.Slice(teams, func(i, j int) bool {
-		return teams[i].ID < teams[j].ID
-	})
-
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
-	paginatedTeams := []msteams.Team{}
-	for index, team := range teams {
-		if len(paginatedTeams) == limit {
-			break
-		}
-
-		if index >= offset {
-			paginatedTeams = append(paginatedTeams, team)
-		}
-	}
-
-	a.p.writeJSON(w, http.StatusOK, paginatedTeams)
 }
 
 // TODO: Add unit tests

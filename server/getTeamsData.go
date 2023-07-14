@@ -116,6 +116,22 @@ func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) 
 	return teams, http.StatusOK, nil
 }
 
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channel, error) {
+	client, err := p.GetClientForUser(userID)
+	if err != nil {
+		p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		return nil, err
+	}
+
+	channels, err := client.ListChannels(teamID)
+	if err != nil {
+		p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
+		return nil, err
+	}
+
+	return channels, nil
+}
+
 func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
