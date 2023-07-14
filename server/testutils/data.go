@@ -153,3 +153,12 @@ func GetPostFromTeamsMessage() *model.Post {
 		FileIds: model.StringArray{},
 	}
 }
+
+func GetChannelLink() *storemodels.ChannelLink {
+	return &storemodels.ChannelLink{
+		MattermostTeamID:    GetTeamID(),
+		MattermostChannelID: GetChannelID(),
+		MSTeamsTeamID:       GetTeamID(),
+		MSTeamsChannelID:    GetChannelID(),
+	}
+}

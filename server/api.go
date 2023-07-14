@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -348,7 +349,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	links, err := a.p.store.ListChannelLinksWithNames()
 	if err != nil {
 		a.p.API.LogError("Error occurred while getting the linked channels", "Error", err.Error())
@@ -356,38 +357,49 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
-	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams channels and teams detail", "Error", err.Error())
-		http.Error(w, "Unable to get the MS Teams channels and teams detail", http.StatusInternalServerError)
-		return
-	}
-
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
 	paginatedLinks := []*storemodels.ChannelLink{}
-	for index, link := range links {
-		if len(paginatedLinks) == limit {
-			break
+	if len(links) > 0 {
+		sort.Slice(links, func(i, j int) bool {
+			return links[i].MattermostChannelID < links[j].MattermostChannelID
+		})
+
+		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+		if err != nil {
+			a.p.API.LogError("Unable to get the MS Teams channels and teams detail", "Error", err.Error())
+			http.Error(w, "Unable to get the MS Teams channels and teams detail", http.StatusInternalServerError)
+			return
 		}
 
-		if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
-			paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
-				MattermostTeamID:      link.MattermostTeamID,
-				MattermostChannelID:   link.MattermostChannelID,
-				MSTeamsTeamID:         link.MSTeamsTeamID,
-				MSTeamsChannelID:      link.MSTeamsChannelID,
-				MattermostChannelName: link.MattermostChannelName,
-				MattermostTeamName:    link.MattermostTeamName,
-				MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
-				MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
-			})
+		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+		for index, link := range links {
+			if len(paginatedLinks) == limit {
+				break
+			}
+
+			channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
+			if appErr != nil {
+				a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
+				http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
+				return
+			}
+
+			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+				paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
+					MattermostTeamID:      link.MattermostTeamID,
+					MattermostChannelID:   link.MattermostChannelID,
+					MSTeamsTeamID:         link.MSTeamsTeamID,
+					MSTeamsChannelID:      link.MSTeamsChannelID,
+					MattermostChannelName: link.MattermostChannelName,
+					MattermostTeamName:    link.MattermostTeamName,
+					MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
+					MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+					MattermostChannelType: string(channel.Type),
+				})
+			}
 		}
 	}
 
-	data, _ := json.Marshal(paginatedLinks)
-
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(data)
+	a.p.writeJSON(w, http.StatusOK, paginatedLinks)
 }
 
 // TODO: Add unit tests
@@ -490,4 +502,26 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
+}
+
+func (p *Plugin) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(v)
+	if err != nil {
+		p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		p.API.LogError("Failed to write JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(statusCode)
 }
