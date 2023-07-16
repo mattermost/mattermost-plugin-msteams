@@ -1052,3 +1052,101 @@ func TestMSTeamsTeamList(t *testing.T) {
 		})
 	}
 }
+
+func TestMSTeamsTeamChannels(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		SetupClient        func(*clientmocks.Client)
+		QueryParamTeamID   string
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "TestMSTeamsTeamChannels: MS Teams team channels listed successfully",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(c *clientmocks.Client) {
+				c.On("ListChannels", testutils.GetTeamsTeamID()).Return([]msteams.Channel{
+					{
+						ID:          "mockTeamsChannelID-1",
+						DisplayName: "mockDisplayName-1",
+						Description: "mockDescription-1",
+					},
+					{
+						ID:          "mockTeamsChannelID-2",
+						DisplayName: "mockDisplayName-2",
+						Description: "mockDescription-2",
+					},
+				}, nil).Times(1)
+			},
+			QueryParamTeamID:   testutils.GetTeamsTeamID(),
+			ExpectedResult:     `[{"ID":"mockTeamsChannelID-1","DisplayName":"mockDisplayName-1","Description":"mockDescription-1"},{"ID":"mockTeamsChannelID-2","DisplayName":"mockDisplayName-2","Description":"mockDescription-2"}]`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name: "TestMSTeamsTeamChannels: error occurred while getting MS Teams team channels",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+				api.On("LogError", "Unable to get the channels for MS Teams team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error occurred while getting MS Teams team channels").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(c *clientmocks.Client) {
+				c.On("ListChannels", testutils.GetTeamsTeamID()).Return(nil, errors.New("error occurred while getting MS Teams team channels")).Times(1)
+			},
+			QueryParamTeamID:   testutils.GetTeamsTeamID(),
+			ExpectedResult:     "Error occurred while fetching the MS Teams team channels.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			Name: "TestMSTeamsTeamChannels: missing team ID in query params",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error missing team ID query param.").Times(1)
+			},
+			SetupStore:         func(store *storemocks.Store) {},
+			SetupClient:        func(c *clientmocks.Client) {},
+			ExpectedResult:     "Error missing team ID query param.\n",
+			ExpectedStatusCode: http.StatusBadRequest,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/get-ms-teams-team-channels", nil)
+			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
+			queryParams := url.Values{
+				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
+				QueryParamPage:    {fmt.Sprintf("%d", DefaultPage)},
+				QueryParamTeamID:  {test.QueryParamTeamID},
+			}
+
+			r.URL.RawQuery = queryParams.Encode()
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(result.StatusCode, test.ExpectedStatusCode)
+		})
+	}
+}
