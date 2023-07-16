@@ -50,7 +50,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
 	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
 	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
-	router.HandleFunc("/ms-teams-team-channels", api.getMSTeamsTeamChannels).Methods(http.MethodGet)
+	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
