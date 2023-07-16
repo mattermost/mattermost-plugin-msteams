@@ -977,8 +977,10 @@ func TestMSTeamsTeamList(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name:        "MSTeamsTeamList: MS Teams team listed successfully",
-			SetupPlugin: func(api *plugintest.API) {},
+			Name: "MSTeamsTeamList: MS Teams team listed successfully",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
@@ -1002,6 +1004,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 		{
 			Name: "MSTeamsTeamList: error occurred while getting MS Teams team list",
 			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 				api.On("LogError", "Unable to get the MS Teams teams", "Error", "error occurred while getting MS Teams team list").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1017,15 +1020,21 @@ func TestMSTeamsTeamList(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
 			test.SetupPlugin(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/get-ms-teams-team-list", nil)
-			r.Header.Add("Mattermost-User-ID", testutils.GetUserID())
+			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				"per_page": {"10"},
-				"page":     {"0"},
+				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
+				QueryParamPage:    {fmt.Sprintf("%d", DefaultPage)},
 			}
 
 			r.URL.RawQuery = queryParams.Encode()
