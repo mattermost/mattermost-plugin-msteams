@@ -504,6 +504,20 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
 }
 
+// handleAuthRequired verifies if the provided request is performed by an authorized source.
+func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if mattermostUserID == "" {
+			a.p.API.LogError("Not authorized")
+			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			return
+		}
+
+		handleFunc(w, r)
+	}
+}
+
 func (p *Plugin) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 	if statusCode == 0 {
 		statusCode = http.StatusOK
