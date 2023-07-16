@@ -250,33 +250,6 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-	teamID := r.URL.Query().Get(QueryParamTeamID)
-
-	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
-	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team channels.", http.StatusInternalServerError)
-		return
-	}
-
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
-	paginatedChannels := []msteams.Channel{}
-	for index, channel := range channels {
-		if len(paginatedChannels) == limit {
-			break
-		}
-
-		if index >= offset {
-			paginatedChannels = append(paginatedChannels, channel)
-		}
-	}
-
-	data, _ := json.Marshal(paginatedChannels)
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(data)
-}
-
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	response := map[string]bool{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
@@ -435,6 +408,30 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.writeJSON(w, http.StatusOK, paginatedTeams)
+}
+
+func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+	teamID := r.URL.Query().Get(QueryParamTeamID)
+
+	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team channels.", http.StatusInternalServerError)
+		return
+	}
+
+	sort.Slice(channels, func(i, j int) bool {
+		return channels[i].ID < channels[j].ID
+	})
+
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
+	paginatedChannels := []msteams.Channel{}
+	for index := offset; index < offset+limit && index < len(channels); index++ {
+		channel := channels[index]
+		paginatedChannels = append(paginatedChannels, channel)
+	}
+
+	a.writeJSON(w, http.StatusOK, paginatedChannels)
 }
 
 // TODO: Add unit tests
