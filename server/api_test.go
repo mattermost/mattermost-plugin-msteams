@@ -969,12 +969,12 @@ func TestGetConnectedChannels(t *testing.T) {
 
 func TestMSTeamsTeamList(t *testing.T) {
 	for _, test := range []struct {
-		Name                  string
-		SetupPlugin           func(*plugintest.API)
-		SetupStore            func(*storemocks.Store)
-		SetupClient           func(*clientmocks.Client)
-		ExpectedResult        string
-		ExpectedStatusCode    int
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		SetupClient        func(*clientmocks.Client)
+		ExpectedResult     string
+		ExpectedStatusCode int
 	}{
 		{
 			Name:        "MSTeamsTeamList: MS Teams team listed successfully",
