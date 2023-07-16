@@ -43,8 +43,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/disconnect", api.disconnect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/get-connected-channels", api.getConnectedChannels).Methods("GET", "OPTIONS")
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.disconnect)).Methods("GET", "OPTIONS")
+	router.HandleFunc("/get-connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 
 	// iFrame support
@@ -399,7 +399,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	a.p.writeJSON(w, http.StatusOK, paginatedLinks)
+	a.writeJSON(w, http.StatusOK, paginatedLinks)
 }
 
 // TODO: Add unit tests
@@ -518,7 +518,7 @@ func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (p *Plugin) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+func (a *API) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
@@ -526,13 +526,13 @@ func (p *Plugin) writeJSON(w http.ResponseWriter, statusCode int, v interface{})
 	w.Header().Set("Content-Type", "application/json")
 	b, err := json.Marshal(v)
 	if err != nil {
-		p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if _, err = w.Write(b); err != nil {
-		p.API.LogError("Failed to write JSON response", "Error", err.Error())
+		a.p.API.LogError("Failed to write JSON response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

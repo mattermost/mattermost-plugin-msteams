@@ -872,9 +872,7 @@ func TestGetConnectedChannels(t *testing.T) {
 		{
 			Name: "GetConnectedChannels: error occurred while getting the linked channels",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
 				api.On("LogError", "Error occurred while getting the linked channels", "Error", "error occurred while getting the linked channels").Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("ListChannelLinksWithNames").Return(nil, errors.New("error occurred while getting the linked channels")).Times(1)
@@ -888,7 +886,7 @@ func TestGetConnectedChannels(t *testing.T) {
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
 				api.On("LogError", "Unable to get the MS Teams channels and teams detail", "Error", "error occurred while getting the team details").Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{}, nil).Times(1)
+				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error occurred while getting the team details")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("ListChannelLinksWithNames").Return([]*storemodels.ChannelLink{
@@ -937,9 +935,15 @@ func TestGetConnectedChannels(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			test.SetupPlugin(plugin.API.(*plugintest.API))
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
+
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/get-connected-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
