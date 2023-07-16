@@ -441,6 +441,37 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 	a.writeJSON(w, http.StatusOK, paginatedChannels)
 }
 
+func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+	teams, err := a.p.GetMSTeamsTeamList(userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team list.", http.StatusInternalServerError)
+		return
+	}
+
+	sort.Slice(teams, func(i, j int) bool {
+		return teams[i].ID < teams[j].ID
+	})
+
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+	paginatedTeams := []msteams.Team{}
+	for index, team := range teams {
+		if len(paginatedTeams) == limit {
+			break
+		}
+
+		if index >= offset {
+			paginatedTeams = append(paginatedTeams, team)
+		}
+	}
+
+	a.p.writeJSON(w, http.StatusOK, paginatedTeams)
+}
+
 // TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
