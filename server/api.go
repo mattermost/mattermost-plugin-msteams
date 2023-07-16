@@ -41,7 +41,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods(http.MethodGet)
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/connect", api.connect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/disconnect", api.disconnect).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.disconnect)).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
 
 	// iFrame support
@@ -441,4 +441,18 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
+}
+
+// handleAuthRequired verifies if the provided request is performed by an authorized source.
+func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if mattermostUserID == "" {
+			a.p.API.LogError("Not authorized")
+			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			return
+		}
+
+		handleFunc(w, r)
+	}
 }
