@@ -1,8 +1,6 @@
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-type PluginApiServiceName =
-    'needsConnect' |
-    'connect';
+type PluginApiServiceName = 'needsConnect' | 'connect';
 
 type PluginApiService = {
     path: string,

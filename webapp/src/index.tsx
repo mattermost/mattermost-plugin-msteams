@@ -4,9 +4,7 @@ import {Store, Action} from 'redux';
 import {GlobalState} from 'mattermost-redux/types/store';
 
 import Rhs from './containers/Rhs';
-
 import Constants from './constants';
-
 import reducer from './reducers';
 
 import manifest from './manifest';
