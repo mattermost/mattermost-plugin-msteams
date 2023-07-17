@@ -217,6 +217,37 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 	return "", http.StatusOK
 }
 
+func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int) {
+	channel, appErr := p.API.GetChannel(mattermostChannelID)
+	if appErr != nil {
+		p.API.LogError("Unable to get the current channel information.", "Error", appErr.Message)
+		return "Unable to get the current channel information.", http.StatusInternalServerError
+	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		p.API.LogError("Linking/unlinking a direct or group message is not allowed")
+		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
+	}
+
+	canLinkChannel := p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		p.API.LogError("Unable to unlink the channel, you have to be a channel admin to unlink it.")
+		return "Unable to unlink the channel, you have to be a channel admin to unlink it.", http.StatusForbidden
+	}
+
+	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {
+		p.API.LogError("This Mattermost channel is not linked to any MS Teams channel.", "Error", err.Error())
+		return "This Mattermost channel is not linked to any MS Teams channel.", http.StatusBadRequest
+	}
+
+	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
+		p.API.LogError("Unable to delete link.", "Error", err.Error())
+		return "Unable to delete link.", http.StatusInternalServerError
+	}
+
+	return "", http.StatusOK
+}
+
 func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {

@@ -159,26 +159,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 }
 
 func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	channel, appErr := p.API.GetChannel(args.ChannelId)
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
-	}
-
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
-	}
-
-	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
-	}
-
-	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "This Mattermost channel is not linked to any MS Teams channel.")
-	}
-
-	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
+	if errMsg, _ := p.UnlinkChannels(args.UserId, args.ChannelId); errMsg != "" {
+		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
