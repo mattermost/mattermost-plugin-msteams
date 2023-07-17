@@ -34,15 +34,19 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
 
+	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
+
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
-	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods(http.MethodGet)
-	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods(http.MethodGet)
-	router.HandleFunc("/needsConnect", api.needsConnect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/connect", api.connect).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/disconnect", api.handleAuthRequired(api.disconnect)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
+
+	// Command autocomplete APIs
+	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
+	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods(http.MethodGet)
@@ -315,12 +319,6 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.Header.Get(HeaderMattermostUserID)
-	if _, err := a.p.store.GetTokenForMattermostUser(userID); err != nil {
-		a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", userID, "Error", err.Error())
-		http.Error(w, "The account is not connected.", http.StatusBadRequest)
-		return
-	}
-
 	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
 		a.p.API.LogError("Unable to get Teams user ID from Mattermost user ID.", "UserID", userID, "Error", err.Error())
@@ -450,6 +448,20 @@ func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
 		if mattermostUserID == "" {
 			a.p.API.LogError("Not authorized")
 			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			return
+		}
+
+		handleFunc(w, r)
+	}
+}
+
+// checkUserConnected verifies if the user account is connected to MS Teams.
+func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if _, err := a.p.store.GetTokenForMattermostUser(mattermostUserID); err != nil {
+			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
+			http.Error(w, "The account is not connected.", http.StatusBadRequest)
 			return
 		}
 
