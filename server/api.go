@@ -218,18 +218,9 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := a.p.GetClientForUser(userID)
-	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
-		return
-	}
-
 	teamID := args[2]
-	channels, err := client.ListChannels(teamID)
+	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
