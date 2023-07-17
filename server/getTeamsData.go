@@ -155,15 +155,21 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 	}
 
 	link, err := p.store.GetLinkByChannelID(mattermostChannelID)
-	if err == nil && link != nil {
+	if err != nil {
 		p.API.LogError("Error occurred while getting channel link with Mattermost channelID.", "ChannelID", mattermostChannelID, "Error", err.Error())
-		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusInternalServerError
+		return "Error occurred while getting channel link with Mattermost channelID.", http.StatusInternalServerError
+	}
+	if err == nil && link != nil {
+		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusBadRequest
 	}
 
 	link, err = p.store.GetLinkByMSTeamsChannelID(msTeamsTeamID, msTeamsChannelID)
-	if err == nil && link != nil {
+	if err != nil {
 		p.API.LogError("Error occurred while getting the channel link with MS Teams channel ID", "Error", err.Error())
-		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusInternalServerError
+		return "Error occurred while getting the channel link with MS Teams channel ID", http.StatusInternalServerError
+	}
+	if err == nil && link != nil {
+		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusBadRequest
 	}
 
 	client, err := p.GetClientForUser(userID)
