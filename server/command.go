@@ -298,7 +298,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 
-	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, false)
+	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, false)
 
 	for _, link := range links {
 		row := fmt.Sprintf(
@@ -314,7 +314,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 		}
 	}
 
-	if err != nil {
+	if errorsFound {
 		sb.WriteString("\nThere were some errors while fetching information. Please check the server logs.")
 	}
 

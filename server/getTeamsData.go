@@ -20,7 +20,7 @@ const (
 	MaxPerPageLimit     = 100
 )
 
-func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, error) {
+func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, bool) {
 	msTeamsTeamIDsVsNames := make(map[string]string)
 	msTeamsChannelIDsVsNames := make(map[string]string)
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
@@ -44,21 +44,19 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] += "'" + link.MSTeamsChannelID + "'"
 	}
 
-	var resultingErr error
+	errorsFound := false
 	// Get MS Teams display names for each unique team ID and store it
-	if err := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames); err != nil {
-		resultingErr = err
-	}
+	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
+	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
-	if err := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames); err != nil {
-		resultingErr = err
-	}
+	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
+	errorsFound = errorsFound || channelDetailsErr
 
-	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, resultingErr
+	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) error {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
 	for teamID := range msTeamsTeamIDsVsNames {
@@ -70,22 +68,24 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
 	if err != nil {
 		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
-		return err
+		return true
 	}
 
 	for _, msTeamsTeam := range msTeamsTeams {
 		msTeamsTeamIDsVsNames[msTeamsTeam.ID] = msTeamsTeam.DisplayName
 	}
 
-	return nil
+	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) error {
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
+	errorsFound := false
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
 			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
-			return err
+			errorsFound = true
+			continue
 		}
 
 		for _, channel := range channels {
@@ -93,7 +93,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 		}
 	}
 
-	return nil
+	return errorsFound
 }
 
 func (p *Plugin) GetOffsetAndLimitFromQueryParams(r *http.Request) (offset, limit int) {

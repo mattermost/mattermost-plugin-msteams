@@ -882,11 +882,10 @@ func TestGetConnectedChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			Name: "GetConnectedChannels: error occurred while getting the team details",
+			Name: "GetConnectedChannels: error occurred while getting the MS Teams teams details",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
-				api.On("LogError", "Unable to get the MS Teams channels and teams detail", "Error", "error occurred while getting the team details").Times(1)
-				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error occurred while getting the team details")
+				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error occurred while getting the MS Teams teams details")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("ListChannelLinksWithNames").Return([]*storemodels.ChannelLink{
@@ -895,9 +894,9 @@ func TestGetConnectedChannels(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("GetChannelsInTeam", testutils.GetTeamID(), fmt.Sprintf("id in ('%s')", testutils.GetChannelID())).Return([]*msteams.Channel{}, nil).Times(1)
-				c.On("GetTeams", fmt.Sprintf("id in ('%s')", testutils.GetTeamID())).Return(nil, errors.New("error occurred while getting the team details")).Times(1)
+				c.On("GetTeams", fmt.Sprintf("id in ('%s')", testutils.GetTeamID())).Return(nil, errors.New("error occurred while getting the MS Teams teams details")).Times(1)
 			},
-			ExpectedResult:     "Unable to get the MS Teams channels and teams detail\n",
+			ExpectedResult:     "Unable to get the MS Teams teams details\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{

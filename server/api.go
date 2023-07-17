@@ -358,30 +358,26 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 	paginatedLinks := []*storemodels.ChannelLink{}
 	if len(links) > 0 {
 		sort.Slice(links, func(i, j int) bool {
-			return links[i].MattermostChannelID < links[j].MattermostChannelID
+			return fmt.Sprintf("%s_%s", links[i].MattermostChannelName, links[i].MattermostChannelID) < fmt.Sprintf("%s_%s", links[j].MattermostChannelName, links[j].MattermostChannelID)
 		})
 
-		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, err := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
-		if err != nil {
-			a.p.API.LogError("Unable to get the MS Teams channels and teams detail", "Error", err.Error())
-			http.Error(w, "Unable to get the MS Teams channels and teams detail", http.StatusInternalServerError)
+		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+		if errorsFound {
+			http.Error(w, "Unable to get the MS Teams teams details", http.StatusInternalServerError)
 			return
 		}
 
 		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
-		for index, link := range links {
-			if len(paginatedLinks) == limit {
-				break
-			}
-
-			channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
-			if appErr != nil {
-				a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
-				http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
-				return
-			}
-
+		for index := offset; index < offset+limit && index < len(links); index++ {
+			link := links[index]
 			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
+				if appErr != nil {
+					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
+					http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
+					return
+				}
+
 				paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
 					MattermostTeamID:      link.MattermostTeamID,
 					MattermostChannelID:   link.MattermostChannelID,
