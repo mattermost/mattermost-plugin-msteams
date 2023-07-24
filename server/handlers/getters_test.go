@@ -365,27 +365,17 @@ func TestGetMessageFromChannel(t *testing.T) {
 		setupClient   func()
 	}{
 		{
-			description: "Successfully got reply from channel",
+			description: "Successfully got message from channel",
 			userID:      testutils.GetUserID(),
 			teamID:      testutils.GetTeamUserID(),
 			channelID:   testutils.GetChannelID(),
 			messageID:   testutils.GetMessageID(),
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 			},
 			setupClient: func() {
 				client.On("GetMessage", testutils.GetTeamUserID(), testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{}, nil)
 			},
-		},
-		{
-			description: "Unable to get bot client",
-			userID:      "mock-userID",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting bot client"))
-				p.On("GetAPI").Return(mockAPI)
-			},
-			setupClient:   func() {},
-			expectedError: "Error while getting bot client",
 		},
 		{
 			description: "Unable to get original post",
@@ -394,7 +384,7 @@ func TestGetMessageFromChannel(t *testing.T) {
 			channelID:   testutils.GetChannelID(),
 			messageID:   "mock-messageID",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {
@@ -445,21 +435,11 @@ func TestGetReplyFromChannel(t *testing.T) {
 			messageID:   testutils.GetMessageID(),
 			replyID:     testutils.GetReplyID(),
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 			},
 			setupClient: func() {
 				client.On("GetReply", testutils.GetTeamUserID(), testutils.GetChannelID(), testutils.GetMessageID(), testutils.GetReplyID()).Return(&msteams.Message{}, nil)
 			},
-		},
-		{
-			description: "Unable to get bot client",
-			userID:      "mock-userID",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting bot client"))
-				p.On("GetAPI").Return(mockAPI)
-			},
-			setupClient:   func() {},
-			expectedError: "Error while getting bot client",
 		},
 		{
 			description: "Unable to get original post",
@@ -469,7 +449,7 @@ func TestGetReplyFromChannel(t *testing.T) {
 			messageID:   testutils.GetMessageID(),
 			replyID:     "mock-replyID",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {
@@ -628,7 +608,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetStore").Return(store)
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {
@@ -648,7 +628,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetStore").Return(store)
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client)
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {

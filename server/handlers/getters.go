@@ -32,14 +32,7 @@ func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID stri
 }
 
 func (ah *ActivityHandler) getReplyFromChannel(userID string, teamID, channelID, messageID, replyID string) (*msteams.Message, error) {
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get bot client", "error", err)
-		return nil, err
-	}
-
-	var msg *msteams.Message
-	msg, err = client.GetReply(teamID, channelID, messageID, replyID)
+	msg, err := ah.plugin.GetClientForApp().GetReply(teamID, channelID, messageID, replyID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
 		return nil, err
@@ -48,13 +41,7 @@ func (ah *ActivityHandler) getReplyFromChannel(userID string, teamID, channelID,
 }
 
 func (ah *ActivityHandler) getMessageFromChannel(userID string, teamID, channelID, messageID string) (*msteams.Message, error) {
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get bot client", "error", err)
-		return nil, err
-	}
-
-	msg, err := client.GetMessage(teamID, channelID, messageID)
+	msg, err := ah.plugin.GetClientForApp().GetMessage(teamID, channelID, messageID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original post", "error", err)
 		return nil, err

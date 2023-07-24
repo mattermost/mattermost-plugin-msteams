@@ -74,9 +74,9 @@ There are two methods by which you can connect your Mattermost account to your M
 - **Connecting the bot account**
     - Run the slash command `/msteams-sync connect-bot` in any channel.
     - This command is visible and accessible by system admins only.
-    - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link to connect your account.
-    - Click on that link. If it asks for login, enter your Microsoft credentials to connect your account.
-    - Refer [here](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details on connecting the bot account.
+    - After running the slash command, you will get an ephemeral message from the MS Teams bot containing a link to connect the bot account.
+    - Click on that link. If it asks for login, enter the Microsoft credentials for the dummy account created following [these steps](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot).
+    - Refer [here](./docs/azure_setup.md#step-2-create-a-user-account-to-act-as-a-bot) for more details.
 
 - **FAQs**
     - Read about the FAQs [here](./docs/faqs.md)

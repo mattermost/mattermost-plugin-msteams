@@ -456,7 +456,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForUser", "mockCreator").Return(client, nil).Times(1)
+				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(4)
 				p.On("GetStore").Return(store).Times(7)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -822,7 +822,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForUser", "mockCreator").Return(client, nil).Times(1)
+				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(4)
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
