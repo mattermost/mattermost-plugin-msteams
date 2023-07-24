@@ -130,9 +130,18 @@ const Rhs = (): JSX.Element => {
                                         </Tooltip>
                                     </div>
                                 </div>
-                                <div className='channel-unlink-icon'>
-                                    <img src={Constants.channelUnlinkIconUrl}/>
-                                </div>
+                                <Tooltip text={'Unlink'}>
+                                    <div className='channel-unlink-icon'>
+                                        <img
+                                            className='channel-unlink-icon__img'
+
+                                            // TODO: Update later
+                                            // eslint-disable-next-line no-alert
+                                            onClick={() => alert('Unlink chanel')}
+                                            src={Constants.channelUnlinkIconUrl}
+                                        />
+                                    </div>
+                                </Tooltip>
                             </div>
                         ))}
                     </div>
@@ -155,9 +164,9 @@ const Rhs = (): JSX.Element => {
                 )}
             </div>
             {connected && channelLinkData.length && (
-                <>
+                <div className='msteams-sync-rhs-footer'>
                     <div className='msteams-sync-rhs-divider'/>
-                    <div className='link-channel-btn'>
+                    <div className='msteams-sync-rhs-footer__link-btn'>
                         <button
                             className='btn btn-primary'
 
@@ -168,7 +177,7 @@ const Rhs = (): JSX.Element => {
                             {'Link Channel'}
                         </button>
                     </div>
-                </>
+                </div>
             )}
         </>
     );

@@ -35,6 +35,7 @@
 
 .msteams-sync-rhs-body {
     margin: 15px;
+    padding-bottom: 70px;
 
     &__title {
         font-weight: 600;
@@ -48,7 +49,7 @@
     }
 
     .link-data {
-        gap: 5px;
+        gap: 4px;
         padding-top: 10px;
         margin-bottom: 20px;
         flex-direction: row;
@@ -119,6 +120,11 @@
         width: 10%;
         display: flex;
         justify-content: flex-end;
+
+        :hover {
+            background: #E8E8EA;
+            cursor: pointer;
+        }
     }
 
     .no-link {
@@ -133,11 +139,17 @@
     }
 }
 
-.link-channel-btn {
-    align-items: center;
-    display: flex;
-    justify-content: flex-end;
-    border-radius: 4px;
-    height: 40px;
-    margin: 20px;
+.msteams-sync-rhs-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+
+    &__link-btn {
+        align-items: center;
+        display: flex;
+        justify-content: flex-end;
+        border-radius: 4px;
+        height: 40px;
+        margin: 20px;
+    }
 }
