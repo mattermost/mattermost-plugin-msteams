@@ -412,6 +412,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		&model.WebsocketBroadcast{UserId: mmUserID},
 	)
 
+	_, _ = a.p.DM(mmUserID, "You've successfully connected your Mattermost account to MS Teams.")
+
 	w.Header().Add("Content-Type", "text/html")
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
 }
