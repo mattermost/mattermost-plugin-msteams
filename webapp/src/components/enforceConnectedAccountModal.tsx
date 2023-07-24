@@ -22,10 +22,6 @@ export default function EnforceConnectedAccountModal() {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
 
-    useEffect(() => {
-        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
-    }, []);
-
     const {data: needsConnectData} = getApiState(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
     const {data: connectData} = getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName);
 

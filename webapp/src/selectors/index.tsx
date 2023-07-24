@@ -1,3 +1,1 @@
-const getPluginState = (state: ReduxState) => state['plugins-com.mattermost.msteams-sync'];
-
-export const getApiRequestCompletionState = (state: ReduxState): ApiRequestCompletionState => getPluginState(state).apiRequestCompletionSlice;
+export const getApiRequestCompletionState = (state: PluginState): ApiRequestCompletionState => state.apiRequestCompletionSlice;

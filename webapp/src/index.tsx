@@ -3,6 +3,8 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
+import {handleConnect, handleDisconnect} from './websocket';
+
 import Rhs from './containers/Rhs';
 
 import Constants from './constants';
@@ -13,6 +15,7 @@ import manifest from './manifest';
 
 import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from './components/appManifestSetting';
+import App from './app';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -25,6 +28,7 @@ export default class Plugin {
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
+        registry.registerRootComponent(App);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, Constants.pluginTitle);
@@ -39,6 +43,9 @@ export default class Plugin {
         if (registry.registerAppBarComponent) {
             registry.registerAppBarComponent(Constants.iconUrl, () => store.dispatch(toggleRHSPlugin), Constants.pluginTitle);
         }
+
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_connect`, handleConnect(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_disconnect`, handleDisconnect(store));
     }
 }
 

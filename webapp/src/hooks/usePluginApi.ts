@@ -5,7 +5,7 @@ import {setApiRequestCompletionState} from '../reducers/apiRequest';
 import {msTeamsPluginApi} from '../services';
 
 function usePluginApi() {
-    const state = useSelector((reduxState: ReduxState) => reduxState);
+    const state = useSelector((reduxState: ReduxState) => reduxState['plugins-com.mattermost.msteams-sync']);
     const dispatch = useDispatch();
 
     // Pass payload in POST requests only. For GET requests, there is no need to pass a payload argument
@@ -23,7 +23,7 @@ function usePluginApi() {
 
     // Pass payload in POST requests only. For GET requests, there is no need to pass a payload argument
     const getApiState = (serviceName: PluginApiServiceName, payload: APIRequestPayload) => {
-        const {data, isError, isLoading, isSuccess, error, isUninitialized} = msTeamsPluginApi.endpoints[serviceName].select(payload)(state['plugins-com.mattermost.msteams-sync']);
+        const {data, isError, isLoading, isSuccess, error, isUninitialized} = msTeamsPluginApi.endpoints[serviceName].select(payload)(state);
         return {data, isError, isLoading, isSuccess, error, isUninitialized};
     };
 

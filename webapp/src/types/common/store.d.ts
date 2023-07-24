@@ -7,3 +7,7 @@ type ReduxState = {
 type ApiRequestCompletionState = {
     requests: ApiServiceName[]
 }
+
+type ConnectedState = {
+    connected: boolean;
+};

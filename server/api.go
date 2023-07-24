@@ -248,11 +248,16 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	response := map[string]bool{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
+		"connected":    false,
+	}
+
+	userID := r.Header.Get("Mattermost-User-ID")
+	client, _ := a.p.GetClientForUser(userID)
+	if client != nil {
+		response["connected"] = true
 	}
 
 	if a.p.getConfiguration().EnforceConnectedUsers {
-		userID := r.Header.Get("Mattermost-User-ID")
-		client, _ := a.p.GetClientForUser(userID)
 		if client == nil {
 			if a.p.getConfiguration().EnabledTeams == "" {
 				response["needsConnect"] = true
@@ -400,6 +405,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.PublishWebSocketEvent(
+		"connect",
+		nil,
+		&model.WebsocketBroadcast{UserId: mmUserID},
+	)
 
 	w.Header().Add("Content-Type", "text/html")
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
