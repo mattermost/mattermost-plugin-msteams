@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
+)
+
+const (
+	HeaderMattermostUserID = "Mattermost-User-ID"
 )
 
 type API struct {
@@ -30,18 +36,24 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
 
-	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/changes", api.processActivity).Methods("POST")
-	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
-	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
-	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
-	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
+	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
+
+	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
+	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
+	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
+	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/get-connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
+
+	// Command autocomplete APIs
+	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
+	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
 
 	// iFrame support
-	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
+	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods(http.MethodGet)
+	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods(http.MethodGet)
 
 	return api
 }
@@ -166,7 +178,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
@@ -201,7 +213,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	args := strings.Fields(r.URL.Query().Get("parsed"))
 	if len(args) < 3 {
 		data, _ := json.Marshal(out)
@@ -236,6 +248,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 		out = append(out, s)
 	}
+
 	data, _ := json.Marshal(out)
 	_, _ = w.Write(data)
 }
@@ -286,7 +299,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
@@ -306,6 +319,86 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 	_, _ = w.Write(data)
+}
+
+func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get(HeaderMattermostUserID)
+	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
+	if err != nil {
+		a.p.API.LogError("Unable to get Teams user ID from Mattermost user ID.", "UserID", userID, "Error", err.Error())
+		http.Error(w, "Unable to get Teams user ID from Mattermost user ID.", http.StatusInternalServerError)
+		return
+	}
+
+	if err = a.p.store.SetUserInfo(userID, teamsUserID, nil); err != nil {
+		a.p.API.LogError("Error occurred while disconnecting the user.", "UserID", userID, "Error", err.Error())
+		http.Error(w, "Error occurred while disconnecting the user.", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write([]byte("Your account has been disconnected.")); err != nil {
+		a.p.API.LogError("Failed to write response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	userID := r.Header.Get(HeaderMattermostUserID)
+	links, err := a.p.store.ListChannelLinksWithNames()
+	if err != nil {
+		a.p.API.LogError("Error occurred while getting the linked channels", "Error", err.Error())
+		http.Error(w, "Error occurred while getting the linked channels", http.StatusInternalServerError)
+		return
+	}
+
+	paginatedLinks := []*storemodels.ChannelLink{}
+	if len(links) > 0 {
+		sort.Slice(links, func(i, j int) bool {
+			return fmt.Sprintf("%s_%s", links[i].MattermostChannelName, links[i].MattermostChannelID) < fmt.Sprintf("%s_%s", links[j].MattermostChannelName, links[j].MattermostChannelID)
+		})
+
+		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+		if errorsFound {
+			http.Error(w, "Unable to get the MS Teams teams details", http.StatusInternalServerError)
+			return
+		}
+
+		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+		for index := offset; index < offset+limit && index < len(links); index++ {
+			link := links[index]
+			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
+				if appErr != nil {
+					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
+					http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
+					return
+				}
+
+				paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
+					MattermostTeamID:      link.MattermostTeamID,
+					MattermostChannelID:   link.MattermostChannelID,
+					MSTeamsTeamID:         link.MSTeamsTeamID,
+					MSTeamsChannelID:      link.MSTeamsChannelID,
+					MattermostChannelName: link.MattermostChannelName,
+					MattermostTeamName:    link.MattermostTeamName,
+					MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
+					MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+					MattermostChannelType: string(channel.Type),
+				})
+			}
+		}
+	}
+
+	a.writeJSON(w, http.StatusOK, paginatedLinks)
 }
 
 // TODO: Add unit tests
@@ -414,4 +507,54 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
+}
+
+// handleAuthRequired verifies if the provided request is performed by an authorized source.
+func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if mattermostUserID == "" {
+			a.p.API.LogError("Not authorized")
+			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			return
+		}
+
+		handleFunc(w, r)
+	}
+}
+
+// checkUserConnected verifies if the user account is connected to MS Teams.
+func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if _, err := a.p.store.GetTokenForMattermostUser(mattermostUserID); err != nil {
+			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
+			http.Error(w, "The account is not connected.", http.StatusBadRequest)
+			return
+		}
+
+		handleFunc(w, r)
+	}
+}
+
+func (a *API) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(v)
+	if err != nil {
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		a.p.API.LogError("Failed to write JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(statusCode)
 }

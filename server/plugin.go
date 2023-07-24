@@ -238,14 +238,14 @@ func (p *Plugin) startSubscriptions() {
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeamID, link.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
 			if err2 != nil {
 				p.API.LogError("Unable to subscribe to channels", "error", err2)
 				// Mark this subscription to be created and retried by the monitor system
 				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 					SubscriptionID: "fake-subscription-id",
-					TeamID:         link.MSTeamsTeam,
-					ChannelID:      link.MSTeamsChannel,
+					TeamID:         link.MSTeamsTeamID,
+					ChannelID:      link.MSTeamsChannelID,
 					ExpiresOn:      time.Now(),
 					Secret:         p.getConfiguration().WebhookSecret,
 				})
@@ -255,8 +255,8 @@ func (p *Plugin) startSubscriptions() {
 
 			err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 				SubscriptionID: channelsSubscription.ID,
-				TeamID:         link.MSTeamsTeam,
-				ChannelID:      link.MSTeamsChannel,
+				TeamID:         link.MSTeamsTeamID,
+				ChannelID:      link.MSTeamsChannelID,
 				ExpiresOn:      channelsSubscription.ExpiresOn,
 				Secret:         p.getConfiguration().WebhookSecret,
 			})
@@ -265,7 +265,7 @@ func (p *Plugin) startSubscriptions() {
 				<-ws
 				return
 			}
-			p.API.LogDebug("Subscription to channel created", "subscriptionID", channelsSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
+			p.API.LogDebug("Subscription to channel created", "subscriptionID", channelsSubscription.ID, "teamID", link.MSTeamsTeamID, "channelID", link.MSTeamsChannelID)
 			<-ws
 		}(link)
 	}
