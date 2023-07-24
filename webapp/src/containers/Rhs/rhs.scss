@@ -61,12 +61,14 @@
             display: flex;
             flex-direction: row;
             justify-content: space-around;
+            gap: 10%;
             margin: 10px 0 10px 10px;
         }
 
         &__title-values {
             font-weight: 600;
             font-size: 13px;
+            width: 50%;
             color: #B1B3B8;
         }
 
@@ -109,6 +111,14 @@
 
     .channel-link-icon {
         display: flex;
+        justify-content: center;
+        width: 10%;
+    }
+
+    .channel-unlink-icon {
+        width: 10%;
+        display: flex;
+        justify-content: flex-end;
     }
 
     .no-link {
