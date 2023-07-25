@@ -26,7 +26,6 @@ func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, er
 	return data, nil
 }
 
-// TODO: Add unit tests for this function
 func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
@@ -51,13 +50,13 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		// handle the download
 		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
+			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
 			continue
 		}
 
 		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
 		if len(attachmentData) > int(fileSizeAllowed) {
-			ah.plugin.GetAPI().LogError("cannot upload file to mattermost as its size is greater than allowed size", "filename", a.Name)
+			ah.plugin.GetAPI().LogError("cannot upload file to Mattermost as its size is greater than allowed size", "filename", a.Name)
 			continue
 		}
 
@@ -78,14 +77,14 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
 		if appErr != nil {
-			ah.plugin.GetAPI().LogError("upload file to mattermost failed", "filename", a.Name, "error", err)
+			ah.plugin.GetAPI().LogError("upload file to Mattermost failed", "filename", a.Name, "error", appErr.Message)
 			continue
 		}
 
 		attachments = append(attachments, fileInfo.Id)
 		countAttachments++
 		if countAttachments == 10 {
-			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as mattermost supports only 10 attachments per post")
+			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
 			break
 		}
 	}
