@@ -276,7 +276,6 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
@@ -292,7 +291,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	codeVerifier := model.NewId()
 	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
-		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Message)
 		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
@@ -303,7 +302,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
