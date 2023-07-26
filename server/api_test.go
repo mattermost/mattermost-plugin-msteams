@@ -944,7 +944,7 @@ func TestGetConnectedChannels(t *testing.T) {
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/get-connected-channels", nil)
+			r := httptest.NewRequest(http.MethodGet, "/connected-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
 				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
@@ -1030,7 +1030,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/get-ms-teams-team-list", nil)
+			r := httptest.NewRequest(http.MethodGet, "/ms-teams-team-list", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
 				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
@@ -1043,7 +1043,9 @@ func TestMSTeamsTeamList(t *testing.T) {
 			assert.NotNil(t, result)
 			defer result.Body.Close()
 
-			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+
 			bodyString := string(bodyBytes)
 			assert.Equal(test.ExpectedResult, bodyString)
 			assert.Equal(result.StatusCode, test.ExpectedStatusCode)

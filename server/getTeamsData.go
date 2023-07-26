@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -97,24 +98,23 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	return errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, error) {
+func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) {
 	client, err := p.GetClientForUser(userID)
 	if err != nil {
 		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, err
+		return nil, http.StatusUnauthorized, err
 	}
 
 	teams, err := client.ListTeams()
 	if err != nil {
 		p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return teams, nil
+	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetOffsetAndLimitFromQueryParams(r *http.Request) (offset, limit int) {
-	query := r.URL.Query()
+func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
 		p.API.LogError("Invalid pagination query param", "Error", err.Error())

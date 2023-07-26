@@ -45,8 +45,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/get-connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/get-ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
 
 	// Command autocomplete APIs
@@ -182,7 +182,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	teams, err := a.p.GetMSTeamsTeamList(userID)
+	teams, _, err := a.p.GetMSTeamsTeamList(userID)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -360,7 +360,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 		for index := offset; index < offset+limit && index < len(links); index++ {
 			link := links[index]
 			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
@@ -394,19 +394,19 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Header.Get("Mattermost-User-ID")
-	teams, err := a.p.GetMSTeamsTeamList(userID)
+	userID := r.Header.Get(HeaderMattermostUserID)
+	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID)
 	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team list.", http.StatusInternalServerError)
+		http.Error(w, "Error occurred while fetching the MS Teams team list.", statusCode)
 		return
 	}
 
 	sort.Slice(teams, func(i, j int) bool {
-		return teams[i].ID < teams[j].ID
+		return fmt.Sprintf("%s_%s", teams[i].DisplayName, teams[i].ID) < fmt.Sprintf("%s_%s", teams[j].DisplayName, teams[j].ID)
 	})
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 	paginatedTeams := []msteams.Team{}
 	for index, team := range teams {
 		if len(paginatedTeams) == limit {
