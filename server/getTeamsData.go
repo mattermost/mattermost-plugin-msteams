@@ -48,12 +48,14 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 
 	errorsFound := false
 	// Get MS Teams display names for each unique team ID and store it
-	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
-	errorsFound = errorsFound || teamDetailsErr
+	if p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames) {
+		errorsFound = true
+	}
 
 	// Get MS Teams channel details for all channels for each unique team
-	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
-	errorsFound = errorsFound || channelDetailsErr
+	if p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames) {
+		errorsFound = true
+	}
 
 	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound
 }

@@ -42,12 +42,12 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
-	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
+	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
+	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
+	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
+	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -247,10 +247,6 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	response := map[string]bool{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
@@ -284,9 +280,6 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 
 // TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
@@ -310,10 +303,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	userID := r.Header.Get(HeaderMattermostUserID)
 	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
@@ -336,10 +325,6 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	userID := r.Header.Get(HeaderMattermostUserID)
 	links, err := a.p.store.ListChannelLinksWithNames()
 	if err != nil {
@@ -363,7 +348,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 		for index := offset; index < offset+limit && index < len(links); index++ {
 			link := links[index]
-			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
 				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
 				if appErr != nil {
 					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
@@ -390,10 +375,6 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	userID := r.Header.Get(HeaderMattermostUserID)
 	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID)
 	if err != nil {
@@ -423,10 +404,6 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 
 // TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
 	conf := &oauth2.Config{
 		ClientID:     a.p.configuration.ClientID,
