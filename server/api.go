@@ -20,6 +20,7 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-ID"
+	QueryParamSearchTerm   = "search_term"
 )
 
 type API struct {
@@ -404,6 +405,7 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		return teams[i].ID < teams[j].ID
 	})
 
+	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
 	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
 	paginatedTeams := []msteams.Team{}
 	for index, team := range teams {
@@ -411,12 +413,12 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if index >= offset {
+		if index >= offset && strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
 			paginatedTeams = append(paginatedTeams, team)
 		}
 	}
 
-	a.p.writeJSON(w, http.StatusOK, paginatedTeams)
+	a.writeJSON(w, http.StatusOK, paginatedTeams)
 }
 
 // TODO: Add unit tests

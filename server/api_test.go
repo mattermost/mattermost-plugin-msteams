@@ -982,7 +982,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListTeams").Return([]msteams.Team{
@@ -1008,7 +1008,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 				api.On("LogError", "Unable to get the MS Teams teams", "Error", "error occurred while getting MS Teams team list").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListTeams").Return(nil, errors.New("error occurred while getting MS Teams team list")).Times(1)
