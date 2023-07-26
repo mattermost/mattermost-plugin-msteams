@@ -402,7 +402,7 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	teamID := r.URL.Query().Get(QueryParamTeamID)
 	if teamID == "" {
 		a.p.API.LogError("Error missing team ID query param.")

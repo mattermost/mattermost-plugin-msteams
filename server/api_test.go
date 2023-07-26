@@ -1129,7 +1129,7 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/get-ms-teams-team-channels", nil)
+			r := httptest.NewRequest(http.MethodGet, "/ms-teams-team-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
 				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
