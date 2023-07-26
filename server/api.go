@@ -370,7 +370,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
 		for index := offset; index < offset+limit && index < len(links); index++ {
 			link := links[index]
-			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
 				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
 				if appErr != nil {
 					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
