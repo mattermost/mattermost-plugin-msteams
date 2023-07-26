@@ -76,6 +76,13 @@
           "help_text": "Set the number of minutes between users sync (leave it empty to disable users sync)",
           "default": 0
         },{
+        },{
+          "key": "syncGuestUsers",
+          "display_name": "Sync guest users",
+          "type": "bool",
+          "help_text": "Set the value to 'true' to sync MS Teams guest users",
+          "default": false
+        },{
           "key": "syncDirectMessages",
           "display_name": "Sync direct and group messages",
           "type": "bool",

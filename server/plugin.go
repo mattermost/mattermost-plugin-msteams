@@ -432,6 +432,7 @@ func (p *Plugin) syncUsers() {
 		mmUsersMap[u.Email] = u
 	}
 
+	syncGuestUsers := p.getConfiguration().SyncGuestUsers
 	for _, msUser := range msUsers {
 		userSuffixID := 1
 		if msUser.Mail == "" {
@@ -441,6 +442,35 @@ func (p *Plugin) syncUsers() {
 		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
 
 		mmUser, ok := mmUsersMap[msUser.Mail]
+
+		if !msUser.IsAccountEnabled {
+			if ok && mmUser.RemoteId != nil && *mmUser.RemoteId != "" && strings.HasPrefix(mmUser.Username, "msteams_") {
+				p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+				if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+					p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+				}
+			}
+
+			continue
+		}
+
+		if msUser.Type == "Guest" {
+			if !syncGuestUsers {
+				if !ok {
+					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
+				} else {
+					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					if mmUser.RemoteId != nil && *mmUser.RemoteId != "" && strings.HasPrefix(mmUser.Username, "msteams_") {
+						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+							p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
+							continue
+						}
+					}
+				}
+
+				continue
+			}
+		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !ok {
@@ -460,6 +490,24 @@ func (p *Plugin) syncUsers() {
 			for {
 				newUser, appErr = p.API.CreateUser(newMMUser)
 				if appErr != nil {
+					if appErr.Id == "app.user.save.email_exists.app_error" {
+						user, gErr := p.API.GetUserByEmail(msUser.Mail)
+						if user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_") {
+							p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+							if gErr != nil {
+								p.API.LogError("Unable to get the invactive user", "Email", msUser.Mail, "Error", gErr.Error())
+								break
+							}
+
+							if err := p.API.UpdateUserActive(user.Id, true); err != nil {
+								p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+							}
+						} else {
+							p.API.LogError("Unable to create new user", "Email", msUser.Mail, "Error", gErr.Error())
+						}
+
+						break
+					}
 					if appErr.Id == "app.user.save.username_exists.app_error" {
 						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
 						userSuffixID++
