@@ -1069,7 +1069,7 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListChannels", testutils.GetTeamsTeamID()).Return([]msteams.Channel{
@@ -1096,7 +1096,7 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 				api.On("LogError", "Unable to get the channels for MS Teams team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error occurred while getting MS Teams team channels").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListChannels", testutils.GetTeamsTeamID()).Return(nil, errors.New("error occurred while getting MS Teams team channels")).Times(1)
@@ -1110,7 +1110,9 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("LogError", "Error missing team ID query param.").Times(1)
 			},
-			SetupStore:         func(store *storemocks.Store) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
 			SetupClient:        func(c *clientmocks.Client) {},
 			ExpectedResult:     "Error missing team ID query param.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
