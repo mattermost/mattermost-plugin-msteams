@@ -389,10 +389,17 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
 	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 	paginatedTeams := []msteams.Team{}
-	for index := offset; index < offset+limit && index < len(teams); index++ {
-		team := teams[index]
-		if index >= offset && strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
-			paginatedTeams = append(paginatedTeams, team)
+	matchCount := 0
+	for _, team := range teams {
+		if len(paginatedTeams) == limit {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
+			matchCount++
+			if matchCount > offset {
+				paginatedTeams = append(paginatedTeams, team)
+			}
 		}
 	}
 
