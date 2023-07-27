@@ -420,11 +420,21 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		return channels[i].ID < channels[j].ID
 	})
 
+	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
 	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 	paginatedChannels := []msteams.Channel{}
-	for index := offset; index < offset+limit && index < len(channels); index++ {
-		channel := channels[index]
-		paginatedChannels = append(paginatedChannels, channel)
+	matchCount := 0
+	for _, channel := range channels {
+		if len(paginatedChannels) == limit {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(channel.DisplayName), strings.ToLower(searchTerm)) {
+			matchCount++
+			if matchCount > offset {
+				paginatedChannels = append(paginatedChannels, channel)
+			}
+		}
 	}
 
 	a.writeJSON(w, http.StatusOK, paginatedChannels)
