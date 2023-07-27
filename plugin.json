@@ -76,7 +76,6 @@
           "help_text": "Set the number of minutes between users sync (leave it empty to disable users sync)",
           "default": 0
         },{
-        },{
           "key": "syncGuestUsers",
           "display_name": "Sync guest users",
           "type": "bool",

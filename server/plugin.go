@@ -420,7 +420,7 @@ func (p *Plugin) syncUsers() {
 	}
 
 	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
-	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
+	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
@@ -441,26 +441,42 @@ func (p *Plugin) syncUsers() {
 
 		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
 
-		mmUser, ok := mmUsersMap[msUser.Mail]
+		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
-		if !msUser.IsAccountEnabled {
-			if ok && mmUser.RemoteId != nil && *mmUser.RemoteId != "" && strings.HasPrefix(mmUser.Username, "msteams_") {
-				p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
-				if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-					p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+		if isUserPresent && isSyncUser(mmUser) {
+			if !msUser.IsAccountEnabled {
+				// Deactivate the active Mattermost user corresponding to MS Teams user.
+				if mmUser.DeleteAt == 0 {
+					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+					}
+
+					continue
+				}
+			} else {
+				// Activate the deactive Mattermost user corresponding to MS Teams user.
+				if mmUser.DeleteAt != 0 {
+					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
+						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+					}
+
+					continue
 				}
 			}
-
-			continue
 		}
 
 		if msUser.Type == "Guest" {
+			// Check if syncing of MS Teams guest user is disabled.
 			if !syncGuestUsers {
-				if !ok {
+				// Skip syncing of MS Teams guest user.
+				if !isUserPresent {
 					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
 				} else {
+					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
-					if mmUser.RemoteId != nil && *mmUser.RemoteId != "" && strings.HasPrefix(mmUser.Username, "msteams_") {
+					if isSyncUser(mmUser) {
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
 							continue
@@ -473,7 +489,7 @@ func (p *Plugin) syncUsers() {
 		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
-		if !ok {
+		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
@@ -490,24 +506,6 @@ func (p *Plugin) syncUsers() {
 			for {
 				newUser, appErr = p.API.CreateUser(newMMUser)
 				if appErr != nil {
-					if appErr.Id == "app.user.save.email_exists.app_error" {
-						user, gErr := p.API.GetUserByEmail(msUser.Mail)
-						if user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_") {
-							p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
-							if gErr != nil {
-								p.API.LogError("Unable to get the invactive user", "Email", msUser.Mail, "Error", gErr.Error())
-								break
-							}
-
-							if err := p.API.UpdateUserActive(user.Id, true); err != nil {
-								p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
-							}
-						} else {
-							p.API.LogError("Unable to create new user", "Email", msUser.Mail, "Error", gErr.Error())
-						}
-
-						break
-					}
 					if appErr.Id == "app.user.save.username_exists.app_error" {
 						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
 						userSuffixID++
@@ -587,4 +585,12 @@ func getRandomString(characterSet string, length int) string {
 	}
 
 	return randomString.String()
+}
+
+func isSyncUser(user *model.User) bool {
+	if user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_") {
+		return true
+	}
+
+	return false
 }
