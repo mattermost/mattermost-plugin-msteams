@@ -443,7 +443,7 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
-		if isUserPresent && isSyncUser(mmUser) {
+		if isUserPresent && isRemoteUser(mmUser) {
 			if !msUser.IsAccountEnabled {
 				// Deactivate the active Mattermost user corresponding to MS Teams user.
 				if mmUser.DeleteAt == 0 {
@@ -455,7 +455,7 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 			} else {
-				// Activate the deactive Mattermost user corresponding to MS Teams user.
+				// Activate the deactived Mattermost user corresponding to MS Teams user.
 				if mmUser.DeleteAt != 0 {
 					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
 					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
@@ -468,20 +468,20 @@ func (p *Plugin) syncUsers() {
 		}
 
 		if msUser.Type == "Guest" {
-			// Check if syncing of MS Teams guest user is disabled.
+			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
-				// Skip syncing of MS Teams guest user.
-				if !isUserPresent {
-					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
-				} else {
+				if isUserPresent {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
-					if isSyncUser(mmUser) {
+					if isRemoteUser(mmUser) {
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
 							continue
 						}
 					}
+				} else {
+					// Skip syncing of MS Teams guest user.
+					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
 				}
 
 				continue
@@ -587,10 +587,6 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
-func isSyncUser(user *model.User) bool {
-	if user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_") {
-		return true
-	}
-
-	return false
+func isRemoteUser(user *model.User) bool {
+	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }
