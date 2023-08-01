@@ -444,26 +444,24 @@ func (p *Plugin) syncUsers() {
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
 		if isUserPresent && isRemoteUser(mmUser) {
-			if !msUser.IsAccountEnabled {
-				// Deactivate the active Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt == 0 {
-					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
-					}
-
-					continue
-				}
-			} else {
+			if msUser.IsAccountEnabled {
 				// Activate the deactived Mattermost user corresponding to MS Teams user.
 				if mmUser.DeleteAt != 0 {
 					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
 					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
 						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
 					}
-
-					continue
 				}
+			} else {
+				// Deactivate the active Mattermost user corresponding to MS Teams user.
+				if mmUser.DeleteAt == 0 {
+					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+					}
+				}
+
+				continue
 			}
 		}
 
