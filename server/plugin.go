@@ -468,14 +468,11 @@ func (p *Plugin) syncUsers() {
 		if msUser.Type == "Guest" {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
-				if isUserPresent {
-					if isRemoteUser(mmUser) {
-						// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-						p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
-						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
-							continue
-						}
+				if isUserPresent && isRemoteUser(mmUser) {
+					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
+					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+						p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
 					}
 				} else {
 					// Skip syncing of MS Teams guest user.
