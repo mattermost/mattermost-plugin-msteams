@@ -11,7 +11,7 @@
     - **Enforce connected accounts**: Enabling this will enforce all the users to connect their Mattermost accounts to their MS Teams accounts.
     - **Allow to temporarily skip connect user**: Enabling this will allow the users to temporarily skip connecting their accounts.
     - **Sync users**: This config is for the interval (in minutes) in which the users will be synced between Mattermost and MS Teams. If you leave it empty, it will not syncrhonize the users.
-    - **Sync guest users**: Enabling this configuration will sync the MS Teams guest users on Mattermost.
+    - **Sync guest users**: Enabling this configuration will sync the MS Teams guest users on Mattermost. Any existing active Mattermost user corresponding to the MS Teams guest user will be deactivated upon disabling this configuration, and vice versa.
     - **Sync direct and group messages**: Enable this for enabling the syncing of direct and group messages.
     - **Enabled Teams**: This config is for the Mattermost teams for which syncing is enabled. Enter a comma-separated list of Mattermost team names. If you leave it empty, it will enable syncing for all the teams. 
 
