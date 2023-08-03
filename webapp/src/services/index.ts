@@ -29,5 +29,12 @@ export const msTeamsPluginApi = createApi({
                 method: Constants.pluginApiServiceConfigs.connect.method,
             }),
         }),
+        [Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName]: builder.query<ChannelLinkData[], APIRequestPayload>({
+            query: (params) => ({
+                url: Constants.pluginApiServiceConfigs.getLinkedChannels.path,
+                method: Constants.pluginApiServiceConfigs.getLinkedChannels.method,
+                params: {...params},
+            }),
+        }),
     }),
 });

@@ -10,4 +10,9 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         method: 'GET',
         apiServiceName: 'needsConnect',
     },
+    getLinkedChannels: {
+        path: '/get-connected-channels',
+        method: 'GET',
+        apiServiceName: 'getLinkedChannels',
+    },
 };

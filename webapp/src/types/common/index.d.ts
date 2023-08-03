@@ -14,9 +14,13 @@ type WebsocketEventParams = {
 }
 
 type ChannelLinkData = {
+    msTeamsTeamID: string,
     msTeamsTeamName: string,
+    msTeamsChannelID: string,
     msTeamsChannelName: string,
+    mattermostTeamID: string,
     mattermostTeamName: string,
+    mattermostChannelID: string,
     mattermostChannelName: string,
-    channelType: string,
+    mattermostChannelType: string,
 }

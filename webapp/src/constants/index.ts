@@ -10,6 +10,10 @@ const mmPublicChannelIconUrl = `/plugins/${pluginId}/public/mm-public-channel-ic
 const mmPrivateChannelIconUrl = `/plugins/${pluginId}/public/mm-private-channel-icon.svg`;
 const pluginTitle = 'Microsoft Teams Sync';
 const siteUrl = 'SITEURL';
+
+const DefaultPage = 0;
+const DefaultPageSize = 20;
+
 import {pluginApiServiceConfigs} from './apiService';
 
 export default {
@@ -23,5 +27,7 @@ export default {
     mmPublicChannelIconUrl,
     pluginTitle,
     siteUrl,
+    DefaultPage,
+    DefaultPageSize,
     pluginApiServiceConfigs,
 };

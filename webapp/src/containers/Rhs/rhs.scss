@@ -35,7 +35,8 @@
 
 .msteams-sync-rhs-body {
     margin: 15px;
-    padding-bottom: 70px;
+    height: 65%;
+    flex: 1;
 
     &__title {
         font-weight: 600;
@@ -46,6 +47,11 @@
     &__subtitle {
         padding: 0 10px 10px 10px;
         font-size: 13px;
+    }
+
+    &__spinner {
+        width: 100% !important;
+        padding-top: 30%;
     }
 
     .link-data {
@@ -77,10 +83,27 @@
             display: flex;
             flex-direction: column;
             padding: 10px;
+            height: 85%;
+        }
+
+        &__container-values {
+            height: 100%;
+            overflow-y: auto;
+            padding-right: 10px;
+
+            .infinite-scroll-component__outerdiv {
+                .infinite-scroll-component  {
+                    overflow: hidden !important;
+                }
+            }
+        }
+
+        &__spinner {
+            width: 100% !important;
         }
         
         &__body {
-            width: calc(100% - 35px);
+            width: 50%;
         }
 
         &__channel-name, &__team-name {
@@ -140,10 +163,6 @@
 }
 
 .msteams-sync-rhs-footer {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-
     &__link-btn {
         align-items: center;
         display: flex;
