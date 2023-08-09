@@ -808,7 +808,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("GetUser", testutils.GetTeamUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
@@ -1072,7 +1072,7 @@ func TestHandleReactions(t *testing.T) {
 
 				mockAPI.On("LogError", "No code reaction found for reaction", "reaction", mock.Anything).Times(2)
 				mockAPI.On("LogError", "Unable to remove reaction", "error", mock.Anything).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetID(), nil).Times(1)
