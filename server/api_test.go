@@ -1144,7 +1144,9 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			assert.NotNil(t, result)
 			defer result.Body.Close()
 
-			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+
 			bodyString := string(bodyBytes)
 			assert.Equal(test.ExpectedResult, bodyString)
 			assert.Equal(result.StatusCode, test.ExpectedStatusCode)

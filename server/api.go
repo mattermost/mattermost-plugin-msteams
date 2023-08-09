@@ -418,7 +418,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Slice(channels, func(i, j int) bool {
-		return channels[i].ID < channels[j].ID
+		return fmt.Sprintf("%s_%s", channels[i].DisplayName, channels[i].ID) < fmt.Sprintf("%s_%s", channels[j].DisplayName, channels[j].ID)
 	})
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
@@ -431,9 +431,10 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if strings.HasPrefix(strings.ToLower(channel.DisplayName), strings.ToLower(searchTerm)) {
-			matchCount++
-			if matchCount > offset {
+			if matchCount >= offset {
 				paginatedChannels = append(paginatedChannels, channel)
+			} else {
+				matchCount++
 			}
 		}
 	}
