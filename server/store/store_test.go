@@ -58,7 +58,7 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 		time.Sleep(5 * time.Second)
 		host, _ := postgres.Host(context)
 		hostPort, _ := postgres.MappedPort(context, "5432/tcp")
-		conn, _ := sqlx.Connect("%s", fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, driverName, host, hostPort.Int()))
+		conn, _ := sqlx.Connect(driverName, fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, host, hostPort.Int()))
 		tearDownContainer := func() {
 			if err := postgres.Terminate(context); err != nil {
 				log.Fatalf("failed to terminate container: %s", err.Error())
@@ -92,7 +92,7 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 	p, _ := mysql.MappedPort(context, "3306/tcp")
 	port := p.Int()
 
-	mysqlConn, _ := sqlx.Connect("%s", fmt.Sprintf("root:root@tcp(%s:%d)/test", driverName, host, port))
+	mysqlConn, _ := sqlx.Connect(driverName, fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
 	tearDownContainer := func() {
 		if err := mysql.Terminate(context); err != nil {
 			log.Fatalf("failed to terminate container: %s", err.Error())
