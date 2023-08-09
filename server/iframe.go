@@ -159,7 +159,7 @@ var manifestJSON = `{
 	"packageName": "{{PACKAGE_NAME}}",
 	"developer": {
 	  "name": "Mattermost",
-	  "websiteUrl": "https://github.com/wiggin77/msteamsapp",
+	  "websiteUrl": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
 	  "privacyUrl": "https://mattermost.com/privacy-policy/",
 	  "termsOfUseUrl": "https://mattermost.com/terms-of-use/"
 	},

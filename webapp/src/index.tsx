@@ -6,9 +6,7 @@ import {GlobalState} from 'mattermost-redux/types/store';
 import {handleConnect, handleDisconnect} from './websocket';
 
 import Rhs from './containers/Rhs';
-
 import Constants from './constants';
-
 import reducer from './reducers';
 
 import manifest from './manifest';

@@ -1,133 +1,155 @@
-.msteams-sync-rhs-connect {
-    border: 1px solid #F7434329;
-    border-radius: 5px;
-    background: #FBF0F0;
-    padding: 10px;
-    margin: 15px;
+.msteams-sync-rhs {
+    .rhs-connect {
+        border: 1px solid #F7434329;
+        border-radius: 5px;
+        background: #FBF0F0;
+        padding: 10px;
+        margin: 15px;
 
-    &__heading {
-        display: flex;
-    }
+        &__heading {
+            display: flex;
+        }
 
-    &__icon {
-        padding-left: 5px;
-        position: absolute;
-    }
+        &__icon {
+            padding-left: 5px;
+            position: absolute;
+        }
 
-    &__body {
-        padding: 0 8px 0 40px;
-    }
-
-    &__title {
-        font-weight: 600;
-        size: 14px;
-        padding-bottom: 5px;
-    }
-
-    &__connect-button {
-        margin-top: 10px;
-    }
-}
-
-.msteams-sync-rhs-divider {
-    border: 1px solid #EBEBEB;
-}
-
-.msteams-sync-rhs-body {
-    margin: 15px;
-
-    &__title {
-        font-weight: 600;
-        font-size: 16px;
-        padding: 10px 10px 3px 10px;
-    }
-
-    &__subtitle {
-        padding: 0 10px 10px 10px;
-        font-size: 13px;
-    }
-
-    .link-data {
-        gap: 5px;
-        padding-top: 10px;
-        margin-bottom: 20px;
-        flex-direction: row;
-        justify-content: center;
-        display: flex;
-        align-items: center;
-        flex: 1;
+        &__body {
+            padding: 0 8px 0 40px;
+        }
 
         &__title {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-around;
-            margin: 10px 0 10px 10px;
-        }
-
-        &__title-values {
             font-weight: 600;
-            font-size: 13px;
-            color: #B1B3B8;
-        }
-
-        &__container {
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-        }
-        
-        &__body {
-            width: calc(100% - 35px);
-        }
-
-        &__channel-name, &__team-name {
-            white-space: nowrap;
+            size: 14px;
             padding-bottom: 5px;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        &__channel-name {
-            font-weight: 500;
-            font-size: 14px; 
+        &__connect-button {
+            margin-top: 10px;
+        }
+    }
+
+    .rhs-body {
+        padding: 15px 15px 70px 15px;
+        padding-bottom: 70px;
+        border-top: 1px solid #EBEBEB;
+
+        &__title {
+            font-weight: 600;
+            font-size: 16px;
+            padding: 10px 10px 3px 10px;
         }
 
-        &__team-name {
-            font-weight: 400;
-            font-size: 14px;
-            color: #8C8F96;
+        &__subtitle {
+            padding: 0 10px 10px 10px;
+            font-size: 13px;
         }
 
-        &__mm-values, &__ms-values {
-            gap: 10px;
-            width: 40%;
+        .link-data {
+            gap: 4px;
+            padding-top: 10px;
+            margin-bottom: 20px;
+            flex-direction: row;
+            justify-content: center;
             display: flex;
             align-items: center;
             flex: 1;
+
+            &__title {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-around;
+                gap: 10%;
+                margin: 10px 0 10px 10px;
+            }
+
+            &__title-values {
+                font-weight: 600;
+                font-size: 13px;
+                width: 50%;
+                color: #B1B3B8;
+            }
+
+            &__container {
+                display: flex;
+                flex-direction: column;
+                padding: 10px;
+            }
+            
+            &__body {
+                width: calc(100% - 35px);
+            }
+
+            &__channel-name, &__team-name {
+                white-space: nowrap;
+                padding-bottom: 5px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            &__channel-name {
+                font-weight: 500;
+                font-size: 14px; 
+            }
+
+            &__team-name {
+                font-weight: 400;
+                font-size: 14px;
+                color: #8C8F96;
+            }
+
+            &__mm-values, &__ms-values {
+                gap: 10px;
+                width: 40%;
+                display: flex;
+                align-items: center;
+                flex: 1;
+            }
+        }
+
+        .channel-link-icon {
+            display: flex;
+            justify-content: center;
+            width: 10%;
+        }
+
+        .channel-unlink-icon {
+            width: 10%;
+            display: flex;
+            justify-content: flex-end;
+
+            :hover {
+                background: #E8E8EA;
+                cursor: pointer;
+            }
+        }
+
+        .no-link {
+            text-align: center;
+            margin-top: 60px;
+
+            &__title {
+                font-weight: 600;
+                size: 20px;
+                padding: 15px 0;
+            }
         }
     }
 
-    .channel-link-icon {
-        display: flex;
-    }
+    .rhs-footer {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        border-top: 1px solid #EBEBEB;
 
-    .no-link {
-        text-align: center;
-        margin-top: 60px;
-
-        &__title {
-            font-weight: 600;
-            size: 20px;
-            padding: 15px 0;
+        &__link-btn {
+            align-items: center;
+            display: flex;
+            justify-content: flex-end;
+            border-radius: 4px;
+            height: 40px;
+            margin: 20px;
         }
     }
-}
-
-.link-channel-btn {
-    align-items: center;
-    display: flex;
-    justify-content: flex-end;
-    border-radius: 4px;
-    height: 40px;
-    margin: 20px;
 }

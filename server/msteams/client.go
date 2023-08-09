@@ -93,9 +93,11 @@ type Chat struct {
 }
 
 type User struct {
-	DisplayName string
-	ID          string
-	Mail        string
+	DisplayName      string
+	ID               string
+	Mail             string
+	Type             string
+	IsAccountEnabled bool
 }
 
 type ChatMember struct {
@@ -1337,7 +1339,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 func (tc *ClientImpl) ListUsers() ([]User, error) {
 	requestParameters := &users.UsersRequestBuilderGetQueryParameters{
-		Select: []string{"displayName", "id", "mail", "userPrincipalName"},
+		Select: []string{"displayName", "id", "mail", "userPrincipalName", "userType", "accountEnabled"},
 	}
 	configuration := &users.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -1360,8 +1362,10 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		}
 
 		user := User{
-			DisplayName: displayName,
-			ID:          *u.GetId(),
+			DisplayName:      displayName,
+			ID:               *u.GetId(),
+			Type:             *u.GetUserType(),
+			IsAccountEnabled: *u.GetAccountEnabled(),
 		}
 
 		if u.GetMail() != nil {

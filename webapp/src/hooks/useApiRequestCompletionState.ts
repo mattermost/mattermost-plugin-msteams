@@ -2,7 +2,6 @@ import {useEffect} from 'react';
 import {useDispatch} from 'react-redux';
 
 import {getApiRequestCompletionState} from '../selectors';
-
 import {resetApiRequestCompletionState} from '../reducers/apiRequest';
 
 import usePluginApi from './usePluginApi';
