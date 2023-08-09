@@ -109,7 +109,7 @@ func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) 
 
 	teams, err := client.ListTeams()
 	if err != nil {
-		p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
+		p.API.LogError("Unable to get the MS Teams team list", "Error", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 

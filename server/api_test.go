@@ -489,7 +489,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get the teams list",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the MS Teams teams", "Error", "unable to get the teams list").Once()
+				api.On("LogError", "Unable to get the MS Teams team list", "Error", "unable to get the teams list").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -977,10 +977,8 @@ func TestMSTeamsTeamList(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name: "MSTeamsTeamList: MS Teams team listed successfully",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
-			},
+			Name:        "MSTeamsTeamList: MS Teams team listed successfully",
+			SetupPlugin: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
@@ -1004,8 +1002,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 		{
 			Name: "MSTeamsTeamList: error occurred while getting MS Teams team list",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
-				api.On("LogError", "Unable to get the MS Teams teams", "Error", "error occurred while getting MS Teams team list").Times(1)
+				api.On("LogError", "Unable to get the MS Teams team list", "Error", "error occurred while getting MS Teams team list").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
@@ -1021,6 +1018,8 @@ func TestMSTeamsTeamList(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			mockAPI := &plugintest.API{}
+
+			mockAPI.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 
 			plugin.SetAPI(mockAPI)
 			defer mockAPI.AssertExpectations(t)
