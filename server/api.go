@@ -396,9 +396,10 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
-			matchCount++
-			if matchCount > offset {
+			if matchCount >= offset {
 				paginatedTeams = append(paginatedTeams, team)
+			} else {
+				matchCount++
 			}
 		}
 	}
