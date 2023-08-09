@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -454,7 +455,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 		if isActiveUser := ah.isActiveUser(reactionUserID); !isActiveUser {
 			continue
 		}
-	
+
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
 			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
