@@ -674,10 +674,12 @@ func TestNeedsConnect(t *testing.T) {
 		ExpectedResult        string
 	}{
 		{
-			Name:           "NeedsConnect: EnforceConnectedUsers is false",
-			SetupPlugin:    func(api *plugintest.API) {},
-			SetupStore:     func(store *storemocks.Store) {},
-			ExpectedResult: "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false}",
+			Name:        "NeedsConnect: EnforceConnectedUsers is false",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false}",
 		},
 		{
 			Name:        "NeedsConnect: Unable to get the client",
