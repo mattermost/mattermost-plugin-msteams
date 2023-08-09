@@ -88,6 +88,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
+		w.Header().Add("Content-Type", "plain/text")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
@@ -146,6 +147,7 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
+		w.Header().Add("Content-Type", "plain/text")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return

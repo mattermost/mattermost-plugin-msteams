@@ -9,7 +9,6 @@ import (
 
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
@@ -38,28 +37,30 @@ func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugint
 func createTestDB(driverName string) (*sql.DB, func()) {
 	// Create postgres container
 	if driverName == model.DatabaseDriverPostgres {
-		postgresPort := nat.Port("5432/tcp")
-		postgres, _ := testcontainers.GenericContainer(context.Background(),
+		context := context.Background()
+		postgres, _ := testcontainers.GenericContainer(context,
 			testcontainers.GenericContainerRequest{
 				ContainerRequest: testcontainers.ContainerRequest{
 					Image:        "postgres",
-					ExposedPorts: []string{postgresPort.Port()},
+					ExposedPorts: []string{"5432/tcp"},
 					Env: map[string]string{
 						"POSTGRES_PASSWORD": "pass",
 						"POSTGRES_USER":     "user",
 					},
 					WaitingFor: wait.ForAll(
 						wait.ForLog("database system is ready to accept connections"),
-						wait.ForListeningPort(postgresPort),
 					),
+					SkipReaper: true,
 				},
 				Started: true,
 			})
 
-		hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
-		conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+		time.Sleep(5 * time.Second)
+		host, _ := postgres.Host(context)
+		hostPort, _ := postgres.MappedPort(context, "5432/tcp")
+		conn, _ := sqlx.Connect(driverName, fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, host, hostPort.Int()))
 		tearDownContainer := func() {
-			if err := postgres.Terminate(context.Background()); err != nil {
+			if err := postgres.Terminate(context); err != nil {
 				log.Fatalf("failed to terminate container: %s", err.Error())
 			}
 		}
@@ -81,15 +82,17 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 				WaitingFor: wait.ForAll(
 					wait.ForLog("database system is ready to accept connections"),
 				),
+				SkipReaper: true,
 			},
 			Started: true,
 		})
 
+	time.Sleep(5 * time.Second)
 	host, _ := mysql.Host(context)
 	p, _ := mysql.MappedPort(context, "3306/tcp")
 	port := p.Int()
 
-	mysqlConn, _ := sqlx.Connect("mysql", fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
+	mysqlConn, _ := sqlx.Connect(driverName, fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
 	tearDownContainer := func() {
 		if err := mysql.Terminate(context); err != nil {
 			log.Fatalf("failed to terminate container: %s", err.Error())
@@ -144,7 +147,7 @@ func TestStore(t *testing.T) {
 			})
 		}
 
-		tearDownContainer()
+		defer tearDownContainer()
 	}
 }
 

@@ -9,6 +9,7 @@ import useApiRequestCompletionState from '../../hooks/useApiRequestCompletionSta
 import usePluginApi from '../../hooks/usePluginApi';
 
 import Constants from '../../constants';
+import {SVGIcons} from '../../constants/icons';
 
 import './rhs.scss';
 
@@ -74,13 +75,14 @@ const Rhs = (): JSX.Element => {
             ) : (
                 <div className='msteams-sync-rhs-connect'>
                     <div className='msteams-sync-rhs-connect__heading'>
-                        <img
+                        <div
                             className='msteams-sync-rhs-connect__icon'
-                            src={Constants.notConnectIconUrl}
-                        />
+                        >
+                            {SVGIcons.notConnectIcon}
+                        </div>
                         <div className='msteams-sync-rhs-connect__body'>
                             <div className='msteams-sync-rhs-connect__title'>{'Please Connect your MS Teams account.'}</div>
-                            {'You are not connected to your MS Teams account yet, please connect to your account to continue using Teams sync.'}
+                            {'You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.'}
                             <div>
                                 <button
                                     className='btn btn-primary msteams-sync-rhs-connect__connect-button'
@@ -92,9 +94,7 @@ const Rhs = (): JSX.Element => {
                         </div>
                     </div>
                 </div>
-
             )}
-            <div className='msteams-sync-rhs-divider'/>
             <div className='msteams-sync-rhs-body'>
                 <div className='msteams-sync-rhs-body__title'>{'Linked Channels'}</div>
                 <div className='msteams-sync-rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
@@ -128,7 +128,11 @@ const Rhs = (): JSX.Element => {
                                     key={link.msTeamsTeamName}
                                 >
                                     <div className='link-data__mm-values'>
-                                        <img src={link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? Constants.mmPrivateChannelIconUrl : Constants.mmPublicChannelIconUrl}/>
+                                    {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
+                                        <>{SVGIcons.mmPrivateChannel}</>
+                                    ) : (
+                                        <>{SVGIcons.mmPublicChannel}</>
+                                    )}
                                         <div className='link-data__body'>
                                             <Tooltip text={link.mattermostChannelName}>
                                                 <div className='link-data__channel-name'>
@@ -141,10 +145,10 @@ const Rhs = (): JSX.Element => {
                                         </div>
                                     </div>
                                     <div className='channel-link-icon'>
-                                        <img src={Constants.linkIconUrl}/>
+                                        {SVGIcons.linkIcon}
                                     </div>
                                     <div className='link-data__ms-values'>
-                                        <img src={Constants.msteamsIconUrl}/>
+                                        {SVGIcons.msTeamsIcon}
                                         <div className='link-data__body'>
                                             <Tooltip text={link.msTeamsChannelName}>
                                                 <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
@@ -155,15 +159,14 @@ const Rhs = (): JSX.Element => {
                                         </div>
                                     </div>
                                     <Tooltip text={'Unlink'}>
-                                        <div className='channel-unlink-icon'>
-                                            <img
-                                                className='channel-unlink-icon__img'
+                                        <div
+                                            className='channel-unlink-icon'
 
-                                                // TODO: Update later
-                                                // eslint-disable-next-line no-alert
-                                                onClick={() => alert('Unlink chanel')}
-                                                src={Constants.channelUnlinkIconUrl}
-                                            />
+                                            // TODO: Update later
+                                            // eslint-disable-next-line no-alert
+                                            onClick={() => alert('Unlink chanel')}
+                                        >
+                                            {SVGIcons.channelUnlink}
                                         </div>
                                     </Tooltip>
                                 </div>
@@ -174,7 +177,7 @@ const Rhs = (): JSX.Element => {
                 )}
                 {totalLinkedChannels.length === 0 && !isLoading && (
                     <div className='no-link'>
-                        <img src={Constants.globeIconUrl}/>
+                        {SVGIcons.globeIcon}
                         <div className='no-link__title'>{'There are no linked channels'}</div>
                         {connected && (
                             <button
@@ -192,7 +195,6 @@ const Rhs = (): JSX.Element => {
             </div>
             {connected && totalLinkedChannels.length > 0 && (
                 <div className='msteams-sync-rhs-footer'>
-                    <div className='msteams-sync-rhs-divider'/>
                     <div className='msteams-sync-rhs-footer__link-btn'>
                         <button
                             className='btn btn-primary'

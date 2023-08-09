@@ -14,8 +14,31 @@
         position: absolute;
     }
 
+    &__container {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        height: 85%;
+    }
+
+    &__container-values {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 10px;
+
+        .infinite-scroll-component__outerdiv {
+            .infinite-scroll-component  {
+                overflow: hidden !important;
+            }
+        }
+    }
+
+    &__spinner {
+        width: 100% !important;
+    }
+    
     &__body {
-        padding: 0 8px 0 40px;
+        width: 50%;
     }
 
     &__title {
@@ -29,12 +52,9 @@
     }
 }
 
-.msteams-sync-rhs-divider {
-    border: 1px solid #EBEBEB;
-}
-
 .msteams-sync-rhs-body {
-    margin: 15px;
+    padding: 15px 15px 15px 15px;
+    border-top: 1px solid #EBEBEB;
     height: 65%;
     flex: 1;
 
@@ -163,6 +183,8 @@
 }
 
 .msteams-sync-rhs-footer {
+    border-top: 1px solid #EBEBEB;
+
     &__link-btn {
         align-items: center;
         display: flex;

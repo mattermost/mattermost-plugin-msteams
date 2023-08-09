@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -241,6 +242,10 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		senderID = ah.plugin.GetBotUserID()
 	}
 
+	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		return
+	}
+
 	if channelID == "" {
 		ah.plugin.GetAPI().LogDebug("Channel not set")
 		return
@@ -360,6 +365,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		senderID = ah.plugin.GetBotUserID()
 	}
 
+	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		return
+	}
+
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
@@ -442,6 +451,11 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			ah.plugin.GetAPI().LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
 		}
+
+		if isActiveUser := ah.isActiveUser(reactionUserID); !isActiveUser {
+			continue
+		}
+
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
 			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
@@ -485,4 +499,19 @@ func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to store properly the last received change")
 	}
+}
+
+func (ah *ActivityHandler) isActiveUser(userID string) bool {
+	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
+	if err != nil {
+		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user from senderID", "UserID", userID, "error", err.Error())
+		return false
+	}
+
+	if mmUser.DeleteAt != 0 {
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "User", mmUser.Email)
+		return false
+	}
+
+	return true
 }

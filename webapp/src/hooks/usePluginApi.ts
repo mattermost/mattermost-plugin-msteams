@@ -1,7 +1,6 @@
 import {useSelector, useDispatch} from 'react-redux';
 
 import {setApiRequestCompletionState} from '../reducers/apiRequest';
-
 import {msTeamsPluginApi} from '../services';
 
 function usePluginApi() {
