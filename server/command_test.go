@@ -403,6 +403,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 				}).Return(testutils.GetPost("", testutils.GetUserID())).Times(1)
 
 				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "UserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
+				api.On("PublishWebSocketEvent", "disconnect", nil, &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamUserID(), nil).Times(1)

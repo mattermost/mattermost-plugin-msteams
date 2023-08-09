@@ -677,7 +677,7 @@ func TestNeedsConnect(t *testing.T) {
 			Name:           "NeedsConnect: EnforceConnectedUsers is false",
 			SetupPlugin:    func(api *plugintest.API) {},
 			SetupStore:     func(store *storemocks.Store) {},
-			ExpectedResult: "{\"canSkip\":false,\"needsConnect\":false}",
+			ExpectedResult: "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false}",
 		},
 		{
 			Name:        "NeedsConnect: Unable to get the client",
@@ -686,7 +686,7 @@ func TestNeedsConnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
 			EnforceConnectedUsers: true,
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
@@ -702,7 +702,7 @@ func TestNeedsConnect(t *testing.T) {
 			},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":false}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
@@ -718,7 +718,7 @@ func TestNeedsConnect(t *testing.T) {
 			},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true}",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
