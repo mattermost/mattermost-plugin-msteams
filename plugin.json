@@ -6,7 +6,7 @@
     "support_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/issues",
     "release_notes_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/releases/tag/v0.1.0",
     "icon_path": "assets/msteams-sync-icon.svg",
-    "version": "0.3.8",
+    "version": "0.3.12",
     "min_server_version": "7.0.0",
     "server": {
         "executables": {
@@ -75,6 +75,12 @@
           "type": "number",
           "help_text": "Set the number of minutes between users sync (leave it empty to disable users sync)",
           "default": 0
+        },{
+          "key": "syncGuestUsers",
+          "display_name": "Sync guest users",
+          "type": "bool",
+          "help_text": "Set the value to 'true' to sync MS Teams guest users",
+          "default": false
         },{
           "key": "syncDirectMessages",
           "display_name": "Sync direct and group messages",
