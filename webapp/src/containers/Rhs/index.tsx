@@ -20,7 +20,7 @@ const Rhs = (): JSX.Element => {
     const [totalLinkedChannels, setTotalLinkedChannels] = useState<ChannelLinkData[]>([]);
     const [paginationQueryParams, setPaginationQueryParams] = useState<PaginationQueryParams>({
         page: Constants.DefaultPage,
-        per_page: Constants.DefaultPageSize,
+        per_page: Constants.DefaultPerPage,
     });
     const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<PaginationQueryParams | null>(null);
 
@@ -63,7 +63,7 @@ const Rhs = (): JSX.Element => {
     };
 
     const hasMoreLinkedChannels = useMemo<boolean>(() => (
-        (totalLinkedChannels.length - (paginationQueryParams.page * Constants.DefaultPageSize) === Constants.DefaultPageSize)
+        (totalLinkedChannels.length - (paginationQueryParams.page * Constants.DefaultPerPage) === Constants.DefaultPerPage)
     ), [totalLinkedChannels]);
 
     return (
@@ -100,7 +100,7 @@ const Rhs = (): JSX.Element => {
                 <div className='msteams-sync-rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
                 {/* TODO: add search bar later. */}
                 {isLoading && !paginationQueryParams.page && <Spinner className='msteams-sync-rhs-body__spinner'/>}
-                {totalLinkedChannels.length > 0 && (
+                {Boolean(totalLinkedChannels.length) && (
                     <div className='link-data__container'>
                         <div className='link-data__title'>
                             <div className='link-data__title-values'>{'Mattermost'}</div>
@@ -175,7 +175,7 @@ const Rhs = (): JSX.Element => {
                         </div>
                     </div>
                 )}
-                {totalLinkedChannels.length === 0 && !isLoading && (
+                {!totalLinkedChannels.length && !isLoading && (
                     <div className='no-link'>
                         {SVGIcons.globeIcon}
                         <div className='no-link__title'>{'There are no linked channels'}</div>
@@ -193,7 +193,7 @@ const Rhs = (): JSX.Element => {
                     </div>
                 )}
             </div>
-            {connected && totalLinkedChannels.length > 0 && (
+            {connected && Boolean(totalLinkedChannels.length) && (
                 <div className='msteams-sync-rhs-footer'>
                     <div className='msteams-sync-rhs-footer__link-btn'>
                         <button

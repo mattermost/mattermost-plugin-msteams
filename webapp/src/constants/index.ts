@@ -5,7 +5,7 @@ const pluginTitle = 'Microsoft Teams Sync';
 const siteUrl = 'SITEURL';
 
 const DefaultPage = 0;
-const DefaultPageSize = 20;
+const DefaultPerPage = 20;
 
 import {pluginApiServiceConfigs} from './apiService';
 
@@ -14,6 +14,6 @@ export default {
     pluginTitle,
     siteUrl,
     DefaultPage,
-    DefaultPageSize,
+    DefaultPerPage,
     pluginApiServiceConfigs,
 };
