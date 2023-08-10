@@ -110,68 +110,68 @@ const Rhs = (): JSX.Element => {
                             id='scrollableArea'
                             className='link-data__container-values'
                         >
-                        <InfiniteScroll
-                            dataLength={totalLinkedChannels.length}
-                            next={handlePagination}
-                            hasMore={hasMoreLinkedChannels}
-                            loader={<Spinner className='link-data__spinner'/>}
-                            endMessage={
-                                <p className='text-center'>
-                                    <b>{'No more linked channels present.'}</b>
-                                </p>
-                            }
-                            scrollableTarget='scrollableArea'
-                        >
-                            {totalLinkedChannels.map((link) => (
-                                <div
-                                    className='link-data'
-                                    key={link.msTeamsTeamName}
-                                >
-                                    <div className='link-data__mm-values'>
-                                    {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
-                                        <>{SVGIcons.mmPrivateChannel}</>
-                                    ) : (
-                                        <>{SVGIcons.mmPublicChannel}</>
-                                    )}
-                                        <div className='link-data__body'>
-                                            <Tooltip text={link.mattermostChannelName}>
-                                                <div className='link-data__channel-name'>
-                                                    {link.mattermostChannelName}
-                                                </div>
-                                            </Tooltip>
-                                            <Tooltip text={link.mattermostTeamName}>
-                                                <div className='link-data__team-name'>{link.mattermostTeamName}</div>
-                                            </Tooltip>
+                            <InfiniteScroll
+                                dataLength={totalLinkedChannels.length}
+                                next={handlePagination}
+                                hasMore={hasMoreLinkedChannels}
+                                loader={<Spinner className='link-data__spinner'/>}
+                                endMessage={
+                                    <p className='text-center'>
+                                        <b>{'No more linked channels present.'}</b>
+                                    </p>
+                                }
+                                scrollableTarget='scrollableArea'
+                            >
+                                {totalLinkedChannels.map((link) => (
+                                    <div
+                                        className='link-data'
+                                        key={link.msTeamsTeamName}
+                                    >
+                                        <div className='link-data__mm-values'>
+                                            {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
+                                                <>{SVGIcons.mmPrivateChannel}</>
+                                            ) : (
+                                                <>{SVGIcons.mmPublicChannel}</>
+                                            )}
+                                            <div className='link-data__body'>
+                                                <Tooltip text={link.mattermostChannelName}>
+                                                    <div className='link-data__channel-name'>
+                                                        {link.mattermostChannelName}
+                                                    </div>
+                                                </Tooltip>
+                                                <Tooltip text={link.mattermostTeamName}>
+                                                    <div className='link-data__team-name'>{link.mattermostTeamName}</div>
+                                                </Tooltip>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className='channel-link-icon'>
-                                        {SVGIcons.linkIcon}
-                                    </div>
-                                    <div className='link-data__ms-values'>
-                                        {SVGIcons.msTeamsIcon}
-                                        <div className='link-data__body'>
-                                            <Tooltip text={link.msTeamsChannelName}>
-                                                <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
-                                            </Tooltip>
-                                            <Tooltip text={link.msTeamsTeamName}>
-                                                <div className='link-data__team-name'>{link.msTeamsTeamName}</div>
-                                            </Tooltip>
+                                        <div className='channel-link-icon'>
+                                            {SVGIcons.linkIcon}
                                         </div>
-                                    </div>
-                                    <Tooltip text={'Unlink'}>
-                                        <div
-                                            className='channel-unlink-icon'
+                                        <div className='link-data__ms-values'>
+                                            {SVGIcons.msTeamsIcon}
+                                            <div className='link-data__body'>
+                                                <Tooltip text={link.msTeamsChannelName}>
+                                                    <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
+                                                </Tooltip>
+                                                <Tooltip text={link.msTeamsTeamName}>
+                                                    <div className='link-data__team-name'>{link.msTeamsTeamName}</div>
+                                                </Tooltip>
+                                            </div>
+                                        </div>
+                                        <Tooltip text={'Unlink'}>
+                                            <div
+                                                className='channel-unlink-icon'
 
-                                            // TODO: Update later
-                                            // eslint-disable-next-line no-alert
-                                            onClick={() => alert('Unlink chanel')}
-                                        >
-                                            {SVGIcons.channelUnlink}
-                                        </div>
-                                    </Tooltip>
-                                </div>
-                            ))}
-                        </InfiniteScroll>
+                                                // TODO: Update later
+                                                // eslint-disable-next-line no-alert
+                                                onClick={() => alert('Unlink chanel')}
+                                            >
+                                                {SVGIcons.channelUnlink}
+                                            </div>
+                                        </Tooltip>
+                                    </div>
+                                ))}
+                            </InfiniteScroll>
                         </div>
                     </div>
                 )}
