@@ -319,7 +319,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to get MM users during sync user job", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return(nil, testutils.GetInternalServerAppError("unable to get the users")).Times(1)
@@ -339,7 +338,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to create new MM user during sync job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return([]*model.User{
@@ -362,7 +360,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to set user info during sync user job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return([]*model.User{

@@ -28,6 +28,7 @@ type configuration struct {
 	EnabledTeams          string `json:"enabledteams"`
 	SyncDirectMessages    bool   `json:"syncdirectmessages"`
 	SyncUsers             int    `json:"syncusers"`
+	SyncGuestUsers        bool   `json:"syncGuestUsers"`
 	EnforceConnectedUsers bool   `json:"enforceconnectedusers"`
 	AllowSkipConnectUsers bool   `json:"allowskipconnectusers"`
 }
