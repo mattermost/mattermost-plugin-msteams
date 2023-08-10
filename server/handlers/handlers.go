@@ -23,12 +23,14 @@ const (
 	lastReceivedChangeKey = "last_received_change"
 	numberOfWorkers       = 20
 	activityQueueSize     = 1000
+	msteamsUserTypeGuest  = "Guest"
 )
 
 type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
+	GetSyncGuestUsers() bool
 	GetBotUserID() string
 	GetURL() string
 	GetClientForApp() msteams.Client
@@ -216,6 +218,22 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(msg.UserID)
+	if clientErr != nil {
+		ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
+		return
+	}
+
+	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
+		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
+			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "UserID", mmUserID, "Error", appErr.Error())
+			}
+		}
+
+		return
+	}
+
 	var senderID string
 	var channelID string
 	if chat != nil {
@@ -231,7 +249,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		}
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
-		senderID, _ = ah.getOrCreateSyntheticUser(msg.UserID, "")
+		senderID, _ = ah.getOrCreateSyntheticUser(msteamsUser, true)
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
 			channelID = channelLink.MattermostChannelID
@@ -514,4 +532,14 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 	}
 
 	return true
+}
+
+func (ah *ActivityHandler) isRemoteUser(userID string) bool {
+	user, userErr := ah.plugin.GetAPI().GetUser(userID)
+	if userErr != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "UserID", userID, "error", userErr.Error())
+		return false
+	}
+
+	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }

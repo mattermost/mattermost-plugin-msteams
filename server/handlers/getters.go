@@ -104,25 +104,21 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 	return msg, nil, nil
 }
 
-func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) (string, error) {
-	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(userID)
+func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, tryCreate bool) (string, error) {
+	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
 	if err == nil && mmUserID != "" {
 		return mmUserID, err
 	}
 
-	user, clientErr := ah.plugin.GetClientForApp().GetUser(userID)
-	if clientErr != nil {
-		return "", clientErr
-	}
-
 	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
 	if appErr != nil {
-		userDisplayName := displayName
-		if displayName == "" {
-			userDisplayName = user.DisplayName
+		if !tryCreate {
+			return "", appErr
 		}
+
 		var appErr2 *model.AppError
-		memberUUID := uuid.Parse(userID)
+		userDisplayName := user.DisplayName
+		memberUUID := uuid.Parse(user.ID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 		shortUserID := encoding.EncodeToString(memberUUID)
 		username := "msteams_" + slug.Make(userDisplayName)
@@ -153,23 +149,41 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(userID, displayName string) 
 		}
 	}
 
-	if err = ah.plugin.GetStore().SetUserInfo(u.Id, userID, nil); err != nil {
+	if err = ah.plugin.GetStore().SetUserInfo(u.Id, user.ID, nil); err != nil {
 		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
 	}
+
 	return u.Id, err
 }
 
 func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
-		mmUserID, err := ah.getOrCreateSyntheticUser(member.UserID, member.DisplayName)
+		msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(member.UserID)
+		if clientErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
+			continue
+		}
+
+		if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
+			if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
+				if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
+					ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "UserID", mmUserID, "Error", appErr.Error())
+				}
+			}
+
+			ah.plugin.GetAPI().LogDebug("skipping guest user while creating DM/GM")
+			continue
+		}
+
+		mmUserID, err := ah.getOrCreateSyntheticUser(msteamsUser, true)
 		if err != nil {
 			return "", err
 		}
 		userIDs = append(userIDs, mmUserID)
 	}
 	if len(userIDs) < 2 {
-		return "", errors.New("not enough user for creating a channel")
+		return "", errors.New("not enough users for creating a channel")
 	}
 
 	if chat.Type == "D" {

@@ -24,6 +24,7 @@ type pluginMock struct {
 	api                plugin.API
 	store              store.Store
 	syncDirectMessages bool
+	syncGuestUsers     bool
 	botUserID          string
 	url                string
 	appClient          msteams.Client
@@ -34,6 +35,7 @@ type pluginMock struct {
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
 func (pm *pluginMock) GetStore() store.Store                           { return pm.store }
 func (pm *pluginMock) GetSyncDirectMessages() bool                     { return pm.syncDirectMessages }
+func (pm *pluginMock) GetSyncGuestUsers() bool                         { return pm.syncGuestUsers }
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
@@ -55,6 +57,7 @@ func newTestHandler() *ActivityHandler {
 		botUserID:          "bot-user-id",
 		url:                "fake-url",
 		syncDirectMessages: false,
+		syncGuestUsers:     false,
 	})
 }
 
@@ -160,7 +163,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 			test.SetupAPI(ah.plugin.GetAPI().(*plugintest.API))
 			test.SetupStore(ah.plugin.GetStore().(*storemocks.Store))
 			test.SetupAppClient(ah.plugin.GetClientForApp().(*mocksClient.Client))
-			result, err := ah.getOrCreateSyntheticUser(test.UserID, test.DisplayName)
+			result, err := ah.getOrCreateSyntheticUser(&msteams.User{ID: test.UserID}, false)
 			assert.Equal(test.ExpectedResult, result)
 			if test.ExpectedError {
 				assert.Error(err)
