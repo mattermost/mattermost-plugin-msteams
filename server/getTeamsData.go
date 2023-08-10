@@ -116,20 +116,20 @@ func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) 
 	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channel, error) {
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channel, int, error) {
 	client, err := p.GetClientForUser(userID)
 	if err != nil {
 		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, err
+		return nil, http.StatusUnauthorized, err
 	}
 
 	channels, err := client.ListChannels(teamID)
 	if err != nil {
 		p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return channels, nil
+	return channels, http.StatusOK, nil
 }
 
 func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {

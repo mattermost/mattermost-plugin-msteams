@@ -219,7 +219,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	teamID := args[2]
-	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -411,9 +411,9 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channels, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
 	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team channels.", http.StatusInternalServerError)
+		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
 		return
 	}
 
