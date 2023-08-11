@@ -1153,3 +1153,116 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkChannels(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		SetupClient        func(*clientmocks.Client)
+		ExpectedResult     string
+		ExpectedStatusCode int
+		Body               string
+	}{
+		{
+			Name: "LinkChannels: channels linked successfully",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(2)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("CheckEnabledTeamByTeamID", testutils.GetTeamID()).Return(true).Times(1)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
+				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
+				store.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
+			},
+			SetupClient: func(c *clientmocks.Client) {
+				c.On("GetChannelInTeam", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{}, nil)
+			},
+			ExpectedResult:     "Channels linked successfully",
+			ExpectedStatusCode: http.StatusOK,
+			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
+		},
+		{
+			Name: "LinkChannels: error decoding payload",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error occurred while decoding link channels payload.", "Error", "invalid character 'r' looking for beginning of object key string").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+			},
+			SetupClient:        func(c *clientmocks.Client) {},
+			ExpectedResult:     "Error occurred while decoding link channels payload.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+			Body: `{
+				random
+			}`,
+		},
+		{
+			Name: "LinkChannels: invalid payload",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Invalid channel link payload.", "Error", "mattermost team ID is required").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+			},
+			SetupClient:        func(c *clientmocks.Client) {},
+			ExpectedResult:     "Invalid channel link payload.\n",
+			ExpectedStatusCode: http.StatusBadRequest,
+			Body:               testutils.GetLinkChannelsPayload("", testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
+		},
+		{
+			Name: "LinkChannels: error occurred while linking channels",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, &model.AppError{Message: "error occurred while linking channels"}).Times(1)
+				api.On("LogError", "Unable to get the current channel information.", "ChannelID", testutils.GetChannelID(), "Error", "error occurred while linking channels").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+			},
+			SetupClient:        func(c *clientmocks.Client) {},
+			ExpectedResult:     "Unable to get the current channel information.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+			testutils.GetTeamsTeamID()
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, "/link-channels", bytes.NewBufferString(test.Body))
+			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
+
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(result.StatusCode, test.ExpectedStatusCode)
+		})
+	}
+}
