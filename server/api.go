@@ -51,7 +51,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
 	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
 	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
-	router.HandleFunc("/link-channels", api.handleAuthRequired(api.linkChannels)).Methods(http.MethodPost, http.MethodOptions)
+	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -449,6 +449,12 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.p.API.LogError("Error occurred while decoding link channels payload.", "Error", err.Error())
 		http.Error(w, "Error occurred while decoding link channels payload.", http.StatusInternalServerError)
+		return
+	}
+
+	if err := body.IsChannelLinkPayloadValid(); err != nil {
+		a.p.API.LogError("Invalid channel link payload.", "Error", err.Error())
+		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
 		return
 	}
 
