@@ -555,10 +555,10 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamsUserID() + "1")
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 }
@@ -577,11 +577,11 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
-	assert.Equal(testutils.GetTeamUserID()+"2", resp)
+	assert.Equal(testutils.GetTeamsUserID()+"2", resp)
 	assert.Nil(getErr)
 }
 
@@ -604,7 +604,7 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 		RefreshToken: "mockRefreshToken-3",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", token)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -618,7 +618,7 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", nil)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", nil)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -645,10 +645,10 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamsUserID()+"4", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID() + "4")
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "4")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
 }

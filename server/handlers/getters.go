@@ -147,6 +147,16 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, tryCreat
 
 			break
 		}
+
+		preferences := model.Preferences{model.Preference{
+			UserId:   u.Id,
+			Category: model.PreferenceCategoryNotifications,
+			Name:     model.PreferenceNameEmailInterval,
+			Value:    "0",
+		}}
+		if prefErr := ah.plugin.GetAPI().UpdatePreferencesForUser(u.Id, preferences); prefErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to disable email notifications for new user", "UserID", u.Id, "error", prefErr.Error())
+		}
 	}
 
 	if err = ah.plugin.GetStore().SetUserInfo(u.Id, user.ID, nil); err != nil {

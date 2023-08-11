@@ -470,10 +470,6 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 
-		if isActiveUser := ah.isActiveUser(reactionUserID); !isActiveUser {
-			continue
-		}
-
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
 			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)

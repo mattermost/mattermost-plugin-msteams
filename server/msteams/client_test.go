@@ -10,7 +10,7 @@ import (
 )
 
 func TestConvertToMessage(t *testing.T) {
-	teamsUserID := testutils.GetTeamUserID()
+	teamsUserID := testutils.GetTeamsUserID()
 	teamsUserDisplayName := "mockTeamsUserDisplayName"
 	teamsReplyID := "mockTeamsReplyID"
 	content := "mockContent"
