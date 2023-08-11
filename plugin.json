@@ -1,6 +1,6 @@
 {
     "id": "com.mattermost.msteams-sync",
-    "name": "MSTeams Sync",
+    "name": "MS Teams Connector",
     "description": "Plugin to sync Mattermost channels with Microsoft Teams channels",
     "homepage_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
     "support_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/issues",
@@ -96,9 +96,9 @@
         },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
-            "type": "custom", 
+            "type": "custom",
             "help_text": "",
-            "default": ""            
+            "default": ""
         }]
     }
 }
