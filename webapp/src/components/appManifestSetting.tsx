@@ -21,7 +21,7 @@ export default class MSTeamsAppManifestSetting extends React.PureComponent<Props
                     {'Clicking the Download button below will generate an application manifest that will embed this instance of Mattermost. '}
                 </p>
                 <p>
-                    {'Mattermost embedded in MS Teams can be used together with MS Teams Connect, or independently.'}
+                    {'Mattermost embedded in MS Teams can be used together with MS Teams Connector, or independently.'}
                 </p>
                 <button
                     className='btn btn-primary'
