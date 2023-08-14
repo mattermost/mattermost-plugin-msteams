@@ -12,6 +12,8 @@ import (
 )
 
 const (
+	ErrorNoRowsInResult = "sql: no rows in result set"
+
 	// Query params
 	QueryParamPerPage = "per_page"
 	QueryParamPage    = "page"
@@ -155,7 +157,7 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 	}
 
 	link, err := p.store.GetLinkByChannelID(mattermostChannelID)
-	if err != nil {
+	if err != nil && err.Error() != ErrorNoRowsInResult {
 		p.API.LogError("Error occurred while getting channel link with Mattermost channelID.", "ChannelID", mattermostChannelID, "Error", err.Error())
 		return "Error occurred while getting channel link with Mattermost channelID.", http.StatusInternalServerError
 	}
@@ -164,7 +166,7 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 	}
 
 	link, err = p.store.GetLinkByMSTeamsChannelID(msTeamsTeamID, msTeamsChannelID)
-	if err != nil {
+	if err != nil && err.Error() != ErrorNoRowsInResult {
 		p.API.LogError("Error occurred while getting the channel link with MS Teams channel ID", "Error", err.Error())
 		return "Error occurred while getting the channel link with MS Teams channel ID", http.StatusInternalServerError
 	}
