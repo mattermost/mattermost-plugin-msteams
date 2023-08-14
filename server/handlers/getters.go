@@ -130,6 +130,8 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSy
 			Password:  ah.plugin.GenerateRandomPassword(),
 			RemoteId:  &shortUserID,
 		}
+		newMMUser.SetDefaultNotifications()
+		newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 		userSuffixID := 1
 		for {
