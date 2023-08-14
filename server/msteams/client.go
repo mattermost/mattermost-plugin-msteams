@@ -1086,6 +1086,7 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		DisplayName: displayName,
 		ID:          *u.GetId(),
 		Mail:        strings.ToLower(email),
+		Type:        *u.GetUserType(),
 	}
 
 	return &user, nil
