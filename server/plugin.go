@@ -501,6 +501,8 @@ func (p *Plugin) syncUsers() {
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+			newMMUser.SetDefaultNotifications()
+			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 			var newUser *model.User
 			for {
