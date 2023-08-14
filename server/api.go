@@ -20,6 +20,7 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-ID"
+	PathParamChannelID     = "channel_id"
 
 	// Query params
 	QueryParamTeamID     = "team_id"
@@ -52,7 +53,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
 	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
-	router.HandleFunc("/unlink-channels", api.handleAuthRequired(api.unlinkChannels)).Methods(http.MethodDelete)
+	router.HandleFunc(fmt.Sprintf("/unlink-channels/{%s}", PathParamChannelID), api.handleAuthRequired(api.checkUserConnected(api.unlinkChannels))).Methods(http.MethodDelete)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -474,14 +475,10 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 func (a *API) unlinkChannels(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	var body *storemodels.ChannelLink
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		a.p.API.LogError("Error occurred while decoding un channels payload.", "Error", err.Error())
-		http.Error(w, "Error occurred while decoding unlink channels payload.", http.StatusInternalServerError)
-		return
-	}
+	pathParams := mux.Vars(r)
+	channelID := pathParams[PathParamChannelID]
 
-	if errMsg, statusCode := a.p.UnlinkChannels(userID, body.MattermostChannelID); errMsg != "" {
+	if errMsg, statusCode := a.p.UnlinkChannels(userID, channelID); errMsg != "" {
 		http.Error(w, errMsg, statusCode)
 		return
 	}
