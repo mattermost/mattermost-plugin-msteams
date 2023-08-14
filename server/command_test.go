@@ -57,7 +57,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "This Mattermost channel is not linked to any MS Teams channel.", "Error", "Error while getting link").Times(1)
+				api.On("LogError", "This Mattermost channel is not linked to any MS Teams channel.", "ChannelID", "Mock-ChannelID", "Error", "Error while getting link").Times(1)
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
 					Id:   "Mock-ChannelID",
 					Type: model.ChannelTypeOpen,
@@ -101,7 +101,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			description: "Unable to get the current channel",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the current channel information.", "Error", "").Times(1)
+				api.On("LogError", "Unable to get the current channel information.", "ChannelID", "", "Error", "").Times(1)
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
@@ -117,7 +117,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to unlink the channel, you have to be a channel admin to unlink it.").Times(1)
+				api.On("LogError", "Unable to unlink the channel, you have to be a channel admin to unlink it.", "ChannelID", testutils.GetChannelID()).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
