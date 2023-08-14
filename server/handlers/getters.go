@@ -104,7 +104,7 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 	return msg, nil, nil
 }
 
-func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, tryCreate bool) (string, error) {
+func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSyntheticUser bool) (string, error) {
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
 	if err == nil && mmUserID != "" {
 		return mmUserID, err
@@ -112,7 +112,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, tryCreat
 
 	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
 	if appErr != nil {
-		if !tryCreate {
+		if !createSyntheticUser {
 			return "", appErr
 		}
 

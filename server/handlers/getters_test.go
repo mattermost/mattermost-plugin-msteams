@@ -263,8 +263,7 @@ func TestGetChatChannelID(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetUser", testutils.GetUserID()).Return(&msteams.User{ID: testutils.GetUserID()}, nil).Once()
 			},
-			expectedError:    "not enough users for creating a channel",
-			expectedResponse: "",
+			expectedError: "not enough users for creating a channel",
 		},
 		{
 			description: "Direct or group channel not found",
