@@ -18,32 +18,10 @@
             padding-left: 5px;
             position: absolute;
         }
-
-        &__container {
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-            height: 85%;
-        }
-
-        &__container-values {
-            height: 100%;
-            overflow-y: auto;
-            padding-right: 10px;
-
-            .infinite-scroll-component__outerdiv {
-                .infinite-scroll-component  {
-                    overflow: hidden !important;
-                }
-            }
-        }
-
-        &__spinner {
-            width: 100% !important;
-        }
         
         &__body {
-            width: 50%;
+            padding: 0 8px 0 40px;
+            width: 100%;
         }
 
         &__title {
@@ -57,10 +35,48 @@
         }
     }
 
+    .rhs-disconnect {
+        display: flex;
+        flex-direction: column;
+        margin: 15px;
+    
+        &__heading {
+            font-size: 15px;
+            font-weight: 600;
+            padding-bottom: 3px;
+        }
+    
+        &__body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    
+        &__sub-body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+    
+        &__disconnect-button {
+            color: #D92445 !important;
+            width: 105px !important;
+            height: 30px !important;
+            border: 1px solid #D92445 !important;
+        }
+    
+        &__disconnect-button:hover {
+            background-color: #d81c3f !important;
+            color: white !important;
+            border: 1px solid #D92445 !important;
+        }
+    }
+
     .rhs-body-container {
         display: flex;
         flex-direction: column;
-        height: 85%;
+        height: 65%;
         flex: 1;
     }
 
@@ -87,7 +103,6 @@
         }
 
         .link-data {
-            gap: 4px;
             padding-top: 10px;
             margin-bottom: 20px;
             flex-direction: row;
@@ -99,8 +114,8 @@
             &__title {
                 display: flex;
                 flex-direction: row;
-                justify-content: space-around;
-                gap: 10%;
+                align-items: center;
+                gap: 3%;
                 margin: 10px 0 10px 10px;
             }
 
@@ -109,6 +124,16 @@
                 font-size: 13px;
                 width: 50%;
                 color: #B1B3B8;
+            }
+
+            &__mm-icons {
+                color: #1C58D9;
+                padding-top: 3px;
+            }
+    
+            &__ms-icon {
+                width: 12%;
+                margin-right: 2px;
             }
 
             &__container {
@@ -135,7 +160,7 @@
             }
             
             &__body {
-                width: 50%;
+                width: 70%;
             }
 
             &__channel-name, &__team-name {
@@ -160,8 +185,16 @@
                 gap: 10px;
                 width: 40%;
                 display: flex;
-                align-items: center;
+                align-items: start;
                 flex: 1;
+            }
+
+            &__ms-values {
+                .msteams-private-channel-icon {
+                    width: 16px;
+                    height: 16px;
+                    margin-top: 5px;
+                }
             }
         }
 
@@ -202,8 +235,12 @@
             display: flex;
             justify-content: flex-end;
             border-radius: 4px;
-            height: 40px;
             margin: 10px 20px;
         }
+    }
+
+    // TODO: temporary class, remove after mm ui library fix
+    .disconnect-dialog {
+        opacity: 1;
     }
 }

@@ -13,6 +13,7 @@ type ChannelLink struct {
 	MSTeamsChannelName    string `json:"msTeamsChannelName,omitempty"`
 	Creator               string `json:"creator,omitempty"`
 	MattermostChannelType string `json:"mattermostChannelType,omitempty"`
+	MSTeamsChannelType    string `json:"msTeamsChannelType,omitempty"`
 }
 
 type PostInfo struct {

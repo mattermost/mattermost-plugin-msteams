@@ -84,6 +84,7 @@ type Channel struct {
 	ID          string
 	DisplayName string
 	Description string
+	Type        models.ChannelMembershipType
 }
 
 type Chat struct {
@@ -338,7 +339,7 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 
 func (tc *ClientImpl) GetMe() (*User, error) {
 	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
-		Select: []string{"id", "mail", "userPrincipalName"},
+		Select: []string{"id", "mail", "userPrincipalName", "displayName"},
 	}
 	configuration := &users.UserItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -856,7 +857,7 @@ func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*Channel, erro
 func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error) {
 	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
 		Filter: &filterQuery,
-		Select: []string{"id", "displayName"},
+		Select: []string{"id", "displayName", "membershipType"},
 	}
 
 	configuration := &teams.ItemChannelsRequestBuilderGetRequestConfiguration{
@@ -874,6 +875,7 @@ func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel,
 		channels[idx] = &Channel{
 			ID:          *channel.GetId(),
 			DisplayName: *channel.GetDisplayName(),
+			Type:        *channel.GetMembershipType(),
 		}
 	}
 

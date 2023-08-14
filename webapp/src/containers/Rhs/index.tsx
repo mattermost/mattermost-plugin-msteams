@@ -1,10 +1,12 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
+import {useDispatch} from 'react-redux';
 
-import {Spinner, Tooltip} from '@brightscout/mattermost-ui-library';
+import {Spinner, Tooltip, Button, Dialog, LinearProgress} from '@brightscout/mattermost-ui-library';
 
 import {General as MMConstants} from 'mattermost-redux/constants';
 
+import {setConnected} from '../../reducers/connectedState';
 import useApiRequestCompletionState from '../../hooks/useApiRequestCompletionState';
 import usePluginApi from '../../hooks/usePluginApi';
 
@@ -15,7 +17,8 @@ import './rhs.scss';
 
 const Rhs = (): JSX.Element => {
     const {state, makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
-    const connected = state.connectedReducer.connected;
+    const {connected, username} = state.connectedReducer;
+    const dispatch = useDispatch();
 
     const [totalLinkedChannels, setTotalLinkedChannels] = useState<ChannelLinkData[]>([]);
     const [paginationQueryParams, setPaginationQueryParams] = useState<PaginationQueryParams>({
@@ -23,9 +26,16 @@ const Rhs = (): JSX.Element => {
         per_page: Constants.DefaultPerPage,
     });
     const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<PaginationQueryParams | null>(null);
+    const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+    const [dialogContent, setDialogContent] = useState('');
+    const [showDestructivetDialog, setShowDestructiveDialog] = useState(false);
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
+    }, []);
+
+    const disconnectUser = useCallback(() => {
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName);
     }, []);
 
     useEffect(() => {
@@ -35,7 +45,8 @@ const Rhs = (): JSX.Element => {
     }, [paginationQueryParams]);
 
     const {data: connectData} = getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName);
-    const {data: linkedChannels, isLoading} = getApiState(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, getLinkedChannelsParams as PaginationQueryParams);
+    const {data: linkedChannels, isLoading: linkedChannelsLoading} = getApiState(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, getLinkedChannelsParams as PaginationQueryParams);
+    const {data: disconnectUserData, isLoading: isDisconnectUserLoading} = getApiState(Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName);
 
     useApiRequestCompletionState({
         serviceName: Constants.pluginApiServiceConfigs.connect.apiServiceName,
@@ -56,6 +67,19 @@ const Rhs = (): JSX.Element => {
         },
     });
 
+    useApiRequestCompletionState({
+        serviceName: Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName,
+        handleSuccess: () => {
+            dispatch(setConnected({connected: false, username: ''}));
+            setDialogContent(disconnectUserData as string);
+            setShowDestructiveDialog(false);
+        },
+        handleError: (disconnectUserError) => {
+            setShowDestructiveDialog(false);
+            setDialogContent(disconnectUserError.data);
+        },
+    });
+
     // Increase the page number by 1
     const handlePagination = () => {
         setPaginationQueryParams({...paginationQueryParams, page: paginationQueryParams.page + 1,
@@ -69,9 +93,26 @@ const Rhs = (): JSX.Element => {
     return (
         <div className='msteams-sync-rhs'>
             {connected ? (
-
-            // TODO: add disconnect feature later.
-                <>{'Connected successfully'}</>
+                <div className='rhs-disconnect'>
+                    <div className='rhs-disconnect__heading'>{'Connected account'}</div>
+                    <div className='rhs-disconnect__body'>
+                        <div className='rhs-disconnect__sub-body'>
+                            <img src={Constants.msteamsIconUrl}/>
+                            <div className='rhs-disconnect__title'>{username}</div>
+                        </div>
+                        <Button
+                            className='rhs-disconnect__disconnect-button'
+                            onClick={() => {
+                                setDialogContent('Are you sure you want to disconnect your MS Teams Account?');
+                                setShowDisconnectDialog(true);
+                                setShowDestructiveDialog(true);
+                            }}
+                            variant='secondary'
+                        >
+                            {'Disconnect'}
+                        </Button>
+                    </div>
+                </div>
             ) : (
                 <div className='rhs-connect'>
                     <div className='rhs-connect__heading'>
@@ -96,15 +137,17 @@ const Rhs = (): JSX.Element => {
                 </div>
             )}
             <div className='rhs-body-container'>
-                <div className='rhs-body'>
+                <div className={`rhs-body ${connected ? 'rhs-body__connect-body' : 'rhs-body__disconnect-body'}`}>
                     <div className='rhs-body__title'>{'Linked Channels'}</div>
                     <div className='rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
                     {/* TODO: add search bar later. */}
-                    {isLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
+                    {linkedChannelsLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
                     {Boolean(totalLinkedChannels.length) && (
                         <div className='link-data__container'>
                             <div className='link-data__title'>
+                                <img src={Constants.mattermostIconUrl}/>
                                 <div className='link-data__title-values'>{'Mattermost'}</div>
+                                <img src={Constants.msteamsIconUrl}/>
                                 <div className='link-data__title-values'>{'MS Team'}</div>
                             </div>
                             <div
@@ -128,12 +171,8 @@ const Rhs = (): JSX.Element => {
                                             className='link-data'
                                             key={link.msTeamsTeamName}
                                         >
-                                            <div className='link-data__mm-values'>
-                                                {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
-                                                    <>{SVGIcons.mmPrivateChannel}</>
-                                                ) : (
-                                                    <>{SVGIcons.mmPublicChannel}</>
-                                                )}
+                                            <div className={`link-data__mm-values ${link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL && 'link-data__private-data-width'}`}>
+                                                <div className='link-data__mm-icons'><i className={`${link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? 'icon icon-lock-outline' : 'icon icon-globe'}`}/></div>
                                                 <div className='link-data__body'>
                                                     <Tooltip text={link.mattermostChannelName}>
                                                         <div className='link-data__channel-name'>
@@ -146,10 +185,16 @@ const Rhs = (): JSX.Element => {
                                                 </div>
                                             </div>
                                             <div className='channel-link-icon'>
-                                                {SVGIcons.linkIcon}
+                                                    {SVGIcons.linkIcon}
                                             </div>
                                             <div className='link-data__ms-values'>
-                                                {SVGIcons.msTeamsIcon}
+                                                <div className='link-data__ms-icon'>{link.msTeamsChannelType === MMConstants.PRIVATE_CHANNEL && (
+                                                    <img
+                                                        className='msteams-private-channel-icon'
+                                                        src={Constants.msteamsPrivateChannelIconUrl}
+                                                    />
+                                                )}
+                                                </div>
                                                 <div className='link-data__body'>
                                                     <Tooltip text={link.msTeamsChannelName}>
                                                         <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
@@ -160,9 +205,7 @@ const Rhs = (): JSX.Element => {
                                                 </div>
                                             </div>
                                             <Tooltip text={'Unlink'}>
-                                                <div
-                                                    className='channel-unlink-icon'
-
+                                                <div className='channel-unlink-icon'
                                                     // TODO: Update later
                                                     // eslint-disable-next-line no-alert
                                                     onClick={() => alert('Unlink chanel')}
@@ -176,7 +219,7 @@ const Rhs = (): JSX.Element => {
                             </div>
                         </div>
                     )}
-                    {!totalLinkedChannels.length && !isLoading && (
+                    {!totalLinkedChannels.length && !linkedChannelsLoading && (
                         <div className='no-link'>
                             {SVGIcons.globeIcon}
                             <div className='no-link__title'>{'There are no linked channels'}</div>
@@ -210,6 +253,17 @@ const Rhs = (): JSX.Element => {
                     </div>
                 </div>
             )}
+            <Dialog
+                description={dialogContent}
+                destructive={showDestructivetDialog}
+                show={showDisconnectDialog}
+                primaryActionText={showDestructivetDialog && 'Disconnect'}
+                onCloseHandler={() => setShowDisconnectDialog(false)}
+                onSubmitHandler={showDestructivetDialog && disconnectUser}
+                className='disconnect-dialog'
+            >
+                {isDisconnectUserLoading && <LinearProgress/>}
+            </Dialog>
         </div>
     );
 };

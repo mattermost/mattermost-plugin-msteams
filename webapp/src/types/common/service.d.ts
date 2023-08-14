@@ -3,7 +3,8 @@ type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 type PluginApiServiceName =
     'needsConnect' |
     'connect' |
-    'getLinkedChannels';
+    'getLinkedChannels' |
+    'disconnectUser';
 
 type PluginApiService = {
     path: string,
@@ -12,8 +13,8 @@ type PluginApiService = {
 }
 
 type APIError = {
-    id: string,
-    message: string,
+    status: string,
+    data: string,
 }
 
 type APIRequestPayload = PaginationQueryParams | void;

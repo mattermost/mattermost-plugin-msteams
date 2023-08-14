@@ -36,5 +36,12 @@ export const msTeamsPluginApi = createApi({
                 params: {...params},
             }),
         }),
+        [Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName]: builder.query<string, APIRequestPayload>({
+            query: () => ({
+                url: Constants.pluginApiServiceConfigs.disconnectUser.path,
+                method: Constants.pluginApiServiceConfigs.disconnectUser.method,
+                responseHandler: (res) => res.text(),
+            }),
+        }),
     }),
 });

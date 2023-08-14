@@ -15,4 +15,9 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         method: 'GET',
         apiServiceName: 'getLinkedChannels',
     },
+    disconnectUser: {
+        path: '/disconnect',
+        method: 'GET',
+        apiServiceName: 'disconnectUser',
+    },
 };

@@ -7,6 +7,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 )
 
 const (
@@ -20,10 +21,11 @@ const (
 	MaxPerPageLimit     = 100
 )
 
-func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, bool) {
+func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, map[string]string, bool) {
 	msTeamsTeamIDsVsNames := make(map[string]string)
 	msTeamsChannelIDsVsNames := make(map[string]string)
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
+	msTeamsChannelIDsVsType := make(map[string]string)
 
 	for _, link := range channelLinks {
 		if checkChannelPermissions && !p.API.HasPermissionToChannel(userID, link.MattermostChannelID, model.PermissionCreatePost) {
@@ -33,6 +35,7 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 
 		msTeamsTeamIDsVsNames[link.MSTeamsTeamID] = ""
 		msTeamsChannelIDsVsNames[link.MSTeamsChannelID] = ""
+		msTeamsChannelIDsVsType[link.MSTeamsChannelID] = ""
 
 		// Build the channels query for each team
 		if msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] == "" {
@@ -50,10 +53,10 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 	errorsFound = errorsFound || teamDetailsErr
 
 	// Get MS Teams channel details for all channels for each unique team
-	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
+	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType)
 	errorsFound = errorsFound || channelDetailsErr
 
-	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound
+	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType, errorsFound
 }
 
 func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
@@ -78,7 +81,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType map[string]string) bool {
 	errorsFound := false
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
@@ -90,6 +93,11 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 
 		for _, channel := range channels {
 			msTeamsChannelIDsVsNames[channel.ID] = channel.DisplayName
+			if channel.Type == models.PRIVATE_CHANNELMEMBERSHIPTYPE {
+				msTeamsChannelIDsVsType[channel.ID] = string(model.ChannelTypePrivate)
+			} else {
+				msTeamsChannelIDsVsType[channel.ID] = string(model.ChannelTypeOpen)
+			}
 		}
 	}
 

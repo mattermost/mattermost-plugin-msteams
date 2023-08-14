@@ -10,4 +10,5 @@ type ApiRequestCompletionState = {
 
 type ConnectedState = {
     connected: boolean;
+    username: string;
 };

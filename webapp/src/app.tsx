@@ -22,7 +22,7 @@ const App = (): JSX.Element => {
         serviceName: Constants.pluginApiServiceConfigs.needsConnect.apiServiceName,
         handleSuccess: () => {
             const data = needsConnectData as NeedsConnectData;
-            dispatch(setConnected(data.connected));
+            dispatch(setConnected({connected: data.connected, username: data.username}));
         },
     });
 

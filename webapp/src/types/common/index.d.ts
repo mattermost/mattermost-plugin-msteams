@@ -2,6 +2,7 @@ type NeedsConnectData = {
     canSkip: boolean;
     needsConnect: boolean;
     connected: boolean;
+    username: string;
 }
 
 type ConnectData = {
@@ -23,4 +24,5 @@ type ChannelLinkData = {
     mattermostChannelID: string,
     mattermostChannelName: string,
     mattermostChannelType: string,
+    msTeamsChannelType: string,
 }

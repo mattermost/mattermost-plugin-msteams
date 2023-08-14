@@ -256,16 +256,23 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
-	response := map[string]bool{
+	response := map[string]interface{}{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
 		"connected":    false,
+		"username":     "",
 	}
 
 	userID := r.Header.Get("Mattermost-User-ID")
 	client, _ := a.p.GetClientForUser(userID)
 	if client != nil {
 		response["connected"] = true
+		user, err := client.GetMe()
+		if err != nil {
+			a.p.API.LogError("Unable to get MS Teams user", "error", err.Error())
+		} else {
+			response["username"] = user.DisplayName
+		}
 	}
 
 	if a.p.getConfiguration().EnforceConnectedUsers {
@@ -357,7 +364,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 			return fmt.Sprintf("%s_%s", links[i].MattermostChannelName, links[i].MattermostChannelID) < fmt.Sprintf("%s_%s", links[j].MattermostChannelName, links[j].MattermostChannelID)
 		})
 
-		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
 		if errorsFound {
 			http.Error(w, "Unable to get the MS Teams teams details", http.StatusInternalServerError)
 			return
@@ -384,6 +391,7 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 					MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
 					MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
 					MattermostChannelType: string(channel.Type),
+					MSTeamsChannelType:    msTeamsChannelIDsVsType[link.MSTeamsChannelID],
 				})
 			}
 		}
@@ -488,7 +496,9 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.p.API.PublishWebSocketEvent(
 		"connect",
-		nil,
+		map[string]interface{}{
+			"username": msteamsUser.DisplayName,
+		},
 		&model.WebsocketBroadcast{UserId: mmUserID},
 	)
 

@@ -298,7 +298,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 
-	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, false)
+	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, _, errorsFound := p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, false)
 
 	for _, link := range links {
 		row := fmt.Sprintf(
