@@ -359,7 +359,7 @@ func (p *Plugin) OnActivate() error {
 	botID, err := client.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
-		Description: "Created by the MS Teams Sync plugin.",
+		Description: "Created by the MS Teams Connector plugin.",
 	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
 	if err != nil {
 		return err

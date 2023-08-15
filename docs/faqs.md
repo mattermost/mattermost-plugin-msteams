@@ -30,5 +30,5 @@ No, user syncing is done by the "application" itself.
 
 The architecture diagram is below:
 
-![MS Teams Sync Diagram v1.0](brightscout-msteams-sync-v1.0.png)
+![MS Teams Connector Diagram v1.0](brightscout-msteams-sync-v1.0.png)
 

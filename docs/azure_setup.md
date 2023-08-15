@@ -10,7 +10,7 @@
 
 4. Fill out the form with the following values:
 
-- Name: `Mattermost MS Teams Sync`
+- Name: `Mattermost MS Teams Connector`
 - Supported account types: Default value (Single tenant)
 - Platform: Web
 - Redirect URI: `https://(MM_SITE_URL)/plugins/com.mattermost.msteams-sync/oauth-redirect`

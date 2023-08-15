@@ -1,4 +1,4 @@
-# Mattermost MS Teams Sync Plugin
+# Mattermost MS Teams Connector Plugin
 ## Table of Contents
 - [License](#license)
 - [Overview](#overview)

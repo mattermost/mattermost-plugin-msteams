@@ -56,7 +56,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	bot := &model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
-		Description: "Created by the MS Teams Sync plugin.",
+		Description: "Created by the MS Teams Connector plugin.",
 	}
 	config := model.Config{}
 	config.SetDefaults()

@@ -657,7 +657,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {},
 		},
 		{
-			description: "Team is not enabled for MS Teams sync",
+			description: "Team is not enabled for MS Teams Connector",
 			parameters:  []string{"", ""},
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
@@ -667,7 +667,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("HasPermissionToChannel", "", "", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "This team is not enabled for MS Teams sync.",
+					Message: "This team is not enabled for MS Teams Connector.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {

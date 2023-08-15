@@ -1,4 +1,4 @@
-# Mattermost MS Teams Sync Plugin
+# Mattermost MS Teams Connector Plugin
 ## Table of Contents
 - [License](#license)
 - [Overview](#overview)
@@ -42,7 +42,7 @@ This plugin supports the following features:
 
 1. Go to the [releases page of this GitHub repository](github.com/mattermost/mattermost-plugin-msteams-sync/releases) and download the latest release for your Mattermost server.
 2. Upload this file on the Mattermost **System Console > Plugins > Management** page to install the plugin. To learn more about how to upload a plugin, [see the documentation](https://docs.mattermost.com/administration/plugins.html#plugin-uploads).
-3. Enable the plugin from **System Console > Plugins > MSTeams Sync**.
+3. Enable the plugin from **System Console > Plugins > MSTeams Connector**.
 
 ## Setup
 

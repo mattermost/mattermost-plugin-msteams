@@ -165,7 +165,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
+		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams Connector.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)

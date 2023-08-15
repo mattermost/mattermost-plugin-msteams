@@ -1,6 +1,6 @@
 # Configuration
 
-- Go to the MS Teams sync plugin configuration page on Mattermost as **System Console > Plugins > MSTeams Sync**.
+- Go to the MS Teams Connector plugin configuration page on Mattermost as **System Console > Plugins > MSTeams Connector**.
 - On the MS Teams plugin configuration page, you need to configure the following:
     - **Tenant ID**: Enter the Tenant ID by copying it from the Azure portal.
     - **Client ID**: Enter the Client ID of your registered OAuth app in Azure portal.
