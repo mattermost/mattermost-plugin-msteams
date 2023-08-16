@@ -55,7 +55,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogError("Unable to read avatar", "error", err.Error())
+			a.p.API.LogError("Unable to get user avatar", "userID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
@@ -125,7 +125,7 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
 			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
-				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+				a.p.API.LogError("Unable to store the updated subscription expiration date", "error", err2.Error())
 			}
 		}
 	}
@@ -153,7 +153,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {
-			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
+			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
 		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI)
@@ -172,7 +172,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "userID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -213,7 +213,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "userID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -334,8 +334,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
-		a.p.API.LogError("Unable to complete OAuth.", "UserID", mmUserID, "Error", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		a.p.API.LogError("Unable to verify OAuth state", "UserID", mmUserID, "Error", err.Error())
+		http.Error(w, "Unable to complete OAuth2.", http.StatusInternalServerError)
 		return
 	}
 
@@ -353,15 +353,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	token, err := conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", string(codeVerifierBytes)))
 	if err != nil {
-		a.p.API.LogError("Unable to read avatar", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+		a.p.API.LogError("Unable to get OAuth2 token", "error", err.Error())
+		http.Error(w, "Unable to complete OAuth2", http.StatusInternalServerError)
 		return
 	}
 
 	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
 	if err = client.Connect(); err != nil {
 		a.p.API.LogError("Unable connect to the client", "error", err.Error())
-		http.Error(w, "failed to connect to the client", http.StatusBadRequest)
+		http.Error(w, "failed to connect to the client", http.StatusInternalServerError)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	if storedToken != nil {
 		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.")
-		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusInternalServerError)
+		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusBadRequest)
 		return
 	}
 

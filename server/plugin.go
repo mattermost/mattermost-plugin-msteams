@@ -146,7 +146,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return
 	}
 
@@ -275,7 +274,7 @@ func (p *Plugin) startSubscriptions() {
 		}(link)
 	}
 	wg.Wait()
-	p.API.LogDebug("Start subscription finished")
+	p.API.LogDebug("Starting subscriptions finished")
 }
 
 func (p *Plugin) stop() {

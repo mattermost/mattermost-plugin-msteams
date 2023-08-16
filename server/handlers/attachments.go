@@ -99,7 +99,7 @@ func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attac
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unmarshal codesnippet failed", "error", err)
+		ah.plugin.GetAPI().LogError("unmarshal codesnippet failed", "error", err.Error())
 		return text
 	}
 	s := strings.Split(content.CodeSnippetURL, "/")
@@ -110,7 +110,7 @@ func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attac
 
 	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get bot client", "error", err)
+		ah.plugin.GetAPI().LogError("unable to get client for user", "userID", userID, "error", err)
 		return text
 	}
 
@@ -129,7 +129,7 @@ func (ah *ActivityHandler) handleMessageReference(attach msteams.Attachment, cha
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unmarshal codesnippet failed", "error", err)
+		ah.plugin.GetAPI().LogError("unmarshal attachment content failed", "error", err)
 		return "", text
 	}
 	postInfo, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID(chatOrChannelID, content.MessageID)
