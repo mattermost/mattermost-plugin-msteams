@@ -1300,12 +1300,12 @@ func TestUnlinkChannels(t *testing.T) {
 			Name: "UnlinkChannels: error occurred while unlinking channels",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, &model.AppError{Message: "error occurred while unlinking channels"}).Times(1)
-				api.On("LogError", "Unable to get the current channel information.", "ChannelID", testutils.GetChannelID(), "Error", "error occurred while unlinking channels").Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "error occurred while unlinking channels").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
-			ExpectedResult:     "Unable to get the current channel information.\n",
+			ExpectedResult:     "Unable to get the current channel details.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
 		},

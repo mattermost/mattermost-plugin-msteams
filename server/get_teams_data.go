@@ -214,8 +214,8 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int) {
 	channel, appErr := p.API.GetChannel(mattermostChannelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get the current channel information.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
-		return "Unable to get the current channel information.", http.StatusInternalServerError
+		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
+		return "Unable to get the current channel details.", http.StatusInternalServerError
 	}
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
@@ -223,10 +223,9 @@ func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int
 		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
 	}
 
-	canLinkChannel := p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		p.API.LogError("Unable to unlink the channel, you have to be a channel admin to unlink it.", "ChannelID", mattermostChannelID)
-		return "Unable to unlink the channel, you have to be a channel admin to unlink it.", http.StatusForbidden
+	if !p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles) {
+		p.API.LogError("Unable to unlink the channel, you have to be atleast a channel admin to unlink it.", "ChannelID", mattermostChannelID)
+		return "Unable to unlink the channel, you have to be atleast a channel admin to unlink it.", http.StatusForbidden
 	}
 
 	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {

@@ -101,7 +101,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			description: "Unable to get the current channel",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the current channel information.", "ChannelID", "", "Error", "").Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", "", "Error", "").Times(1)
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
@@ -117,7 +117,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to unlink the channel, you have to be a channel admin to unlink it.", "ChannelID", testutils.GetChannelID()).Times(1)
+				api.On("LogError", "Unable to unlink the channel, you have to be atleast a channel admin to unlink it.", "ChannelID", testutils.GetChannelID()).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
@@ -126,7 +126,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					ChannelId: testutils.GetChannelID(),
 					UserId:    "bot-user-id",
-					Message:   "Unable to unlink the channel, you have to be a channel admin to unlink it.",
+					Message:   "Unable to unlink the channel, you have to be atleast a channel admin to unlink it.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
