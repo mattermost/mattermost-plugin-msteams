@@ -736,7 +736,9 @@ func TestNeedsConnect(t *testing.T) {
 			assert.NotNil(t, result)
 			defer result.Body.Close()
 
-			bodyBytes, _ := io.ReadAll(result.Body)
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+
 			bodyString := string(bodyBytes)
 			assert.Equal(test.ExpectedResult, bodyString)
 		})
@@ -755,8 +757,8 @@ func TestDisconnect(t *testing.T) {
 			Name:        "Disconnect: user successfully disconnected",
 			SetupPlugin: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(nil).Times(1)
 			},
 			ExpectedResult:     "Your account has been disconnected.",
@@ -771,8 +773,8 @@ func TestDisconnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", errors.New("could not find the Teams user ID")).Times(1)
 			},
-			ExpectedResult:     "The account is not connected.\n",
-			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedResult:     "Unable to get Teams user ID from Mattermost user ID.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
 			Name: "Disconnect: could not get the token for MM user",
@@ -780,8 +782,8 @@ func TestDisconnect(t *testing.T) {
 				api.On("LogError", "Unable to get the oauth token for the user.", "UserID", testutils.GetUserID(), "Error", "could not get the token for MM user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("could not get the token for MM user")).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
@@ -792,8 +794,8 @@ func TestDisconnect(t *testing.T) {
 				api.On("LogError", "Error occurred while disconnecting the user.", "UserID", testutils.GetUserID(), "Error", "error occurred while setting the user info").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(errors.New("error occurred while setting the user info")).Times(1)
 			},
 			ExpectedResult:     "Error occurred while disconnecting the user.\n",
@@ -821,11 +823,11 @@ func TestDisconnect(t *testing.T) {
 			defer result.Body.Close()
 
 			bodyBytes, err := io.ReadAll(result.Body)
-			if err != nil {
-				bodyString := string(bodyBytes)
-				assert.Equal(test.ExpectedResult, bodyString)
-				assert.Equal(result.StatusCode, test.ExpectedStatusCode)
-			}
+			assert.Nil(err)
+
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
 		})
 	}
 }

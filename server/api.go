@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	HeaderMattermostUserID = "Mattermost-User-ID"
+	HeaderMattermostUserID = "Mattermost-User-Id"
 )
 
 type API struct {
