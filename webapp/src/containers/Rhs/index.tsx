@@ -67,25 +67,25 @@ const Rhs = (): JSX.Element => {
     ), [totalLinkedChannels]);
 
     return (
-        <>
+        <div className='msteams-sync-rhs'>
             {connected ? (
 
             // TODO: add disconnect feature later.
                 <>{'Connected successfully'}</>
             ) : (
-                <div className='msteams-sync-rhs-connect'>
-                    <div className='msteams-sync-rhs-connect__heading'>
+                <div className='rhs-connect'>
+                    <div className='rhs-connect__heading'>
                         <div
-                            className='msteams-sync-rhs-connect__icon'
+                            className='rhs-connect__icon'
                         >
                             {SVGIcons.notConnectIcon}
                         </div>
-                        <div className='msteams-sync-rhs-connect__body'>
-                            <div className='msteams-sync-rhs-connect__title'>{'Please Connect your MS Teams account.'}</div>
+                        <div className='rhs-connect__body'>
+                            <div className='rhs-connect__title'>{'Please Connect your MS Teams account.'}</div>
                             {'You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.'}
                             <div>
                                 <button
-                                    className='btn btn-primary msteams-sync-rhs-connect__connect-button'
+                                    className='btn btn-primary rhs-connect__connect-button'
                                     onClick={connectAccount}
                                 >
                                     {'Connect Account'}
@@ -95,107 +95,109 @@ const Rhs = (): JSX.Element => {
                     </div>
                 </div>
             )}
-            <div className='msteams-sync-rhs-body'>
-                <div className='msteams-sync-rhs-body__title'>{'Linked Channels'}</div>
-                <div className='msteams-sync-rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
-                {/* TODO: add search bar later. */}
-                {isLoading && !paginationQueryParams.page && <Spinner className='msteams-sync-rhs-body__spinner'/>}
-                {Boolean(totalLinkedChannels.length) && (
-                    <div className='link-data__container'>
-                        <div className='link-data__title'>
-                            <div className='link-data__title-values'>{'Mattermost'}</div>
-                            <div className='link-data__title-values'>{'MS Team'}</div>
-                        </div>
-                        <div
-                            id='scrollableArea'
-                            className='link-data__container-values'
-                        >
-                            <InfiniteScroll
-                                dataLength={totalLinkedChannels.length}
-                                next={handlePagination}
-                                hasMore={hasMoreLinkedChannels}
-                                loader={<Spinner className='link-data__spinner'/>}
-                                endMessage={
-                                    <p className='text-center'>
-                                        <b>{'No more linked channels present.'}</b>
-                                    </p>
-                                }
-                                scrollableTarget='scrollableArea'
+            <div className='rhs-body-container'>
+                <div className='rhs-body'>
+                    <div className='rhs-body__title'>{'Linked Channels'}</div>
+                    <div className='rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
+                    {/* TODO: add search bar later. */}
+                    {isLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
+                    {Boolean(totalLinkedChannels.length) && (
+                        <div className='link-data__container'>
+                            <div className='link-data__title'>
+                                <div className='link-data__title-values'>{'Mattermost'}</div>
+                                <div className='link-data__title-values'>{'MS Team'}</div>
+                            </div>
+                            <div
+                                id='scrollableArea'
+                                className='link-data__container-values'
                             >
-                                {totalLinkedChannels.map((link) => (
-                                    <div
-                                        className='link-data'
-                                        key={link.msTeamsTeamName}
-                                    >
-                                        <div className='link-data__mm-values'>
-                                            {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
-                                                <>{SVGIcons.mmPrivateChannel}</>
-                                            ) : (
-                                                <>{SVGIcons.mmPublicChannel}</>
-                                            )}
-                                            <div className='link-data__body'>
-                                                <Tooltip text={link.mattermostChannelName}>
-                                                    <div className='link-data__channel-name'>
-                                                        {link.mattermostChannelName}
-                                                    </div>
-                                                </Tooltip>
-                                                <Tooltip text={link.mattermostTeamName}>
-                                                    <div className='link-data__team-name'>{link.mattermostTeamName}</div>
-                                                </Tooltip>
+                                <InfiniteScroll
+                                    dataLength={totalLinkedChannels.length}
+                                    next={handlePagination}
+                                    hasMore={hasMoreLinkedChannels}
+                                    loader={<Spinner className='link-data__spinner'/>}
+                                    endMessage={
+                                        <p className='text-center'>
+                                            <b>{'No more linked channels present.'}</b>
+                                        </p>
+                                    }
+                                    scrollableTarget='scrollableArea'
+                                >
+                                    {totalLinkedChannels.map((link) => (
+                                        <div
+                                            className='link-data'
+                                            key={link.msTeamsTeamName}
+                                        >
+                                            <div className='link-data__mm-values'>
+                                                {link.mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? (
+                                                    <>{SVGIcons.mmPrivateChannel}</>
+                                                ) : (
+                                                    <>{SVGIcons.mmPublicChannel}</>
+                                                )}
+                                                <div className='link-data__body'>
+                                                    <Tooltip text={link.mattermostChannelName}>
+                                                        <div className='link-data__channel-name'>
+                                                            {link.mattermostChannelName}
+                                                        </div>
+                                                    </Tooltip>
+                                                    <Tooltip text={link.mattermostTeamName}>
+                                                        <div className='link-data__team-name'>{link.mattermostTeamName}</div>
+                                                    </Tooltip>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className='channel-link-icon'>
-                                            {SVGIcons.linkIcon}
-                                        </div>
-                                        <div className='link-data__ms-values'>
-                                            {SVGIcons.msTeamsIcon}
-                                            <div className='link-data__body'>
-                                                <Tooltip text={link.msTeamsChannelName}>
-                                                    <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
-                                                </Tooltip>
-                                                <Tooltip text={link.msTeamsTeamName}>
-                                                    <div className='link-data__team-name'>{link.msTeamsTeamName}</div>
-                                                </Tooltip>
+                                            <div className='channel-link-icon'>
+                                                {SVGIcons.linkIcon}
                                             </div>
-                                        </div>
-                                        <Tooltip text={'Unlink'}>
-                                            <div
-                                                className='channel-unlink-icon'
+                                            <div className='link-data__ms-values'>
+                                                {SVGIcons.msTeamsIcon}
+                                                <div className='link-data__body'>
+                                                    <Tooltip text={link.msTeamsChannelName}>
+                                                        <div className='link-data__channel-name'>{link.msTeamsChannelName}</div>
+                                                    </Tooltip>
+                                                    <Tooltip text={link.msTeamsTeamName}>
+                                                        <div className='link-data__team-name'>{link.msTeamsTeamName}</div>
+                                                    </Tooltip>
+                                                </div>
+                                            </div>
+                                            <Tooltip text={'Unlink'}>
+                                                <div
+                                                    className='channel-unlink-icon'
 
-                                                // TODO: Update later
-                                                // eslint-disable-next-line no-alert
-                                                onClick={() => alert('Unlink chanel')}
-                                            >
-                                                {SVGIcons.channelUnlink}
-                                            </div>
-                                        </Tooltip>
-                                    </div>
-                                ))}
-                            </InfiniteScroll>
+                                                    // TODO: Update later
+                                                    // eslint-disable-next-line no-alert
+                                                    onClick={() => alert('Unlink chanel')}
+                                                >
+                                                    {SVGIcons.channelUnlink}
+                                                </div>
+                                            </Tooltip>
+                                        </div>
+                                    ))}
+                                </InfiniteScroll>
+                            </div>
                         </div>
-                    </div>
-                )}
-                {!totalLinkedChannels.length && !isLoading && (
-                    <div className='no-link'>
-                        {SVGIcons.globeIcon}
-                        <div className='no-link__title'>{'There are no linked channels'}</div>
-                        {connected && (
-                            <button
-                                className='btn btn-primary'
+                    )}
+                    {!totalLinkedChannels.length && !isLoading && (
+                        <div className='no-link'>
+                            {SVGIcons.globeIcon}
+                            <div className='no-link__title'>{'There are no linked channels'}</div>
+                            {connected && (
+                                <button
+                                    className='btn btn-primary'
 
-                                // TODO: Update later
-                                // eslint-disable-next-line no-alert
-                                onClick={() => alert('open modal!!!!!!!!!')}
-                            >
-                                {'Link New Channel'}
-                            </button>
-                        )}
-                    </div>
-                )}
+                                    // TODO: Update later
+                                    // eslint-disable-next-line no-alert
+                                    onClick={() => alert('open modal!!!!!!!!!')}
+                                >
+                                    {'Link New Channel'}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
             {connected && Boolean(totalLinkedChannels.length) && (
-                <div className='msteams-sync-rhs-footer'>
-                    <div className='msteams-sync-rhs-footer__link-btn'>
+                <div className='rhs-footer'>
+                    <div className='rhs-footer__link-btn'>
                         <button
                             className='btn btn-primary'
 
@@ -208,7 +210,7 @@ const Rhs = (): JSX.Element => {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 
