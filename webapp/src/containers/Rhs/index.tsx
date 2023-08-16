@@ -185,7 +185,7 @@ const Rhs = (): JSX.Element => {
                                                 </div>
                                             </div>
                                             <div className='channel-link-icon'>
-                                                    {SVGIcons.linkIcon}
+                                                {SVGIcons.linkIcon}
                                             </div>
                                             <div className='link-data__ms-values'>
                                                 <div className='link-data__ms-icon'>{link.msTeamsChannelType === MMConstants.PRIVATE_CHANNEL && (
@@ -205,7 +205,9 @@ const Rhs = (): JSX.Element => {
                                                 </div>
                                             </div>
                                             <Tooltip text={'Unlink'}>
-                                                <div className='channel-unlink-icon'
+                                                <div
+                                                    className='channel-unlink-icon'
+
                                                     // TODO: Update later
                                                     // eslint-disable-next-line no-alert
                                                     onClick={() => alert('Unlink chanel')}
