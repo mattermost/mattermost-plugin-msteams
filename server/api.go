@@ -20,6 +20,11 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-ID"
+	PathParamChannelID     = "channel_id"
+
+	// Query params
+	QueryParamTeamID     = "team_id"
+	QueryParamSearchTerm = "search_term"
 )
 
 type API struct {
@@ -44,10 +49,13 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
-	router.HandleFunc("/get-connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
+	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
+	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
+	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
+	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
+	router.HandleFunc(fmt.Sprintf("/unlink-channels/{%s}", PathParamChannelID), api.handleAuthRequired(api.checkUserConnected(api.unlinkChannels))).Methods(http.MethodDelete)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
-	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
 	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
 
@@ -182,17 +190,8 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	client, err := a.p.GetClientForUser(userID)
+	teams, _, err := a.p.GetMSTeamsTeamList(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
-		return
-	}
-
-	teams, err := client.ListTeams()
-	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -223,18 +222,9 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := a.p.GetClientForUser(userID)
-	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
-		return
-	}
-
 	teamID := args[2]
-	channels, err := client.ListChannels(teamID)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -346,10 +336,6 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	userID := r.Header.Get(HeaderMattermostUserID)
 	links, err := a.p.store.ListChannelLinksWithNames()
 	if err != nil {
@@ -370,10 +356,10 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r)
+		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
 		for index := offset; index < offset+limit && index < len(links); index++ {
 			link := links[index]
-			if index >= offset && msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
+			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
 				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
 				if appErr != nil {
 					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
@@ -398,6 +384,125 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.writeJSON(w, http.StatusOK, paginatedLinks)
+}
+
+func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team list.", statusCode)
+		return
+	}
+
+	sort.Slice(teams, func(i, j int) bool {
+		return fmt.Sprintf("%s_%s", teams[i].DisplayName, teams[i].ID) < fmt.Sprintf("%s_%s", teams[j].DisplayName, teams[j].ID)
+	})
+
+	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
+	paginatedTeams := []msteams.Team{}
+	matchCount := 0
+	for _, team := range teams {
+		if len(paginatedTeams) == limit {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
+			if matchCount >= offset {
+				paginatedTeams = append(paginatedTeams, team)
+			} else {
+				matchCount++
+			}
+		}
+	}
+
+	a.writeJSON(w, http.StatusOK, paginatedTeams)
+}
+
+func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+	teamID := r.URL.Query().Get(QueryParamTeamID)
+	if teamID == "" {
+		a.p.API.LogError("Error missing team ID query param.")
+		http.Error(w, "Error missing team ID query param.", http.StatusBadRequest)
+		return
+	}
+
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
+		return
+	}
+
+	sort.Slice(channels, func(i, j int) bool {
+		return fmt.Sprintf("%s_%s", channels[i].DisplayName, channels[i].ID) < fmt.Sprintf("%s_%s", channels[j].DisplayName, channels[j].ID)
+	})
+
+	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
+	paginatedChannels := []msteams.Channel{}
+	matchCount := 0
+	for _, channel := range channels {
+		if len(paginatedChannels) == limit {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(channel.DisplayName), strings.ToLower(searchTerm)) {
+			if matchCount >= offset {
+				paginatedChannels = append(paginatedChannels, channel)
+			} else {
+				matchCount++
+			}
+		}
+	}
+
+	a.writeJSON(w, http.StatusOK, paginatedChannels)
+}
+
+func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+
+	var body *storemodels.ChannelLink
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.p.API.LogError("Error occurred while decoding link channels payload.", "Error", err.Error())
+		http.Error(w, "Error occurred while decoding link channels payload.", http.StatusInternalServerError)
+		return
+	}
+
+	if err := body.IsChannelLinkPayloadValid(); err != nil {
+		a.p.API.LogError("Invalid channel link payload.", "Error", err.Error())
+		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
+		return
+	}
+
+	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID); errMsg != "" {
+		http.Error(w, errMsg, statusCode)
+		return
+	}
+
+	if _, err := w.Write([]byte("Channels linked successfully")); err != nil {
+		a.p.API.LogError("Failed to write response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *API) unlinkChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+
+	pathParams := mux.Vars(r)
+	channelID := pathParams[PathParamChannelID]
+
+	if errMsg, statusCode := a.p.UnlinkChannels(userID, channelID); errMsg != "" {
+		http.Error(w, errMsg, statusCode)
+		return
+	}
+
+	if _, err := w.Write([]byte("Channels unlinked successfully")); err != nil {
+		a.p.API.LogError("Failed to write response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // TODO: Add unit tests

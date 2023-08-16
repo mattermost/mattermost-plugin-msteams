@@ -20,7 +20,6 @@ import (
 
 func TestExecuteUnlinkCommand(t *testing.T) {
 	p := newTestPlugin(t)
-	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
 		description string
@@ -58,6 +57,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "This Mattermost channel is not linked to any MS Teams channel.", "ChannelID", "Mock-ChannelID", "Error", "Error while getting link").Times(1)
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
 					Id:   "Mock-ChannelID",
 					Type: model.ChannelTypeOpen,
@@ -80,6 +80,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to delete link.", "Error", "Error while deleting a link").Times(1)
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
 					Id:   "Mock-ChannelID",
 					Type: model.ChannelTypeOpen,
@@ -100,6 +101,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			description: "Unable to get the current channel",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get the current channel information.", "ChannelID", "", "Error", "").Times(1)
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
@@ -115,6 +117,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Unable to unlink the channel, you have to be a channel admin to unlink it.", "ChannelID", testutils.GetChannelID()).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
@@ -135,6 +138,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Linking/unlinking a direct or group message is not allowed").Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeDirect,
@@ -149,6 +153,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			mockAPI := &plugintest.API{}
+
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
 
@@ -559,7 +565,6 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 
 func TestExecuteLinkCommand(t *testing.T) {
 	p := newTestPlugin(t)
-	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
 		description string
@@ -669,6 +674,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					UserId:  "bot-user-id",
 					Message: "This team is not enabled for MS Teams sync.",
 				}).Return(testutils.GetPost("", "")).Times(1)
+				api.On("LogError", "This team is not enabled for MS Teams sync.", "TeamID", "").Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", "").Return(false).Times(1)
@@ -687,6 +693,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					UserId:  "bot-user-id",
 					Message: "Unable to get the current channel information.",
 				}).Return(testutils.GetPost("", "")).Times(1)
+				api.On("LogError", "Unable to get the current channel information.", "ChannelID", "", "Error", "").Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamUserID()).Return(true).Times(1)
@@ -710,6 +717,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Unable to link the channel. You have to be a channel admin to link it.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), "")).Times(1)
+				api.On("LogError", "Unable to link the channel. You have to be a channel admin to link it.", "ChannelID", testutils.GetChannelID()).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamUserID()).Return(true).Times(1)
@@ -732,6 +740,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Linking/unlinking a direct or group message is not allowed",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), "")).Times(1)
+				api.On("LogError", "Linking/unlinking a direct or group message is not allowed.", "ChannelType", model.ChannelTypeGroup).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamUserID()).Return(true).Times(1)
@@ -761,6 +770,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "MS Teams channel not found or you don't have the permissions to access it.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
+				api.On("LogError", "Error occurred while getting channel in MS Teams team.", "Error", "Error while getting the channel").Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamUserID()).Return(true).Times(1)
@@ -774,6 +784,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			mockAPI := &plugintest.API{}
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
 
