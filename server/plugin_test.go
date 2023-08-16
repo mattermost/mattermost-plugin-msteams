@@ -270,14 +270,14 @@ func TestGetClientForTeamsUser(t *testing.T) {
 		{
 			Name: "GetClientForTeamsUser: Unable to get the token",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(nil, nil).Times(1)
 			},
 			ExpectedError: "not connected user",
 		},
 		{
 			Name: "GetClientForTeamsUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 		},
 	} {
@@ -285,7 +285,7 @@ func TestGetClientForTeamsUser(t *testing.T) {
 			assert := assert.New(t)
 			p := newTestPlugin(t)
 			test.SetupStore(p.store.(*storemocks.Store))
-			resp, err := p.GetClientForTeamsUser(testutils.GetTeamUserID())
+			resp, err := p.GetClientForTeamsUser(testutils.GetTeamsUserID())
 			if test.ExpectedError != "" {
 				assert.Nil(resp)
 				assert.EqualError(err, test.ExpectedError)
@@ -319,7 +319,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to get MM users during sync user job", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return(nil, testutils.GetInternalServerAppError("unable to get the users")).Times(1)
@@ -328,7 +327,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
@@ -339,7 +338,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to create new MM user during sync job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return([]*model.User{
@@ -351,7 +349,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
@@ -362,7 +360,6 @@ func TestSyncUsers(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to set user info during sync user job", "email", "test@test.com", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
-					Active:  true,
 					Page:    0,
 					PerPage: math.MaxInt32,
 				}).Return([]*model.User{
@@ -373,12 +370,12 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
+				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)

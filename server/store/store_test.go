@@ -9,7 +9,6 @@ import (
 
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
@@ -38,28 +37,30 @@ func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugint
 func createTestDB(driverName string) (*sql.DB, func()) {
 	// Create postgres container
 	if driverName == model.DatabaseDriverPostgres {
-		postgresPort := nat.Port("5432/tcp")
-		postgres, _ := testcontainers.GenericContainer(context.Background(),
+		context := context.Background()
+		postgres, _ := testcontainers.GenericContainer(context,
 			testcontainers.GenericContainerRequest{
 				ContainerRequest: testcontainers.ContainerRequest{
 					Image:        "postgres",
-					ExposedPorts: []string{postgresPort.Port()},
+					ExposedPorts: []string{"5432/tcp"},
 					Env: map[string]string{
 						"POSTGRES_PASSWORD": "pass",
 						"POSTGRES_USER":     "user",
 					},
 					WaitingFor: wait.ForAll(
 						wait.ForLog("database system is ready to accept connections"),
-						wait.ForListeningPort(postgresPort),
 					),
+					SkipReaper: true,
 				},
 				Started: true,
 			})
 
-		hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
-		conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+		time.Sleep(5 * time.Second)
+		host, _ := postgres.Host(context)
+		hostPort, _ := postgres.MappedPort(context, "5432/tcp")
+		conn, _ := sqlx.Connect(driverName, fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, host, hostPort.Int()))
 		tearDownContainer := func() {
-			if err := postgres.Terminate(context.Background()); err != nil {
+			if err := postgres.Terminate(context); err != nil {
 				log.Fatalf("failed to terminate container: %s", err.Error())
 			}
 		}
@@ -81,15 +82,17 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 				WaitingFor: wait.ForAll(
 					wait.ForLog("database system is ready to accept connections"),
 				),
+				SkipReaper: true,
 			},
 			Started: true,
 		})
 
+	time.Sleep(5 * time.Second)
 	host, _ := mysql.Host(context)
 	p, _ := mysql.MappedPort(context, "3306/tcp")
 	port := p.Int()
 
-	mysqlConn, _ := sqlx.Connect("mysql", fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
+	mysqlConn, _ := sqlx.Connect(driverName, fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
 	tearDownContainer := func() {
 		if err := mysql.Terminate(context); err != nil {
 			log.Fatalf("failed to terminate container: %s", err.Error())
@@ -144,7 +147,7 @@ func TestStore(t *testing.T) {
 			})
 		}
 
-		tearDownContainer()
+		defer tearDownContainer()
 	}
 }
 
@@ -552,10 +555,10 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamsUserID() + "1")
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 }
@@ -574,11 +577,11 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
-	assert.Equal(testutils.GetTeamUserID()+"2", resp)
+	assert.Equal(testutils.GetTeamsUserID()+"2", resp)
 	assert.Nil(getErr)
 }
 
@@ -601,7 +604,7 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 		RefreshToken: "mockRefreshToken-3",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", token)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -615,7 +618,7 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", nil)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", nil)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -642,10 +645,10 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamsUserID()+"4", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID() + "4")
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "4")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
 }
