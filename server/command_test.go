@@ -103,7 +103,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel information.",
+					Message: "Unable to get the current channel details.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
@@ -207,7 +207,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client) {},
 		},
 		{
-			description: "Unable to get the MS Teams team information",
+			description: "Unable to get the MS Teams team details",
 			args: &model.CommandArgs{
 				ChannelId: "Invalid-ChannelID",
 			},
@@ -215,7 +215,7 @@ func TestExecuteShowCommand(t *testing.T) {
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: "Invalid-ChannelID",
-					Message:   "Unable to get the MS Teams team information.",
+					Message:   "Unable to get the MS Teams team details.",
 				}).Return(testutils.GetPost("Invalid-ChannelID", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -224,7 +224,7 @@ func TestExecuteShowCommand(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", "Invalid-MSTeamsTeamID").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
+				c.On("GetTeam", "Invalid-MSTeamsTeamID").Return(nil, errors.New("Error while getting the MS Teams team details")).Times(1)
 			},
 		},
 	} {
@@ -344,8 +344,8 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 
-				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
-				api.On("LogDebug", "Unable to get the MS Teams channel information for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams teams details", "Error", "error in getting teams info").Once()
+				api.On("LogDebug", "Unable to get the MS Teams channel details for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -356,7 +356,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching information. Please check the server logs.",
+					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching details. Please check the server logs.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -676,7 +676,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {},
 		},
 		{
-			description: "Unable to get the current channel information",
+			description: "Unable to get the current channel details",
 			parameters:  []string{testutils.GetTeamsUserID(), ""},
 			args: &model.CommandArgs{
 				TeamId: testutils.GetTeamsUserID(),
@@ -685,9 +685,9 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel information.",
+					Message: "Unable to get the current channel details.",
 				}).Return(testutils.GetPost("", "")).Times(1)
-				api.On("LogError", "Unable to get the current channel information.", "ChannelID", "", "Error", "").Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", "", "Error", "").Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
