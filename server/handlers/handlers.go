@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -22,12 +23,14 @@ const (
 	lastReceivedChangeKey = "last_received_change"
 	numberOfWorkers       = 20
 	activityQueueSize     = 1000
+	msteamsUserTypeGuest  = "Guest"
 )
 
 type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
+	GetSyncGuestUsers() bool
 	GetBotUserID() string
 	GetURL() string
 	GetClientForApp() msteams.Client
@@ -215,6 +218,22 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(msg.UserID)
+	if clientErr != nil {
+		ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
+		return
+	}
+
+	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
+		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
+			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "UserID", mmUserID, "Error", appErr.Error())
+			}
+		}
+
+		return
+	}
+
 	var senderID string
 	var channelID string
 	if chat != nil {
@@ -230,7 +249,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		}
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
-		senderID, _ = ah.getOrCreateSyntheticUser(msg.UserID, "")
+		senderID, _ = ah.getOrCreateSyntheticUser(msteamsUser, true)
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
 			channelID = channelLink.MattermostChannelID
@@ -239,6 +258,10 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	if err != nil || senderID == "" {
 		senderID = ah.plugin.GetBotUserID()
+	}
+
+	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		return
 	}
 
 	if channelID == "" {
@@ -360,6 +383,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		senderID = ah.plugin.GetBotUserID()
 	}
 
+	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		return
+	}
+
 	var userID string
 	if msg.TeamID != "" && msg.ChannelID != "" {
 		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
@@ -442,6 +469,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			ah.plugin.GetAPI().LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
 		}
+
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
 			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
@@ -485,4 +513,29 @@ func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to store properly the last received change")
 	}
+}
+
+func (ah *ActivityHandler) isActiveUser(userID string) bool {
+	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
+	if err != nil {
+		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user from senderID", "UserID", userID, "error", err.Error())
+		return false
+	}
+
+	if mmUser.DeleteAt != 0 {
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "User", mmUser.Email)
+		return false
+	}
+
+	return true
+}
+
+func (ah *ActivityHandler) isRemoteUser(userID string) bool {
+	user, userErr := ah.plugin.GetAPI().GetUser(userID)
+	if userErr != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "UserID", userID, "error", userErr.Error())
+		return false
+	}
+
+	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }
