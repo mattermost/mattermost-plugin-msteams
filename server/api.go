@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -39,6 +40,7 @@ type Activities struct {
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
+	router.Use(p.WithRecovery)
 	api := &API{p: p, router: router, store: store}
 
 	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
@@ -647,4 +649,19 @@ func (a *API) writeJSONArray(w http.ResponseWriter, statusCode int, v interface{
 	}
 
 	w.WriteHeader(statusCode)
+}
+
+func (p *Plugin) WithRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if x := recover(); x != nil {
+				p.API.LogError("Recovered from a panic",
+					"url", r.URL.String(),
+					"error", x,
+					"stack", string(debug.Stack()))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
 }
