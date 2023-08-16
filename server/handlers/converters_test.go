@@ -121,14 +121,14 @@ func TestHandleMentions(t *testing.T) {
 				api.On("LogDebug", "Unable to get mm UserID", "Error", mock.Anything).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("unable to get mm user ID"))
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
 			},
 			message: &msteams.Message{
 				Text: `mockMessage <at id="0">mockMentionedText</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						UserID:        testutils.GetTeamUserID(),
+						UserID:        testutils.GetTeamsUserID(),
 						MentionedText: "mockMentionedText",
 					},
 				},
@@ -146,14 +146,14 @@ func TestHandleMentions(t *testing.T) {
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetMattermostID(), nil).Once()
 			},
 			message: &msteams.Message{
 				Text: `mockMessage <at id="0">mockMentionedText</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						UserID:        testutils.GetTeamUserID(),
+						UserID:        testutils.GetTeamsUserID(),
 						MentionedText: "mockMentionedText",
 					},
 				},
