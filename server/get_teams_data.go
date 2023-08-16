@@ -24,10 +24,10 @@ const (
 	MaxPerPageLimit     = 100
 )
 
-func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, bool) {
-	msTeamsTeamIDsVsNames := make(map[string]string)
-	msTeamsChannelIDsVsNames := make(map[string]string)
+func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (msTeamsTeamIDsVsNames map[string]string, msTeamsChannelIDsVsNames map[string]string, errorsFound bool) {
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
+	msTeamsTeamIDsVsNames = make(map[string]string)
+	msTeamsChannelIDsVsNames = make(map[string]string)
 
 	for _, link := range channelLinks {
 		if checkChannelPermissions && !p.API.HasPermissionToChannel(userID, link.MattermostChannelID, model.PermissionCreatePost) {
@@ -48,21 +48,16 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] += "'" + link.MSTeamsChannelID + "'"
 	}
 
-	errorsFound := false
 	// Get MS Teams display names for each unique team ID and store it
-	if p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
 
 	// Get MS Teams channel details for all channels for each unique team
-	if p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames) || errorsFound
 
 	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) (errorsFound bool) {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
 	for teamID := range msTeamsTeamIDsVsNames {
@@ -73,7 +68,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
 	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
 	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		p.API.LogDebug("Unable to get the MS Teams teams details", "Error", err.Error())
 		return true
 	}
 
@@ -84,12 +79,11 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
-	errorsFound := false
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) (errorsFound bool) {
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			p.API.LogDebug("Unable to get the MS Teams channel details for the team", "TeamID", teamID, "Error", err.Error())
 			errorsFound = true
 			continue
 		}
@@ -134,11 +128,11 @@ func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channe
 	return channels, http.StatusOK, nil
 }
 
-func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string) (string, int) {
+func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string) (responseMsg string, statusCode int) {
 	channel, appErr := p.API.GetChannel(mattermostChannelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get the current channel information.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
-		return "Unable to get the current channel information.", http.StatusInternalServerError
+		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
+		return "Unable to get the current channel details.", http.StatusInternalServerError
 	}
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
@@ -248,7 +242,7 @@ func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int
 	return "", http.StatusOK
 }
 
-func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
+func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
 		p.API.LogError("Invalid pagination query param", "Error", err.Error())

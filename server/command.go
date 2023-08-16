@@ -175,12 +175,12 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeamID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team details.")
 	}
 
 	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeamID, link.MSTeamsChannelID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel details.")
 	}
 
 	text := fmt.Sprintf(
@@ -236,7 +236,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	}
 
 	if errorsFound {
-		sb.WriteString("\nThere were some errors while fetching information. Please check the server logs.")
+		sb.WriteString("\nThere were some errors while fetching details. Please check the server logs.")
 	}
 
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
