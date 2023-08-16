@@ -946,11 +946,11 @@ func TestGetConnectedChannels(t *testing.T) {
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connected-channels", nil)
+			r := httptest.NewRequest(http.MethodGet, "/linked-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
-				QueryParamPage:    {fmt.Sprintf("%d", DefaultPage)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 			}
 
 			r.URL.RawQuery = queryParams.Encode()
