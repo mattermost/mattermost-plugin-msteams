@@ -22,10 +22,10 @@ const (
 	MaxPerPageLimit     = 100
 )
 
-func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, bool) {
-	msTeamsTeamIDsVsNames := make(map[string]string)
-	msTeamsChannelIDsVsNames := make(map[string]string)
+func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (msTeamsTeamIDsVsNames map[string]string, msTeamsChannelIDsVsNames map[string]string, errorsFound bool) {
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
+	msTeamsTeamIDsVsNames = make(map[string]string)
+	msTeamsChannelIDsVsNames = make(map[string]string)
 
 	for _, link := range channelLinks {
 		if checkChannelPermissions && !p.API.HasPermissionToChannel(userID, link.MattermostChannelID, model.PermissionCreatePost) {
@@ -46,21 +46,16 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] += "'" + link.MSTeamsChannelID + "'"
 	}
 
-	errorsFound := false
 	// Get MS Teams display names for each unique team ID and store it
-	if p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
 
 	// Get MS Teams channel details for all channels for each unique team
-	if p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames) || errorsFound
 
 	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) (errorsFound bool) {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
 	for teamID := range msTeamsTeamIDsVsNames {
@@ -82,8 +77,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
-	errorsFound := false
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) (errorsFound bool) {
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
@@ -116,7 +110,7 @@ func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) 
 	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
+func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
 		p.API.LogError("Invalid pagination query param", "Error", err.Error())
