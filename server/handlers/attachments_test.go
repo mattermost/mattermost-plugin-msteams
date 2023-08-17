@@ -25,16 +25,12 @@ func TestHandleDownloadFile(t *testing.T) {
 		weburl        string
 		expectedError string
 		mockChat      *msteams.Chat
-		setupPlugin   func(plugin *mocksPlugin.PluginIface)
 		setupClient   func()
 	}{
 		{
 			description: "Successfully file downloaded for channel",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://example.com/file1.txt",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForApp").Return(client, nil)
-			},
 			setupClient: func() {
 				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
 			},
@@ -50,30 +46,14 @@ func TestHandleDownloadFile(t *testing.T) {
 					},
 				},
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil)
-			},
 			setupClient: func() {
 				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
 			},
 		},
 		{
-			description:   "Unable to get client for a user",
-			userID:        "mock-userID",
-			weburl:        "https://example.com/file1.txt",
-			expectedError: "unable to get the client",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForApp").Return(nil, errors.New("unable to get the client"))
-			},
-			setupClient: func() {},
-		},
-		{
 			description:   "Unable to get file content",
 			userID:        testutils.GetUserID(),
 			expectedError: "Error while getting file content",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForApp").Return(client, nil)
-			},
 			setupClient: func() {
 				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting file content"))
 			},
@@ -81,11 +61,10 @@ func TestHandleDownloadFile(t *testing.T) {
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
-			testCase.setupPlugin(p)
 			testCase.setupClient()
 			ah.plugin = p
 
-			data, err := ah.handleDownloadFile(testCase.weburl, testCase.mockChat)
+			data, err := ah.handleDownloadFile(testCase.weburl, client)
 			if testCase.expectedError != "" {
 				assert.Nil(t, data)
 				assert.EqualError(t, err, testCase.expectedError)
@@ -119,9 +98,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 			text:           "mock-data",
 			expectedOutput: "mock-data\n```go\nsnippet content\n```\n",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
-			},
+			setupPlugin:    func(p *mocksPlugin.PluginIface) {},
 			setupClient: func() {
 				client.On("GetCodeSnippet", "https://example.com/go/snippet/1/2/3/4/5/6/7/8").Return("snippet content", nil)
 			},
@@ -160,23 +137,6 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 		},
 		{
-			description: "Unable to get bot client",
-			userID:      "mock-userID",
-			attach: msteams.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet/1/2/3/4/5/6/7/8"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting user client"))
-				p.On("GetAPI").Return(mockAPI)
-			},
-			setupClient: func() {},
-			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "unable to get client for user", "mmuserID", "mock-userID", "error", errors.New("Error while getting user client"))
-			},
-		},
-		{
 			description: "Unable while retrieving code snippet",
 			userID:      testutils.GetUserID(),
 			attach: msteams.Attachment{
@@ -185,7 +145,6 @@ func TestHandleCodeSnippet(t *testing.T) {
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {
@@ -204,7 +163,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 
 			ah.plugin = p
 
-			resp := ah.handleCodeSnippet(testCase.userID, testCase.attach, testCase.text)
+			resp := ah.handleCodeSnippet(client, testCase.attach, testCase.text)
 			assert.Equal(t, resp, testCase.expectedOutput)
 		})
 	}

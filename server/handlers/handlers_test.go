@@ -231,7 +231,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(4)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -280,7 +280,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(4)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -329,7 +329,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(4)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(7)
 				p.On("GetStore").Return(store).Times(7)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -385,7 +385,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(4)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(6)
 				p.On("GetStore").Return(store).Times(7)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -440,7 +440,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(2)
+				p.On("GetClientForApp").Return(client).Times(3)
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
@@ -754,7 +754,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(6)
 				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
@@ -804,7 +804,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
+				p.On("GetClientForApp").Return(client).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
