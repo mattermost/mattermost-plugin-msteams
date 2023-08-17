@@ -237,7 +237,7 @@ func TestGetAvatarNotFound(t *testing.T) {
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
-	plugin.API.(*plugintest.API).On("LogError", "Unable to read avatar", "error", "not-found").Return(nil)
+	plugin.API.(*plugintest.API).On("LogError", "Unable to get user avatar", "msteamsUserID", "user-id", "error", "not-found").Return(nil)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -389,7 +389,7 @@ func TestProcessLifecycle(t *testing.T) {
 		{
 			Name: "ProcessLifecycle: Valid body with invalid webhook secret",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Invalid webhook secret recevied in lifecycle event").Times(1)
+				api.On("LogError", "Invalid webhook secret received in lifecycle event").Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:  func(store *storemocks.Store) {},
@@ -477,7 +477,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -575,7 +575,7 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {

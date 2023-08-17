@@ -13,12 +13,15 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
@@ -32,6 +35,30 @@ import (
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"golang.org/x/oauth2"
 )
+
+type ConcurrentGraphRequestAdapter struct {
+	msgraphsdk.GraphRequestAdapter
+	mutex sync.Mutex
+}
+
+type ConcurrentSerializationWriterFactory struct {
+	serialization.SerializationWriterFactory
+	mutex sync.Mutex
+}
+
+func (sf *ConcurrentSerializationWriterFactory) GetSerializationWriter(contentType string) (serialization.SerializationWriter, error) {
+	sf.mutex.Lock()
+	defer sf.mutex.Unlock()
+	return sf.SerializationWriterFactory.GetSerializationWriter(contentType)
+}
+
+func (a *ConcurrentGraphRequestAdapter) GetSerializationWriterFactory() serialization.SerializationWriterFactory {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	return a.GraphRequestAdapter.GetSerializationWriterFactory()
+}
+
+var clientMutex sync.Mutex
 
 type ClientImpl struct {
 	client       *msgraphsdk.GraphServiceClient
@@ -66,9 +93,11 @@ type Chat struct {
 }
 
 type User struct {
-	DisplayName string
-	ID          string
-	Mail        string
+	DisplayName      string
+	ID               string
+	Mail             string
+	Type             string
+	IsAccountEnabled bool
 }
 
 type ChatMember struct {
@@ -248,7 +277,9 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		return nil
 	}
 
-	client.client = msgraphsdk.NewGraphServiceClient(adapter)
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	client.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return client
 }
@@ -683,13 +714,13 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
-			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
+			if err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		} else {
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
-			if _, err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err2 != nil {
+			if _, err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err != nil {
 				tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 				return &Subscription{
 					ID:        *existingSubscription.GetId(),
@@ -697,8 +728,8 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 				}, nil
 			}
 
-			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
+			if err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		}
 	}
@@ -1055,6 +1086,7 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		DisplayName: displayName,
 		ID:          *u.GetId(),
 		Mail:        strings.ToLower(email),
+		Type:        *u.GetUserType(),
 	}
 
 	return &user, nil
@@ -1189,8 +1221,8 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 			matches := map[string]bool{}
 			for _, m := range c.GetMembers() {
 				for _, u := range usersIDs {
-					userID, err2 := m.GetBackingStore().Get("userId")
-					if err2 == nil && userID != nil && *(userID.(*string)) == u {
+					userID, userErr := m.GetBackingStore().Get("userId")
+					if userErr == nil && userID != nil && *(userID.(*string)) == u {
 						matches[u] = true
 						break
 					}
@@ -1308,7 +1340,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 func (tc *ClientImpl) ListUsers() ([]User, error) {
 	requestParameters := &users.UsersRequestBuilderGetQueryParameters{
-		Select: []string{"displayName", "id", "mail", "userPrincipalName"},
+		Select: []string{"displayName", "id", "mail", "userPrincipalName", "userType", "accountEnabled"},
 	}
 	configuration := &users.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -1331,8 +1363,10 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		}
 
 		user := User{
-			DisplayName: displayName,
-			ID:          *u.GetId(),
+			DisplayName:      displayName,
+			ID:               *u.GetId(),
+			Type:             *u.GetUserType(),
+			IsAccountEnabled: *u.GetAccountEnabled(),
 		}
 
 		if u.GetMail() != nil {
