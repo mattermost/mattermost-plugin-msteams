@@ -90,6 +90,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		expectedOutput string
 		setupPlugin    func(plugin *mocksPlugin.PluginIface)
 		setupClient    func()
+		setupAPI       func(api *plugintest.API)
 	}{
 		{
 			description: "Successfully handled code snippet",
@@ -105,6 +106,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			setupClient: func() {
 				client.On("GetCodeSnippet", "https://example.com/go/snippet/1/2/3/4/5/6/7/8").Return("snippet content", nil)
 			},
+			setupAPI: func(api *plugintest.API) {},
 		},
 		{
 			description: "Unable to unmarshal codesnippet",
@@ -118,6 +120,9 @@ func TestHandleCodeSnippet(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {},
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "failed to unmarshal codesnippet", "error", "invalid character 'I' looking for beginning of value").Return().Once()
+			},
 		},
 		{
 			description: "CodesnippetUrl has unexpected size",
@@ -131,6 +136,9 @@ func TestHandleCodeSnippet(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {},
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "codesnippetURL has unexpected size", "URL", "https://example.com/go/snippet").Return().Once()
+			},
 		},
 		{
 			description: "Unable to get bot client",
@@ -141,10 +149,13 @@ func TestHandleCodeSnippet(t *testing.T) {
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting bot client"))
+				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting user client"))
 				p.On("GetAPI").Return(mockAPI)
 			},
 			setupClient: func() {},
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "unable to get client for user", "mmuserID", "mock-userID", "error", errors.New("Error while getting user client"))
+			},
 		},
 		{
 			description: "Unable while retrieving code snippet",
@@ -161,13 +172,17 @@ func TestHandleCodeSnippet(t *testing.T) {
 			setupClient: func() {
 				client.On("GetCodeSnippet", "https://mock-example.com/go/snippet/1/2/3/4/5/6/7/8").Return("", errors.New("Error while retrieving code snippet"))
 			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "retrieving snippet content failed", "error", errors.New("Error while retrieving code snippet"))
+			},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			mockAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything).Return()
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			testCase.setupClient()
+			testCase.setupAPI(mockAPI)
+
 			ah.plugin = p
 
 			resp := ah.handleCodeSnippet(testCase.userID, testCase.attach, testCase.text)

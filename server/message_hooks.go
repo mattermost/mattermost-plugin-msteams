@@ -28,7 +28,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if post.IsSystemMessage() {
-		p.API.LogDebug("Not propagate system message post", "post", post)
+		p.API.LogDebug("Skipping system message post", "post", post)
 		return
 	}
 
@@ -98,7 +98,7 @@ func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reactio
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
 	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
 	if reaction.ChannelId == "removefromplugin" {
-		p.API.LogError("Ignore reaction that has been trigger from the plugin handler")
+		p.API.LogError("Ignore reaction that has been triggered from the plugin handler")
 		return
 	}
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
@@ -293,12 +293,12 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	chatID, err := p.GetChatIDForChannel(srcUser, channelID)
 	if err != nil {
-		p.API.LogError("FAILING TO CREATE OR GET THE CHAT", "error", err)
+		p.API.LogError("Failed to create or get the chat", "error", err)
 		return err
 	}
 
 	if err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+		p.API.LogWarn("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
 
@@ -345,7 +345,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 	if err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+		p.API.LogWarn("Error in removing the reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
 
@@ -405,7 +405,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
-		p.API.LogError("FAILING TO CREATE OR GET THE CHAT", "error", err)
+		p.API.LogError("Failed to create or get the chat", "error", err)
 		return "", err
 	}
 
@@ -426,7 +426,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		var attachment *msteams.Attachment
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
-			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
+			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
 			continue
 		}
 		attachments = append(attachments, attachment)
@@ -441,13 +441,13 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	if parentID != "" {
 		parentMessage, err = client.GetChatMessage(chatID, parentID)
 		if err != nil {
-			p.API.LogWarn("Error in getting parent chat", "error", err)
+			p.API.LogWarn("Error in getting parent chat message", "error", err)
 		}
 	}
 
 	newMessage, err := client.SendChat(chatID, content, parentMessage, attachments, mentions)
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
 
@@ -513,7 +513,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		var attachment *msteams.Attachment
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
 		if err != nil {
-			p.API.LogWarn("Error in uploading file attachment to Teams", "error", err)
+			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
 			continue
 		}
 		attachments = append(attachments, attachment)
@@ -526,7 +526,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, content, attachments, mentions)
 	if err != nil {
-		p.API.LogWarn("Error creating post", "error", err.Error())
+		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
 
@@ -540,7 +540,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 }
 
 func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting message to MS Teams", "teamID", teamID, "channelID", channelID, "post", post)
+	p.API.LogDebug("Deleting message from MS Teams", "teamID", teamID, "channelID", channelID, "post", post)
 
 	parentID := ""
 	if post.RootId != "" {
@@ -570,7 +570,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 	}
 
 	if err := client.DeleteMessage(teamID, channelID, parentID, postInfo.MSTeamsID); err != nil {
-		p.API.LogError("Error deleting post", "error", err)
+		p.API.LogError("Error deleting post from MS Teams", "error", err)
 		return err
 	}
 
@@ -578,7 +578,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 }
 
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting direct message to MS Teams", "chatID", chatID, "post", post)
+	p.API.LogDebug("Deleting direct message from MS Teams", "chatID", chatID, "post", post)
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
@@ -598,7 +598,7 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 	}
 
 	if err := client.DeleteChatMessage(chatID, postInfo.MSTeamsID); err != nil {
-		p.API.LogError("Error deleting post", "error", err)
+		p.API.LogError("Error deleting post from MS Teams", "error", err)
 		return err
 	}
 	return nil
@@ -628,7 +628,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
-		p.API.LogError("Error updating post", "error", err)
+		p.API.LogError("Error getting post info", "error", err)
 		return err
 	}
 	if postInfo == nil {
@@ -644,7 +644,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
 
 	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
-		p.API.LogWarn("Error updating the post", "error", err)
+		p.API.LogWarn("Error updating the post on MS Teams", "error", err)
 		// If the error is regarding payment required for metered APIs, ignore it and continue because
 		// the post is updated regardless
 		if !strings.Contains(err.Error(), "code: PaymentRequired") {
@@ -659,7 +659,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		updatedMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
 	}
 	if err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		p.API.LogWarn("Error in getting the message from MS Teams", "error", err)
 		return nil
 	}
 
@@ -675,7 +675,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
-		p.API.LogError("Error updating post", "error", err)
+		p.API.LogError("Error getting post info", "error", err)
 		return err
 	}
 	if postInfo == nil {
@@ -697,13 +697,13 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	content, mentions := p.getMentionsData(content, "", "", chatID, client)
 
 	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
-		p.API.LogWarn("Error updating the post", "error", err)
+		p.API.LogWarn("Error updating the post on MS Teams", "error", err)
 		return err
 	}
 
 	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)
 	if err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+		p.API.LogWarn("Error getting the updated message from MS Teams", "error", err)
 	} else {
 		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
 		if err != nil {
@@ -775,7 +775,7 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 			if chatID != "" {
 				chat, err := client.GetChat(chatID)
 				if err != nil {
-					p.API.LogDebug("Unable to get ms teams chat", "Error", err.Error())
+					p.API.LogDebug("Unable to get MS Teams chat", "Error", err.Error())
 				} else {
 					if chat.Type == "G" {
 						mentionedText = "Everyone"
@@ -788,7 +788,7 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 			} else {
 				msChannel, err := client.GetChannelInTeam(teamID, channelID)
 				if err != nil {
-					p.API.LogDebug("Unable to get ms teams channel", "Error", err.Error())
+					p.API.LogDebug("Unable to get MS Teams channel", "Error", err.Error())
 				} else {
 					mentionedText = msChannel.DisplayName
 				}
@@ -810,13 +810,13 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 
 			msteamsUserID, getErr := p.store.MattermostToTeamsUserID(mmUser.Id)
 			if getErr != nil {
-				p.API.LogDebug("Unable to get msteams user ID", "Error", getErr.Error())
+				p.API.LogDebug("Unable to get MS Teams user ID", "Error", getErr.Error())
 				continue
 			}
 
 			msteamsUser, getErr := client.GetUser(msteamsUserID)
 			if getErr != nil {
-				p.API.LogDebug("Unable to get msteams user", "Error", getErr.Error())
+				p.API.LogDebug("Unable to get MS Teams user", "MSTeamsUserID", msteamsUserID, "Error", getErr.Error())
 				continue
 			}
 
