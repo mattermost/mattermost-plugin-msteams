@@ -7,6 +7,7 @@ import (
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -21,12 +22,6 @@ func (FakeHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestMsgToPost(t *testing.T) {
-	defaultTransport := http.DefaultClient.Transport
-	http.DefaultClient.Transport = &FakeHTTPTransport{}
-	defer func() {
-		http.DefaultClient.Transport = defaultTransport
-	}()
-	ah := ActivityHandler{}
 	for _, testCase := range []struct {
 		description string
 		channelID   string
@@ -34,7 +29,7 @@ func TestMsgToPost(t *testing.T) {
 		senderID    string
 		message     *msteams.Message
 		post        *model.Post
-		setupPlugin func(plugin *mocksPlugin.PluginIface)
+		setupPlugin func(plugin *mocksPlugin.PluginIface, client *mocksClient.Client)
 	}{
 		{
 			description: "Successfully add message to post",
@@ -46,9 +41,10 @@ func TestMsgToPost(t *testing.T) {
 				UserDisplayName: "mock-UserDisplayName",
 				UserID:          testutils.GetUserID(),
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetURL").Return("https://example.com/")
+				p.On("GetClientForApp").Return(client)
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -66,9 +62,13 @@ func TestMsgToPost(t *testing.T) {
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
-			testCase.setupPlugin(p)
+			ah := ActivityHandler{}
+			client := mocksClient.NewClient(t)
+			testCase.setupPlugin(p, client)
+
 			ah.plugin = p
-			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.senderID, testCase.message, &msteams.Chat{})
+
+			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.senderID, testCase.message, nil)
 			assert.Equal(t, testCase.post, post)
 		})
 	}

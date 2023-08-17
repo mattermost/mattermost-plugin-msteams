@@ -22,7 +22,8 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Clie
 }
 
 // TODO: Add unit tests for this function
-func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
+// TODO: Remove unused parameter
+func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
