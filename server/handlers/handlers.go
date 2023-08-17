@@ -106,7 +106,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
 			if err2 := ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
-				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "error", err2.Error())
+				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err2.Error())
 			}
 		}
 	} else if event.LifecycleEvent == "subscriptionRemoved" {

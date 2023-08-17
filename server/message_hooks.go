@@ -293,7 +293,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	chatID, err := p.GetChatIDForChannel(srcUser, channelID)
 	if err != nil {
-		p.API.LogError("Failing to create or get the chat", "error", err)
+		p.API.LogError("Failed to create or get the chat", "error", err)
 		return err
 	}
 
@@ -405,7 +405,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
-		p.API.LogError("Failing to create or get the chat", "error", err)
+		p.API.LogError("Failed to create or get the chat", "error", err)
 		return "", err
 	}
 

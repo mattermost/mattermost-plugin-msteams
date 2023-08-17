@@ -476,7 +476,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "userID", testutils.GetID(), "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "UserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -574,7 +574,7 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "userID", testutils.GetID(), "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "UserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {

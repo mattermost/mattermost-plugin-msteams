@@ -579,7 +579,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 				client.On("GetChatMessage", testutils.GetChatID(), "mock-MessageID").Return(nil, errors.New("Error while getting chat message")).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get message from chat", "chatID", testutils.GetChatID(), "messageID", "mock-MessageID", "error", errors.New("Error while getting chat message"))
+				api.On("LogError", "Unable to get message from chat", "chatID", testutils.GetChatID(), "messageID", "mock-MessageID", "error", errors.New("Error while getting chat message")).Once()
 			},
 			setupStore:    func(store *storemocks.Store) {},
 			expectedError: "Error while getting chat message",
@@ -601,7 +601,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 				client.On("GetReply", testutils.GetTeamsUserID(), testutils.GetChannelID(), testutils.GetMessageID(), testutils.GetReplyID()).Return(nil, errors.New("Error while getting reply from channel"))
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get reply from channel", "error", errors.New("Error while getting reply from channel"))
+				api.On("LogError", "Unable to get reply from channel", "replyID", testutils.GetReplyID(), "error", errors.New("Error while getting reply from channel"))
 			},
 			setupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&storemodels.ChannelLink{Creator: testutils.GetUserID()}, nil)
@@ -624,7 +624,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 				client.On("GetMessage", testutils.GetTeamsUserID(), testutils.GetChannelID(), "mock-MessageID").Return(nil, errors.New("Error while getting message from channel"))
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get message from channel", "error", errors.New("Error while getting message from channel"))
+				api.On("LogError", "Unable to get message from channel", "messageID", "mock-MessageID", "error", errors.New("Error while getting message from channel"))
 			},
 			setupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&storemodels.ChannelLink{Creator: testutils.GetUserID()}, nil)

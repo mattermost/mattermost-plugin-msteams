@@ -788,7 +788,7 @@ func TestUnsetChatReaction(t *testing.T) {
 		{
 			Name: "UnsetChatReaction: Unable to get the chat ID",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Failing to create or get the chat", "error", mock.Anything).Return()
+				api.On("LogError", "Failed to create or get the chat", "error", mock.Anything).Return()
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1022,7 +1022,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to create or get the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Failing to create or get the chat", "error", errors.New("unable to create or get the chat"))
+				api.On("LogError", "Failed to create or get the chat", "error", errors.New("unable to create or get the chat"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()

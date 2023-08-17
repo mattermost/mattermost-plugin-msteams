@@ -125,7 +125,7 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
 			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
-				a.p.API.LogError("Unable to store the updated subscription expiration date", "error", err2.Error())
+				a.p.API.LogError("Unable to store the updated subscription expiration date", "subscriptionID", activity.SubscriptionID, "error", err2.Error())
 			}
 		}
 	}
@@ -172,7 +172,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "userID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "UserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -213,7 +213,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "userID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "UserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -360,7 +360,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
 	if err = client.Connect(); err != nil {
-		a.p.API.LogError("Unable connect to the client", "error", err.Error())
+		a.p.API.LogError("Unable to connect to the client", "error", err.Error())
 		http.Error(w, "failed to connect to the client", http.StatusInternalServerError)
 		return
 	}
@@ -391,7 +391,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if storedToken != nil {
-		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.")
+		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.", "MSTeamsUserID", msteamsUser.ID)
 		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusBadRequest)
 		return
 	}

@@ -34,14 +34,14 @@ func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID stri
 func (ah *ActivityHandler) getReplyFromChannel(userID string, teamID, channelID, messageID, replyID string) (*msteams.Message, error) {
 	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get client for user", "userID", userID, "error", err)
+		ah.plugin.GetAPI().LogError("Unable to get client for user", "userID", userID, "error", err)
 		return nil, err
 	}
 
 	var msg *msteams.Message
 	msg, err = client.GetReply(teamID, channelID, messageID, replyID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get reply from channel", "error", err)
+		ah.plugin.GetAPI().LogError("Unable to get reply from channel", "replyID", replyID, "error", err)
 		return nil, err
 	}
 	return msg, nil
@@ -56,7 +56,7 @@ func (ah *ActivityHandler) getMessageFromChannel(userID string, teamID, channelI
 
 	msg, err := client.GetMessage(teamID, channelID, messageID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get message from channel", "error", err)
+		ah.plugin.GetAPI().LogError("Unable to get message from channel", "messageID", messageID, "error", err)
 		return nil, err
 	}
 	return msg, nil

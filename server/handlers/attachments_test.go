@@ -121,7 +121,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 			setupClient: func() {},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "unmarshal codesnippet failed", "error", "invalid character 'I' looking for beginning of value").Return().Once()
+				api.On("LogError", "failed to unmarshal codesnippet", "error", "invalid character 'I' looking for beginning of value").Return().Once()
 			},
 		},
 		{
@@ -137,7 +137,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 			setupClient: func() {},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "codesnippetUrl has unexpected size", "size", "https://example.com/go/snippet").Return().Once()
+				api.On("LogError", "codesnippetURL has unexpected size", "URL", "https://example.com/go/snippet").Return().Once()
 			},
 		},
 		{
