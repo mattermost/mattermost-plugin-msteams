@@ -73,6 +73,8 @@ Select **Register** to submit the form.
 
 ![image](https://user-images.githubusercontent.com/100013900/232403027-6d3ce866-d404-4ef2-a27b-ef5cc897cb25.png)
 
+**Note:** After you've connected the bot user to the dummy account on MS Teams, all the messages that are posted from the dummy account on MS Teams will not be synced back to Mattermost as we consider the dummy account a "bot" and messages from bots are ignored.
+
 ### Step 3: Ensure you have the metered APIs enabled (and the pay subscription associated to it)
 
 1. Follow the steps here: https://learn.microsoft.com/en-us/graph/metered-api-setup
