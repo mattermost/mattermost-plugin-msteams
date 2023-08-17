@@ -71,13 +71,13 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 		if mention.UserID != "" {
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm UserID", "Error", err.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "Error", getErr.DetailedError)
 				continue
 			}
 
