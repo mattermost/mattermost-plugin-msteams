@@ -771,7 +771,7 @@ func TestConnect(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
 			},
-			ExpectedResult:     "Error trying to connect the account, please try again.\n",
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
@@ -785,7 +785,7 @@ func TestConnect(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
-			ExpectedResult:     "Error trying to connect the account, please try again.\n",
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 	} {
@@ -803,7 +803,7 @@ func TestConnect(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
-			r.Header.Add("Mattermost-User-ID", testutils.GetUserID())
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 
 			result := w.Result()
@@ -813,10 +813,9 @@ func TestConnect(t *testing.T) {
 			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
 
 			bodyBytes, err := io.ReadAll(result.Body)
-			if err != nil {
-				if test.ExpectedResult != "" {
-					assert.Equal(test.ExpectedResult, string(bodyBytes))
-				}
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
 			}
 		})
 	}

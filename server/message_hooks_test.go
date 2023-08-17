@@ -2099,7 +2099,7 @@ func TestGetMentionsData(t *testing.T) {
 			ExpectedMentionsCount: 1,
 		},
 		{
-			Name:            "GetMentionsData: mentioned all and a specific user in a channel",
+			Name:            "GetMentionsData: mentioned all and a specific user in a group chat",
 			Message:         "Hi @all @test-username",
 			ExpectedMessage: "Hi <at id=\"0\">Everyone</at> <at id=\"1\">mock-name</at>",
 			ChatID:          testutils.GetChatID(),
