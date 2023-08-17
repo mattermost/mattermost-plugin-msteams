@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -12,10 +13,22 @@ import (
 )
 
 // handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, error) {
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		return nil, err
+func (ah *ActivityHandler) handleDownloadFile(weburl string, chat *msteams.Chat) ([]byte, error) {
+	var client msteams.Client
+	if chat != nil {
+		for _, member := range chat.Members {
+			client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
+			if client != nil {
+				break
+			}
+		}
+
+	} else {
+		client = ah.plugin.GetClientForApp()
+	}
+
+	if client == nil {
+		return nil, errors.New("unable to get the client")
 	}
 
 	data, err := client.GetFileContent(weburl)
@@ -27,7 +40,7 @@ func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, er
 }
 
 // TODO: Add unit tests for this function
-func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
+func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -49,7 +62,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
+		attachmentData, err := ah.handleDownloadFile(a.ContentURL, chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
 			continue
