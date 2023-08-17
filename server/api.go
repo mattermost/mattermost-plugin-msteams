@@ -55,7 +55,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogError("Unable to get user avatar", "userID", userID, "error", err.Error())
+			a.p.API.LogError("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
@@ -124,8 +124,8 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 		if err != nil {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
-				a.p.API.LogError("Unable to store the updated subscription expiration date", "subscriptionID", activity.SubscriptionID, "error", err2.Error())
+			if err = a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err != nil {
+				a.p.API.LogError("Unable to store the updated subscription expiration date", "subscriptionID", activity.SubscriptionID, "error", err.Error())
 			}
 		}
 	}
@@ -172,7 +172,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "UserID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -213,7 +213,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "UserID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -334,8 +334,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
-		a.p.API.LogError("Unable to verify OAuth state", "UserID", mmUserID, "Error", err.Error())
-		http.Error(w, "Unable to complete OAuth2.", http.StatusInternalServerError)
+		a.p.API.LogError("Unable to verify OAuth state", "MMUserID", mmUserID, "Error", err.Error())
+		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
 		return
 	}
 
@@ -354,7 +354,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", string(codeVerifierBytes)))
 	if err != nil {
 		a.p.API.LogError("Unable to get OAuth2 token", "error", err.Error())
-		http.Error(w, "Unable to complete OAuth2", http.StatusInternalServerError)
+		http.Error(w, "Unable to complete authentication", http.StatusInternalServerError)
 		return
 	}
 

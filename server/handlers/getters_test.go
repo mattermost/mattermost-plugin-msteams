@@ -109,7 +109,7 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 					}
 					return true
 				})).Return(model.NewAppError("test", "something went wrong", nil, "", http.StatusInternalServerError)).Once()
-				api.On("LogError", "Unable to disable email notifications for new user", "UserID", "new-user-id", "error", "test: something went wrong")
+				api.On("LogError", "Unable to disable email notifications for new user", "mmuserID", "new-user-id", "error", "test: something went wrong")
 			},
 			ExpectedResult: "new-user-id",
 		},

@@ -110,7 +110,7 @@ func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attac
 
 	client, err := ah.plugin.GetClientForUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get client for user", "userID", userID, "error", err)
+		ah.plugin.GetAPI().LogError("unable to get client for user", "mmuserID", userID, "error", err)
 		return text
 	}
 

@@ -154,7 +154,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 			setupClient: func() {},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "unable to get client for user", "userID", "mock-userID", "error", errors.New("Error while getting user client"))
+				api.On("LogError", "unable to get client for user", "mmuserID", "mock-userID", "error", errors.New("Error while getting user client"))
 			},
 		},
 		{

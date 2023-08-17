@@ -141,7 +141,7 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get MM user details", "UserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
+				api.On("LogDebug", "Unable to get MM user details", "MMUserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {

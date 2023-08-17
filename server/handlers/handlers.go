@@ -105,8 +105,8 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			if err2 := ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
-				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err2.Error())
+			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
+				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
 		}
 	} else if event.LifecycleEvent == "subscriptionRemoved" {
@@ -227,7 +227,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "UserID", mmUserID, "Error", appErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "Error", appErr.Error())
 			}
 		}
 
@@ -261,7 +261,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "UserID", senderID)
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return
 	}
 
@@ -385,7 +385,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "UserID", senderID)
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return
 	}
 
@@ -519,7 +519,7 @@ func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
 func (ah *ActivityHandler) isActiveUser(userID string) bool {
 	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "UserID", userID, "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "mmuserID", userID, "error", err.Error())
 		return false
 	}
 
@@ -533,7 +533,7 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	user, userErr := ah.plugin.GetAPI().GetUser(userID)
 	if userErr != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "UserID", userID, "error", userErr.Error())
+		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "mmuserID", userID, "error", userErr.Error())
 		return false
 	}
 

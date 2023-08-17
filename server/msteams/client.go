@@ -714,13 +714,13 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
-			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
+			if err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		} else {
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
-			if _, err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err2 != nil {
+			if _, err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err != nil {
 				tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 				return &Subscription{
 					ID:        *existingSubscription.GetId(),
@@ -728,8 +728,8 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 				}, nil
 			}
 
-			if err2 := tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err2 != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err2), "subscription", existingSubscription)
+			if err = tc.client.SubscriptionsById(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
+				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		}
 	}
@@ -1221,8 +1221,8 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 			matches := map[string]bool{}
 			for _, m := range c.GetMembers() {
 				for _, u := range usersIDs {
-					userID, err2 := m.GetBackingStore().Get("userId")
-					if err2 == nil && userID != nil && *(userID.(*string)) == u {
+					userID, userErr := m.GetBackingStore().Get("userId")
+					if userErr == nil && userID != nil && *(userID.(*string)) == u {
 						matches[u] = true
 						break
 					}

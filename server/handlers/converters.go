@@ -77,7 +77,7 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "UserID", mmUserID, "Error", getErr.DetailedError)
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "Error", getErr.DetailedError)
 				continue
 			}
 
