@@ -36,6 +36,7 @@ const (
 	pluginID              = "com.mattermost.msteams-sync"
 	clusterMutexKey       = "subscriptions_cluster_mutex"
 	lastReceivedChangeKey = "last_received_change"
+	msteamsUserTypeGuest  = "Guest"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -81,6 +82,10 @@ func (p *Plugin) GetStore() store.Store {
 
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
+}
+
+func (p *Plugin) GetSyncGuestUsers() bool {
+	return p.getConfiguration().SyncGuestUsers
 }
 
 func (p *Plugin) GetBotUserID() string {
@@ -465,7 +470,7 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 
-		if msUser.Type == "Guest" {
+		if msUser.Type == msteamsUserTypeGuest {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
@@ -496,6 +501,8 @@ func (p *Plugin) syncUsers() {
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+			newMMUser.SetDefaultNotifications()
+			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 			var newUser *model.User
 			for {
@@ -518,8 +525,17 @@ func (p *Plugin) syncUsers() {
 				continue
 			}
 
-			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
-			if err != nil {
+			preferences := model.Preferences{model.Preference{
+				UserId:   newUser.Id,
+				Category: model.PreferenceCategoryNotifications,
+				Name:     model.PreferenceNameEmailInterval,
+				Value:    "0",
+			}}
+			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
+				p.API.LogError("Unable to disable email notifications for new user", "UserID", newUser.Id, "error", prefErr.Error())
+			}
+
+			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
