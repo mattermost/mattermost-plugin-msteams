@@ -46,12 +46,12 @@ func TestHandleDownloadFile(t *testing.T) {
 			mockChat: &msteams.Chat{
 				Members: []msteams.ChatMember{
 					{
-						UserID: "mockUserID",
+						UserID: testutils.GetTeamsUserID(),
 					},
 				},
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForTeamsUser", "mockUserID").Return(client, nil)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil)
 			},
 			setupClient: func() {
 				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)

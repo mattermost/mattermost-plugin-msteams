@@ -22,7 +22,6 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, chat *msteams.Chat)
 				break
 			}
 		}
-
 	} else {
 		client = ah.plugin.GetClientForApp()
 	}
