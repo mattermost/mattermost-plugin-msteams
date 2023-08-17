@@ -1276,10 +1276,9 @@ func TestUnlinkChannels(t *testing.T) {
 		SetupStore         func(*storemocks.Store)
 		ExpectedResult     string
 		ExpectedStatusCode int
-		Body               string
 	}{
 		{
-			Name: "UnlinkChannels: channels linked successfully",
+			Name: "UnlinkChannels: channels unlinked successfully",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
@@ -1292,9 +1291,8 @@ func TestUnlinkChannels(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Once()
 				store.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
 			},
-			ExpectedResult:     "Channels unlinked successfully",
+			ExpectedResult:     "Channel unlinked successfully",
 			ExpectedStatusCode: http.StatusOK,
-			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
 		},
 		{
 			Name: "UnlinkChannels: error occurred while unlinking channels",
@@ -1307,7 +1305,6 @@ func TestUnlinkChannels(t *testing.T) {
 			},
 			ExpectedResult:     "Unable to get the current channel details.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
-			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -1322,7 +1319,7 @@ func TestUnlinkChannels(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/unlink-channels/%s", testutils.GetChannelID()), bytes.NewBufferString(test.Body))
+			r := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/unlink-channels/%s", testutils.GetChannelID()), nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 
 			plugin.ServeHTTP(nil, w, r)

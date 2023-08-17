@@ -483,13 +483,18 @@ func (a *API) unlinkChannels(w http.ResponseWriter, r *http.Request) {
 
 	pathParams := mux.Vars(r)
 	channelID := pathParams[PathParamChannelID]
+	if !model.IsValidId(channelID) {
+		a.p.API.LogError("Invalid path param channel ID", "ChannelID", channelID)
+		http.Error(w, "Invalid path param channel ID", http.StatusBadRequest)
+		return
+	}
 
 	if errMsg, statusCode := a.p.UnlinkChannels(userID, channelID); errMsg != "" {
 		http.Error(w, errMsg, statusCode)
 		return
 	}
 
-	if _, err := w.Write([]byte("Channels unlinked successfully")); err != nil {
+	if _, err := w.Write([]byte("Channel unlinked successfully")); err != nil {
 		a.p.API.LogError("Failed to write response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return

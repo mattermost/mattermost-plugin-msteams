@@ -99,13 +99,17 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 		},
 		{
 			description: "Unable to get the current channel",
-			args:        &model.CommandArgs{},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the current channel details.", "ChannelID", "", "Error", "").Times(1)
-				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel details.",
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "").Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Unable to get the current channel details.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
