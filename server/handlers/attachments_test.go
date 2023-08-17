@@ -24,15 +24,34 @@ func TestHandleDownloadFile(t *testing.T) {
 		userID        string
 		weburl        string
 		expectedError string
+		mockChat      *msteams.Chat
 		setupPlugin   func(plugin *mocksPlugin.PluginIface)
 		setupClient   func()
 	}{
 		{
-			description: "Successfully file downloaded",
+			description: "Successfully file downloaded for channel",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://example.com/file1.txt",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client, nil)
+			},
+			setupClient: func() {
+				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
+			},
+		},
+		{
+			description: "Successfully file downloaded for chat",
+			userID:      testutils.GetUserID(),
+			weburl:      "https://example.com/file1.txt",
+			mockChat: &msteams.Chat{
+				Members: []msteams.ChatMember{
+					{
+						UserID: "mockUserID",
+					},
+				},
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface) {
+				p.On("GetClientForTeamsUser", "mockUserID").Return(client, nil)
 			},
 			setupClient: func() {
 				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
@@ -42,9 +61,9 @@ func TestHandleDownloadFile(t *testing.T) {
 			description:   "Unable to get client for a user",
 			userID:        "mock-userID",
 			weburl:        "https://example.com/file1.txt",
-			expectedError: "Error while getting the client for a user",
+			expectedError: "unable to get the client",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting the client for a user"))
+				p.On("GetClientForApp").Return(nil, errors.New("unable to get the client"))
 			},
 			setupClient: func() {},
 		},
@@ -53,7 +72,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			userID:        testutils.GetUserID(),
 			expectedError: "Error while getting file content",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+				p.On("GetClientForApp").Return(client, nil)
 			},
 			setupClient: func() {
 				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting file content"))
@@ -66,7 +85,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			testCase.setupClient()
 			ah.plugin = p
 
-			data, err := ah.handleDownloadFile(testCase.userID, testCase.weburl)
+			data, err := ah.handleDownloadFile(testCase.weburl, testCase.mockChat)
 			if testCase.expectedError != "" {
 				assert.Nil(t, data)
 				assert.EqualError(t, err, testCase.expectedError)

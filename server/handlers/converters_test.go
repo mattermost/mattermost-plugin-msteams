@@ -68,7 +68,7 @@ func TestMsgToPost(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
 			ah.plugin = p
-			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.message, testCase.senderID)
+			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.senderID, testCase.message, &msteams.Chat{})
 			assert.Equal(t, testCase.post, post)
 		})
 	}
