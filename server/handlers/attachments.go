@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 
@@ -14,10 +13,6 @@ import (
 
 // handleDownloadFile handles file download
 func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
-	if client == nil {
-		return nil, errors.New("unable to get the client")
-	}
-
 	data, err := client.GetFileContent(weburl)
 	if err != nil {
 		return nil, err
@@ -33,15 +28,20 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 	parentID := ""
 	countAttachments := 0
 	var client msteams.Client
-	if chat != nil {
+	if chat == nil {
+		client = ah.plugin.GetClientForApp()
+	} else {
 		for _, member := range chat.Members {
 			client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
 			if client != nil {
 				break
 			}
 		}
-	} else {
-		client = ah.plugin.GetClientForApp()
+	}
+
+	if client == nil {
+		ah.plugin.GetAPI().LogError("Unable to get the client")
+		return "", nil, ""
 	}
 
 	for _, a := range msg.Attachments {
