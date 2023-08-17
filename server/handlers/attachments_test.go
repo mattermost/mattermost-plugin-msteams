@@ -41,9 +41,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			weburl:      "https://example.com/file1.txt",
 			mockChat: &msteams.Chat{
 				Members: []msteams.ChatMember{
-					{
-						UserID: testutils.GetTeamsUserID(),
-					},
+					{UserID: testutils.GetTeamsUserID()},
 				},
 			},
 			setupClient: func() {
