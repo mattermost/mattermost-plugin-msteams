@@ -229,7 +229,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in removing the reaction", "emojiName", testutils.GetReaction().EmojiName, "error", "unable to set the reaction").Times(1)
+				api.On("LogWarn", "Error in removing the reaction", "emojiName", testutils.GetReaction().EmojiName, "error", "unable to unset the reaction").Times(1)
 				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -250,7 +250,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to unset the reaction")).Times(1)
 			},
 		},
 		{
