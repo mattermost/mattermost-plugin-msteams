@@ -12,12 +12,7 @@ import (
 )
 
 // handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, error) {
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		return nil, err
-	}
-
+func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
 	data, err := client.GetFileContent(weburl)
 	if err != nil {
 		return nil, err
@@ -26,18 +21,36 @@ func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, er
 	return data, nil
 }
 
-func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
+// TODO: Remove unused parameter
+func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
 	countAttachments := 0
+	var client msteams.Client
+	if chat == nil {
+		client = ah.plugin.GetClientForApp()
+	} else {
+		for _, member := range chat.Members {
+			client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
+			if client != nil {
+				break
+			}
+		}
+	}
+
+	if client == nil {
+		ah.plugin.GetAPI().LogError("Unable to get the client")
+		return "", nil, ""
+	}
+
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
 
 		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
-			newText = ah.handleCodeSnippet(userID, a, newText)
+			newText = ah.handleCodeSnippet(client, a, newText)
 			continue
 		}
 
@@ -48,7 +61,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
+		attachmentData, err := ah.handleDownloadFile(a.ContentURL, client)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
 			continue
@@ -91,7 +104,7 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 	return newText, attachments, parentID
 }
 
-func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attachment, text string) string {
+func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach msteams.Attachment, text string) string {
 	var content struct {
 		Language       string `json:"language"`
 		CodeSnippetURL string `json:"codeSnippetUrl"`
@@ -102,14 +115,13 @@ func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attac
 		return text
 	}
 	s := strings.Split(content.CodeSnippetURL, "/")
-	if len(s) != 13 && len(s) != 15 {
-		ah.plugin.GetAPI().LogError("codesnippetURL has unexpected size", "URL", content.CodeSnippetURL)
+	if !strings.Contains(content.CodeSnippetURL, "chats") && !strings.Contains(content.CodeSnippetURL, "channels") {
+		ah.plugin.GetAPI().LogError("invalid codesnippetURL", "URL", content.CodeSnippetURL)
 		return text
 	}
 
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get client for user", "mmuserID", userID, "error", err)
+	if (strings.Contains(content.CodeSnippetURL, "chats") && len(s) != 11) || (strings.Contains(content.CodeSnippetURL, "channels") && len(s) != 13 && len(s) != 15) {
+		ah.plugin.GetAPI().LogError("codesnippetURL has unexpected size", "URL", content.CodeSnippetURL)
 		return text
 	}
 

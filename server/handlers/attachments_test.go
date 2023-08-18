@@ -26,37 +26,34 @@ func TestHandleDownloadFile(t *testing.T) {
 		userID        string
 		weburl        string
 		expectedError string
-		setupPlugin   func(plugin *mocksPlugin.PluginIface)
+		mockChat      *msteams.Chat
 		setupClient   func()
 	}{
 		{
-			description: "Successfully file downloaded",
+			description: "Successfully file downloaded for channel",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://example.com/file1.txt",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+			setupClient: func() {
+				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
+			},
+		},
+		{
+			description: "Successfully file downloaded for chat",
+			userID:      testutils.GetUserID(),
+			weburl:      "https://example.com/file1.txt",
+			mockChat: &msteams.Chat{
+				Members: []msteams.ChatMember{
+					{UserID: testutils.GetTeamsUserID()},
+				},
 			},
 			setupClient: func() {
 				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
 			},
 		},
 		{
-			description:   "Unable to get client for a user",
-			userID:        "mock-userID",
-			weburl:        "https://example.com/file1.txt",
-			expectedError: "Error while getting the client for a user",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting the client for a user"))
-			},
-			setupClient: func() {},
-		},
-		{
 			description:   "Unable to get file content",
 			userID:        testutils.GetUserID(),
 			expectedError: "Error while getting file content",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
-			},
 			setupClient: func() {
 				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting file content"))
 			},
@@ -64,11 +61,10 @@ func TestHandleDownloadFile(t *testing.T) {
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
-			testCase.setupPlugin(p)
 			testCase.setupClient()
 			ah.plugin = p
 
-			data, err := ah.handleDownloadFile(testCase.userID, testCase.weburl)
+			data, err := ah.handleDownloadFile(testCase.weburl, client)
 			if testCase.expectedError != "" {
 				assert.Nil(t, data)
 				assert.EqualError(t, err, testCase.expectedError)
@@ -81,7 +77,6 @@ func TestHandleDownloadFile(t *testing.T) {
 
 func TestHandleCodeSnippet(t *testing.T) {
 	ah := ActivityHandler{}
-	client := mocksClient.NewClient(t)
 	mockAPI := &plugintest.API{}
 
 	for _, testCase := range []struct {
@@ -91,22 +86,34 @@ func TestHandleCodeSnippet(t *testing.T) {
 		text           string
 		expectedOutput string
 		setupPlugin    func(plugin *mocksPlugin.PluginIface)
-		setupClient    func()
+		setupClient    func(client *mocksClient.Client)
 		setupAPI       func(api *plugintest.API)
 	}{
 		{
-			description: "Successfully handled code snippet",
+			description: "Successfully handled code snippet for channel",
 			userID:      testutils.GetUserID(),
 			attach: msteams.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet/1/2/3/4/5/6/7/8"}`,
+				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
 			expectedOutput: "mock-data\n```go\nsnippet content\n```\n",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
+			setupPlugin:    func(p *mocksPlugin.PluginIface) {},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
 			},
-			setupClient: func() {
-				client.On("GetCodeSnippet", "https://example.com/go/snippet/1/2/3/4/5/6/7/8").Return("snippet content", nil)
+			setupAPI: func(api *plugintest.API) {},
+		},
+		{
+			description: "Successfully handled code snippet for chat",
+			userID:      testutils.GetUserID(),
+			attach: msteams.Attachment{
+				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
+			},
+			text:           "mock-data",
+			expectedOutput: "mock-data\n```go\nsnippet content\n```\n",
+			setupPlugin:    func(p *mocksPlugin.PluginIface) {},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
 			},
 			setupAPI: func(api *plugintest.API) {},
 		},
@@ -121,7 +128,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetAPI").Return(mockAPI)
 			},
-			setupClient: func() {},
+			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogError", "failed to unmarshal codesnippet", "error", "invalid character 'I' looking for beginning of value").Return().Once()
 			},
@@ -137,42 +144,24 @@ func TestHandleCodeSnippet(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetAPI").Return(mockAPI)
 			},
-			setupClient: func() {},
+			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "codesnippetURL has unexpected size", "URL", "https://example.com/go/snippet").Return().Once()
+				api.On("LogError", "invalid codesnippetURL", "URL", "https://example.com/go/snippet").Return().Once()
 			},
 		},
 		{
-			description: "Unable to get bot client",
-			userID:      "mock-userID",
-			attach: msteams.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet/1/2/3/4/5/6/7/8"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data",
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", "mock-userID").Return(nil, errors.New("Error while getting user client"))
-				p.On("GetAPI").Return(mockAPI)
-			},
-			setupClient: func() {},
-			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "unable to get client for user", "mmuserID", "mock-userID", "error", errors.New("Error while getting user client"))
-			},
-		},
-		{
-			description: "Unable while retrieving code snippet",
+			description: "Unable to retrieve code snippet",
 			userID:      testutils.GetUserID(),
 			attach: msteams.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://mock-example.com/go/snippet/1/2/3/4/5/6/7/8"}`,
+				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetClientForUser", testutils.GetUserID()).Return(client, nil)
 				p.On("GetAPI").Return(mockAPI)
 			},
-			setupClient: func() {
-				client.On("GetCodeSnippet", "https://mock-example.com/go/snippet/1/2/3/4/5/6/7/8").Return("", errors.New("Error while retrieving code snippet"))
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("", errors.New("Error while retrieving code snippet"))
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogError", "retrieving snippet content failed", "error", errors.New("Error while retrieving code snippet"))
@@ -182,12 +171,13 @@ func TestHandleCodeSnippet(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
 			testCase.setupPlugin(p)
-			testCase.setupClient()
+			client := mocksClient.NewClient(t)
+			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 
 			ah.plugin = p
 
-			resp := ah.handleCodeSnippet(testCase.userID, testCase.attach, testCase.text)
+			resp := ah.handleCodeSnippet(client, testCase.attach, testCase.text)
 			assert.Equal(t, resp, testCase.expectedOutput)
 		})
 	}
@@ -479,7 +469,7 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-			newText, attachmentIDs, parentID := ah.handleAttachments(testutils.GetUserID(), testutils.GetChannelID(), "mock-text", attachments)
+			newText, attachmentIDs, parentID := ah.handleAttachments(testutils.GetUserID(), testutils.GetChannelID(), "mock-text", attachments, nil)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)
