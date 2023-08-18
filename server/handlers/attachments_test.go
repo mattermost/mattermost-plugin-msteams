@@ -144,7 +144,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			},
 			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "codesnippetURL has unexpected size", "URL", "https://example.com/go/snippet").Return().Once()
+				api.On("LogError", "invalid codesnippetURL", "URL", "https://example.com/go/snippet").Return().Once()
 			},
 		},
 		{
