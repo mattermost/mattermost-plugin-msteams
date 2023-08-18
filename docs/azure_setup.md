@@ -22,7 +22,7 @@ Select **Register** to submit the form.
 
 5. Navigate to **Certificates & secrets** in the left pane.
 
-6. Click on **New client secret**. Then click on **Add**, and copy the new secret on the bottom right corner of the screen. We'll use this value later in the Mattermost admin console.
+6. Click on **New client secret**. Enter the description and click on **Add**. After the creation of the client secret, copy the new secret value, not the secret ID. We'll use this value later in the Mattermost admin console.
 
 ![image](https://user-images.githubusercontent.com/77336594/226332268-93b8fa85-ba5b-4fcc-938b-ca8d642b8521.png)
 
