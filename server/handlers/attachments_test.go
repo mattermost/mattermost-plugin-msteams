@@ -469,7 +469,7 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-			newText, attachmentIDs, parentID := ah.handleAttachments(testutils.GetUserID(), testutils.GetChannelID(), "mock-text", attachments, nil)
+			newText, attachmentIDs, parentID := ah.handleAttachments(testutils.GetChannelID(), "mock-text", attachments, nil)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)
