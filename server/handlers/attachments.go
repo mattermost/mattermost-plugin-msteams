@@ -119,8 +119,8 @@ func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach mstea
 	if !strings.Contains(content.CodeSnippetURL, "chats") && !strings.Contains(content.CodeSnippetURL, "channels") {
 		ah.plugin.GetAPI().LogError("invalid codesnippetURL", "URL", content.CodeSnippetURL)
 		return text
-	} 
-	
+	}
+
 	if (strings.Contains(content.CodeSnippetURL, "chats") && len(s) != 11) || (strings.Contains(content.CodeSnippetURL, "channels") && len(s) != 13 && len(s) != 15) {
 		ah.plugin.GetAPI().LogError("codesnippetURL has unexpected size", "URL", content.CodeSnippetURL)
 		return text
