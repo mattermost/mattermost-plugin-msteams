@@ -116,7 +116,7 @@ func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach mstea
 		return text
 	}
 	s := strings.Split(content.CodeSnippetURL, "/")
-	if (!strings.Contains(content.CodeSnippetURL, "chats") && !strings.Contains(content.CodeSnippetURL, "channels")) {
+	if !strings.Contains(content.CodeSnippetURL, "chats") && !strings.Contains(content.CodeSnippetURL, "channels") {
 		ah.plugin.GetAPI().LogError("invalid codesnippetURL", "URL", content.CodeSnippetURL)
 		return text
 	} 
