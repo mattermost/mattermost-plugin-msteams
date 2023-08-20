@@ -3,16 +3,56 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"mime"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/app/imaging"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
+func GetResourceIdsFromURL(weburl string) (*msteams.ActivityIds, error) {
+	parsedURL, err := url.Parse(weburl)
+	if err != nil {
+		return nil, err
+	}
+
+	path := strings.TrimPrefix(parsedURL.Path, "/beta/")
+	urlParts := strings.Split(path, "/")
+	activityIDs := &msteams.ActivityIds{}
+	if urlParts[0] == "chats" {
+		activityIDs.ChatID = urlParts[1]
+		activityIDs.MessageID = urlParts[3]
+		activityIDs.HostedContentsID = urlParts[5]
+	} else {
+		activityIDs.TeamID = urlParts[1]
+		activityIDs.ChannelID = urlParts[3]
+		activityIDs.MessageID = urlParts[5]
+		if strings.Contains(path, "replies") {
+			activityIDs.ReplyID = urlParts[7]
+			activityIDs.HostedContentsID = urlParts[9]
+		} else {
+			activityIDs.HostedContentsID = urlParts[7]
+		}
+	}
+
+	return activityIDs, nil
+}
+
 // handleDownloadFile handles file download
 func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
+	if strings.Contains(weburl, "hostedContents") && strings.HasSuffix(weburl, "$value") {
+		activityIDs, err := GetResourceIdsFromURL(weburl)
+		if err != nil {
+			return nil, err
+		}
+
+		return client.GetHostedFileContent(activityIDs)
+	}
+
 	data, err := client.GetFileContent(weburl)
 	if err != nil {
 		return nil, err
@@ -87,6 +127,17 @@ func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, m
 				ah.plugin.GetAPI().LogError("image resolution is too high")
 				continue
 			}
+		}
+
+		if a.Name == "" {
+			extension := ""
+			extensions, extensionErr := mime.ExtensionsByType(contentType)
+			if extensionErr != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to get the extensions using content type", "error", extensionErr.Error())
+			} else if len(extensions) > 0 {
+				extension = extensions[0]
+			}
+			a.Name = "Image Pasted at " + time.Now().Format("2023-01-02 15:03:05") + extension
 		}
 
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
