@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"mime"
 	"net/http"
 	"net/url"
@@ -136,7 +137,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 			} else if len(extensions) > 0 {
 				extension = extensions[0]
 			}
-			a.Name = "Image Pasted at " + time.Now().Format("2023-01-02 15:03:05") + extension
+			a.Name = fmt.Sprintf("Image Pasted at %s%s", time.Now().Format("2023-01-02 15:03:05"), extension)
 		}
 
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)

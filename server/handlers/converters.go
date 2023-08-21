@@ -154,6 +154,7 @@ func getImageTagsFromHTML(text string) []string {
 				for _, a := range t.Attr {
 					if a.Key == "src" {
 						images = append(images, a.Val)
+						break
 					}
 				}
 			}
