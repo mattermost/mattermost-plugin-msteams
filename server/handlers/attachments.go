@@ -14,24 +14,25 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
-func GetResourceIdsFromURL(weburl string) (*msteams.ActivityIds, error) {
+func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
 	parsedURL, err := url.Parse(weburl)
 	if err != nil {
 		return nil, err
 	}
 
 	path := strings.TrimPrefix(parsedURL.Path, "/beta/")
+	path = strings.TrimPrefix(path, "/v1.0/")
 	urlParts := strings.Split(path, "/")
 	activityIDs := &msteams.ActivityIds{}
-	if urlParts[0] == "chats" {
+	if urlParts[0] == "chats" && len(urlParts) >= 6 {
 		activityIDs.ChatID = urlParts[1]
 		activityIDs.MessageID = urlParts[3]
 		activityIDs.HostedContentsID = urlParts[5]
-	} else {
+	} else if len(urlParts) >= 6 {
 		activityIDs.TeamID = urlParts[1]
 		activityIDs.ChannelID = urlParts[3]
 		activityIDs.MessageID = urlParts[5]
-		if strings.Contains(path, "replies") {
+		if strings.Contains(path, "replies") && len(urlParts) >= 10 {
 			activityIDs.ReplyID = urlParts[7]
 			activityIDs.HostedContentsID = urlParts[9]
 		} else {
@@ -45,7 +46,7 @@ func GetResourceIdsFromURL(weburl string) (*msteams.ActivityIds, error) {
 // handleDownloadFile handles file download
 func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
 	if strings.Contains(weburl, "hostedContents") && strings.HasSuffix(weburl, "$value") {
-		activityIDs, err := GetResourceIdsFromURL(weburl)
+		activityIDs, err := GetResourceIDsFromURL(weburl)
 		if err != nil {
 			return nil, err
 		}
