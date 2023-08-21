@@ -33,6 +33,9 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, error) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
+	var embeddedImages []msteams.Attachment
+	text, embeddedImages = ah.handleImages(text)
+	msg.Attachments = append(msg.Attachments, embeddedImages...)
 	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -123,4 +126,38 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	}
 
 	return text
+}
+
+func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachment) {
+	imageURLs := getImageTagsFromHTML(text)
+	var attachments []msteams.Attachment
+	for _, imageURL := range imageURLs {
+		attachments = append(attachments, msteams.Attachment{
+			ContentURL: imageURL,
+		})
+	}
+
+	text = imageRE.ReplaceAllString(text, "")
+	return text, attachments
+}
+
+func getImageTagsFromHTML(text string) []string {
+	tokenizer := html.NewTokenizer(strings.NewReader(text))
+	var images []string
+	for {
+		token := tokenizer.Next()
+		switch {
+		case token == html.ErrorToken:
+			return images
+		case token == html.StartTagToken:
+			if t := tokenizer.Token(); t.Data == "img" {
+				for _, a := range t.Attr {
+					if a.Key == "src" {
+						images = append(images, a.Val)
+						break
+					}
+				}
+			}
+		}
+	}
 }

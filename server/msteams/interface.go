@@ -41,6 +41,7 @@ type Client interface {
 	GetMyID() (string, error)
 	GetMe() (*User, error)
 	GetFileContent(weburl string) ([]byte, error)
+	GetHostedFileContent(activityIDs *ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
 	ListTeams() ([]Team, error)

@@ -159,11 +159,12 @@ type Activity struct {
 }
 
 type ActivityIds struct {
-	ChatID    string
-	TeamID    string
-	ChannelID string
-	MessageID string
-	ReplyID   string
+	ChatID           string
+	TeamID           string
+	ChannelID        string
+	MessageID        string
+	ReplyID          string
+	HostedContentsID string
 }
 
 type AccessToken struct {
@@ -1153,6 +1154,23 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return data, nil
+}
+
+func (tc *ClientImpl) GetHostedFileContent(activityIDs *ActivityIds) (contentData []byte, err error) {
+	if activityIDs.ChatID != "" {
+		contentData, err = tc.client.ChatsById(activityIDs.ChatID).MessagesById(activityIDs.MessageID).HostedContentsById(activityIDs.HostedContentsID).Content().Get(tc.ctx, nil)
+	} else {
+		if activityIDs.ReplyID != "" {
+			contentData, err = tc.client.TeamsById(activityIDs.TeamID).ChannelsById(activityIDs.ChannelID).MessagesById(activityIDs.MessageID).RepliesById(activityIDs.ReplyID).HostedContentsById(activityIDs.HostedContentsID).Content().Get(tc.ctx, nil)
+		} else {
+			contentData, err = tc.client.TeamsById(activityIDs.TeamID).ChannelsById(activityIDs.ChannelID).MessagesById(activityIDs.MessageID).HostedContentsById(activityIDs.HostedContentsID).Content().Get(tc.ctx, nil)
+		}
+	}
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	return
 }
 
 func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
