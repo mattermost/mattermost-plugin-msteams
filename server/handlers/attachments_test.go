@@ -26,11 +26,10 @@ func TestHandleDownloadFile(t *testing.T) {
 		userID        string
 		weburl        string
 		expectedError string
-		mockChat      *msteams.Chat
 		setupClient   func()
 	}{
 		{
-			description: "Successfully file downloaded for channel",
+			description: "Successfully file downloaded",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://example.com/file1.txt",
 			setupClient: func() {
@@ -38,16 +37,11 @@ func TestHandleDownloadFile(t *testing.T) {
 			},
 		},
 		{
-			description: "Successfully file downloaded for chat",
+			description: "Successfully downloaded hosted content file",
 			userID:      testutils.GetUserID(),
-			weburl:      "https://example.com/file1.txt",
-			mockChat: &msteams.Chat{
-				Members: []msteams.ChatMember{
-					{UserID: testutils.GetTeamsUserID()},
-				},
-			},
+			weburl:      "https://graph.microsoft.com/beta/teams/mock-teamID/channels/mock-channelID/messages/mock-messageID/hostedContents/mock-hostedContentsID/$value",
 			setupClient: func() {
-				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
+				client.On("GetHostedFileContent", mock.AnythingOfType("*msteams.ActivityIds")).Return([]byte("data"), nil)
 			},
 		},
 		{
@@ -380,7 +374,7 @@ func TestHandleAttachments(t *testing.T) {
 						MaxFileSize: model.NewInt64(5),
 					},
 				})
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "").Return(&model.FileInfo{}, nil)
+				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), mock.AnythingOfType("string")).Return(&model.FileInfo{}, nil)
 				mockAPI.On("LogDebug", "discarding the rest of the attachments as Mattermost supports only 10 attachments per post").Return()
 			},
 			setupClient: func(client *mocksClient.Client) {
