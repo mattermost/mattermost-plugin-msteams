@@ -30,7 +30,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(userID, channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, error) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, error) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []msteams.Attachment
@@ -47,7 +47,7 @@ func (ah *ActivityHandler) msgToPost(userID, channelID, senderID string, msg *ms
 		}
 	}
 
-	newText, attachments, parentID := ah.handleAttachments(userID, channelID, text, msg, chat)
+	newText, attachments, parentID := ah.handleAttachments(channelID, text, msg, chat)
 	text = newText
 	if parentID != "" {
 		rootID = parentID

@@ -62,9 +62,7 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Clie
 	return data, nil
 }
 
-// TODO: Add unit tests for this function
-// TODO: Remove unused parameter
-func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
+func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -105,13 +103,13 @@ func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, m
 		// handle the download
 		attachmentData, err := ah.handleDownloadFile(a.ContentURL, client)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
+			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
 			continue
 		}
 
 		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
 		if len(attachmentData) > int(fileSizeAllowed) {
-			ah.plugin.GetAPI().LogError("cannot upload file to mattermost as its size is greater than allowed size", "filename", a.Name)
+			ah.plugin.GetAPI().LogError("cannot upload file to Mattermost as its size is greater than allowed size", "filename", a.Name)
 			continue
 		}
 
@@ -143,14 +141,14 @@ func (ah *ActivityHandler) handleAttachments(_, channelID string, text string, m
 
 		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
 		if appErr != nil {
-			ah.plugin.GetAPI().LogError("upload file to mattermost failed", "filename", a.Name, "error", err)
+			ah.plugin.GetAPI().LogError("upload file to Mattermost failed", "filename", a.Name, "error", appErr.Message)
 			continue
 		}
 
 		attachments = append(attachments, fileInfo.Id)
 		countAttachments++
 		if countAttachments == 10 {
-			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as mattermost supports only 10 attachments per post")
+			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
 			break
 		}
 	}

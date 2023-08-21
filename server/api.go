@@ -278,7 +278,6 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
@@ -288,14 +287,14 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
-		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
-		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Message)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -305,7 +304,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -739,6 +740,83 @@ func TestNeedsConnect(t *testing.T) {
 			bodyBytes, _ := io.ReadAll(result.Body)
 			bodyString := string(bodyBytes)
 			assert.Equal(test.ExpectedResult, bodyString)
+		})
+	}
+}
+
+func TestConnect(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "connect: User connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", testutils.GetUserID()), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name: "connect: Error in storing the OAuth state",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing the oauth state").Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
+			},
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			Name: "connect: Error in storing the code verifier",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error in storing the code verifier", "error", "error in storing the code verifier").Return(nil).Times(1)
+				api.On("KVSet", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(&model.AppError{
+					Message: "error in storing the code verifier",
+				}).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.NotNil(t, result)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
+			}
 		})
 	}
 }
