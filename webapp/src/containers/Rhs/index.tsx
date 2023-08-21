@@ -28,7 +28,7 @@ const Rhs = (): JSX.Element => {
     const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<PaginationQueryParams | null>(null);
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
     const [dialogContent, setDialogContent] = useState('');
-    const [showDestructivetDialog, setShowDestructiveDialog] = useState(false);
+    const [showDestructiveDialog, setShowDestructiveDialog] = useState(false);
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
@@ -256,14 +256,14 @@ const Rhs = (): JSX.Element => {
                 </div>
             )}
             <Dialog
-                description={dialogContent}
-                destructive={showDestructivetDialog}
+                destructive={showDestructiveDialog}
                 show={showDisconnectDialog}
-                primaryActionText={showDestructivetDialog && 'Disconnect'}
+                primaryButtonText={'Disconnect'}
                 onCloseHandler={() => setShowDisconnectDialog(false)}
-                onSubmitHandler={showDestructivetDialog && disconnectUser}
+                onSubmitHandler={disconnectUser}
                 className='disconnect-dialog'
             >
+                <p>{dialogContent}</p>
                 {isDisconnectUserLoading && <LinearProgress/>}
             </Dialog>
         </div>
