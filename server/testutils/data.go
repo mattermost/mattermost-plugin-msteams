@@ -125,8 +125,8 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 			MattermostChannelID:   GetChannelID(),
 			MattermostTeamName:    "Test MM team",
 			MattermostChannelName: "Test MM channel",
-			MSTeamsTeam:           GetTeamsTeamID(),
-			MSTeamsChannel:        GetTeamsChannelID(),
+			MSTeamsTeamID:         GetTeamsTeamID(),
+			MSTeamsChannelID:      GetTeamsChannelID(),
 		})
 	}
 
@@ -151,6 +151,15 @@ func GetPostFromTeamsMessage() *model.Post {
 			"msteams_sync_mock-BotUserID": true,
 		},
 		FileIds: model.StringArray{},
+	}
+}
+
+func GetChannelLink() *storemodels.ChannelLink {
+	return &storemodels.ChannelLink{
+		MattermostTeamID:    GetTeamID(),
+		MattermostChannelID: GetChannelID(),
+		MSTeamsTeamID:       GetTeamID(),
+		MSTeamsChannelID:    GetChannelID(),
 	}
 }
 

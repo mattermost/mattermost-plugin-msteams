@@ -190,8 +190,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	channelLink := storemodels.ChannelLink{
 		MattermostTeamID:    channel.TeamId,
 		MattermostChannelID: channel.Id,
-		MSTeamsTeam:         parameters[0],
-		MSTeamsChannel:      parameters[1],
+		MSTeamsTeamID:       parameters[0],
+		MSTeamsChannelID:    parameters[1],
 		Creator:             args.UserId,
 	}
 	err = p.store.StoreChannelLink(&channelLink)
@@ -199,15 +199,15 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeamID, channelLink.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel: "+err.Error())
 	}
 
 	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
-		TeamID:         channelLink.MSTeamsTeam,
-		ChannelID:      channelLink.MSTeamsChannel,
+		TeamID:         channelLink.MSTeamsTeamID,
+		ChannelID:      channelLink.MSTeamsChannelID,
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.getConfiguration().WebhookSecret,
 	})
@@ -252,12 +252,12 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
 	}
 
-	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
+	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeamID)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
+	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeamID, link.MSTeamsChannelID)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
@@ -297,40 +297,16 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
-	errorsFound := false
-	msTeamsTeamIDsVsNames := make(map[string]string)
-	msTeamsChannelIDsVsNames := make(map[string]string)
-	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
 
-	for _, link := range links {
-		msTeamsTeamIDsVsNames[link.MSTeamsTeam] = ""
-		msTeamsChannelIDsVsNames[link.MSTeamsChannel] = ""
-
-		// Build the channels query for each team
-		if msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] == "" {
-			msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] = "id in ("
-		} else if channelsQuery := msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam]; channelsQuery[len(channelsQuery)-1:] != "(" {
-			msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += ","
-		}
-
-		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeam] += "'" + link.MSTeamsChannel + "'"
-	}
-
-	// Get MS Teams display names for each unique team ID and store it
-	teamDetailsErr := p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
-	errorsFound = errorsFound || teamDetailsErr
-
-	// Get MS Teams channel details for all channels for each unique team
-	channelDetailsErr := p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames)
-	errorsFound = errorsFound || channelDetailsErr
+	msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, false)
 
 	for _, link := range links {
 		row := fmt.Sprintf(
 			"\n|%s|%s|%s|%s|",
 			link.MattermostTeamName,
 			link.MattermostChannelName,
-			msTeamsTeamIDsVsNames[link.MSTeamsTeam],
-			msTeamsChannelIDsVsNames[link.MSTeamsChannel],
+			msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+			msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
 		)
 
 		if row != "\n|||||" {
@@ -343,45 +319,6 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	}
 
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
-}
-
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
-	var msTeamsFilterQuery strings.Builder
-	msTeamsFilterQuery.WriteString("id in (")
-	for teamID := range msTeamsTeamIDsVsNames {
-		msTeamsFilterQuery.WriteString("'" + teamID + "', ")
-	}
-
-	teamsQuery := msTeamsFilterQuery.String()
-	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
-	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
-	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
-		return true
-	}
-
-	for _, msTeamsTeam := range msTeamsTeams {
-		msTeamsTeamIDsVsNames[msTeamsTeam.ID] = msTeamsTeam.DisplayName
-	}
-
-	return false
-}
-
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
-	errorsFound := false
-	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
-		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
-		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
-			errorsFound = true
-		}
-
-		for _, channel := range channels {
-			msTeamsChannelIDsVsNames[channel.ID] = channel.DisplayName
-		}
-	}
-
-	return errorsFound
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {

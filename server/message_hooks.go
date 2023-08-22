@@ -57,7 +57,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
+	_, err = p.Send(link.MSTeamsTeamID, link.MSTeamsChannelID, user, post)
 	if err != nil {
 		p.API.LogError("Unable to handle message sent", "error", err.Error())
 	}
@@ -90,7 +90,7 @@ func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reactio
 		return
 	}
 
-	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName); err != nil {
+	if err = p.SetReaction(link.MSTeamsTeamID, link.MSTeamsChannelID, reaction.UserId, post, reaction.EmojiName); err != nil {
 		p.API.LogError("Unable to handle message reaction set", "error", err.Error())
 	}
 }
@@ -127,7 +127,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		return
 	}
 
-	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName)
+	err = p.UnsetReaction(link.MSTeamsTeamID, link.MSTeamsChannelID, reaction.UserId, post, reaction.EmojiName)
 	if err != nil {
 		p.API.LogError("Unable to handle message reaction unset", "error", err.Error())
 	}
@@ -180,7 +180,7 @@ func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *mode
 		return
 	}
 
-	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
+	err = p.Update(link.MSTeamsTeamID, link.MSTeamsChannelID, user, newPost, oldPost)
 	if err != nil {
 		p.API.LogError("Unable to handle message update", "error", err.Error())
 	}
@@ -452,7 +452,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	}
 
 	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chatID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
+		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannelID: chatID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -531,7 +531,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
+		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannelID: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -663,7 +663,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return nil
 	}
 
-	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
+	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannelID: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
 
@@ -705,7 +705,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	if err != nil {
 		p.API.LogWarn("Error getting the updated message from MS Teams", "error", err)
 	} else {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
+		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannelID: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}

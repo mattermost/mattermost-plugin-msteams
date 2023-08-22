@@ -184,11 +184,11 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsTeam: "Valid-MSTeamsTeam",
+					MSTeamsTeamID: "Valid-MSTeamsTeamID",
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&msteams.Team{}, nil).Times(1)
+				c.On("GetTeam", "Valid-MSTeamsTeamID").Return(&msteams.Team{}, nil).Times(1)
 				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
 			},
 		},
@@ -220,11 +220,11 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Invalid-ChannelID").Return(&storemodels.ChannelLink{
-					MSTeamsTeam: "Invalid-MSTeamsTeam",
+					MSTeamsTeamID: "Invalid-MSTeamsTeamID",
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", "Invalid-MSTeamsTeam").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
+				c.On("GetTeam", "Invalid-MSTeamsTeamID").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
 			},
 		},
 	} {
