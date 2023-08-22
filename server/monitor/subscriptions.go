@@ -37,7 +37,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
+			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeamID+link.MSTeamsChannelID]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
 				// Check if channel subscription is not present on MS Teams
@@ -54,7 +54,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 				}
 			} else {
 				// Create channel subscription for the linked channel
-				m.recreateChannelSubscription("", link.MSTeamsTeam, link.MSTeamsChannel, m.webhookSecret, false)
+				m.recreateChannelSubscription("", link.MSTeamsTeamID, link.MSTeamsChannelID, m.webhookSecret, false)
 				<-ws
 				return
 			}

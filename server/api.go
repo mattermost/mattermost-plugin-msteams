@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sort"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -34,8 +35,12 @@ type Activities struct {
 }
 
 const (
-	DefaultPage       = 0
-	MaxPerPage        = 100
+	// Pagination
+	DefaultPage         = 0
+	DefaultPerPageLimit = 10
+	MaxPerPageLimit     = 100
+	
+	// Query params
 	QueryParamPage    = "page"
 	QueryParamPerPage = "per_page"
 )
@@ -57,6 +62,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
+	router.HandleFunc("/linked-channels", api.handleAuthRequired(api.getLinkedChannels)).Methods(http.MethodGet)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
@@ -326,6 +332,58 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+	links, err := a.p.store.ListChannelLinksWithNames()
+	if err != nil {
+		a.p.API.LogError("Error occurred while getting the linked channels", "Error", err.Error())
+		http.Error(w, "Error occurred while getting the linked channels", http.StatusInternalServerError)
+		return
+	}
+
+	paginatedLinks := []*storemodels.ChannelLink{}
+	if len(links) > 0 {
+		sort.Slice(links, func(i, j int) bool {
+			return fmt.Sprintf("%s_%s", links[i].MattermostChannelName, links[i].MattermostChannelID) < fmt.Sprintf("%s_%s", links[j].MattermostChannelName, links[j].MattermostChannelID)
+		})
+
+		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
+		if errorsFound {
+			http.Error(w, "Unable to get the MS Teams teams details", http.StatusInternalServerError)
+			return
+		}
+
+		offset, limit := a.p.GetOffsetAndLimit(r)
+		for index := offset; index < offset+limit && index < len(links); index++ {
+			link := links[index]
+			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] == "" || msTeamsTeamIDsVsNames[link.MSTeamsTeamID] == "" {
+				continue
+			}
+
+			channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
+			if appErr != nil {
+				a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
+				http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
+				return
+			}
+
+			paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
+				MattermostTeamID:      link.MattermostTeamID,
+				MattermostChannelID:   link.MattermostChannelID,
+				MSTeamsTeamID:         link.MSTeamsTeamID,
+				MSTeamsChannelID:      link.MSTeamsChannelID,
+				MattermostChannelName: link.MattermostChannelName,
+				MattermostTeamName:    link.MattermostTeamName,
+				MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
+				MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+				MattermostChannelType: string(channel.Type),
+			})
+		}
+	}
+
+	a.writeJSONArray(w, http.StatusOK, paginatedLinks)
+}
+
 // TODO: Add unit tests
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
@@ -549,7 +607,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	page := DefaultPage
-	perPage := MaxPerPage
+	perPage := MaxPerPageLimit
 	var connectedUserList []*storemodels.ConnectedUser
 	for {
 		connectedUsers, err := p.store.GetConnectedUsers(page, perPage)
@@ -577,8 +635,8 @@ func GetPageAndPerPage(r *http.Request) (page, perPage int) {
 	}
 
 	val, err := strconv.Atoi(query.Get(QueryParamPerPage))
-	if err != nil || val < 0 || val > MaxPerPage {
-		perPage = MaxPerPage
+	if err != nil || val < 0 || val > MaxPerPageLimit {
+		perPage = MaxPerPageLimit
 	} else {
 		perPage = val
 	}
@@ -612,4 +670,33 @@ func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
 
 		handleFunc(w, r)
 	}
+}
+
+func (a *API) writeJSONArray(w http.ResponseWriter, statusCode int, v interface{}) {
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(v)
+	if err != nil {
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	if string(b) == "null" {
+		w.WriteHeader(statusCode)
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		a.p.API.LogError("Error while writing response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(statusCode)
 }

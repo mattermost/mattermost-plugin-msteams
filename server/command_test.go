@@ -49,7 +49,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsChannel: "Valid-MSTeamsChannel",
+					MSTeamsChannelID: "Valid-MSTeamsChannel",
 				}, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
 				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{
@@ -162,7 +162,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsChannel: "Valid-MSTeamsChannel",
+					MSTeamsChannelID: "Valid-MSTeamsChannel",
 				}, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
 				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(nil, errors.New("unable to get the subscription")).Once()
@@ -186,7 +186,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsChannel: "Valid-MSTeamsChannel",
+					MSTeamsChannelID: "Valid-MSTeamsChannel",
 				}, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
 				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{
@@ -230,7 +230,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsTeam: "Valid-MSTeamsTeam",
+					MSTeamsTeamID: "Valid-MSTeamsTeamID",
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
@@ -259,11 +259,11 @@ func TestExecuteShowCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Invalid-ChannelID").Return(&storemodels.ChannelLink{
-					MSTeamsTeam: "Invalid-MSTeamsTeam",
+					MSTeamsTeamID: "Invalid-MSTeamsTeamID",
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", "Invalid-MSTeamsTeam").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
+				c.On("GetTeam", "Invalid-MSTeamsTeamID").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
 			},
 		},
 	} {
