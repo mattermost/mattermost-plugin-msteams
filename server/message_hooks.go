@@ -409,7 +409,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	// TODO: refactor the logic to fetch emails from CreateOrGetChatForUsers function
+	// TODO: Refactor the logic to fetch emails from CreateOrGetChatForUsers function
 	chat, err := client.GetChat(chatID)
 	if err != nil {
 		p.API.LogError("Failed to get the chat details", "chatID", chatID, "error", err)
