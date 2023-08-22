@@ -409,6 +409,13 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
+	// TODO: refactor the logic to fetch emails from CreateOrGetChatForUsers function
+	chat, err := client.GetChat(chatID)
+	if err != nil {
+		p.API.LogError("Failed to get the chat details", "chatID", chatID, "error", err)
+		return "", err
+	}
+
 	var attachments []*msteams.Attachment
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
@@ -424,7 +431,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
 			continue
@@ -511,7 +518,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
 		var attachment *msteams.Attachment
-		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData))
+		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
 			continue

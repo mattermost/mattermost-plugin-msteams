@@ -518,7 +518,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 	return convertToMessage(res, "", "", chatID), nil
 }
 
-func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error) {
+func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *Chat) (*Attachment, error) {
 	driveID := ""
 	itemID := ""
 	if teamID != "" && channelID != "" {
@@ -541,7 +541,50 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 			return nil, NormalizeGraphAPIError(err)
 		}
 
-		itemID = *rootDirectory.GetId() + ":/" + filename + ":"
+		chatFolderID := ""
+		folderName := "Microsoft Teams Chat Files"
+
+		// Get chat folder ID
+		queryParameters := &drives.ItemItemsItemSearchWithQRequestBuilderGetQueryParameters{
+			Orderby: []string{"name"},
+		}
+
+		configuration := &drives.ItemItemsItemSearchWithQRequestBuilderGetRequestConfiguration{
+			QueryParameters: queryParameters,
+		}
+
+		chatFolder, err := tc.client.DrivesById(driveID).ItemsById(*rootDirectory.GetId()).SearchWithQ(&folderName).Get(tc.ctx, configuration)
+		if err != nil {
+			return nil, NormalizeGraphAPIError(err)
+		}
+
+		if chatFolder != nil && len(chatFolder.GetValue()) != 0 {
+			chatFolder := chatFolder.GetValue()[0]
+			if *chatFolder.GetName() == folderName {
+				chatFolderID = *chatFolder.GetId()
+			}
+		}
+
+		if chatFolderID == "" {
+			// Create chat folder
+			folderRequestBody := models.NewDriveItem()
+			folderRequestBody.SetName(&folderName)
+			folder := models.NewFolder()
+			folderRequestBody.SetFolder(folder)
+			additionalData := map[string]interface{}{
+				"microsoftGraphConflictBehavior": "fail",
+			}
+
+			folderRequestBody.SetAdditionalData(additionalData)
+			chatFolder, cErr := tc.client.DrivesById(driveID).ItemsById(*rootDirectory.GetId()).Children().Post(tc.ctx, folderRequestBody, nil)
+			if cErr != nil {
+				return nil, NormalizeGraphAPIError(cErr)
+			}
+
+			chatFolderID = *chatFolder.GetId()
+		}
+
+		itemID = chatFolderID + ":/" + filename + ":"
 	}
 
 	uploadSession, err := tc.client.DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(tc.ctx, nil, nil)
@@ -560,6 +603,27 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if chat != nil {
+		requestBody := drives.NewItemItemsItemInvitePostRequestBody()
+		recipients := []models.DriveRecipientable{}
+		for _, chatUser := range chat.Members {
+			driveRecipient := models.NewDriveRecipient()
+			email := chatUser.Email
+			driveRecipient.SetEmail(&email)
+			recipients = append(recipients, driveRecipient)
+		}
+
+		requestBody.SetRecipients(recipients)
+		requireSignIn := true
+		requestBody.SetRequireSignIn(&requireSignIn)
+		roles := []string{"read", "write"}
+		requestBody.SetRoles(roles)
+		if _, err = tc.client.DrivesById(driveID).ItemsById(itemID).Invite().Post(context.Background(), requestBody, nil); err != nil {
+			return nil, NormalizeGraphAPIError(err)
+		}
+	}
+
 	uploadedFileData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -1198,6 +1262,7 @@ func GetResourceIds(resource string) ActivityIds {
 	return result
 }
 
+// TODO: apply pagination
 func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
 	requestParameters := &users.ItemChatsRequestBuilderGetQueryParameters{
 		Select: []string{"members", "id"},
