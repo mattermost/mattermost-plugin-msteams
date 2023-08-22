@@ -19,6 +19,10 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
+const (
+	HeaderMattermostUserID = "Mattermost-User-Id"
+)
+
 type API struct {
 	p      *Plugin
 	store  store.Store
@@ -44,21 +48,26 @@ func NewAPI(p *Plugin, store store.Store) *API {
 		// set error counter middleware handler
 		router.Use(api.metricsMiddleware)
 	}
+	
+	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
 
-	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
-	router.HandleFunc("/changes", api.processActivity).Methods("POST")
-	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
-	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
-	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
-	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
-	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
+	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
+	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
+	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
+	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
+	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
+	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
 
+	// Command autocomplete APIs
+	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
+	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
+
 	// iFrame support
-	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
+	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods(http.MethodGet)
+	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods(http.MethodGet)
 
 	return api
 }
@@ -165,7 +174,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
@@ -200,7 +209,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	args := strings.Fields(r.URL.Query().Get("parsed"))
 	if len(args) < 3 {
 		data, _ := json.Marshal(out)
@@ -235,22 +244,19 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 		out = append(out, s)
 	}
+
 	data, _ := json.Marshal(out)
 	_, _ = w.Write(data)
 }
 
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
 	response := map[string]bool{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
 	}
 
 	if a.p.getConfiguration().EnforceConnectedUsers {
-		userID := r.Header.Get("Mattermost-User-ID")
+		userID := r.Header.Get(HeaderMattermostUserID)
 		client, _ := a.p.GetClientForUser(userID)
 		if client == nil {
 			if a.p.getConfiguration().EnabledTeams == "" {
@@ -276,10 +282,7 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-	userID := r.Header.Get("Mattermost-User-ID")
+	userID := r.Header.Get(HeaderMattermostUserID)
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
@@ -301,11 +304,30 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
+func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+	teamsUserID, err := a.p.store.MattermostToTeamsUserID(userID)
+	if err != nil {
+		a.p.API.LogError("Unable to get Teams user ID from Mattermost user ID.", "UserID", userID, "Error", err.Error())
+		http.Error(w, "Unable to get Teams user ID from Mattermost user ID.", http.StatusInternalServerError)
 		return
 	}
 
+	if err = a.p.store.SetUserInfo(userID, teamsUserID, nil); err != nil {
+		a.p.API.LogError("Error occurred while disconnecting the user.", "UserID", userID, "Error", err.Error())
+		http.Error(w, "Error occurred while disconnecting the user.", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write([]byte("Your account has been disconnected.")); err != nil {
+		a.p.API.LogError("Failed to write response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+// TODO: Add unit tests
+func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
 	conf := &oauth2.Config{
 		ClientID:     a.p.configuration.ClientID,
@@ -434,7 +456,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	if userID == "" {
 		a.p.API.LogError("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -474,7 +496,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get(HeaderMattermostUserID)
 	if userID == "" {
 		a.p.API.LogError("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -562,4 +584,32 @@ func GetPageAndPerPage(r *http.Request) (page, perPage int) {
 	}
 
 	return page, perPage
+}
+
+// handleAuthRequired verifies if the provided request is performed by an authorized source.
+func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if mattermostUserID == "" {
+			a.p.API.LogError("Not authorized")
+			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			return
+		}
+
+		handleFunc(w, r)
+	}
+}
+
+// checkUserConnected verifies if the user account is connected to MS Teams.
+func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
+		if _, err := a.p.store.GetTokenForMattermostUser(mattermostUserID); err != nil {
+			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
+			http.Error(w, "The account is not connected.", http.StatusBadRequest)
+			return
+		}
+
+		handleFunc(w, r)
+	}
 }
