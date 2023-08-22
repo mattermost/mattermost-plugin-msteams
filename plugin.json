@@ -94,6 +94,12 @@
           "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
           "default": ""
         },{
+          "key": "promptIntervalForDMsAndGMs",
+          "display_name": "Prompt interval for DMs and GMs (in hours)",
+          "type": "number",
+          "help_text": "Set the time for DMs and GMs after which the user will get a prompt to connect his account when he tries to post a message without connecting his account",
+          "default": 24
+        },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
             "type": "custom", 
