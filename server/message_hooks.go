@@ -461,6 +461,10 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
+	if p.getConfiguration().PromptIntervalForDMsAndGMs == 0 {
+		return
+	}
+
 	timestamp, err := p.store.GetDMAndGMChannelPromptTime(channelID, userID)
 	if err != nil {
 		p.API.LogDebug("Unable to get the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())

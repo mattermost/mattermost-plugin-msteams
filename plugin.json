@@ -97,8 +97,8 @@
           "key": "promptIntervalForDMsAndGMs",
           "display_name": "Prompt interval for DMs and GMs (in hours)",
           "type": "number",
-          "help_text": "Set the time for DMs and GMs after which the user will get a prompt to connect his account when he tries to post a message without connecting his account",
-          "default": 24
+          "help_text": "Set the time for DMs and GMs after which the user will get a prompt to connect their account when they try to post a message without connecting their account",
+          "default": 0
         },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
