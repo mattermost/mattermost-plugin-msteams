@@ -269,6 +269,7 @@ func TestHandleAttachments(t *testing.T) {
 		expectedText               string
 		expectedAttachmentIDsCount int
 		expectedParentID           string
+		expectedError              bool
 	}{
 		{
 			description: "Successfully handled attachments",
@@ -335,7 +336,8 @@ func TestHandleAttachments(t *testing.T) {
 					Name: "mock-name",
 				},
 			},
-			expectedText: "mock-text",
+			expectedText:  "mock-text",
+			expectedError: true,
 		},
 		{
 			description: "Error uploading the file",
@@ -463,10 +465,11 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-			newText, attachmentIDs, parentID := ah.handleAttachments(testutils.GetChannelID(), "mock-text", attachments, nil)
+			newText, attachmentIDs, parentID, errorsFound := ah.handleAttachments(testutils.GetChannelID(), "mock-text", attachments, nil)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)
+			assert.Equal(t, testCase.expectedError, errorsFound)
 		})
 	}
 }

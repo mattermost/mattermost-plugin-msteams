@@ -271,12 +271,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	post, err := ah.msgToPost(channelID, senderID, msg, chat)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to transform Teams post to Mattermost post", "message", msg, "error", err)
-		return
-	}
-
+	post, errorsFound := ah.msgToPost(channelID, senderID, msg, chat)
 	ah.plugin.GetAPI().LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
@@ -295,6 +290,13 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created", "post", newPost)
+	if errorsFound {
+		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
+			ChannelId: channelID,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "Some images were not delivered due to size/resolution limits.",
+		})
+	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
@@ -380,12 +382,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	post, err := ah.msgToPost(channelID, senderID, msg, chat)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to transform Teams post to Mattermost post", "message", msg, "error", err)
-		return
-	}
-
+	post, _ := ah.msgToPost(channelID, senderID, msg, chat)
 	post.Id = postInfo.MattermostID
 
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
