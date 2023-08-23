@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
