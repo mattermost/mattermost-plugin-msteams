@@ -549,22 +549,22 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		chatFolder, cErr = tc.client.DrivesById(driveID).ItemsById(itemID).Get(tc.ctx, nil)
 		if cErr != nil {
 			err := NormalizeGraphAPIError(cErr)
-			if strings.Contains(err.Error(), "itemNotFound") {
-				// Create chat folder
-				folderRequestBody := models.NewDriveItem()
-				folderRequestBody.SetName(&folderName)
-				folder := models.NewFolder()
-				folderRequestBody.SetFolder(folder)
-				additionalData := map[string]interface{}{
-					"microsoftGraphConflictBehavior": "fail",
-				}
+			if !strings.Contains(err.Error(), "itemNotFound") {
+				return nil, err
+			}
 
-				folderRequestBody.SetAdditionalData(additionalData)
-				chatFolder, cErr = tc.client.DrivesById(driveID).ItemsById(*rootDirectory.GetId()).Children().Post(tc.ctx, folderRequestBody, nil)
-				if cErr != nil {
-					return nil, NormalizeGraphAPIError(cErr)
-				}
-			} else {
+			// Create chat folder
+			folderRequestBody := models.NewDriveItem()
+			folderRequestBody.SetName(&folderName)
+			folder := models.NewFolder()
+			folderRequestBody.SetFolder(folder)
+			additionalData := map[string]interface{}{
+				"microsoftGraphConflictBehavior": "fail",
+			}
+
+			folderRequestBody.SetAdditionalData(additionalData)
+			chatFolder, cErr = tc.client.DrivesById(driveID).ItemsById(*rootDirectory.GetId()).Children().Post(tc.ctx, folderRequestBody, nil)
+			if cErr != nil {
 				return nil, NormalizeGraphAPIError(cErr)
 			}
 		}
