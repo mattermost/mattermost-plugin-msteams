@@ -461,7 +461,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	if p.getConfiguration().PromptIntervalForDMsAndGMs == 0 {
+	promptInterval := p.getConfiguration().PromptIntervalForDMsAndGMs
+	if promptInterval <= 0 {
 		return
 	}
 
@@ -470,7 +471,7 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 		p.API.LogDebug("Unable to get the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
 	}
 
-	if time.Until(timestamp) < -time.Hour*time.Duration(p.getConfiguration().PromptIntervalForDMsAndGMs) {
+	if time.Until(timestamp) < -time.Hour*time.Duration(promptInterval) {
 		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
 
 		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {

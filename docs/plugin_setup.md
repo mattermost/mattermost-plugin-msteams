@@ -14,6 +14,6 @@
     - **Sync guest users**: Enabling this configuration will sync the MS Teams guest users on Mattermost. Any existing active Mattermost user that was created by this plugin using the "Sync user" functionality corresponding to the MS Teams guest user will be deactivated if this setting is false, and vice versa.
     - **Sync direct and group messages**: Enable this for enabling the syncing of direct and group messages.
     - **Enabled Teams**: This config is for the Mattermost teams for which syncing is enabled. Enter a comma-separated list of Mattermost team names. If you leave it empty, it will enable syncing for all the teams.
-    - **Prompt interval for DMs and GMs (in hours)**: This setting is for configuring the interval after which the user will get a prompt to connect their account when they try to post a message in a DM or GM without connecting their account. Leaving it empty or zero will disable the prompt.
+    - **Prompt interval for DMs and GMs (in hours)**: This setting is for configuring the interval after which the user will get a prompt to connect their account when they try to post a message in a DM or GM without connecting their account. Leaving it empty will disable the prompt.
 
     ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/077058f2-cd59-4287-a85d-12e6d158d208)
