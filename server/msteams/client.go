@@ -1284,41 +1284,9 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 	}
 
 	for _, c := range res.GetValue() {
-		if len(c.GetMembers()) == len(userIDs) {
-			matches := map[string]bool{}
-			members := []ChatMember{}
-			for _, m := range c.GetMembers() {
-				for _, u := range userIDs {
-					userID, userErr := m.GetBackingStore().Get("userId")
-					if userErr == nil && userID != nil && *(userID.(*string)) == u {
-						matches[u] = true
-						userEmail, emailErr := m.GetBackingStore().Get("email")
-						if emailErr == nil && userEmail != nil {
-							members = append(members, ChatMember{
-								Email:  *(userEmail.(*string)),
-								UserID: *(userID.(*string)),
-							})
-						}
-
-						break
-					}
-				}
-			}
-
-			if len(matches) == len(userIDs) {
-				chatType := ""
-				if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
-					chatType = "G"
-				} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
-					chatType = "D"
-				}
-
-				return &Chat{
-					ID:      *c.GetId(),
-					Members: members,
-					Type:    chatType,
-				}, nil
-			}
+		chat := checkGroupChat(c, userIDs)
+		if chat != nil {
+			return chat, nil
 		}
 	}
 
@@ -1329,51 +1297,14 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 
 	var chat *Chat
 	err = pageIterator.Iterate(context.Background(), func(c *models.Chat) bool {
-		if len(c.GetMembers()) == len(userIDs) {
-			matches := map[string]bool{}
-			members := []ChatMember{}
-			for _, m := range c.GetMembers() {
-				for _, u := range userIDs {
-					userID, userErr := m.GetBackingStore().Get("userId")
-					if userErr == nil && userID != nil && *(userID.(*string)) == u {
-						matches[u] = true
-						userEmail, emailErr := m.GetBackingStore().Get("email")
-						if emailErr == nil && userEmail != nil {
-							members = append(members, ChatMember{
-								Email:  *(userEmail.(*string)),
-								UserID: *(userID.(*string)),
-							})
-						}
-
-						break
-					}
-				}
-			}
-			if len(matches) == len(userIDs) {
-				chatType := ""
-				if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
-					chatType = "G"
-				} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
-					chatType = "D"
-				}
-
-				chat = &Chat{
-					ID:      *c.GetId(),
-					Members: members,
-					Type:    chatType,
-				}
-
-				return false
-			}
-		}
-
-		return true
+		chat = checkGroupChat(c, userIDs)
+		return chat == nil
 	})
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	if chat.ID != "" {
+	if chat != nil {
 		return chat, nil
 	}
 
@@ -1643,4 +1574,46 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 	)
+}
+
+// Function to match already existing group chats
+func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
+	if c.GetMembers() != nil && len(c.GetMembers()) == len(userIDs) {
+		matches := map[string]bool{}
+		members := []ChatMember{}
+		for _, m := range c.GetMembers() {
+			for _, u := range userIDs {
+				userID, userErr := m.GetBackingStore().Get("userId")
+				if userErr == nil && userID != nil && *(userID.(*string)) == u {
+					matches[u] = true
+					userEmail, emailErr := m.GetBackingStore().Get("email")
+					if emailErr == nil && userEmail != nil {
+						members = append(members, ChatMember{
+							Email:  *(userEmail.(*string)),
+							UserID: *(userID.(*string)),
+						})
+					}
+
+					break
+				}
+			}
+		}
+
+		if len(matches) == len(userIDs) {
+			chatType := ""
+			if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
+				chatType = "G"
+			} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
+				chatType = "D"
+			}
+
+			return &Chat{
+				ID:      *c.GetId(),
+				Members: members,
+				Type:    chatType,
+			}
+		}
+	}
+
+	return nil
 }
