@@ -457,8 +457,15 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 
 	var body *storemodels.ChannelLink
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		a.p.API.LogError("Error occurred while decoding link channels payload.", "Error", err.Error())
-		http.Error(w, "Error occurred while decoding link channels payload.", http.StatusInternalServerError)
+		a.p.API.LogError("Error occurred while unmarshaling link channels payload.", "Error", err.Error())
+		http.Error(w, "Error occurred while unmarshaling link channels payload.", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if body == nil {
+		a.p.API.LogError("Invalid channel link payload.")
+		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
 		return
 	}
 
@@ -468,11 +475,12 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID); errMsg != "" {
+	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID, r.Context().Value(ContextTokenKey).(*oauth2.Token)); errMsg != "" {
 		http.Error(w, errMsg, statusCode)
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	if _, err := w.Write([]byte("Channels linked successfully")); err != nil {
 		a.p.API.LogError("Failed to write response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)

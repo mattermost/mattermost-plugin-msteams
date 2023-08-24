@@ -150,7 +150,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1]); errMsg != "" {
+	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1], nil); errMsg != "" {
 		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
 

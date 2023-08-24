@@ -142,7 +142,7 @@ func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) 
 	return channels, http.StatusOK, nil
 }
 
-func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string) (responseMsg string, statusCode int) {
+func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string, token *oauth2.Token) (responseMsg string, statusCode int) {
 	channel, appErr := p.API.GetChannel(mattermostChannelID)
 	if appErr != nil {
 		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
@@ -151,7 +151,7 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
 		p.API.LogError("Linking/unlinking a direct or group message is not allowed.", "ChannelType", channel.Type)
-		return "Linking/unlinking a direct or group message is not allowed", http.StatusForbidden
+		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
 	}
 
 	if !p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles) {
@@ -161,7 +161,7 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 
 	if !p.store.CheckEnabledTeamByTeamID(mattermostTeamID) {
 		p.API.LogError("This team is not enabled for MS Teams sync.", "TeamID", mattermostTeamID)
-		return "This team is not enabled for MS Teams sync.", http.StatusForbidden
+		return "This team is not enabled for MS Teams sync.", http.StatusBadRequest
 	}
 
 	link, err := p.store.GetLinkByChannelID(mattermostChannelID)
@@ -179,13 +179,18 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 		return "Error occurred while getting the channel link with MS Teams channel ID", http.StatusInternalServerError
 	}
 	if link != nil {
-		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusBadRequest
+		return "The Teams channel that you're trying to link is already linked to another Mattermost channel. Please unlink that channel and try again.", http.StatusBadRequest
 	}
 
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Error occurred while getting client for the user.", "Error", err.Error())
-		return "Unable to link the channel, looks like your account is not connected to MS Teams", http.StatusInternalServerError
+	var client msteams.Client
+	if token == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return "Unable to link the channel, looks like your account is not connected to MS Teams", http.StatusUnauthorized
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError)
 	}
 
 	if _, err = client.GetChannelInTeam(msTeamsTeamID, msTeamsChannelID); err != nil {

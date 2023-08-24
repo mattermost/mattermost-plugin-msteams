@@ -51,6 +51,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}

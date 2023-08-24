@@ -1243,11 +1243,10 @@ func TestLinkChannels(t *testing.T) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("CheckEnabledTeamByTeamID", testutils.GetTeamID()).Return(true).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 				store.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
 			},
@@ -1255,20 +1254,20 @@ func TestLinkChannels(t *testing.T) {
 				c.On("GetChannelInTeam", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&msteams.Channel{}, nil)
 			},
 			ExpectedResult:     "Channels linked successfully",
-			ExpectedStatusCode: http.StatusOK,
+			ExpectedStatusCode: http.StatusCreated,
 			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
 		},
 		{
-			Name: "LinkChannels: error in decoding payload",
+			Name: "LinkChannels: error in unmarshaling payload",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "Error occurred while decoding link channels payload.", "Error", "invalid character 'r' looking for beginning of object key string").Times(1)
+				api.On("LogError", "Error occurred while unmarshaling link channels payload.", "Error", "invalid character 'r' looking for beginning of object key string").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient:        func(c *clientmocks.Client) {},
-			ExpectedResult:     "Error occurred while decoding link channels payload.\n",
-			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedResult:     "Error occurred while unmarshaling link channels payload.\n",
+			ExpectedStatusCode: http.StatusBadRequest,
 			Body: `{
 				random
 			}`,
@@ -1279,7 +1278,7 @@ func TestLinkChannels(t *testing.T) {
 				api.On("LogError", "Invalid channel link payload.", "Error", "mattermost team ID is required").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient:        func(c *clientmocks.Client) {},
 			ExpectedResult:     "Invalid channel link payload.\n",
@@ -1289,11 +1288,11 @@ func TestLinkChannels(t *testing.T) {
 		{
 			Name: "LinkChannels: error occurred while linking channels",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(nil, &model.AppError{Message: "error occurred while linking channels"}).Times(1)
-				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "error occurred while linking channels").Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, &model.AppError{Message: "error occurred while getting channel details"}).Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "error occurred while getting channel details").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient:        func(c *clientmocks.Client) {},
 			ExpectedResult:     "Unable to get the current channel details.\n",
@@ -1327,7 +1326,7 @@ func TestLinkChannels(t *testing.T) {
 
 			bodyString := string(bodyBytes)
 			assert.Equal(test.ExpectedResult, bodyString)
-			assert.Equal(result.StatusCode, test.ExpectedStatusCode)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
 		})
 	}
 }
