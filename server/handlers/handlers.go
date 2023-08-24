@@ -294,7 +294,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
 			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Some images were not delivered due to size/resolution limits.",
+			Message:   "Some images could not be delivered because they exceeded the maximum resolution and/or size allowed.",
 		})
 	}
 
