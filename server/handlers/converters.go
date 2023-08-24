@@ -47,7 +47,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		}
 	}
 
-	newText, attachments, parentID, errorsFound := ah.handleAttachments(channelID, text, msg, chat)
+	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, text, msg, chat)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -65,7 +65,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		post.AddProp("from_webhook", "true")
 		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
-	return post, errorsFound
+	return post, errorFound
 }
 
 func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {

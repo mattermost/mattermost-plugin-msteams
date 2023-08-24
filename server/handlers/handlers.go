@@ -271,7 +271,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	post, errorsFound := ah.msgToPost(channelID, senderID, msg, chat)
+	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
 	ah.plugin.GetAPI().LogDebug("Post generated", "post", post)
 
 	// Avoid possible duplication
@@ -290,7 +290,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created", "post", newPost)
-	if errorsFound {
+	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
 			UserId:    ah.plugin.GetBotUserID(),
