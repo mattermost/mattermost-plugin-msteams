@@ -1402,7 +1402,7 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 	return users, nil
 }
 
-func (tc *ClientImpl) ListTeams() ([]Team, error) {
+func (tc *ClientImpl) ListTeams() ([]*Team, error) {
 	requestParameters := &users.ItemJoinedTeamsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1419,7 +1419,7 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	teams := []Team{}
+	teams := []*Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
 		description := ""
 		if t.GetDescription() != nil {
@@ -1431,7 +1431,7 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 			displayName = *t.GetDisplayName()
 		}
 
-		teams = append(teams, Team{
+		teams = append(teams, &Team{
 			DisplayName: displayName,
 			Description: description,
 			ID:          *t.GetId(),

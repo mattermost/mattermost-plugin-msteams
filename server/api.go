@@ -20,8 +20,14 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-Id"
-	QueryParamSearchTerm   = "search_term"
+	QueryParamSearchTerm   = "search"
+
+	// Used for storing the token in the request context to pass from one middleware to another
+	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
+	ContextTokenKey MSTeamsOAuthToken = "MS-Teams-Oauth-Token"
 )
+
+type MSTeamsOAuthToken string
 
 type API struct {
 	p      *Plugin
@@ -38,6 +44,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	api := &API{p: p, router: router, store: store}
 
 	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
+	msTeamsRouter := router.PathPrefix("/msteams").Subrouter()
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
@@ -46,8 +53,10 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
 	router.HandleFunc("/linked-channels", api.handleAuthRequired(api.getLinkedChannels)).Methods(http.MethodGet)
-	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
+
+	// MS Teams APIs
+	msTeamsRouter.HandleFunc("/teams", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -184,9 +193,8 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	teams, _, err := a.p.GetMSTeamsTeamList(userID)
+	teams, _, err := a.p.GetMSTeamsTeamList(userID, r)
 	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -380,9 +388,9 @@ func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
-	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID)
+	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID, r)
 	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team list.", statusCode)
+		http.Error(w, "Error occurred while fetching the MS Teams teams.", statusCode)
 		return
 	}
 
@@ -392,7 +400,7 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
 	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
-	paginatedTeams := []msteams.Team{}
+	paginatedTeams := []*msteams.Team{}
 	matchCount := 0
 	for _, team := range teams {
 		if len(paginatedTeams) == limit {
@@ -527,11 +535,15 @@ func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
 func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
-		if _, err := a.p.store.GetTokenForMattermostUser(mattermostUserID); err != nil {
+		token, err := a.p.store.GetTokenForMattermostUser(mattermostUserID)
+		if err != nil {
 			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
 			http.Error(w, "The account is not connected.", http.StatusBadRequest)
 			return
 		}
+
+		ctx := context.WithValue(r.Context(), ContextTokenKey, token)
+		r = r.Clone(ctx)
 
 		handleFunc(w, r)
 	}
