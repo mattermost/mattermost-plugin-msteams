@@ -1264,45 +1264,125 @@ func GetResourceIds(resource string) ActivityIds {
 	return result
 }
 
-// TODO: Apply pagination
-func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
+func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
+	if len(userIDs) == 2 {
+		return tc.CreateChat(models.ONEONONE_CHATTYPE, userIDs)
+	}
+
 	requestParameters := &users.ItemChatsRequestBuilderGetQueryParameters{
 		Select: []string{"members", "id"},
 		Expand: []string{"members"},
 	}
+
 	configuration := &users.ItemChatsRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
+
 	res, err := tc.client.Me().Chats().Get(tc.ctx, configuration)
 	if err != nil {
-		return "", NormalizeGraphAPIError(err)
-	}
-
-	chatType := models.GROUP_CHATTYPE
-	if len(usersIDs) == 2 {
-		chatType = models.ONEONONE_CHATTYPE
+		return nil, NormalizeGraphAPIError(err)
 	}
 
 	for _, c := range res.GetValue() {
-		if len(c.GetMembers()) == len(usersIDs) {
+		if len(c.GetMembers()) == len(userIDs) {
 			matches := map[string]bool{}
+			members := []ChatMember{}
 			for _, m := range c.GetMembers() {
-				for _, u := range usersIDs {
+				for _, u := range userIDs {
 					userID, userErr := m.GetBackingStore().Get("userId")
 					if userErr == nil && userID != nil && *(userID.(*string)) == u {
 						matches[u] = true
+						userEmail, emailErr := m.GetBackingStore().Get("email")
+						if emailErr == nil && userEmail != nil {
+							members = append(members, ChatMember{
+								Email:  *(userEmail.(*string)),
+								UserID: *(userID.(*string)),
+							})
+						}
+
 						break
 					}
 				}
 			}
-			if len(matches) == len(usersIDs) {
-				return *c.GetId(), nil
+
+			if len(matches) == len(userIDs) {
+				chatType := ""
+				if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
+					chatType = "G"
+				} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
+					chatType = "D"
+				}
+
+				return &Chat{
+					ID:      *c.GetId(),
+					Members: members,
+					Type:    chatType,
+				}, nil
 			}
 		}
 	}
 
-	members := make([]models.ConversationMemberable, len(usersIDs))
-	for idx, userID := range usersIDs {
+	pageIterator, err := msgraphcore.NewPageIterator[*models.Chat](res, tc.client.GetAdapter(), models.CreateChatCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	var chat *Chat
+	err = pageIterator.Iterate(context.Background(), func(c *models.Chat) bool {
+		if len(c.GetMembers()) == len(userIDs) {
+			matches := map[string]bool{}
+			members := []ChatMember{}
+			for _, m := range c.GetMembers() {
+				for _, u := range userIDs {
+					userID, userErr := m.GetBackingStore().Get("userId")
+					if userErr == nil && userID != nil && *(userID.(*string)) == u {
+						matches[u] = true
+						userEmail, emailErr := m.GetBackingStore().Get("email")
+						if emailErr == nil && userEmail != nil {
+							members = append(members, ChatMember{
+								Email:  *(userEmail.(*string)),
+								UserID: *(userID.(*string)),
+							})
+						}
+
+						break
+					}
+				}
+			}
+			if len(matches) == len(userIDs) {
+				chatType := ""
+				if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
+					chatType = "G"
+				} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
+					chatType = "D"
+				}
+
+				chat = &Chat{
+					ID:      *c.GetId(),
+					Members: members,
+					Type:    chatType,
+				}
+
+				return false
+			}
+		}
+
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if chat.ID != "" {
+		return chat, nil
+	}
+
+	return tc.CreateChat(models.GROUP_CHATTYPE, userIDs)
+}
+
+func (tc *ClientImpl) CreateChat(chatType models.ChatType, userIDs []string) (*Chat, error) {
+	members := make([]models.ConversationMemberable, len(userIDs))
+	for idx, userID := range userIDs {
 		conversationMember := models.NewConversationMember()
 		odataType := "#microsoft.graph.aadUserConversationMember"
 		conversationMember.SetOdataType(&odataType)
@@ -1315,13 +1395,19 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(usersIDs []string) (string, error)
 	}
 
 	newChat := models.NewChat()
-	newChat.SetChatType(&chatType)
 	newChat.SetMembers(members)
-	resn, err := tc.client.Chats().Post(tc.ctx, newChat, nil)
+	newChat.SetChatType(&chatType)
+	chat, err := tc.client.Chats().Post(tc.ctx, newChat, nil)
 	if err != nil {
-		return "", NormalizeGraphAPIError(err)
+		return nil, NormalizeGraphAPIError(err)
 	}
-	return *resn.GetId(), nil
+
+	chatDetails, err := tc.GetChat(*chat.GetId())
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	return chatDetails, nil
 }
 
 func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) error {
