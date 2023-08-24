@@ -104,7 +104,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "").Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "Error while getting the current channel.").Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
