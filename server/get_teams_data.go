@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
@@ -96,27 +98,39 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	return errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) {
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, http.StatusUnauthorized, err
+func (p *Plugin) GetMSTeamsTeamList(userID string, r *http.Request) ([]*msteams.Team, int, error) {
+	var client msteams.Client
+	var err error
+	if r.Context().Value(ContextTokenKey) == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return nil, http.StatusUnauthorized, err
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, r.Context().Value(ContextTokenKey).(*oauth2.Token), p.API.LogError)
 	}
 
 	teams, err := client.ListTeams()
 	if err != nil {
-		p.API.LogError("Unable to get the MS Teams team list", "Error", err.Error())
+		p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 
 	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channel, int, error) {
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, http.StatusUnauthorized, err
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) ([]*msteams.Channel, int, error) {
+	var client msteams.Client
+	var err error
+	if r.Context().Value(ContextTokenKey) == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return nil, http.StatusUnauthorized, err
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, r.Context().Value(ContextTokenKey).(*oauth2.Token), p.API.LogError)
 	}
 
 	channels, err := client.ListChannels(teamID)
