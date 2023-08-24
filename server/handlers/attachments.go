@@ -63,7 +63,7 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Clie
 	return data, nil
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string) {
+func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -80,9 +80,10 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 		}
 	}
 
+	errorFound := false
 	if client == nil {
 		ah.plugin.GetAPI().LogError("Unable to get the client")
-		return "", nil, ""
+		return "", nil, "", errorFound
 	}
 
 	for _, a := range msg.Attachments {
@@ -111,6 +112,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
 		if len(attachmentData) > int(fileSizeAllowed) {
 			ah.plugin.GetAPI().LogError("cannot upload file to Mattermost as its size is greater than allowed size", "filename", a.Name)
+			errorFound = true
 			continue
 		}
 
@@ -125,6 +127,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 			imageRes := int64(w) * int64(h)
 			if imageRes > *ah.plugin.GetAPI().GetConfig().FileSettings.MaxImageResolution {
 				ah.plugin.GetAPI().LogError("image resolution is too high")
+				errorFound = true
 				continue
 			}
 		}
@@ -153,7 +156,8 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 			break
 		}
 	}
-	return newText, attachments, parentID
+
+	return newText, attachments, parentID, errorFound
 }
 
 func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach msteams.Attachment, text string) string {
