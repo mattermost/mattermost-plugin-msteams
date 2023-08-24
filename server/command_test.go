@@ -412,7 +412,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 					Message: "Your account has been disconnected.",
 				}).Return(testutils.GetPost("", testutils.GetUserID())).Times(1)
 
-				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "UserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
+				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
@@ -630,7 +630,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "A link for this channel already exists. Please unlink the channel before you link again with another channel.",
+					Message:   "The Teams channel that you're trying to link is already linked to another Mattermost channel. Please unlink that channel and try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -689,15 +689,17 @@ func TestExecuteLinkCommand(t *testing.T) {
 			description: "Unable to get the current channel details",
 			parameters:  []string{testutils.GetTeamsUserID(), ""},
 			args: &model.CommandArgs{
-				TeamId: testutils.GetTeamsUserID(),
+				TeamId:    testutils.GetTeamsUserID(),
+				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
 				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel details.",
+					UserId:    "bot-user-id",
+					Message:   "Unable to get the current channel details.",
+					ChannelId: testutils.GetChannelID(),
 				}).Return(testutils.GetPost("", "")).Times(1)
-				api.On("LogError", "Unable to get the current channel details.", "ChannelID", "", "Error", "").Times(1)
+				api.On("LogError", "Unable to get the current channel details.", "ChannelID", testutils.GetChannelID(), "Error", "Error while getting the current channel.").Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)

@@ -51,6 +51,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}
@@ -111,7 +112,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "test-teams-team"
+	return "testteam-team-team-team-testteamtest"
 }
 
 func GetTeamsChannelID() string {

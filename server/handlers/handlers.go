@@ -18,6 +18,7 @@ import (
 var emojisReverseMap map[string]string
 
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
+var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
 	lastReceivedChangeKey = "last_received_change"
@@ -105,8 +106,8 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			if err2 := ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err2 != nil {
-				ah.plugin.GetAPI().LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
+				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
 		}
 	} else if event.LifecycleEvent == "subscriptionRemoved" {
@@ -190,7 +191,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
 		ah.handleDeletedActivity(activityIds)
 	default:
-		ah.plugin.GetAPI().LogWarn("Unandledy activity", "activity", activity, "error", "Not handled activity")
+		ah.plugin.GetAPI().LogWarn("Unhandled activity", "activity", activity, "error", "Not handled activity")
 	}
 }
 
@@ -202,7 +203,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
 		return
 	}
 
@@ -227,7 +228,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "UserID", mmUserID, "Error", appErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "Error", appErr.Error())
 			}
 		}
 
@@ -261,6 +262,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return
 	}
 
@@ -269,19 +271,9 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	var userID string
-	if msg.TeamID != "" && msg.ChannelID != "" {
-		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
-	} else if msg.ChatID != "" {
-		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
-		}
-	}
-
-	post, err := ah.msgToPost(userID, channelID, msg, senderID)
+	post, err := ah.msgToPost(channelID, senderID, msg, chat)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+		ah.plugin.GetAPI().LogError("Unable to transform Teams post to Mattermost post", "message", msg, "error", err)
 		return
 	}
 
@@ -290,7 +282,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicated post")
+		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
@@ -308,7 +300,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		err = ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannelID: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
 		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
 }
@@ -321,7 +313,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chat in not-linked users)")
+		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
 		return
 	}
 
@@ -366,7 +358,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		if postErr != nil {
 			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
-					ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+					ah.plugin.GetAPI().LogError("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
 					return
 				}
 				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
@@ -384,22 +376,13 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
+		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return
 	}
 
-	var userID string
-	if msg.TeamID != "" && msg.ChannelID != "" {
-		userID = ah.getUserIDForChannelLink(msg.TeamID, msg.ChannelID)
-	} else if msg.ChatID != "" {
-		userID, err = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "error", err)
-		}
-	}
-
-	post, err := ah.msgToPost(userID, channelID, msg, senderID)
+	post, err := ah.msgToPost(channelID, senderID, msg, chat)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to transform teams post in mattermost post", "message", msg, "error", err)
+		ah.plugin.GetAPI().LogError("Unable to transform Teams post to Mattermost post", "message", msg, "error", err)
 		return
 	}
 
@@ -456,8 +439,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 	for _, r := range postReactions {
 		if !allReactions[r.UserId+r.EmojiName] {
 			r.ChannelId = "removedfromplugin"
-			appErr = ah.plugin.GetAPI().RemoveReaction(r)
-			if appErr != nil {
+			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
 		}
@@ -518,12 +500,11 @@ func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
 func (ah *ActivityHandler) isActiveUser(userID string) bool {
 	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user from senderID", "UserID", userID, "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "mmuserID", userID, "error", err.Error())
 		return false
 	}
 
 	if mmUser.DeleteAt != 0 {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "User", mmUser.Email)
 		return false
 	}
 
@@ -533,7 +514,7 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	user, userErr := ah.plugin.GetAPI().GetUser(userID)
 	if userErr != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "UserID", userID, "error", userErr.Error())
+		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "mmuserID", userID, "error", userErr.Error())
 		return false
 	}
 

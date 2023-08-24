@@ -146,7 +146,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return
 	}
 
@@ -243,9 +242,9 @@ func (p *Plugin) startSubscriptions() {
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeamID, link.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-			if err2 != nil {
-				p.API.LogError("Unable to subscribe to channels", "error", err2)
+			channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeamID, link.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+			if err != nil {
+				p.API.LogError("Unable to subscribe to channels", "error", err)
 				// Mark this subscription to be created and retried by the monitor system
 				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 					SubscriptionID: "fake-subscription-id",
@@ -258,15 +257,14 @@ func (p *Plugin) startSubscriptions() {
 				return
 			}
 
-			err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+			if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 				SubscriptionID: channelsSubscription.ID,
 				TeamID:         link.MSTeamsTeamID,
 				ChannelID:      link.MSTeamsChannelID,
 				ExpiresOn:      channelsSubscription.ExpiresOn,
 				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			if err2 != nil {
-				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
+			}); err != nil {
+				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err)
 				<-ws
 				return
 			}
@@ -275,7 +273,7 @@ func (p *Plugin) startSubscriptions() {
 		}(link)
 	}
 	wg.Wait()
-	p.API.LogDebug("Start subscription finished")
+	p.API.LogDebug("Starting subscriptions finished")
 }
 
 func (p *Plugin) stop() {
@@ -501,6 +499,8 @@ func (p *Plugin) syncUsers() {
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+			newMMUser.SetDefaultNotifications()
+			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 			var newUser *model.User
 			for {
@@ -530,7 +530,7 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogError("Unable to disable email notifications for new user", "UserID", newUser.Id, "error", prefErr.Error())
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
