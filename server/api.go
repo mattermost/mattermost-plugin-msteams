@@ -22,8 +22,10 @@ const (
 	HeaderMattermostUserID = "Mattermost-User-Id"
 
 	// Query params
-	QueryParamTeamID     = "team_id"
 	QueryParamSearchTerm = "search"
+
+	// Path params
+	PathParamTeamID = "team_id"
 
 	// Used for storing the token in the request context to pass from one middleware to another
 	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
@@ -60,7 +62,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	// MS Teams APIs
 	msTeamsRouter.HandleFunc("/teams", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
-	msTeamsRouter.HandleFunc("/channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
+	msTeamsRouter.HandleFunc(fmt.Sprintf("/teams/{%s:[A-Za-z0-9-]{36}}/channels", PathParamTeamID), api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -415,14 +417,9 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	pathParams := mux.Vars(r)
+	teamID := pathParams[PathParamTeamID]
 	userID := r.Header.Get(HeaderMattermostUserID)
-	teamID := r.URL.Query().Get(QueryParamTeamID)
-	if teamID == "" {
-		a.p.API.LogError("Error missing team ID query param.")
-		http.Error(w, "Error missing team ID query param.", http.StatusBadRequest)
-		return
-	}
-
 	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
 		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)

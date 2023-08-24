@@ -1182,18 +1182,6 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 			ExpectedResult:     "Error occurred while fetching the MS Teams team channels.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
-		{
-			Name: "TestGetMSTeamsTeamChannels: missing team ID in query params",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "Error missing team ID query param.").Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
-			},
-			SetupClient:        func(c *clientmocks.Client) {},
-			ExpectedResult:     "Error missing team ID query param.\n",
-			ExpectedStatusCode: http.StatusBadRequest,
-		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -1208,12 +1196,11 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/msteams/channels", nil)
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/msteams/teams/%s/channels", testutils.GetTeamsTeamID()), nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
 				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
 				QueryParamPage:    {fmt.Sprint(DefaultPage)},
-				QueryParamTeamID:  {test.QueryParamTeamID},
 			}
 
 			r.URL.RawQuery = queryParams.Encode()
