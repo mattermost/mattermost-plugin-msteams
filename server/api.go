@@ -23,7 +23,7 @@ const (
 
 	// Query params
 	QueryParamTeamID     = "team_id"
-	QueryParamSearchTerm   = "search"
+	QueryParamSearchTerm = "search"
 
 	// Used for storing the token in the request context to pass from one middleware to another
 	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
@@ -60,7 +60,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	// MS Teams APIs
 	msTeamsRouter.HandleFunc("/teams", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
-	router.HandleFunc("/channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
+	msTeamsRouter.HandleFunc("/channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -230,7 +230,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	teamID := args[2]
-	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -423,7 +423,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
 		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
 		return
@@ -435,7 +435,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
 	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
-	paginatedChannels := []msteams.Channel{}
+	paginatedChannels := []*msteams.Channel{}
 	matchCount := 0
 	for _, channel := range channels {
 		if len(paginatedChannels) == limit {

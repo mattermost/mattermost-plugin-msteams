@@ -45,5 +45,5 @@ type Client interface {
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
 	ListTeams() ([]*Team, error)
-	ListChannels(teamID string) ([]Channel, error)
+	ListChannels(teamID string) ([]*Channel, error)
 }

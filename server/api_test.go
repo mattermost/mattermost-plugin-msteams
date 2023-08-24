@@ -609,7 +609,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListChannels", "mockData-3").Return([]msteams.Channel{
+				uclient.On("ListChannels", "mockData-3").Return([]*msteams.Channel{
 					{
 						ID:          "mockTeamsTeamID-1",
 						DisplayName: "mockDisplayName-1",
@@ -910,7 +910,7 @@ func TestDisconnect(t *testing.T) {
 	}
 }
 
-func TestGetConnectedChannels(t *testing.T) {
+func TestGetLinkedChannels(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -920,7 +920,7 @@ func TestGetConnectedChannels(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name: "GetConnectedChannels: linked channels listed successfully",
+			Name: "TestGetLinkedChannels: linked channels listed successfully",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{}, nil).Times(1)
@@ -948,7 +948,7 @@ func TestGetConnectedChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name: "GetConnectedChannels: error occurred while getting the linked channels",
+			Name: "TestGetLinkedChannels: error occurred while getting the linked channels",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("LogError", "Error occurred while getting the linked channels", "Error", "error occurred while getting the linked channels").Times(1)
 			},
@@ -960,7 +960,7 @@ func TestGetConnectedChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			Name: "GetConnectedChannels: error occurred while getting the MS Teams teams details",
+			Name: "TestGetLinkedChannels: error occurred while getting the MS Teams teams details",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
 				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error occurred while getting the MS Teams teams details")
@@ -978,7 +978,7 @@ func TestGetConnectedChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			Name: "GetConnectedChannels: error occurred while getting channel details",
+			Name: "TestGetLinkedChannels: error occurred while getting channel details",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionCreatePost).Return(true).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, &model.AppError{
@@ -1130,7 +1130,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 	}
 }
 
-func TestMSTeamsTeamChannels(t *testing.T) {
+func TestGetMSTeamsTeamChannels(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -1141,15 +1141,15 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name: "TestMSTeamsTeamChannels: MS Teams team channels listed successfully",
+			Name: "TestGetMSTeamsTeamChannels: MS Teams team channels listed successfully",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(c *clientmocks.Client) {
-				c.On("ListChannels", testutils.GetTeamsTeamID()).Return([]msteams.Channel{
+				c.On("ListChannels", testutils.GetTeamsTeamID()).Return([]*msteams.Channel{
 					{
 						ID:          "mockTeamsChannelID-1",
 						DisplayName: "mockDisplayName-1",
@@ -1167,13 +1167,13 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name: "TestMSTeamsTeamChannels: error occurred while getting MS Teams team channels",
+			Name: "TestGetMSTeamsTeamChannels: error occurred while getting MS Teams team channels",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
 				api.On("LogError", "Unable to get the channels for MS Teams team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error occurred while getting MS Teams team channels").Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListChannels", testutils.GetTeamsTeamID()).Return(nil, errors.New("error occurred while getting MS Teams team channels")).Times(1)
@@ -1183,7 +1183,7 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			Name: "TestMSTeamsTeamChannels: missing team ID in query params",
+			Name: "TestGetMSTeamsTeamChannels: missing team ID in query params",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("LogError", "Error missing team ID query param.").Times(1)
 			},
@@ -1208,11 +1208,11 @@ func TestMSTeamsTeamChannels(t *testing.T) {
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/ms-teams-team-channels", nil)
+			r := httptest.NewRequest(http.MethodGet, "/msteams/channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
-				QueryParamPage:    {fmt.Sprintf("%d", DefaultPage)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 				QueryParamTeamID:  {test.QueryParamTeamID},
 			}
 

@@ -437,15 +437,15 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 }
 
 // ListChannels provides a mock function with given fields: teamID
-func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
+func (_m *Client) ListChannels(teamID string) ([]*msteams.Channel, error) {
 	ret := _m.Called(teamID)
 
-	var r0 []msteams.Channel
-	if rf, ok := ret.Get(0).(func(string) []msteams.Channel); ok {
+	var r0 []*msteams.Channel
+	if rf, ok := ret.Get(0).(func(string) []*msteams.Channel); ok {
 		r0 = rf(teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.Channel)
+			r0 = ret.Get(0).([]*msteams.Channel)
 		}
 	}
 
