@@ -402,5 +402,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
+	connectionMessage := "Your account has been connected"
+	if mmUser.Id == a.p.GetBotUserID() {
+		connectionMessage = "The bot account has been connected"
+	}
+
+	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
 }
