@@ -1045,7 +1045,7 @@ func TestGetConnectedChannels(t *testing.T) {
 	}
 }
 
-func TestMSTeamsTeamList(t *testing.T) {
+func TestGetMSTeamsTeamList(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -1055,10 +1055,10 @@ func TestMSTeamsTeamList(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name:        "MSTeamsTeamList: MS Teams team listed successfully",
+			Name:        "TestGetMSTeamsTeamList: MS Teams team listed successfully",
 			SetupPlugin: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListTeams").Return([]*msteams.Team{
@@ -1078,7 +1078,7 @@ func TestMSTeamsTeamList(t *testing.T) {
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name: "MSTeamsTeamList: error occurred while getting MS Teams teams",
+			Name: "TestGetMSTeamsTeamList: error occurred while getting MS Teams teams",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("LogError", "Unable to get the MS Teams teams", "Error", "error occurred while getting MS Teams teams").Times(1)
 			},
