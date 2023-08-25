@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"strings"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -8,7 +9,7 @@ import (
 
 func (m *Monitor) checkChannelsSubscriptions() {
 	m.api.LogDebug("Checking for channels subscriptions")
-	subscriptions, err := m.store.ListChannelSubscriptionsToCheck()
+	subscriptions, err := m.store.ListChannelSubscriptionsToRefresh()
 	if err != nil {
 		m.api.LogError("Unable to get the channel subscriptions", "error", err)
 		return
@@ -16,6 +17,24 @@ func (m *Monitor) checkChannelsSubscriptions() {
 	m.api.LogDebug("Refreshing channels subscriptions", "count", len(subscriptions))
 
 	for _, subscription := range subscriptions {
+		if strings.Contains(subscription.SubscriptionID, "fake-subscription-id") {
+			newSubscription, err := m.client.SubscribeToChannel(subscription.TeamID, subscription.ChannelID, m.baseURL, m.webhookSecret)
+			if err != nil {
+				m.api.LogError("Unable to create channel subscription for fake channel subscription", "error", err)
+				continue
+			}
+
+			if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: subscription.TeamID, ChannelID: subscription.ChannelID, Secret: subscription.Secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
+				m.api.LogError("Unable to save channel subscription for fake channel subscription", "error", err)
+			}
+
+			if err := m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
+				m.api.LogError("Unable to delete fake channel subscription", "error", err)
+			}
+
+			continue
+		}
+
 		link, _ := m.store.GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
 		if link == nil {
 			if err := m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
@@ -74,6 +93,19 @@ func (m *Monitor) checkGlobalSubscriptions() {
 		return
 	}
 	m.api.LogDebug("Refreshing global subscriptions", "count", len(subscriptions))
+
+	if len(subscriptions) == 0 {
+		m.api.LogDebug("Creating subscription for all chats")
+		newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
+		if err != nil {
+			m.api.LogError("Unable to create subscription for all chats", "error", err)
+		} else {
+			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: m.webhookSecret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
+				m.api.LogError("Unable to create subscription for all chats", "error", err)
+			}
+		}
+	}
+
 	for _, subscription := range subscriptions {
 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
 			if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret); err != nil {

@@ -55,7 +55,9 @@ type Store interface {
 	CheckEnabledTeamByTeamID(teamID string) bool
 	ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
-	ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error)
+	ListChannelSubscriptions() ([]storemodels.ChannelSubscription, error)
+	ListChannelSubscriptionsToRefresh() ([]storemodels.ChannelSubscription, error)
+	DeleteFakeSubscriptions() error
 	SaveGlobalSubscription(storemodels.GlobalSubscription) error
 	SaveChatSubscription(storemodels.ChatSubscription) error
 	SaveChannelSubscription(storemodels.ChannelSubscription) error
@@ -582,7 +584,39 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 	return result, nil
 }
 
-func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error) {
+func (s *SQLStore) DeleteFakeSubscriptions() error {
+	query := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Like{"subscriptionID": "fake-subscription-id%"})
+	_, err := query.Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) ListChannelSubscriptions() ([]storemodels.ChannelSubscription, error) {
+	query := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeChannel})
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []storemodels.ChannelSubscription{}
+	for rows.Next() {
+		var subscription storemodels.ChannelSubscription
+		var expiresOn int64
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); scanErr != nil {
+			return nil, scanErr
+		}
+
+		subscription.ExpiresOn = time.UnixMicro(expiresOn)
+		result = append(result, subscription)
+	}
+	return result, nil
+}
+
+func (s *SQLStore) ListChannelSubscriptionsToRefresh() ([]storemodels.ChannelSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeChannel}).Where(sq.Lt{"expiresOn": expireTime})
 	rows, err := query.Query()
