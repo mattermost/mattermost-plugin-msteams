@@ -246,10 +246,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 
 	client, err := p.GetClientForUser(userID)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
@@ -337,10 +334,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	client, err := p.GetClientForUser(userID)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
