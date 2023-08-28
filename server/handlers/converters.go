@@ -11,6 +11,8 @@ import (
 	"golang.org/x/net/html"
 )
 
+const hostedContentsStr = "hostedContents"
+
 func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
 	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
@@ -137,7 +139,14 @@ func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachme
 		})
 	}
 
-	text = imageRE.ReplaceAllString(text, "")
+	text = imageRE.ReplaceAllStringFunc(text, func(s string) string {
+		if strings.Contains(s, hostedContentsStr) {
+			return ""
+		}
+
+		return s
+	})
+
 	return text, attachments
 }
 
@@ -152,7 +161,7 @@ func getImageTagsFromHTML(text string) []string {
 		case token == html.StartTagToken:
 			if t := tokenizer.Token(); t.Data == "img" {
 				for _, a := range t.Attr {
-					if a.Key == "src" {
+					if a.Key == "src" && strings.Contains(a.Val, hostedContentsStr) {
 						images = append(images, a.Val)
 						break
 					}
