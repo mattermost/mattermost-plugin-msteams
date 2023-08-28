@@ -46,7 +46,7 @@ func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
 
 // handleDownloadFile handles file download
 func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
-	if strings.Contains(weburl, "hostedContents") && strings.HasSuffix(weburl, "$value") {
+	if strings.Contains(weburl, hostedContentsStr) && strings.HasSuffix(weburl, "$value") {
 		activityIDs, err := GetResourceIDsFromURL(weburl)
 		if err != nil {
 			return nil, err
