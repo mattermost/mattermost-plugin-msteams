@@ -1,21 +1,22 @@
 package monitor
 
 import (
-	"context"
-	"errors"
+	"fmt"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
+const monitoringSystemJobName = "monitoring_system"
+
 type Monitor struct {
 	client           msteams.Client
 	store            store.Store
 	api              plugin.API
-	ctx              context.Context
-	cancel           context.CancelFunc
+	job              *cluster.Job
 	baseURL          string
 	webhookSecret    string
 	useEvaluationAPI bool
@@ -33,37 +34,56 @@ func New(client msteams.Client, store store.Store, api plugin.API, baseURL strin
 }
 
 func (m *Monitor) Start() error {
-	if m.ctx != nil {
-		return errors.New("the monitor is already running")
+	m.api.LogDebug("Starting the msteams sync monitoring system")
+
+	// Close the previous background job if exists.
+	m.Stop()
+
+	job, jobErr := cluster.Schedule(
+		m.api,
+		monitoringSystemJobName,
+		cluster.MakeWaitForRoundedInterval(1*time.Minute),
+		m.RunMonitoringSystemJob,
+	)
+	if jobErr != nil {
+		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
 	}
 
-	m.api.LogDebug("Running the msteams sync monitoring system")
-	ticker := time.NewTicker(1 * time.Minute)
-	m.ctx, m.cancel = context.WithCancel(context.Background())
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				m.check()
-			case <-m.ctx.Done():
-				ticker.Stop()
-				return
-			}
+	m.job = job
+	return m.store.SetJobStatus(monitoringSystemJobName, false)
+}
+
+func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
+			m.api.LogDebug("Failed to set monitoring job running status to false.")
 		}
 	}()
-	return nil
+
+	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
+	if sErr != nil {
+		m.api.LogError("Something went wrong while fetching monitoring job status", "Error", sErr.Error())
+		return
+	}
+
+	if !isStatusUpdated {
+		m.api.LogDebug("Monitoring job already running")
+		return
+	}
+
+	m.api.LogDebug("Running the Monitoring System Job")
+	m.check()
 }
 
 func (m *Monitor) Stop() {
-	if m.cancel != nil {
-		m.cancel()
-		m.ctx = nil
-		m.cancel = nil
+	if m.job != nil {
+		if err := m.job.Close(); err != nil {
+			m.api.LogError("Failed to close monitoring system background job", "error", err)
+		}
 	}
 }
 
 func (m *Monitor) check() {
 	m.checkGlobalSubscriptions()
 	m.checkChannelsSubscriptions()
-	m.checkChatsSubscriptions()
 }

@@ -30,6 +30,27 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 	return r0
 }
 
+// CompareAndSetJobStatus provides a mock function with given fields: jobName, oldStatus, newStatus
+func (_m *Store) CompareAndSetJobStatus(jobName string, oldStatus bool, newStatus bool) (bool, error) {
+	ret := _m.Called(jobName, oldStatus, newStatus)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string, bool, bool) bool); ok {
+		r0 = rf(jobName, oldStatus, newStatus)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, bool, bool) error); ok {
+		r1 = rf(jobName, oldStatus, newStatus)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteDMAndGMChannelPromptTime provides a mock function with given fields: userID
 func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
 	ret := _m.Called(userID)
@@ -585,6 +606,20 @@ func (_m *Store) SetAvatarCache(userID string, photo []byte) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, []byte) error); ok {
 		r0 = rf(userID, photo)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetJobStatus provides a mock function with given fields: jobName, status
+func (_m *Store) SetJobStatus(jobName string, status bool) error {
+	ret := _m.Called(jobName, status)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(jobName, status)
 	} else {
 		r0 = ret.Error(0)
 	}

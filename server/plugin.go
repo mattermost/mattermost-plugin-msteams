@@ -37,6 +37,7 @@ const (
 	clusterMutexKey       = "subscriptions_cluster_mutex"
 	lastReceivedChangeKey = "last_received_change"
 	msteamsUserTypeGuest  = "Guest"
+	syncUsersJobName      = "sync_users"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -61,6 +62,7 @@ type Plugin struct {
 	store        store.Store
 	clusterMutex *cluster.Mutex
 	monitor      *monitor.Monitor
+	syncUserJob  *cluster.Job
 
 	activityHandler *handlers.ActivityHandler
 
@@ -151,20 +153,38 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
-		p.API.LogError("Unable to start the monitoring system", "error", err)
+		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-
-	if p.getConfiguration().SyncUsers > 0 {
-		go p.syncUsersPeriodically(ctx, p.getConfiguration().SyncUsers)
-	}
-
 	go p.startSubscriptions()
 	if syncSince != nil {
 		go p.syncSince(*syncSince)
+	}
+
+	if p.getConfiguration().SyncUsers > 0 {
+		p.API.LogDebug("Starting the sync users job")
+
+		// Close the previous background job if exists.
+		p.stopSyncUsersJob()
+
+		job, jobErr := cluster.Schedule(
+			p.API,
+			syncUsersJobName,
+			cluster.MakeWaitForRoundedInterval(time.Duration(p.getConfiguration().SyncUsers)*time.Minute),
+			p.syncUsersPeriodically,
+		)
+		if jobErr != nil {
+			p.API.LogError("error in scheduling the sync users job", "error", jobErr)
+			return
+		}
+
+		p.syncUserJob = job
+		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
+			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
+		}
 	}
 }
 
@@ -402,20 +422,37 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
-func (p *Plugin) syncUsersPeriodically(ctx context.Context, minutes int) {
+func (p *Plugin) syncUsersPeriodically() {
+	defer func() {
+		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
+			p.API.LogDebug("Failed to set sync users job running status to false.")
+		}
+	}()
+
+	isStatusUpdated, sErr := p.store.CompareAndSetJobStatus(syncUsersJobName, false, true)
+	if sErr != nil {
+		p.API.LogError("Something went wrong while fetching sync users job status", "Error", sErr.Error())
+		return
+	}
+
+	if !isStatusUpdated {
+		p.API.LogDebug("Sync users job already running")
+		return
+	}
+
+	p.API.LogDebug("Running the Sync Users Job")
 	p.syncUsers()
-	for {
-		select {
-		case <-time.After(time.Duration(minutes) * time.Minute):
-			p.syncUsers()
-		case <-ctx.Done():
-			return
+}
+
+func (p *Plugin) stopSyncUsersJob() {
+	if p.syncUserJob != nil {
+		if err := p.syncUserJob.Close(); err != nil {
+			p.API.LogError("Failed to close background sync users job", "error", err)
 		}
 	}
 }
 
 func (p *Plugin) syncUsers() {
-	p.API.LogDebug("Starting sync user job")
 	msUsers, err := p.msteamsAppClient.ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
