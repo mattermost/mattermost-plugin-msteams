@@ -344,7 +344,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Unable to delete old subscription from DB", "error", "error in deleting subscription from store").Return()
+				mockAPI.On("LogDebug", "Unable to delete old global subscription from DB", "subscriptionID", "test-id", "error", "error in deleting subscription from store").Return()
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
@@ -355,7 +355,6 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 			description:    "subscription recreated",
 			subscriptionID: "test-id",
 			secret:         "webhook-secret",
-			expectsError:   false,
 			setupClient: func(client *mocksClient.Client) {
 				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
@@ -444,7 +443,7 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Unable to delete old subscription from DB", "error", "error in deleting subscription from store").Return()
+				mockAPI.On("LogDebug", "Unable to delete old channel subscription from DB", "subscriptionID", "test-id", "error", "error in deleting subscription from store").Return()
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
