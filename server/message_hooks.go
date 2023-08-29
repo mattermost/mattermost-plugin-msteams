@@ -169,12 +169,12 @@ func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *mode
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}
-		var chatID string
-		chatID, err = client.CreateOrGetChatForUsers(usersIDs)
+		var chat *msteams.Chat
+		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			return
 		}
-		err = p.UpdateChat(chatID, user, newPost, oldPost)
+		err = p.UpdateChat(chat.ID, user, newPost, oldPost)
 		if err != nil {
 			p.API.LogError("Unable to handle message update", "error", err.Error())
 		}
@@ -398,16 +398,9 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	p.API.LogDebug("Sending direct message to MS Teams", "srcUserID", srcUserID, "teamsUsersIDs", teamsUsersIDs, "post", post)
 	text := post.Message
 
-	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
+	chat, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
 		p.API.LogError("Failed to create or get the chat", "error", err)
-		return "", err
-	}
-
-	// TODO: Refactor the logic to fetch emails from CreateOrGetChatForUsers function
-	chat, err := client.GetChat(chatID)
-	if err != nil {
-		p.API.LogError("Failed to get the chat details", "chatID", chatID, "error", err)
 		return "", err
 	}
 
@@ -437,24 +430,24 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
-	content, mentions := p.getMentionsData(content, "", "", chatID, client)
+	content, mentions := p.getMentionsData(content, "", "", chat.ID, client)
 
 	var parentMessage *msteams.Message
 	if parentID != "" {
-		parentMessage, err = client.GetChatMessage(chatID, parentID)
+		parentMessage, err = client.GetChatMessage(chat.ID, parentID)
 		if err != nil {
 			p.API.LogWarn("Error in getting parent chat message", "error", err)
 		}
 	}
 
-	newMessage, err := client.SendChat(chatID, content, parentMessage, attachments, mentions)
+	newMessage, err := client.SendChat(chat.ID, content, parentMessage, attachments, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
 
 	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chatID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
+		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
@@ -751,11 +744,11 @@ func (p *Plugin) GetChatIDForChannel(clientUserID string, channelID string) (str
 	if err != nil {
 		return "", err
 	}
-	chatID, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
+	chat, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
 		return "", err
 	}
-	return chatID, nil
+	return chat.ID, nil
 }
 
 func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, client msteams.Client) (string, []models.ChatMessageMentionable) {

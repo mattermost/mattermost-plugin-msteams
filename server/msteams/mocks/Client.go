@@ -33,14 +33,16 @@ func (_m *Client) Connect() error {
 }
 
 // CreateOrGetChatForUsers provides a mock function with given fields: usersIDs
-func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (string, error) {
+func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (*msteams.Chat, error) {
 	ret := _m.Called(usersIDs)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func([]string) string); ok {
+	var r0 *msteams.Chat
+	if rf, ok := ret.Get(0).(func([]string) *msteams.Chat); ok {
 		r0 = rf(usersIDs)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Chat)
+		}
 	}
 
 	var r1 error
