@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 type Client interface {
