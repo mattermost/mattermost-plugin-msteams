@@ -9,7 +9,7 @@ import (
 
 type Client interface {
 	Connect() error
-	CreateOrGetChatForUsers(usersIDs []string) (string, error)
+	CreateOrGetChatForUsers(usersIDs []string) (*Chat, error)
 	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
 	SendChat(chatID, message string, parentMessage *Message, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
