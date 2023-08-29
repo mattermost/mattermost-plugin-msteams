@@ -136,8 +136,6 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	}
 
 	switch subscriptionType {
-	case "allChats":
-		return true
 	case "channel":
 		subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 		if err != nil {

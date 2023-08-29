@@ -28,6 +28,7 @@ const (
 	subscriptionTypeAllChats     = "allChats"
 	oAuth2StateTimeToLive        = 300 // seconds
 	oAuth2KeyPrefix              = "oauth2_"
+	backgroundJobPrefix          = "background_job"
 )
 
 type Store interface {
@@ -70,6 +71,8 @@ type Store interface {
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
+	SetJobStatus(jobName string, status bool) error
+	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 }
 
 type SQLStore struct {
@@ -832,6 +835,34 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	}
 
 	return nil
+}
+
+func (s *SQLStore) SetJobStatus(key string, status bool) error {
+	bytes, err := json.Marshal(status)
+	if err != nil {
+		return err
+	}
+
+	if appErr := s.api.KVSet(hashKey(backgroundJobPrefix, key), bytes); appErr != nil {
+		return errors.New(appErr.Error())
+	}
+	return nil
+}
+
+func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error) {
+	oldDataBytes, err := json.Marshal(oldStatus)
+	if err != nil {
+		return false, err
+	}
+	newDatabytes, err := json.Marshal(newStatus)
+	if err != nil {
+		return false, err
+	}
+	isUpdated, appErr := s.api.KVCompareAndSet(hashKey(backgroundJobPrefix, jobName), oldDataBytes, newDatabytes)
+	if appErr != nil {
+		return false, errors.New(appErr.Error())
+	}
+	return isUpdated, nil
 }
 
 func hashKey(prefix, hashableKey string) string {
