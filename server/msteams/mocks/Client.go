@@ -5,7 +5,7 @@ package mocks
 import (
 	io "io"
 
-	models "github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	models "github.com/microsoftgraph/msgraph-sdk-go/models"
 	mock "github.com/stretchr/testify/mock"
 
 	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"

@@ -14,7 +14,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 )
@@ -64,6 +64,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 }
 
 func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reaction) {
+	p.API.LogDebug("Reaction added hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
 		return
@@ -697,7 +698,11 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 
 	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
 		p.API.LogWarn("Error updating the post on MS Teams", "error", err)
-		return err
+		// If the error is regarding payment required for metered APIs, ignore it and continue because
+		// the post is updated regardless
+		if !strings.Contains(err.Error(), "code: PaymentRequired") {
+			return err
+		}
 	}
 
 	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)

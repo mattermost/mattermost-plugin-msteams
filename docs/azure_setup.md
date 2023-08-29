@@ -57,6 +57,7 @@ Select **Register** to submit the form.
 - `Channel.ReadBasic.All`
 - `ChannelMessage.Read.All`
 - `Chat.Read.All`
+- `Files.Read.All`
 - `Group.Read.All`
 - `Team.ReadBasic.All`
 - `User.Read.All`
