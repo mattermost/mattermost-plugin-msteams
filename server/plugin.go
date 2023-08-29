@@ -153,7 +153,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
-		p.API.LogError("Unable to start the monitoring system", "error", err)
+		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
@@ -347,7 +347,6 @@ func (p *Plugin) generatePluginSecrets() error {
 }
 
 func (p *Plugin) OnActivate() error {
-	p.API.LogInfo("OnActivate called")
 	if p.clientBuilderWithToken == nil {
 		p.clientBuilderWithToken = msteams.NewTokenClient
 	}

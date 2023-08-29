@@ -50,11 +50,7 @@ func (m *Monitor) Start() error {
 	}
 
 	m.job = job
-	if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-		return sErr
-	}
-
-	return nil
+	return m.store.SetJobStatus(monitoringSystemJobName, false)
 }
 
 func (m *Monitor) RunMonitoringSystemJob() {
@@ -82,7 +78,7 @@ func (m *Monitor) RunMonitoringSystemJob() {
 func (m *Monitor) Stop() {
 	if m.job != nil {
 		if err := m.job.Close(); err != nil {
-			m.api.LogError("Failed to close monitoring system background job", "err", err)
+			m.api.LogError("Failed to close monitoring system background job", "error", err)
 		}
 	}
 }
