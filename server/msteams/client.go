@@ -1296,7 +1296,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 	}
 
 	var chat *Chat
-	err = pageIterator.Iterate(context.Background(), func(c *models.Chat) bool {
+	err = pageIterator.Iterate(tc.ctx, func(c *models.Chat) bool {
 		chat = checkGroupChat(c, userIDs)
 		return chat == nil
 	})
@@ -1600,17 +1600,10 @@ func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
 		}
 
 		if len(matches) == len(userIDs) {
-			chatType := ""
-			if c.GetChatType() != nil && *c.GetChatType() == models.GROUP_CHATTYPE {
-				chatType = "G"
-			} else if c.GetChatType() != nil && *c.GetChatType() == models.ONEONONE_CHATTYPE {
-				chatType = "D"
-			}
-
 			return &Chat{
 				ID:      *c.GetId(),
 				Members: members,
-				Type:    chatType,
+				Type:    "G",
 			}
 		}
 	}
