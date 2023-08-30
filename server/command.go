@@ -253,13 +253,13 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return &model.CommandResponse{}, nil
 	}
 
-	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
+		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
 		return &model.CommandResponse{}, nil
 	}
 
-	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
+		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil

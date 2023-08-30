@@ -111,7 +111,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
-		p.API.LogError("Unable to get the post from the reaction", "reaction", reaction, "error", appErr)
+		p.API.LogError("Unable to get the post from the reaction", "reaction", reaction, "error", appErr.DetailedError)
 		return
 	}
 
@@ -723,7 +723,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (string, error) {
 	channel, appErr := p.API.GetChannel(channelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get MM channel", "channelID", channelID, "error", appErr.Error())
+		p.API.LogError("Unable to get MM channel", "channelID", channelID, "error", appErr.DetailedError)
 		return "", appErr
 	}
 	if channel.Type != model.ChannelTypeDirect && channel.Type != model.ChannelTypeGroup {
@@ -732,7 +732,7 @@ func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (s
 
 	members, appErr := p.API.GetChannelMembers(channelID, 0, math.MaxInt32)
 	if appErr != nil {
-		p.API.LogError("Unable to get MM channel members", "channelID", channelID, "error", appErr.Error())
+		p.API.LogError("Unable to get MM channel members", "channelID", channelID, "error", appErr.DetailedError)
 		return "", appErr
 	}
 

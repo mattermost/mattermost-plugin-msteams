@@ -689,11 +689,9 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 func (s *SQLStore) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
 	row := s.getQueryBuilder().Select("subscriptionID").From("msteamssync_subscriptions").Where(sq.Eq{"msTeamsChannelID": teamsChannelID, "type": subscriptionTypeChannel}).QueryRow()
 	var subscription storemodels.ChannelSubscription
-	var expiresOn int64
 	if scanErr := row.Scan(&subscription.SubscriptionID); scanErr != nil {
 		return nil, scanErr
 	}
-	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
 }
 

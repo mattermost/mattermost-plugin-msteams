@@ -40,7 +40,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("LogError", "Unable to handle message reaction set", "error", mock.Anything).Times(1)
+				api.On("LogWarn", "Unable to handle message reaction set", "error", mock.Anything).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
@@ -80,8 +80,8 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("LogWarn", "Error setting reaction", "error", "unable to set the reaction")
-				api.On("LogError", "Unable to handle message reaction set", "error", "unable to set the reaction")
+				api.On("LogError", "Error setting reaction", "error", "unable to set the reaction")
+				api.On("LogWarn", "Unable to handle message reaction set", "error", "unable to set the reaction")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
@@ -185,7 +185,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the post",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the post from the reaction", "reaction", mock.Anything, "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to get the post from the reaction", "reaction", mock.Anything, "error", "unable to get the post").Times(1)
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -198,7 +198,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
+				api.On("LogWarn", "Unable to handle chat message reaction unset", "error", "unable to get source user ID").Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 			},
@@ -207,7 +207,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MattermostID: testutils.GetID(),
 				}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", testutils.GetInternalServerAppError("unable to get source user ID")).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get source user ID")).Times(1)
 				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
@@ -229,8 +229,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in removing the reaction", "emojiName", testutils.GetReaction().EmojiName, "error", "unable to unset the reaction").Times(1)
-				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
+				api.On("LogError", "Error in removing the reaction", "emojiName", testutils.GetReaction().EmojiName, "error", "unable to unset the reaction").Times(1)
+				api.On("LogWarn", "Unable to handle message reaction unset", "error", "unable to unset the reaction").Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
@@ -585,6 +585,7 @@ func TestSetChatReaction(t *testing.T) {
 			Name: "SetChatReaction: Unable to get the chat ID",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
+				api.On("LogError", "Unable to get MM channel", "channelID", testutils.GetChannelID(), "error", "unable to get the channel")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(1)
@@ -596,7 +597,7 @@ func TestSetChatReaction(t *testing.T) {
 		{
 			Name: "SetChatReaction: Unable to set the chat reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post reaction", "error", mock.Anything)
+				api.On("LogError", "Error creating post reaction", "error", mock.Anything)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -607,7 +608,7 @@ func TestSetChatReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(testutils.GetInternalServerAppError("unable to set the chat reaction")).Times(1)
+				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(errors.New("unable to set the chat reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to set the chat reaction",
 		},
@@ -726,7 +727,7 @@ func TestSetReaction(t *testing.T) {
 		{
 			Name: "SetReaction: Unable to set the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error setting reaction", "error", "unable to set the reaction")
+				api.On("LogError", "Error setting reaction", "error", "unable to set the reaction")
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -820,6 +821,7 @@ func TestUnsetChatReaction(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Failed to create or get the chat", "error", mock.Anything).Return()
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
+				api.On("LogError", "Unable to get MM channel", "channelID", testutils.GetChannelID(), "error", "unable to get the channel")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(1)
@@ -831,7 +833,7 @@ func TestUnsetChatReaction(t *testing.T) {
 		{
 			Name: "UnsetChatReaction: Unable to unset the chat reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in removing the chat reaction", "emojiName", "mockEmojiName", "error", ": , unable to unset the chat reaction")
+				api.On("LogError", "Error in removing the chat reaction", "emojiName", "mockEmojiName", "error", ": , unable to unset the chat reaction")
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -963,7 +965,7 @@ func TestUnsetReaction(t *testing.T) {
 		{
 			Name: "UnsetReaction: Unable to unset the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in removing the reaction", "emojiName", "mockName", "error", ": , unable to unset the reaction")
+				api.On("LogError", "Error in removing the reaction", "emojiName", "mockName", "error", ": , unable to unset the reaction")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
@@ -1077,7 +1079,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to send the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post on MS Teams", "error", "unable to send the chat")
+				api.On("LogError", "Error creating post on MS Teams", "error", "unable to send the chat")
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1371,7 +1373,7 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to send message with attachments",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post on MS Teams", "error", "unable to send message with attachments").Times(1)
+				api.On("LogError", "Error creating post on MS Teams", "error", "unable to send message with attachments").Times(1)
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1963,6 +1965,7 @@ func TestGetChatIDForChannel(t *testing.T) {
 			Name: "GetChatIDForChannel: Unable to get the channel",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
+				api.On("LogError", "Unable to get MM channel", "channelID", testutils.GetChannelID(), "error", "unable to get the channel")
 			},
 			SetupStore:    func(store *storemocks.Store) {},
 			SetupClient:   func(client *clientmocks.Client) {},
@@ -1982,6 +1985,7 @@ func TestGetChatIDForChannel(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeGroup), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(nil, testutils.GetInternalServerAppError("unable to get the channel members")).Times(1)
+				api.On("LogError", "Unable to get MM channel members", "channelID", testutils.GetChannelID(), "error", "unable to get the channel members")
 			},
 			SetupStore:    func(store *storemocks.Store) {},
 			SetupClient:   func(client *clientmocks.Client) {},
@@ -2000,23 +2004,11 @@ func TestGetChatIDForChannel(t *testing.T) {
 			ExpectedError: "unable to store the user",
 		},
 		{
-			Name: "GetChatIDForChannel: Unable to get the client",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeGroup), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("mockTeamsUserID", nil).Times(2)
-				store.On("GetTokenForMattermostUser", "mockClientUserID").Return(nil, nil).Times(1)
-			},
-			SetupClient:   func(client *clientmocks.Client) {},
-			ExpectedError: "not connected user",
-		},
-		{
 			Name: "GetChatIDForChannel: Unable to create or get chat for users",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeGroup), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
+				api.On("LogError", "Unable to create or get chat for users", "error", "unable to create or get chat for users")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("mockTeamsUserID", nil).Times(2)
