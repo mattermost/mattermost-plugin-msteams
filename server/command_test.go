@@ -27,6 +27,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 		args        *model.CommandArgs
 		setupAPI    func(*plugintest.API)
 		setupStore  func(*mockStore.Store)
+		setupClient func(*mockClient.Client)
 	}{
 		{
 			description: "Successfully executed unlinked command",
@@ -45,10 +46,20 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
+				api.On("LogDebug", "Unable to delete the subscription on MS Teams", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Once()
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{
+					SubscriptionID: "testSubscriptionID",
+				}, nil).Once()
+				s.On("DeleteSubscription", "testSubscriptionID").Return(nil).Once()
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("DeleteSubscription", "testSubscriptionID").Return(errors.New("unable to delete the subscription")).Once()
 			},
 		},
 		{
@@ -68,10 +79,12 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					ChannelId: "Mock-ChannelID",
 					Message:   "This Mattermost channel is not linked to any MS Teams channel.",
 				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID())).Times(1)
+				api.On("LogDebug", "Unable to get the link by channel ID", "error", "Error while getting link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, errors.New("Error while getting link")).Once()
 			},
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Unable to delete link.",
@@ -90,11 +103,13 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					ChannelId: "Mock-ChannelID",
 					Message:   "Unable to delete link.",
 				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID())).Times(1)
+				api.On("LogDebug", "Unable to delete the link by channel ID", "error", "Error while deleting a link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, nil).Once()
 				s.On("DeleteLinkByChannelID", "Mock-ChannelID").Return(errors.New("Error while deleting a link")).Times(1)
 			},
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Unable to get the current channel",
@@ -106,7 +121,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Message: "Unable to get the current channel information.",
 				}).Return(testutils.GetPost("", "")).Times(1)
 			},
-			setupStore: func(s *mockStore.Store) {},
+			setupStore:  func(s *mockStore.Store) {},
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Unable to unlink channel as user is not a channel admin.",
@@ -126,7 +142,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Message:   "Unable to unlink the channel, you have to be a channel admin to unlink it.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id")).Times(1)
 			},
-			setupStore: func(s *mockStore.Store) {},
+			setupStore:  func(s *mockStore.Store) {},
+			setupClient: func(c *mockClient.Client) {},
 		},
 		{
 			description: "Unable to unlink channel as channel is either a direct or group message",
@@ -145,14 +162,75 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Message:   "Linking/unlinking a direct or group message is not allowed",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id")).Times(1)
 			},
-			setupStore: func(s *mockStore.Store) {},
+			setupStore:  func(s *mockStore.Store) {},
+			setupClient: func(c *mockClient.Client) {},
+		},
+		{
+			description: "Unable to get subscription by Teams channel ID.",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
+				api.On("LogDebug", "Unable to get the subscription by MS Teams channel ID", "error", "unable to get the subscription").Return().Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Once()
+				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(nil, errors.New("unable to get the subscription")).Once()
+			},
+			setupClient: func(c *mockClient.Client) {},
+		},
+		{
+			description: "Unable to delete the subscription from the DB",
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
+				api.On("LogDebug", "Unable to delete the subscription from the DB", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Once()
+				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{
+					SubscriptionID: "testSubscriptionID",
+				}, nil).Once()
+				s.On("DeleteSubscription", "testSubscriptionID").Return(errors.New("unable to delete the subscription")).Once()
+			},
+			setupClient: func(c *mockClient.Client) {},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
-
+			defer mockAPI.AssertExpectations(t)
 			testCase.setupStore(p.store.(*mockStore.Store))
+			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
 			_, _ = p.executeUnlinkCommand(testCase.args)
 		})
 	}

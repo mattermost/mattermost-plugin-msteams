@@ -153,6 +153,29 @@ func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.Cha
 	return r0, r1
 }
 
+// GetChannelSubscriptionByTeamsChannelID provides a mock function with given fields: teamsChannelID
+func (_m *Store) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
+	ret := _m.Called(teamsChannelID)
+
+	var r0 *storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChannelSubscription); ok {
+		r0 = rf(teamsChannelID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(teamsChannelID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetChatSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error) {
 	ret := _m.Called(subscriptionID)

@@ -62,6 +62,7 @@ type Store interface {
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
+	GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error)
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
@@ -682,6 +683,15 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 		return nil, scanErr
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
+	return &subscription, nil
+}
+
+func (s *SQLStore) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
+	row := s.getQueryBuilder().Select("subscriptionID").From("msteamssync_subscriptions").Where(sq.Eq{"msTeamsChannelID": teamsChannelID, "type": subscriptionTypeChannel}).QueryRow()
+	var subscription storemodels.ChannelSubscription
+	if scanErr := row.Scan(&subscription.SubscriptionID); scanErr != nil {
+		return nil, scanErr
+	}
 	return &subscription, nil
 }
 

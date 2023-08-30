@@ -124,47 +124,17 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 }
 
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
-	subscriptionType, err := ah.plugin.GetStore().GetSubscriptionType(subscriptionID)
+	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
-		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-		_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
+		ah.plugin.GetAPI().LogDebug("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
 		return false
 	}
 
-	if subscriptionType == "allChats" {
-		return true
-	}
-
-	switch subscriptionType {
-	case "channel":
-		subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
-		if err != nil {
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
-			return false
-		}
-		_, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
-		if err != nil {
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
-			return false
-		}
-	case "chat":
-		subscription, err := ah.plugin.GetStore().GetChatSubscription(subscriptionID)
-		if err != nil {
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
-			return false
-		}
-		if _, appErr := ah.plugin.GetAPI().GetUser(subscription.UserID); appErr != nil {
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-			// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-			_ = ah.plugin.GetClientForApp().DeleteSubscription(subscriptionID)
-			return false
-		}
+	if _, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID); err != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get the link by MS Teams channel ID", "error", err.Error())
+		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
+		_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
+		return false
 	}
 
 	return true
@@ -173,9 +143,11 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
-	if !ah.checkSubscription(activity.SubscriptionID) {
-		ah.plugin.GetAPI().LogError("The subscription is no longer active", "subscriptionID", activity.SubscriptionID)
-		return
+	if activityIds.ChatID == "" {
+		if !ah.checkSubscription(activity.SubscriptionID) {
+			ah.plugin.GetAPI().LogDebug("The subscription is no longer active", "subscriptionID", activity.SubscriptionID)
+			return
+		}
 	}
 
 	switch activity.ChangeType {
