@@ -124,7 +124,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
-				p.API.LogWarn("Unable to handle message reaction unset", "error", err.Error())
+				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
 			}
 		}
 		return

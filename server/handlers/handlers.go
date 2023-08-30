@@ -126,10 +126,12 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
 		return false
 	}
 
 	if _, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID); err != nil {
+		ah.plugin.GetAPI().LogDebug("Unable to get the link by MS Teams channel ID", "error", err.Error())
 		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
 		_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
 		return false
