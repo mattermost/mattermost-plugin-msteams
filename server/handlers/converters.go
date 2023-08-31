@@ -71,13 +71,13 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 }
 
 func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
-	userIDsVsNames := make(map[string]string)
+	userIDVsNames := make(map[string]string)
 	if msg.ChatID != "" {
 		for _, mention := range msg.Mentions {
-			if userIDsVsNames[mention.UserID] == "" {
-				userIDsVsNames[mention.UserID] = mention.MentionedText
-			} else if userIDsVsNames[mention.UserID] != mention.MentionedText {
-				userIDsVsNames[mention.UserID] += " " + mention.MentionedText
+			if userIDVsNames[mention.UserID] == "" {
+				userIDVsNames[mention.UserID] = mention.MentionedText
+			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
+				userIDVsNames[mention.UserID] += " " + mention.MentionedText
 			}
 		}
 	}
@@ -101,16 +101,17 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
-		} else {
-			if mention.MentionedText == "Everyone" {
-				mmMention = "@all"
-			} else {
-				mmMention = "@channel"
-			}
+		} else if mention.MentionedText == "Everyone" {
+			mmMention = "@all"
 		}
 
-		msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
-		if idx < len(msg.Mentions) && len(strings.Fields(userIDsVsNames[mention.UserID])) >= 2 {
+		if mmMention == "" {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mention.MentionedText, 1)
+		} else {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+		}
+
+		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
 			mention = msg.Mentions[idx]
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
 			idx++
