@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -92,20 +91,13 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
-	refreshedSubscriptions := make(map[string]bool)
 	for _, activity := range activities.Value {
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
 		}
 
-		if !refreshedSubscriptions[activity.SubscriptionID] {
-			refreshedSubscriptions[activity.SubscriptionID] = true
-			a.refreshSubscriptionIfNeeded(activity)
-		}
-
-		err := a.p.activityHandler.Handle(activity)
-		if err != nil {
+		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
 		}
@@ -116,19 +108,6 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
-}
-
-func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
-	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
-		expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
-		if err != nil {
-			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
-		} else {
-			if err = a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err != nil {
-				a.p.API.LogError("Unable to store the updated subscription expiration date", "subscriptionID", activity.SubscriptionID, "error", err.Error())
-			}
-		}
-	}
 }
 
 // processLifecycle handles the lifecycle events received from teams subscriptions

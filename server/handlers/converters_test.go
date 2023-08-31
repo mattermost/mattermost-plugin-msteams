@@ -95,20 +95,20 @@ func TestHandleMentions(t *testing.T) {
 			expectedMessage: "mockMessage",
 		},
 		{
-			description: "Channel mention present",
+			description: "All mention present",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
 			setupAPI:    func(api *plugintest.API) {},
 			setupStore:  func(store *mocksStore.Store) {},
 			message: &msteams.Message{
-				Text: `mockMessage <at id="0">mockMentionedText</at>`,
+				Text: `mockMessage <at id="0">Everyone</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						MentionedText: "mockMentionedText",
+						MentionedText: "Everyone",
 					},
 				},
 			},
-			expectedMessage: "mockMessage @channel",
+			expectedMessage: "mockMessage @all",
 		},
 		{
 			description: "Unable to get mm user ID for user mentions",

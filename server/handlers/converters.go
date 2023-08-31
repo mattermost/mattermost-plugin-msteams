@@ -71,8 +71,22 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 }
 
 func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
-	for _, mention := range msg.Mentions {
+	userIDVsNames := make(map[string]string)
+	if msg.ChatID != "" {
+		for _, mention := range msg.Mentions {
+			if userIDVsNames[mention.UserID] == "" {
+				userIDVsNames[mention.UserID] = mention.MentionedText
+			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
+				userIDVsNames[mention.UserID] += " " + mention.MentionedText
+			}
+		}
+	}
+
+	idx := 0
+	for idx < len(msg.Mentions) {
 		mmMention := ""
+		mention := msg.Mentions[idx]
+		idx++
 		if mention.UserID != "" {
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
@@ -87,15 +101,21 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
-		} else {
-			if mention.MentionedText == "Everyone" {
-				mmMention = "@all"
-			} else {
-				mmMention = "@channel"
-			}
+		} else if mention.MentionedText == "Everyone" {
+			mmMention = "@all"
 		}
 
-		msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+		if mmMention == "" {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mention.MentionedText, 1)
+		} else {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+		}
+
+		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
+			mention = msg.Mentions[idx]
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+			idx++
+		}
 	}
 
 	return msg.Text
