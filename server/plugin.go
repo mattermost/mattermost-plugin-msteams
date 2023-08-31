@@ -224,38 +224,38 @@ func (p *Plugin) startSubscriptions() {
 	wg := sync.WaitGroup{}
 	ws := make(chan struct{}, 20)
 
-	wg.Add(1)
-	ws <- struct{}{}
-	go func() {
-		defer wg.Done()
-		chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
-		if err != nil {
-			p.API.LogError("Unable to subscribe to chats", "error", err)
-			// Mark this subscription to be created and retried by the monitor system
-			_ = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-				SubscriptionID: "fake-subscription-id",
-				Type:           "allChats",
-				ExpiresOn:      time.Now(),
-				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			<-ws
-			return
-		}
-		p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
+	// wg.Add(1)
+	// ws <- struct{}{}
+	// go func() {
+	// 	defer wg.Done()
+	// 	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
+	// 	if err != nil {
+	// 		p.API.LogError("Unable to subscribe to chats", "error", err)
+	// 		// Mark this subscription to be created and retried by the monitor system
+	// 		_ = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+	// 			SubscriptionID: "fake-subscription-id",
+	// 			Type:           "allChats",
+	// 			ExpiresOn:      time.Now(),
+	// 			Secret:         p.getConfiguration().WebhookSecret,
+	// 		})
+	// 		<-ws
+	// 		return
+	// 	}
+	// 	p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
 
-		err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-			SubscriptionID: chatsSubscription.ID,
-			Type:           "allChats",
-			ExpiresOn:      chatsSubscription.ExpiresOn,
-			Secret:         p.getConfiguration().WebhookSecret,
-		})
-		if err != nil {
-			p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
-			<-ws
-			return
-		}
-		<-ws
-	}()
+	// 	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+	// 		SubscriptionID: chatsSubscription.ID,
+	// 		Type:           "allChats",
+	// 		ExpiresOn:      chatsSubscription.ExpiresOn,
+	// 		Secret:         p.getConfiguration().WebhookSecret,
+	// 	})
+	// 	if err != nil {
+	// 		p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
+	// 		<-ws
+	// 		return
+	// 	}
+	// 	<-ws
+	// }()
 
 	for _, link := range links {
 		ws <- struct{}{}

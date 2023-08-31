@@ -605,8 +605,7 @@ func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubsc
 }
 
 func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
-	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
-	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeAllChats}).Where(sq.Lt{"expiresOn": expireTime})
+	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeAllChats})
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err

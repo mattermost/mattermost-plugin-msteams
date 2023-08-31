@@ -848,6 +848,26 @@ func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	return nil
 }
 
+func (tc *ClientImpl) GetSubscription(subscriptionID string) (*Subscription, error) {
+	subscription, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Get(tc.ctx, nil)
+	if err != nil {
+		tc.logError("Unable to get the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	resource := subscription.GetResource()
+	subscriptionType := "allChats"
+	if resource != nil && !strings.Contains(*resource, "chats") {
+		subscriptionType = "channel"
+	}
+
+	return &Subscription{
+		ID:        *subscription.GetId(),
+		Type:      subscriptionType,
+		ExpiresOn: *subscription.GetExpirationDateTime(),
+	}, nil
+}
+
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
 	res, err := tc.client.Teams().ByTeamId(teamID).Get(tc.ctx, nil)
 	if err != nil {
@@ -1248,7 +1268,6 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 func GetResourceIds(resource string) ActivityIds {
 	result := ActivityIds{}
 	data := strings.Split(resource, "/")
-
 	if len(data) <= 1 {
 		return result
 	}

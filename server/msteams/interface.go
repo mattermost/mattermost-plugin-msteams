@@ -24,6 +24,7 @@ type Client interface {
 	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*Subscription, error)
 	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error
+	GetSubscription(subscriptionID string) (*Subscription, error)
 	GetTeam(teamID string) (*Team, error)
 	GetTeams(filterQuery string) ([]*Team, error)
 	GetChannelInTeam(teamID, channelID string) (*Channel, error)

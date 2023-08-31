@@ -375,7 +375,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 
-			err := monitor.recreateGlobalSubscription(testCase.subscriptionID, testCase.secret)
+			err := monitor.recreateGlobalSubscription(testCase.subscriptionID, testCase.secret, true)
 			if testCase.expectsError {
 				require.Error(t, err)
 			} else {

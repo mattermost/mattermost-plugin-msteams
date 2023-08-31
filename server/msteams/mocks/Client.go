@@ -346,6 +346,29 @@ func (_m *Client) GetReply(teamID string, channelID string, messageID string, re
 	return r0, r1
 }
 
+// GetSubscription provides a mock function with given fields: subscriptionID
+func (_m *Client) GetSubscription(subscriptionID string) (*msteams.Subscription, error) {
+	ret := _m.Called(subscriptionID)
+
+	var r0 *msteams.Subscription
+	if rf, ok := ret.Get(0).(func(string) *msteams.Subscription); ok {
+		r0 = rf(subscriptionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Subscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTeam provides a mock function with given fields: teamID
 func (_m *Client) GetTeam(teamID string) (*msteams.Team, error) {
 	ret := _m.Called(teamID)

@@ -73,18 +73,32 @@ func (m *Monitor) checkGlobalSubscriptions() {
 		m.api.LogError("Unable to get the global subscriptions", "error", err)
 		return
 	}
+
+	if len(subscriptions) == 0 {
+		_ = m.recreateGlobalSubscription("", m.webhookSecret, false)
+		return
+	}
+
+	subscription := subscriptions[0]
+	if subscription.SubscriptionID == "fake-subscription-id" {
+		_ = m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret, false)
+		return
+	} else if _, err := m.client.GetSubscription(subscription.SubscriptionID); err != nil {
+		m.api.LogDebug("Unable to get the subscription by ID", "subscriptinID", subscription.SubscriptionID, "error", err.Error())
+		_ = m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret, false)
+		return
+	}
+
 	m.api.LogDebug("Refreshing global subscriptions", "count", len(subscriptions))
-	for _, subscription := range subscriptions {
-		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
-			if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret); err != nil {
+	if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
+		if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret, true); err != nil {
+			m.api.LogError("Unable to recreate global subscription properly", "error", err)
+		}
+	} else {
+		if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
+			m.api.LogDebug("Unable to refresh global subscription properly", "error", err)
+			if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret, true); err != nil {
 				m.api.LogError("Unable to recreate global subscription properly", "error", err)
-			}
-		} else {
-			if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogDebug("Unable to refresh global subscription properly", "error", err)
-				if err := m.recreateGlobalSubscription(subscription.SubscriptionID, subscription.Secret); err != nil {
-					m.api.LogError("Unable to recreate global subscription properly", "error", err)
-				}
 			}
 		}
 	}
@@ -119,20 +133,31 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 	return m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
 }
 
-func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) error {
-	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
+func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string, deleteFromClient bool) error {
+	if deleteFromClient && subscriptionID != "" {
+		if err := m.client.DeleteSubscription(subscriptionID); err != nil {
+			m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
+		}
 	}
 
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
 	if err != nil {
+		m.api.LogError("Unable to create new subscription for all chats", "error", err.Error())
 		return err
 	}
 
-	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+	if subscriptionID != "" {
+		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
+			m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+		}
 	}
-	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
+
+	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: newSubscription.ID,
+		Type:           "allChats",
+		Secret:         secret,
+		ExpiresOn:      newSubscription.ExpiresOn,
+	})
 }
 
 func (m *Monitor) refreshSubscription(subscriptionID string) error {
