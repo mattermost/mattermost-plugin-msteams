@@ -20,7 +20,6 @@ import (
 )
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	p.API.LogDebug("Create message hook", "post", post)
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -137,7 +136,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 }
 
 func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *model.Post) {
-	p.API.LogDebug("Updating message hook", "newPost", newPost, "oldPost", oldPost)
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
 		return
