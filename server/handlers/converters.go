@@ -86,6 +86,7 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 	for idx < len(msg.Mentions) {
 		mmMention := ""
 		mention := msg.Mentions[idx]
+		idx++
 		if mention.UserID != "" {
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
@@ -109,8 +110,6 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 		}
 
 		msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
-		idx++
-
 		if idx < len(msg.Mentions) && len(strings.Fields(userIDsVsNames[mention.UserID])) >= 2 {
 			mention = msg.Mentions[idx]
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
