@@ -75,6 +75,7 @@ type Subscription struct {
 	ID        string
 	Type      string
 	ChannelID string
+	Resource string
 	TeamID    string
 	UserID    string
 	ExpiresOn time.Time
@@ -846,6 +847,52 @@ func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
+}
+
+func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
+	r, err := tc.client.Subscriptions().Get(tc.ctx, nil)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.Subscriptionable](r, tc.client.GetAdapter(), models.CreateSubscriptionCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	subscriptions := []*Subscription{}
+	err = pageIterator.Iterate(context.Background(), func(u models.Subscriptionable) bool {
+		
+		subscriptionID := ""
+		var expiresOn time.Time
+		resource := ""
+		if u != nil {
+			if u.GetId() != nil {
+				subscriptionID = *u.GetId() 
+			}
+
+			if u.GetExpirationDateTime() != nil {
+				expiresOn = *u.GetExpirationDateTime() 
+			}
+
+			if u.GetResource() != nil {
+				resource = *u.GetResource()
+			}
+		}
+
+		subscriptions = append(subscriptions, &Subscription{
+			ID: subscriptionID,
+			Resource: resource,
+			ExpiresOn: expiresOn,
+		})
+		
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	return subscriptions, nil
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {

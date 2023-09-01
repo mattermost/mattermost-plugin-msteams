@@ -665,7 +665,7 @@ func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *pl
 
 func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -675,7 +675,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -685,7 +685,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "test1", subscriptions[0].SubscriptionID)
@@ -696,7 +696,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 1)
 		assert.Equal(t, subscriptions[0].SubscriptionID, "test1")
@@ -817,7 +817,7 @@ func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test2") }()
 
-	subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+	subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")

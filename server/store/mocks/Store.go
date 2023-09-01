@@ -559,8 +559,31 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListGlobalSubscriptionsToCheck provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
+// ListGlobalSubscriptions provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptions() ([]storemodels.GlobalSubscription, error) {
+	ret := _m.Called()
+
+	var r0 []storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []storemodels.GlobalSubscription); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]storemodels.GlobalSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListGlobalSubscriptionsToRefresh provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
 
 	var r0 []storemodels.GlobalSubscription
