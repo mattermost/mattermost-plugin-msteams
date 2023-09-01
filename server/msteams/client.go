@@ -75,7 +75,7 @@ type Subscription struct {
 	ID        string
 	Type      string
 	ChannelID string
-	Resource string
+	Resource  string
 	TeamID    string
 	UserID    string
 	ExpiresOn time.Time
@@ -861,18 +861,17 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 	}
 
 	subscriptions := []*Subscription{}
-	err = pageIterator.Iterate(context.Background(), func(u models.Subscriptionable) bool {
-		
+	err = pageIterator.Iterate(tc.ctx, func(u models.Subscriptionable) bool {
 		subscriptionID := ""
 		var expiresOn time.Time
 		resource := ""
 		if u != nil {
 			if u.GetId() != nil {
-				subscriptionID = *u.GetId() 
+				subscriptionID = *u.GetId()
 			}
 
 			if u.GetExpirationDateTime() != nil {
-				expiresOn = *u.GetExpirationDateTime() 
+				expiresOn = *u.GetExpirationDateTime()
 			}
 
 			if u.GetResource() != nil {
@@ -881,11 +880,11 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 		}
 
 		subscriptions = append(subscriptions, &Subscription{
-			ID: subscriptionID,
-			Resource: resource,
+			ID:        subscriptionID,
+			Resource:  resource,
 			ExpiresOn: expiresOn,
 		})
-		
+
 		return true
 	})
 	if err != nil {

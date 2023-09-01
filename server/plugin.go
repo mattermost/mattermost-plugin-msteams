@@ -262,32 +262,15 @@ func (p *Plugin) startSubscriptions() {
 			// Check if all chats subscription is present on MS Teams
 			if allChatsSubscription == nil {
 				// Create all chats subscription on MS Teams
-				if err := p.monitor.CreateAndSaveChatSubscription(&mmGlobalSubscription); err != nil {
+				if err = p.monitor.CreateAndSaveChatSubscription(&mmGlobalSubscription); err != nil {
 					<-ws
 					return
 				}
-			} else {
-				// Check if all chats subscription is about to expire
-				if time.Until(mmGlobalSubscription.ExpiresOn) < (1 * time.Minute) {
-					// Refresh the all chats subscription
-					expiresOn, err := p.msteamsAppClient.RefreshSubscription(mmGlobalSubscription.SubscriptionID)
-					if err != nil {
-						p.API.LogDebug("Unable to refresh the all chats subscription", "subscriptionID", mmGlobalSubscription.SubscriptionID, "error", err)
-						<-ws
-						return
-					}
-
-					if err := p.store.UpdateSubscriptionExpiresOn(mmGlobalSubscription.SubscriptionID, *expiresOn); err != nil {
-						p.API.LogDebug("Unable to store the refreshed all chats subscription", "subscriptionID", mmGlobalSubscription.SubscriptionID, "error", err)
-						<-ws
-						return
-					}
-				}	
 			}
 		} else {
 			// Check if all chats subscription is present on MS Teams but not on Mattermost
 			if allChatsSubscription != nil {
-				if err := p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", Secret: p.getConfiguration().WebhookSecret, ExpiresOn: allChatsSubscription.ExpiresOn}); err != nil {
+				if err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", Secret: p.getConfiguration().WebhookSecret, ExpiresOn: allChatsSubscription.ExpiresOn}); err != nil {
 					p.API.LogError("Unable to store all chats subscription", "subscriptionID", allChatsSubscription.ID, "error", err)
 				}
 				<-ws
@@ -295,7 +278,7 @@ func (p *Plugin) startSubscriptions() {
 			}
 
 			// Create all chats subscription
-			if err := p.monitor.CreateAndSaveChatSubscription(nil); err != nil {
+			if err = p.monitor.CreateAndSaveChatSubscription(nil); err != nil {
 				<-ws
 				return
 			}
@@ -320,23 +303,20 @@ func (p *Plugin) startSubscriptions() {
 						<-ws
 						return
 					}
-				} else {
-					// Check if channel subscription is about to expire
-					if time.Until(mmSubscription.ExpiresOn) < (1 * time.Minute) {
-						// Refresh the channel subscription
-						expiresOn, err := p.msteamsAppClient.RefreshSubscription(mmSubscription.SubscriptionID)
-						if err != nil {
-							p.API.LogDebug("Unable to refresh the channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
-							<-ws
-							return
-						}
+				} else if time.Until(mmSubscription.ExpiresOn) < (1 * time.Minute) {
+					// Refresh the channel subscription
+					expiresOn, rErr := p.msteamsAppClient.RefreshSubscription(mmSubscription.SubscriptionID)
+					if rErr != nil {
+						p.API.LogDebug("Unable to refresh the channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", rErr)
+						<-ws
+						return
+					}
 
-						if err := p.store.UpdateSubscriptionExpiresOn(mmSubscription.SubscriptionID, *expiresOn); err != nil {
-							p.API.LogDebug("Unable to store the refreshed channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
-							<-ws
-							return
-						}
-					}	
+					if err = p.store.UpdateSubscriptionExpiresOn(mmSubscription.SubscriptionID, *expiresOn); err != nil {
+						p.API.LogDebug("Unable to store the refreshed channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
+						<-ws
+						return
+					}
 				}
 			} else {
 				// Create channel subscription for the linked channel
