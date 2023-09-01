@@ -262,7 +262,7 @@ func (p *Plugin) startSubscriptions() {
 			// Check if all chats subscription is present on MS Teams
 			if allChatsSubscription == nil {
 				// Create all chats subscription on MS Teams
-				if err := p.CreateAllChatsSubscription(&mmGlobalSubscription); err != nil {
+				if err := p.monitor.CreateAndSaveChatSubscription(&mmGlobalSubscription); err != nil {
 					<-ws
 					return
 				}
@@ -295,7 +295,7 @@ func (p *Plugin) startSubscriptions() {
 			}
 
 			// Create all chats subscription
-			if err := p.CreateAllChatsSubscription(nil); err != nil {
+			if err := p.monitor.CreateAndSaveChatSubscription(nil); err != nil {
 				<-ws
 				return
 			}
@@ -351,34 +351,6 @@ func (p *Plugin) startSubscriptions() {
 	}
 	wg.Wait()
 	p.API.LogDebug("Starting subscriptions finished")
-}
-
-func (p *Plugin) CreateAllChatsSubscription(mmSubscription *storemodels.GlobalSubscription) error {
-	chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
-	if err != nil {
-		p.API.LogError("Unable to subscribe to chats", "error", err)
-		return err
-	}
-
-	p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
-	if mmSubscription != nil {
-		if err := p.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
-			p.API.LogError("Unable to delete the old all chats subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
-		}
-	}
-
-	err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-		SubscriptionID: chatsSubscription.ID,
-		Type:           "allChats",
-		ExpiresOn:      chatsSubscription.ExpiresOn,
-		Secret:         p.getConfiguration().WebhookSecret,
-	})
-	if err != nil {
-		p.API.LogError("Unable to save the chats subscriptio", "subscriptionID", chatsSubscription.ID,"error", err)
-		return err
-	}
-
-	return nil
 }
 
 func (p *Plugin) CreateChannelSubscriptions(link storemodels.ChannelLink, mmSubscription *storemodels.ChannelSubscription, fakeSubscriptionCount int) (int, error) {

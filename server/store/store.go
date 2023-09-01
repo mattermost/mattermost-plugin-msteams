@@ -587,8 +587,7 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 
 func (s *SQLStore) DeleteFakeSubscriptions() error {
 	query := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Like{"subscriptionID": "fake-subscription-id%"})
-	_, err := query.Exec()
-	if err != nil {
+	if _, err := query.Exec(); err != nil {
 		return err
 	}
 

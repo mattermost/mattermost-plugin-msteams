@@ -7,7 +7,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
-func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription, isAllChatsSubscriptionPresent *msteams.Subscription) {
+func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription) {
 	m.api.LogDebug("Checking for channels subscriptions")
 	subscriptions, err := m.store.ListChannelSubscriptionsToRefresh()
 	if err != nil {
@@ -57,7 +57,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 			}
 
 			if err := m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogWarn("Unable to delete old channel subscription", "subscriptionID", subscription.SubscriptionID, "error", err)
+				m.api.LogWarn("Unable to delete old channel subscription from store", "subscriptionID", subscription.SubscriptionID, "error", err)
 			}
 
 			if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: subscription.TeamID, ChannelID: subscription.ChannelID, Secret: subscription.Secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
@@ -106,7 +106,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptionsToRefresh()
 	if err != nil {
-		m.api.LogError("Unable to get the global subscriptions", "error", err)
+		m.api.LogError("Unable to get the chat subscriptions from store", "error", err)
 		return
 	}
 
@@ -120,7 +120,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 		}
 
 		m.api.LogDebug("Creating subscription for all chats")
-		_ = m.createAndSaveChatSubscription(nil)
+		_ = m.CreateAndSaveChatSubscription(nil)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	// Check if all chats subscription is not present on MS Teams
 	if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
 		// Create all chats subscription on MS Teams
-		_ = m.createAndSaveChatSubscription(&mmSubscription)
+		_ = m.CreateAndSaveChatSubscription(&mmSubscription)
 		return
 	}
 
@@ -140,7 +140,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	}
 }
 
-func (m *Monitor) createAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) error {
+func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) error {
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
 	if err != nil {
 		m.api.LogError("Unable to create subscription for all chats", "error", err)
