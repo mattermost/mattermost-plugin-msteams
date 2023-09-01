@@ -232,13 +232,7 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
-	mmGlobalSubscriptions, err := p.store.ListGlobalSubscriptions()
-	if err != nil {
-		p.API.LogError("Unable to list Mattermost global subscriptions", "error", err)
-		return
-	}
-
-	msteamsSubscriptionsMap, allChatsSubscription, err := p.monitor.GetMSTeamsSubscriptionsMap()
+	msteamsSubscriptionsMap, _, err := p.monitor.GetMSTeamsSubscriptionsMap()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams subscriptions", "error", err)
 		return
@@ -254,38 +248,6 @@ func (p *Plugin) startSubscriptions() {
 
 	wg.Add(1)
 	ws <- struct{}{}
-	go func() {
-		defer wg.Done()
-		// Check if all chats subscription is present on Mattermost
-		if len(mmGlobalSubscriptions) > 0 {
-			mmGlobalSubscription := mmGlobalSubscriptions[0]
-			// Check if all chats subscription is present on MS Teams
-			if allChatsSubscription == nil {
-				// Create all chats subscription on MS Teams
-				if err = p.monitor.CreateAndSaveChatSubscription(&mmGlobalSubscription); err != nil {
-					<-ws
-					return
-				}
-			}
-		} else {
-			// Check if all chats subscription is present on MS Teams but not on Mattermost
-			if allChatsSubscription != nil {
-				if err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", Secret: p.getConfiguration().WebhookSecret, ExpiresOn: allChatsSubscription.ExpiresOn}); err != nil {
-					p.API.LogError("Unable to store all chats subscription", "subscriptionID", allChatsSubscription.ID, "error", err)
-				}
-				<-ws
-				return
-			}
-
-			// Create all chats subscription
-			if err = p.monitor.CreateAndSaveChatSubscription(nil); err != nil {
-				<-ws
-				return
-			}
-		}
-		<-ws
-	}()
-
 	fakeSubscriptionCount := 1
 	for _, link := range links {
 		ws <- struct{}{}
