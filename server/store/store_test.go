@@ -138,6 +138,7 @@ func TestStore(t *testing.T) {
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
 		"testDeleteFakeSubscriptions":                                testDeleteFakeSubscriptions,
 		"testListChannelSubscriptions":                               testListChannelSubscriptions,
+		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 	}
@@ -1051,6 +1052,21 @@ func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.A
 	defer func() { _ = store.DeleteSubscription("test1") }()
 
 	subscriptions, err := store.ListChannelSubscriptions()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
+}
+
+func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: "test1",
+		Secret:         "secret",
+		Type:           "allChats",
+		ExpiresOn:      time.Now().Add(1 * time.Minute),
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListGlobalSubscriptions()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 }

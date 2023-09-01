@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -82,9 +83,9 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	}
 // }
 
-func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription) {
+func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription) {
 	m.api.LogDebug("Checking for global subscriptions")
-	subscriptions, err := m.store.ListGlobalSubscriptionsToRefresh()
+	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
 		m.api.LogError("Unable to get the chat subscriptions from store", "error", err)
 		return
@@ -93,6 +94,14 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	m.api.LogDebug("Refreshing global subscriptions", "count", len(subscriptions))
 
 	if len(subscriptions) == 0 {
+		if allChatsSubscription == nil {
+			_ = m.CreateAndSaveChatSubscription(nil)
+		} else {
+			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret}); err != nil {
+				m.api.LogError("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err)
+			}
+		}
+
 		return
 	}
 
@@ -104,10 +113,12 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 		return
 	}
 
-	if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
-		m.api.LogDebug("Unable to refresh all chats subscription", "error", err)
-		if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
-			m.api.LogError("Unable to recreate all chats subscription", "error", err)
+	if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
+		if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
+			m.api.LogDebug("Unable to refresh all chats subscription", "error", err)
+			if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
+				m.api.LogError("Unable to recreate all chats subscription", "error", err)
+			}
 		}
 	}
 }

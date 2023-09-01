@@ -16,16 +16,17 @@ import (
 
 func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
+	mockGlobalSubscription := storemodels.GlobalSubscription{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}
 	allChatsSubscription := &msteams.Subscription{
-		ID: "test-id",
-	ExpiresOn: newExpiresOn,
+		ID:        "test-id",
+		ExpiresOn: newExpiresOn,
 	}
 	for _, testCase := range []struct {
-		description string
-		setupClient func(*mocksClient.Client)
-		setupAPI    func(*plugintest.API)
-		setupStore  func(*mocksStore.Store)
-		msteamsSubscription map[string]*msteams.Subscription
+		description          string
+		setupClient          func(*mocksClient.Client)
+		setupAPI             func(*plugintest.API)
+		setupStore           func(*mocksStore.Store)
+		msteamsSubscription  map[string]*msteams.Subscription
 		allChatsSubscription *msteams.Subscription
 	}{
 		{
@@ -36,77 +37,87 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 				mockAPI.On("LogError", "Unable to get the chat subscriptions from store", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListGlobalSubscriptionsToRefresh").Return(nil, errors.New("test"))
+				store.On("ListGlobalSubscriptions").Return(nil, errors.New("test"))
 			},
 		},
 		{
-			description: "Empty list of subscriptions",
+			description:          "Empty list of subscriptions, but subscription present on MS Teams",
+			allChatsSubscription: allChatsSubscription,
+			setupClient:          func(client *mocksClient.Client) {},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
+				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 0).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("ListGlobalSubscriptions").Return([]storemodels.GlobalSubscription{}, nil)
+				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
+			},
+		},
+		{
+			description: "Empty list of subscriptions, but subscription not present on MS Teams",
 			setupClient: func(client *mocksClient.Client) {
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(allChatsSubscription, nil)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
 				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 0).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListGlobalSubscriptionsToRefresh").Return([]storemodels.GlobalSubscription{}, nil)
+				store.On("ListGlobalSubscriptions").Return([]storemodels.GlobalSubscription{}, nil)
+				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
 			},
 		},
 		{
-			description: "Expired subscription",
-			allChatsSubscription: allChatsSubscription,
-			msteamsSubscription: map[string]*msteams.Subscription{},
+			description: "Subscription not present on MS Teams",
 			setupClient: func(client *mocksClient.Client) {
-				client.On("DeleteSubscription", "test").Return(nil)
-				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil)
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(allChatsSubscription, nil)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
-				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 1).Times(1)
+				mockAPI.On("LogDebug", "Checking for global subscriptions")
+				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListGlobalSubscriptionsToRefresh").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(-1 * time.Minute)}}, nil)
-				store.On("DeleteSubscription", "test-id").Return(nil)
-				store.On("DeleteSubscription", "test").Return(nil).Times(1)
-				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil).Times(1)
-				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "new-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil).Times(1)
+				store.On("ListGlobalSubscriptions").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil)
+				store.On("DeleteSubscription", "test").Return(nil)
+				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil)
 			},
 		},
 		{
-			description: "Almost expired subscription",
-			allChatsSubscription: allChatsSubscription,
+			description: "Unable to refresh the subscription",
 			msteamsSubscription: map[string]*msteams.Subscription{
 				"test-id": allChatsSubscription,
 			},
 			setupClient: func(client *mocksClient.Client) {
-				client.On("DeleteSubscription", "test").Return(nil)
+				client.On("RefreshSubscription", "test-id").Return(nil, errors.New("unable to refresh the subscription"))
+				client.On("DeleteSubscription", "test-id").Return(nil)
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(allChatsSubscription, nil)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
-				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 1).Times(1)
+				mockAPI.On("LogDebug", "Checking for global subscriptions")
+				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 1)
+				mockAPI.On("LogDebug", "Unable to refresh all chats subscription", "error", mock.Anything)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListGlobalSubscriptionsToRefresh").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil)
-				store.On("DeleteSubscription", "test").Return(nil)
-				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+				store.On("ListGlobalSubscriptions").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil)
+				store.On("DeleteSubscription", "test-id").Return(nil)
+				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil)
 			},
 		},
 		{
 			description: "Not expired subscription",
-			allChatsSubscription: allChatsSubscription,
 			msteamsSubscription: map[string]*msteams.Subscription{
 				"test-id": allChatsSubscription,
 			},
 			setupClient: func(client *mocksClient.Client) {
-				client.On("RefreshSubscription", "test").Return(&newExpiresOn, nil)
+				client.On("RefreshSubscription", "test-id").Return(&newExpiresOn, nil)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
 				mockAPI.On("LogDebug", "Refreshing global subscriptions", "count", 1).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListGlobalSubscriptionsToRefresh").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(3 * time.Minute)}}, nil)
-				store.On("UpdateSubscriptionExpiresOn", "test", newExpiresOn).Return(nil)
+				store.On("ListGlobalSubscriptions").Return([]storemodels.GlobalSubscription{{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(3 * time.Minute)}}, nil)
+				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(nil)
 			},
 		},
 	} {
@@ -119,7 +130,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 
-			monitor.checkGlobalSubscriptions(testCase.msteamsSubscription)
+			monitor.checkGlobalSubscriptions(testCase.msteamsSubscription, testCase.allChatsSubscription)
 			store.AssertExpectations(t)
 			mockAPI.AssertExpectations(t)
 			client.AssertExpectations(t)
@@ -129,11 +140,16 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 
 func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
+	channelSubscription := &msteams.Subscription{
+		ID:        "test",
+		ExpiresOn: newExpiresOn,
+	}
 	for _, testCase := range []struct {
-		description string
-		setupClient func(*mocksClient.Client)
-		setupAPI    func(*plugintest.API)
-		setupStore  func(*mocksStore.Store)
+		description             string
+		msteamsSubscriptionsMap map[string]*msteams.Subscription
+		setupClient             func(*mocksClient.Client)
+		setupAPI                func(*plugintest.API)
+		setupStore              func(*mocksStore.Store)
 	}{
 		{
 			description: "Fail to get channels subscription list",
@@ -173,26 +189,8 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			},
 		},
 		{
-			description: "Expired subscription",
+			description: "Subscription not present on MS Teams",
 			setupClient: func(client *mocksClient.Client) {
-				client.On("DeleteSubscription", "test").Return(nil)
-				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Checking for channels subscriptions").Times(1)
-				mockAPI.On("LogDebug", "Refreshing channels subscriptions", "count", 1).Times(1)
-			},
-			setupStore: func(store *mocksStore.Store) {
-				store.On("ListChannelSubscriptionsToRefresh").Return([]storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(-1 * time.Minute)}}, nil)
-				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannelID: "channel-id", MattermostTeamID: "team-id"}, nil)
-				store.On("DeleteSubscription", "test").Return(nil)
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
-			},
-		},
-		{
-			description: "Almost expired subscription",
-			setupClient: func(client *mocksClient.Client) {
-				client.On("DeleteSubscription", "test").Return(nil)
 				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -207,7 +205,32 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			},
 		},
 		{
+			description: "Unable to refresh the subscription",
+			msteamsSubscriptionsMap: map[string]*msteams.Subscription{
+				"test": channelSubscription,
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("RefreshSubscription", "test").Return(nil, errors.New("unable to refresh the subscription"))
+				client.On("DeleteSubscription", "test").Return(nil)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Checking for channels subscriptions")
+				mockAPI.On("LogDebug", "Refreshing channels subscriptions", "count", 1)
+				mockAPI.On("LogDebug", "Unable to refresh channel subscription properly", "error", mock.Anything)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("ListChannelSubscriptionsToRefresh").Return([]storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil)
+				store.On("GetLinkByMSTeamsChannelID", "team-id", "channel-id").Return(&storemodels.ChannelLink{MattermostChannelID: "channel-id", MattermostTeamID: "team-id"}, nil)
+				store.On("DeleteSubscription", "test").Return(nil)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+			},
+		},
+		{
 			description: "Not expired subscription",
+			msteamsSubscriptionsMap: map[string]*msteams.Subscription{
+				"test": channelSubscription,
+			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("RefreshSubscription", "test").Return(&newExpiresOn, nil)
 			},
@@ -231,7 +254,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 
-			monitor.checkChannelsSubscriptions(nil)
+			monitor.checkChannelsSubscriptions(testCase.msteamsSubscriptionsMap)
 			store.AssertExpectations(t)
 			mockAPI.AssertExpectations(t)
 			client.AssertExpectations(t)
