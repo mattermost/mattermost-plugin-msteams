@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import {useDispatch} from 'react-redux';
 
-import {Spinner, Tooltip, Button, Dialog, LinearProgress} from '@brightscout/mattermost-ui-library';
+import {Spinner, Tooltip, Button, Dialog, LinearProgress, Input} from '@brightscout/mattermost-ui-library';
 
 import {General as MMConstants} from 'mattermost-redux/constants';
 
@@ -33,6 +33,7 @@ const Rhs = (): JSX.Element => {
     const [showDestructivetDialog, setShowDestructiveDialog] = useState(false);
     const [primaryActionText, setPrimaryActionText] = useState('');
     const [unlinkChannelParams, setUnlinkChannelParams] = useState<UnlinkChannelParams | null>(null);
+    const [searchLinkedChannelsText, setSearchLinkedChannelsText] = useState('');
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
@@ -56,11 +57,16 @@ const Rhs = (): JSX.Element => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName, {channelId: unlinkChannelParams?.channelId ?? ''});
     };
 
+    const handleSearchLinkedChannelsTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchLinkedChannelsText(e.target.value);
+        resetStates();
+    };
+
     useEffect(() => {
-        const linkedChannelsParams: PaginationQueryParams = {page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
+        const linkedChannelsParams: SearchLinkedChannelParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
         setGetLinkedChannelsParams(linkedChannelsParams);
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
-    }, [paginationQueryParams]);
+    }, [paginationQueryParams, searchLinkedChannelsText]);
 
     useEffect(() => {
         if (refetchLinkedChannels) {
@@ -181,7 +187,14 @@ const Rhs = (): JSX.Element => {
                 <div className={`rhs-body ${connected ? 'rhs-body__connect-body' : 'rhs-body__disconnect-body'}`}>
                     <div className='rhs-body__title'>{'Linked Channels'}</div>
                     <div className='rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
-                    {/* TODO: add search bar later. */}
+                    <Input
+                        iconName='MagnifyingGlass'
+                        label='Search'
+                        fullWidth={true}
+                        value={searchLinkedChannelsText}
+                        onChange={handleSearchLinkedChannelsTextChange}
+                        onClose={() => setSearchLinkedChannelsText('')}
+                    />
                     {linkedChannelsLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
                     {Boolean(totalLinkedChannels.length) && (
                         <div className='link-data__container'>

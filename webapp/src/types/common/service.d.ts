@@ -18,4 +18,4 @@ type APIError = {
     data: string,
 }
 
-type APIRequestPayload = PaginationQueryParams | UnlinkChannelParams | void;
+type APIRequestPayload = PaginationQueryParams | UnlinkChannelParams | SearchLinkedChannelParams | void;

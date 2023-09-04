@@ -6,3 +6,7 @@ interface PaginationQueryParams {
 type UnlinkChannelParams = {
     channelId: string;
 }
+
+interface SearchLinkedChannelParams extends PaginationQueryParams {
+    search?: string;
+}
