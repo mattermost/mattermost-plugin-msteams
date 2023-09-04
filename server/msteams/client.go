@@ -2,6 +2,7 @@
 package msteams
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -18,8 +19,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	khttp "github.com/microsoft/kiota-http-go"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -68,7 +71,7 @@ type ClientImpl struct {
 	clientSecret string
 	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
-	logError     func(msg string, keyValuePairs ...any)
+	logService   *pluginapi.LogService
 }
 
 type Subscription struct {
@@ -232,25 +235,47 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) Client {
+func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
 		tenantID:     tenantID,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		logError:     logError,
+		logService:   logService,
 	}
 }
 
-func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logError func(string, ...any)) Client {
+type Logger struct {
+	pluginapi.LogService
+}
+
+func (l *Logger) Intercept(pipeline khttp.Pipeline, middlewareIndex int, req *http.Request) (*http.Response, error) {
+	if req != nil {
+		l.Debug("Request information", "URL", req.URL, "Method", req.Method)
+		if req.Body != nil {
+			bodyBytes, err := io.ReadAll(req.Body)
+			req.Body.Close()
+			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			if err != nil {
+				l.Debug("Error in reading the request body", "Error", err.Error())
+				return pipeline.Next(req, middlewareIndex)
+			}
+
+			l.Debug("Request information", "URL", req.URL, "Method", req.Method, "Body", string(bodyBytes))
+		}
+	}
+	return pipeline.Next(req, middlewareIndex)
+}
+
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		tenantID:   tenantID,
 		clientID:   clientID,
 		token:      token,
-		logError:   logError,
+		logService: logService,
 	}
 
 	conf := &oauth2.Config{
@@ -268,13 +293,20 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 
 	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
+	// loggingMiddleware := &Logger{
+	// 	LogService: *client.logService,
+	// }
+	// loggingMiddlewares := []khttp.Middleware{loggingMiddleware}
+
+	// httpClient := khttp.GetDefaultClient(loggingMiddlewares...)
+	// adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
@@ -385,7 +417,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logError("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "Error", err.Error())
 				continue
 			}
 
@@ -454,7 +486,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 		})
 
 		if err != nil {
-			tc.logError("Unable to convert content to JSON", "error", err)
+			tc.logService.Error("Unable to convert content to JSON", "error", err)
 		} else {
 			message = fmt.Sprintf("<attachment id=%q></attachment> %s", parentMessage.ID, message)
 			content := string(contentData)
@@ -477,7 +509,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logError("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "Error", err.Error())
 				continue
 			}
 
@@ -665,7 +697,7 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 		originalMessage, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).Get(tc.ctx, nil)
 	}
 	if err != nil {
-		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
 	}
 
 	if originalMessage != nil {
@@ -698,7 +730,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 
 	originalMessage, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Get(tc.ctx, nil)
 	if err != nil {
-		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
 	}
 
 	if originalMessage != nil {
@@ -730,7 +762,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
 	if err != nil {
-		tc.logError("Unable to get the subcscriptions list", NormalizeGraphAPIError(err))
+		tc.logService.Error("Unable to get the subcscriptions list", NormalizeGraphAPIError(err))
 		return nil, NormalizeGraphAPIError(err)
 	}
 
@@ -765,13 +797,13 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	if existingSubscription != nil {
 		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
 			if err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
+				tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		} else {
 			updatedSubscription := models.NewSubscription()
 			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 			if _, err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-				tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
+				tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 				return &Subscription{
 					ID:        *existingSubscription.GetId(),
 					ExpiresOn: *existingSubscription.GetExpirationDateTime(),
@@ -779,14 +811,14 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 			}
 
 			if err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
+				tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
 			}
 		}
 	}
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
-		tc.logError("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
 		return nil, NormalizeGraphAPIError(err)
 	}
 
@@ -834,7 +866,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -842,7 +874,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
@@ -1292,12 +1324,15 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 		QueryParameters: requestParameters,
 	}
 
+	fmt.Println("1323", userIDs)
 	res, err := tc.client.Me().Chats().Get(tc.ctx, configuration)
 	if err != nil {
+		fmt.Println("1326")
 		return nil, NormalizeGraphAPIError(err)
 	}
 
 	for _, c := range res.GetValue() {
+		fmt.Println("1331")
 		chat := checkGroupChat(c, userIDs)
 		if chat != nil {
 			return chat, nil
@@ -1592,6 +1627,7 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 
 // Function to match already existing group chats
 func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
+	fmt.Println("1624", *c.GetId())
 	if c.GetMembers() != nil && len(c.GetMembers()) == len(userIDs) {
 		matches := map[string]bool{}
 		members := []ChatMember{}
