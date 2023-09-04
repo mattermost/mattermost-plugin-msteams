@@ -90,8 +90,8 @@ func (m *Monitor) check() {
 		return
 	}
 
-	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 	go func() {
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	}()
+	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 }
