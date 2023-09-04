@@ -471,6 +471,7 @@ func TestStart(t *testing.T) {
 			SetupStore: func(s *storemocks.Store) {
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
 				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
+				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
 			},
 		},
 	} {

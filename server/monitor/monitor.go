@@ -84,6 +84,14 @@ func (m *Monitor) Stop() {
 }
 
 func (m *Monitor) check() {
-	m.checkGlobalSubscriptions()
-	m.checkChannelsSubscriptions()
+	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
+	if err != nil {
+		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
+		return
+	}
+
+	go func() {
+		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
+	}()
+	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 }

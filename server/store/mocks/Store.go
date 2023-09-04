@@ -65,6 +65,20 @@ func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
 	return r0
 }
 
+// DeleteFakeSubscriptions provides a mock function with given fields:
+func (_m *Store) DeleteFakeSubscriptions() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	ret := _m.Called(channelID)
@@ -476,16 +490,39 @@ func (_m *Store) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
 	return r0, r1
 }
 
-// ListChannelSubscriptionsToCheck provides a mock function with given fields:
-func (_m *Store) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error) {
+// ListChannelSubscriptions provides a mock function with given fields:
+func (_m *Store) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.ChannelSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.ChannelSubscription); ok {
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.ChannelSubscription)
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListChannelSubscriptionsToRefresh provides a mock function with given fields:
+func (_m *Store) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
 		}
 	}
 
@@ -522,16 +559,39 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListGlobalSubscriptionsToCheck provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
+// ListGlobalSubscriptions provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.GlobalSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.GlobalSubscription); ok {
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.GlobalSubscription)
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListGlobalSubscriptionsToRefresh provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
 		}
 	}
 

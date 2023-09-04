@@ -197,6 +197,11 @@ func (p *Plugin) startSubscriptions() {
 	p.clusterMutex.Lock()
 	defer p.clusterMutex.Unlock()
 
+	if err := p.store.DeleteFakeSubscriptions(); err != nil {
+		p.API.LogError("Unable to delete fake subscriptions", "error", err)
+		return
+	}
+
 	counter := 0
 	maxRetries := 20
 	for {
@@ -221,79 +226,101 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
+	mmChannelSubscriptions, err := p.store.ListChannelSubscriptions()
+	if err != nil {
+		p.API.LogError("Unable to list Mattermost channel subscriptions", "error", err)
+		return
+	}
+
+	msteamsSubscriptionsMap, _, err := p.monitor.GetMSTeamsSubscriptionsMap()
+	if err != nil {
+		p.API.LogError("Unable to list MS Teams subscriptions", "error", err)
+		return
+	}
+
+	mmChannelSubscriptionsMap := make(map[string]*storemodels.ChannelSubscription)
+	for _, mmChannelSubscription := range mmChannelSubscriptions {
+		mmChannelSubscriptionsMap[mmChannelSubscription.SubscriptionID] = mmChannelSubscription
+	}
+
 	wg := sync.WaitGroup{}
 	ws := make(chan struct{}, 20)
 
 	wg.Add(1)
 	ws <- struct{}{}
-	go func() {
-		defer wg.Done()
-		chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI)
-		if err != nil {
-			p.API.LogError("Unable to subscribe to chats", "error", err)
-			// Mark this subscription to be created and retried by the monitor system
-			_ = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-				SubscriptionID: "fake-subscription-id",
-				Type:           "allChats",
-				ExpiresOn:      time.Now(),
-				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			<-ws
-			return
-		}
-		p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
-
-		err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-			SubscriptionID: chatsSubscription.ID,
-			Type:           "allChats",
-			ExpiresOn:      chatsSubscription.ExpiresOn,
-			Secret:         p.getConfiguration().WebhookSecret,
-		})
-		if err != nil {
-			p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
-			<-ws
-			return
-		}
-		<-ws
-	}()
-
+	fakeSubscriptionCount := 1
 	for _, link := range links {
 		ws <- struct{}{}
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-			if err != nil {
-				p.API.LogError("Unable to subscribe to channels", "error", err)
-				// Mark this subscription to be created and retried by the monitor system
-				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-					SubscriptionID: "fake-subscription-id",
-					TeamID:         link.MSTeamsTeam,
-					ChannelID:      link.MSTeamsChannel,
-					ExpiresOn:      time.Now(),
-					Secret:         p.getConfiguration().WebhookSecret,
-				})
-				<-ws
-				return
+			mmSubscription, mmSubscriptionFound := mmChannelSubscriptionsMap[link.MattermostTeamID+link.MattermostChannelID]
+			// Check if channel subscription is present for a link on Mattermost
+			if mmSubscriptionFound {
+				// Check if channel subscription is not present on MS Teams
+				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
+					// Create channel subscription for the linked channel
+					fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, mmSubscription, fakeSubscriptionCount)
+					if err != nil {
+						<-ws
+						return
+					}
+				}
+			} else {
+				// Create channel subscription for the linked channel
+				fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, nil, fakeSubscriptionCount)
+				if err != nil {
+					<-ws
+					return
+				}
 			}
-
-			if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-				SubscriptionID: channelsSubscription.ID,
-				TeamID:         link.MSTeamsTeam,
-				ChannelID:      link.MSTeamsChannel,
-				ExpiresOn:      channelsSubscription.ExpiresOn,
-				Secret:         p.getConfiguration().WebhookSecret,
-			}); err != nil {
-				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err)
-				<-ws
-				return
-			}
-			p.API.LogDebug("Subscription to channel created", "subscriptionID", channelsSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
 			<-ws
 		}(link)
 	}
 	wg.Wait()
 	p.API.LogDebug("Starting subscriptions finished")
+}
+
+func (p *Plugin) CreateChannelSubscriptions(link storemodels.ChannelLink, mmSubscription *storemodels.ChannelSubscription, fakeSubscriptionCount int) (int, error) {
+	// Create channel subscription for linked channel
+	channelSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	if err != nil {
+		p.API.LogError("Unable to subscribe to channels", "channelID", link.MattermostChannelID, "error", err)
+		if mmSubscription != nil {
+			return fakeSubscriptionCount, err
+		}
+
+		// Mark this subscription to be created and retried by the monitor system
+		_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+			SubscriptionID: "fake-subscription-id-" + fmt.Sprint(fakeSubscriptionCount),
+			TeamID:         link.MSTeamsTeam,
+			ChannelID:      link.MSTeamsChannel,
+			ExpiresOn:      time.Now(),
+			Secret:         p.getConfiguration().WebhookSecret,
+		})
+		fakeSubscriptionCount++
+		return fakeSubscriptionCount, err
+	}
+
+	if mmSubscription != nil {
+		if err = p.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
+			p.API.LogError("Unable to delete the old channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
+		}
+	}
+
+	if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		SubscriptionID: channelSubscription.ID,
+		TeamID:         link.MSTeamsTeam,
+		ChannelID:      link.MSTeamsChannel,
+		ExpiresOn:      channelSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	}); err != nil {
+		p.API.LogError("Unable to save the channel subscription", "subscriptionID", channelSubscription.ID, "error", err)
+		return fakeSubscriptionCount, err
+	}
+
+	p.API.LogDebug("Subscription to channel created", "subscriptionID", channelSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
+	return fakeSubscriptionCount, nil
 }
 
 func (p *Plugin) stop() {
