@@ -11,7 +11,7 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         apiServiceName: 'needsConnect',
     },
     getLinkedChannels: {
-        path: '/get-connected-channels',
+        path: '/connected-channels',
         method: 'GET',
         apiServiceName: 'getLinkedChannels',
     },
@@ -19,5 +19,10 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         path: '/disconnect',
         method: 'GET',
         apiServiceName: 'disconnectUser',
+    },
+    unlinkChannel: {
+        path: '/unlink-channels',
+        method: 'DELETE',
+        apiServiceName: 'unlinkChannel',
     },
 };

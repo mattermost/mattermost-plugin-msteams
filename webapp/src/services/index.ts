@@ -43,5 +43,12 @@ export const msTeamsPluginApi = createApi({
                 responseHandler: (res) => res.text(),
             }),
         }),
+        [Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName]: builder.query<string, UnlinkChannelParams>({
+            query: ({channelId}) => ({
+                url: `${Constants.pluginApiServiceConfigs.unlinkChannel.path}/${channelId}`,
+                method: Constants.pluginApiServiceConfigs.unlinkChannel.method,
+                responseHandler: (res) => res.text(),
+            }),
+        }),
     }),
 });

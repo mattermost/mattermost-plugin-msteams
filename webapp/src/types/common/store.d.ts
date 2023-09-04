@@ -12,3 +12,7 @@ type ConnectedState = {
     connected: boolean;
     username: string;
 };
+
+type RefetchState = {
+    refetch: boolean;
+};
