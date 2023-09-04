@@ -863,8 +863,8 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 	subscriptions := []*Subscription{}
 	err = pageIterator.Iterate(tc.ctx, func(subscription models.Subscriptionable) bool {
 		subscriptionID := ""
-		var expiresOn time.Time
 		resource := ""
+		var expiresOn time.Time
 		if subscription != nil {
 			if subscription.GetId() != nil {
 				subscriptionID = *subscription.GetId()

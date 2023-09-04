@@ -12,47 +12,39 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 	m.api.LogDebug("Checking for channels subscriptions")
 	subscriptions, err := m.store.ListChannelSubscriptionsToRefresh()
 	if err != nil {
-		m.api.LogError("Unable to get the channel subscriptions", "error", err)
+		m.api.LogError("Unable to get the channel subscriptions", "error", err.Error())
 		return
 	}
 	m.api.LogDebug("Refreshing channels subscriptions", "count", len(subscriptions))
 
 	for _, subscription := range subscriptions {
 		if strings.Contains(subscription.SubscriptionID, "fake-subscription-id") {
-			if err = m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false); err != nil {
-				m.api.LogError("Unable to create or store new channel subscription for fake subscription", "subscriptionID", subscription.SubscriptionID, "error", err)
-			}
-
+			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false)
 			continue
 		}
 
 		link, _ := m.store.GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
 		if link == nil {
 			if err = m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogError("Unable to delete not-needed subscription from store", "error", err)
+				m.api.LogError("Unable to delete not-needed subscription from store", "error", err.Error())
 			}
 
 			if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[subscription.SubscriptionID]; msteamsSubscriptionFound {
 				if err = m.client.DeleteSubscription(subscription.SubscriptionID); err != nil {
-					m.api.LogError("Unable to delete not-needed subscription from MS Teams", "error", err)
+					m.api.LogError("Unable to delete not-needed subscription from MS Teams", "error", err.Error())
 				}
 			}
 			continue
 		}
 
 		if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[subscription.SubscriptionID]; !msteamsSubscriptionFound {
-			if err = m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false); err != nil {
-				m.api.LogError("Unable to create or store new channel subscription", "subscriptionID", subscription.SubscriptionID, "error", err)
-			}
-
+			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false)
 			continue
 		}
 
 		if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
-			m.api.LogDebug("Unable to refresh channel subscription properly", "error", err)
-			if err := m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret, true); err != nil {
-				m.api.LogError("Unable to recreate channel subscription properly", "error", err)
-			}
+			m.api.LogDebug("Unable to refresh channel subscription properly", "error", err.Error())
+			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret, true)
 		}
 	}
 }
@@ -87,7 +79,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
-		m.api.LogError("Unable to get the chat subscriptions from store", "error", err)
+		m.api.LogError("Unable to get the chat subscriptions from store", "error", err.Error())
 		return
 	}
 
@@ -95,10 +87,10 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 
 	if len(subscriptions) == 0 {
 		if allChatsSubscription == nil {
-			_ = m.CreateAndSaveChatSubscription(nil)
+			m.CreateAndSaveChatSubscription(nil)
 		} else {
 			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret}); err != nil {
-				m.api.LogError("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err)
+				m.api.LogError("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err.Error())
 			}
 		}
 
@@ -109,44 +101,42 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 	// Check if all chats subscription is not present on MS Teams
 	if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
 		// Create all chats subscription on MS Teams
-		_ = m.CreateAndSaveChatSubscription(&mmSubscription)
+		m.CreateAndSaveChatSubscription(mmSubscription)
 		return
 	}
 
 	if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
 		if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogDebug("Unable to refresh all chats subscription", "error", err)
+			m.api.LogDebug("Unable to refresh all chats subscription", "error", err.Error())
 			if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
-				m.api.LogError("Unable to recreate all chats subscription", "error", err)
+				m.api.LogError("Unable to recreate all chats subscription", "error", err.Error())
 			}
 		}
 	}
 }
 
-func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) error {
+func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) {
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
 	if err != nil {
-		m.api.LogError("Unable to create subscription for all chats", "error", err)
-		return err
+		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
+		return
 	}
 
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogError("Unable to delete the old all chats subscription", "error", err)
+			m.api.LogError("Unable to delete the old all chats subscription", "error", err.Error())
 		}
 	}
 
 	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: m.webhookSecret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		m.api.LogError("Unable to create subscription for all chats", "error", err)
-		return err
+		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
+		return
 	}
-
-	return nil
 }
 
 func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string) error {
 	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
+		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 	}
 
 	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
@@ -157,27 +147,32 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 	return m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
 }
 
-func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string, deleteFromClient bool) error {
+func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string, deleteFromClient bool) {
 	if deleteFromClient && subscriptionID != "" {
 		if err := m.client.DeleteSubscription(subscriptionID); err != nil {
-			m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
+			m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 		}
 	}
 
 	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret)
 	if err != nil {
-		return err
+		m.api.LogError("Unable to create new subscription for the channel", "channelID", channelID, "error", err.Error())
+		return
 	}
 
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 	}
-	return m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
+
+	if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
+		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
+		return
+	}
 }
 
 func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) error {
 	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err)
+		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 	}
 
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
@@ -197,4 +192,22 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 		return err
 	}
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
+}
+
+func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription, err error) {
+	msteamsSubscriptions, err := m.client.ListSubscriptions()
+	if err != nil {
+		m.api.LogError("Unable to list MS Teams subscriptions", "error", err.Error())
+		return nil, nil, err
+	}
+
+	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
+	for _, msteamsSubscription := range msteamsSubscriptions {
+		msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
+		if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
+			allChatsSubscription = msteamsSubscription
+		}
+	}
+
+	return
 }

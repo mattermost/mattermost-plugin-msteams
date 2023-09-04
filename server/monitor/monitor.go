@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
@@ -87,29 +86,12 @@ func (m *Monitor) Stop() {
 func (m *Monitor) check() {
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
-		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err)
+		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
-	m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-}
-
-func (m *Monitor) GetMSTeamsSubscriptionsMap() (map[string]*msteams.Subscription, *msteams.Subscription, error) {
-	msteamsSubscriptions, err := m.client.ListSubscriptions()
-	if err != nil {
-		m.api.LogError("Unable to list MS Teams subscriptions", "error", err)
-		return nil, nil, err
-	}
-
-	var allChatsSubscription *msteams.Subscription
-	msteamsSubscriptionsMap := make(map[string]*msteams.Subscription)
-	for _, msteamsSubscription := range msteamsSubscriptions {
-		msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
-		if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
-			allChatsSubscription = msteamsSubscription
-		}
-	}
-
-	return msteamsSubscriptionsMap, allChatsSubscription, nil
+	go func() {
+		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
+	}()
 }

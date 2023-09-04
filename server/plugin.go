@@ -238,7 +238,7 @@ func (p *Plugin) startSubscriptions() {
 		return
 	}
 
-	mmChannelSubscriptionsMap := make(map[string]storemodels.ChannelSubscription)
+	mmChannelSubscriptionsMap := make(map[string]*storemodels.ChannelSubscription)
 	for _, mmChannelSubscription := range mmChannelSubscriptions {
 		mmChannelSubscriptionsMap[mmChannelSubscription.SubscriptionID] = mmChannelSubscription
 	}
@@ -260,22 +260,8 @@ func (p *Plugin) startSubscriptions() {
 				// Check if channel subscription is not present on MS Teams
 				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
 					// Create channel subscription for the linked channel
-					fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, &mmSubscription, fakeSubscriptionCount)
+					fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, mmSubscription, fakeSubscriptionCount)
 					if err != nil {
-						<-ws
-						return
-					}
-				} else if time.Until(mmSubscription.ExpiresOn) < (1 * time.Minute) {
-					// Refresh the channel subscription
-					expiresOn, rErr := p.msteamsAppClient.RefreshSubscription(mmSubscription.SubscriptionID)
-					if rErr != nil {
-						p.API.LogDebug("Unable to refresh the channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", rErr)
-						<-ws
-						return
-					}
-
-					if err = p.store.UpdateSubscriptionExpiresOn(mmSubscription.SubscriptionID, *expiresOn); err != nil {
-						p.API.LogDebug("Unable to store the refreshed channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
 						<-ws
 						return
 					}

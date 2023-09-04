@@ -197,7 +197,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 
 	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel: "+err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {

@@ -23,7 +23,6 @@ type GlobalSubscription struct {
 	SubscriptionID string
 	Type           string
 	ExpiresOn      time.Time
-	ExpiresOnEpoch int64
 	Secret         string
 }
 
@@ -39,6 +38,5 @@ type ChannelSubscription struct {
 	TeamID         string
 	ChannelID      string
 	ExpiresOn      time.Time
-	ExpiresOnEpoch int64
 	Secret         string
 }

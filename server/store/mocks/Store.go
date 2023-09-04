@@ -491,15 +491,15 @@ func (_m *Store) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
 }
 
 // ListChannelSubscriptions provides a mock function with given fields:
-func (_m *Store) ListChannelSubscriptions() ([]storemodels.ChannelSubscription, error) {
+func (_m *Store) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.ChannelSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.ChannelSubscription); ok {
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.ChannelSubscription)
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
 		}
 	}
 
@@ -514,15 +514,15 @@ func (_m *Store) ListChannelSubscriptions() ([]storemodels.ChannelSubscription, 
 }
 
 // ListChannelSubscriptionsToRefresh provides a mock function with given fields:
-func (_m *Store) ListChannelSubscriptionsToRefresh() ([]storemodels.ChannelSubscription, error) {
+func (_m *Store) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.ChannelSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.ChannelSubscription); ok {
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.ChannelSubscription)
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
 		}
 	}
 
@@ -560,15 +560,15 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 }
 
 // ListGlobalSubscriptions provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptions() ([]storemodels.GlobalSubscription, error) {
+func (_m *Store) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.GlobalSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.GlobalSubscription); ok {
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.GlobalSubscription)
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
 		}
 	}
 
@@ -583,15 +583,15 @@ func (_m *Store) ListGlobalSubscriptions() ([]storemodels.GlobalSubscription, er
 }
 
 // ListGlobalSubscriptionsToRefresh provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]storemodels.GlobalSubscription, error) {
+func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.GlobalSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.GlobalSubscription); ok {
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.GlobalSubscription)
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
 		}
 	}
 
