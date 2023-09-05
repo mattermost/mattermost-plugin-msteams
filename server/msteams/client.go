@@ -129,9 +129,10 @@ type Reaction struct {
 }
 
 type Mention struct {
-	ID            int32
-	UserID        string
-	MentionedText string
+	ID             int32
+	UserID         string
+	MentionedText  string
+	ConversationID string
 }
 
 type Message struct {
@@ -1095,8 +1096,14 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 			continue
 		}
 
-		if m.GetMentioned() != nil && m.GetMentioned().GetUser() != nil && m.GetMentioned().GetUser().GetId() != nil {
-			mention.UserID = *m.GetMentioned().GetUser().GetId()
+		if m.GetMentioned() != nil {
+			if m.GetMentioned().GetUser() != nil && m.GetMentioned().GetUser().GetId() != nil {
+				mention.UserID = *m.GetMentioned().GetUser().GetId()
+			}
+
+			if m.GetMentioned().GetConversation() != nil && m.GetMentioned().GetConversation().GetId() != nil {
+				mention.ConversationID = *m.GetMentioned().GetConversation().GetId()
+			}
 		}
 
 		mentions = append(mentions, mention)

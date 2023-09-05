@@ -87,7 +87,8 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 		mmMention := ""
 		mention := msg.Mentions[idx]
 		idx++
-		if mention.UserID != "" {
+		switch {
+		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
 				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
@@ -101,8 +102,10 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
-		} else if mention.MentionedText == "Everyone" {
+		case mention.MentionedText == "Everyone" && mention.ConversationID == msg.ChatID:
 			mmMention = "@all"
+		case mention.ConversationID == msg.ChannelID:
+			mmMention = "@channel"
 		}
 
 		if mmMention == "" {
