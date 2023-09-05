@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -10,43 +11,56 @@ import (
 
 func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription) {
 	m.api.LogDebug("Checking for channels subscriptions")
-	subscriptions, err := m.store.ListChannelSubscriptionsToRefresh()
+	links, err := m.store.ListChannelLinks()
+	if err != nil {
+		m.api.LogError("Unable to list channel links from DB", "error", err.Error())
+		return
+	}
+
+	subscriptions, err := m.store.ListChannelSubscriptions()
 	if err != nil {
 		m.api.LogError("Unable to get the channel subscriptions", "error", err.Error())
 		return
 	}
-	m.api.LogDebug("Refreshing channels subscriptions", "count", len(subscriptions))
 
+	channelSubscriptionsMap := make(map[string]*storemodels.ChannelSubscription)
 	for _, subscription := range subscriptions {
-		if strings.Contains(subscription.SubscriptionID, "fake-subscription-id") {
-			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false)
-			continue
-		}
-
-		link, _ := m.store.GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID)
-		if link == nil {
-			if err = m.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-				m.api.LogError("Unable to delete not-needed subscription from store", "error", err.Error())
-			}
-
-			if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[subscription.SubscriptionID]; msteamsSubscriptionFound {
-				if err = m.client.DeleteSubscription(subscription.SubscriptionID); err != nil {
-					m.api.LogError("Unable to delete not-needed subscription from MS Teams", "error", err.Error())
-				}
-			}
-			continue
-		}
-
-		if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[subscription.SubscriptionID]; !msteamsSubscriptionFound {
-			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, m.webhookSecret, false)
-			continue
-		}
-
-		if err := m.refreshSubscription(subscription.SubscriptionID); err != nil {
-			m.api.LogDebug("Unable to refresh channel subscription properly", "error", err.Error())
-			m.recreateChannelSubscription(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscription.Secret, true)
-		}
+		channelSubscriptionsMap[subscription.TeamID+subscription.ChannelID] = subscription
 	}
+
+	wg := sync.WaitGroup{}
+	ws := make(chan struct{}, 20)
+
+	for _, link := range links {
+		ws <- struct{}{}
+		wg.Add(1)
+		go func(link storemodels.ChannelLink) {
+			defer wg.Done()
+			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MattermostTeamID+link.MattermostChannelID]
+			// Check if channel subscription is present for a link on Mattermost
+			if mmSubscriptionFound {
+				// Check if channel subscription is not present on MS Teams
+				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
+					// Create channel subscription for the linked channel
+					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
+					<-ws
+					return
+				} else if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
+					if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
+						m.api.LogDebug("Unable to refresh channel subscription", "error", err.Error())
+						m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
+					}
+				}
+			} else {
+				// Create channel subscription for the linked channel
+				m.recreateChannelSubscription("", link.MSTeamsTeam, link.MSTeamsChannel, m.webhookSecret, false)
+				<-ws
+				return
+			}
+			<-ws
+		}(link)
+	}
+	wg.Wait()
 }
 
 // Commenting the below function as we are not creating any user type subscriptions
@@ -82,8 +96,6 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*m
 		m.api.LogError("Unable to get the chat subscriptions from store", "error", err.Error())
 		return
 	}
-
-	m.api.LogDebug("Refreshing global subscriptions", "count", len(subscriptions))
 
 	if len(subscriptions) == 0 {
 		if allChatsSubscription == nil {
@@ -160,8 +172,10 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
-	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+	if subscriptionID != "" {
+		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
+			m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+		}
 	}
 
 	if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
@@ -203,9 +217,11 @@ func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[stri
 
 	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
 	for _, msteamsSubscription := range msteamsSubscriptions {
-		msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
-		if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
-			allChatsSubscription = msteamsSubscription
+		if strings.HasPrefix(msteamsSubscription.NotificationURL, m.baseURL) {
+			msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
+			if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
+				allChatsSubscription = msteamsSubscription
+			}
 		}
 	}
 

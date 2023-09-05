@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base32"
@@ -22,7 +21,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -159,7 +157,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-	go p.startSubscriptions()
 	if syncSince != nil {
 		go p.syncSince(*syncSince)
 	}
@@ -191,136 +188,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 func (p *Plugin) syncSince(syncSince time.Time) {
 	// TODO: Implement the sync mechanism
 	p.API.LogDebug("Syncing since", "date", syncSince)
-}
-
-func (p *Plugin) startSubscriptions() {
-	p.clusterMutex.Lock()
-	defer p.clusterMutex.Unlock()
-
-	if err := p.store.DeleteFakeSubscriptions(); err != nil {
-		p.API.LogError("Unable to delete fake subscriptions", "error", err)
-		return
-	}
-
-	counter := 0
-	maxRetries := 20
-	for {
-		resp, _ := http.Post(p.GetURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
-		if resp != nil {
-			resp.Body.Close()
-			if resp.StatusCode == 200 {
-				break
-			}
-		}
-
-		counter++
-		if counter > maxRetries {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	links, err := p.store.ListChannelLinks()
-	if err != nil {
-		p.API.LogError("Unable to list channel links", "error", err)
-		return
-	}
-
-	mmChannelSubscriptions, err := p.store.ListChannelSubscriptions()
-	if err != nil {
-		p.API.LogError("Unable to list Mattermost channel subscriptions", "error", err)
-		return
-	}
-
-	msteamsSubscriptionsMap, _, err := p.monitor.GetMSTeamsSubscriptionsMap()
-	if err != nil {
-		p.API.LogError("Unable to list MS Teams subscriptions", "error", err)
-		return
-	}
-
-	mmChannelSubscriptionsMap := make(map[string]*storemodels.ChannelSubscription)
-	for _, mmChannelSubscription := range mmChannelSubscriptions {
-		mmChannelSubscriptionsMap[mmChannelSubscription.SubscriptionID] = mmChannelSubscription
-	}
-
-	wg := sync.WaitGroup{}
-	ws := make(chan struct{}, 20)
-
-	wg.Add(1)
-	ws <- struct{}{}
-	fakeSubscriptionCount := 1
-	for _, link := range links {
-		ws <- struct{}{}
-		wg.Add(1)
-		go func(link storemodels.ChannelLink) {
-			defer wg.Done()
-			mmSubscription, mmSubscriptionFound := mmChannelSubscriptionsMap[link.MattermostTeamID+link.MattermostChannelID]
-			// Check if channel subscription is present for a link on Mattermost
-			if mmSubscriptionFound {
-				// Check if channel subscription is not present on MS Teams
-				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
-					// Create channel subscription for the linked channel
-					fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, mmSubscription, fakeSubscriptionCount)
-					if err != nil {
-						<-ws
-						return
-					}
-				}
-			} else {
-				// Create channel subscription for the linked channel
-				fakeSubscriptionCount, err = p.CreateChannelSubscriptions(link, nil, fakeSubscriptionCount)
-				if err != nil {
-					<-ws
-					return
-				}
-			}
-			<-ws
-		}(link)
-	}
-	wg.Wait()
-	p.API.LogDebug("Starting subscriptions finished")
-}
-
-func (p *Plugin) CreateChannelSubscriptions(link storemodels.ChannelLink, mmSubscription *storemodels.ChannelSubscription, fakeSubscriptionCount int) (int, error) {
-	// Create channel subscription for linked channel
-	channelSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-	if err != nil {
-		p.API.LogError("Unable to subscribe to channels", "channelID", link.MattermostChannelID, "error", err)
-		if mmSubscription != nil {
-			return fakeSubscriptionCount, err
-		}
-
-		// Mark this subscription to be created and retried by the monitor system
-		_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-			SubscriptionID: "fake-subscription-id-" + fmt.Sprint(fakeSubscriptionCount),
-			TeamID:         link.MSTeamsTeam,
-			ChannelID:      link.MSTeamsChannel,
-			ExpiresOn:      time.Now(),
-			Secret:         p.getConfiguration().WebhookSecret,
-		})
-		fakeSubscriptionCount++
-		return fakeSubscriptionCount, err
-	}
-
-	if mmSubscription != nil {
-		if err = p.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
-			p.API.LogError("Unable to delete the old channel subscription", "subscriptionID", mmSubscription.SubscriptionID, "error", err)
-		}
-	}
-
-	if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-		SubscriptionID: channelSubscription.ID,
-		TeamID:         link.MSTeamsTeam,
-		ChannelID:      link.MSTeamsChannel,
-		ExpiresOn:      channelSubscription.ExpiresOn,
-		Secret:         p.getConfiguration().WebhookSecret,
-	}); err != nil {
-		p.API.LogError("Unable to save the channel subscription", "subscriptionID", channelSubscription.ID, "error", err)
-		return fakeSubscriptionCount, err
-	}
-
-	p.API.LogDebug("Subscription to channel created", "subscriptionID", channelSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
-	return fakeSubscriptionCount, nil
 }
 
 func (p *Plugin) stop() {
