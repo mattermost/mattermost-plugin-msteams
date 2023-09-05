@@ -25,14 +25,12 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 
 	channelSubscriptionsMap := make(map[string]*storemodels.ChannelSubscription)
 	for _, subscription := range subscriptions {
-		channelSubscriptionsMap[subscription.SubscriptionID] = subscription
+		channelSubscriptionsMap[subscription.TeamID+subscription.ChannelID] = subscription
 	}
 
 	wg := sync.WaitGroup{}
 	ws := make(chan struct{}, 20)
 
-	wg.Add(1)
-	ws <- struct{}{}
 	for _, link := range links {
 		ws <- struct{}{}
 		wg.Add(1)
