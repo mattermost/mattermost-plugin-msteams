@@ -72,13 +72,14 @@ type ClientImpl struct {
 }
 
 type Subscription struct {
-	ID        string
-	Type      string
-	ChannelID string
-	Resource  string
-	TeamID    string
-	UserID    string
-	ExpiresOn time.Time
+	ID              string
+	Type            string
+	ChannelID       string
+	Resource        string
+	TeamID          string
+	UserID          string
+	ExpiresOn       time.Time
+	NotificationURL string
 }
 
 type Channel struct {
@@ -864,6 +865,7 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 	err = pageIterator.Iterate(tc.ctx, func(subscription models.Subscriptionable) bool {
 		subscriptionID := ""
 		resource := ""
+		notificationURL := ""
 		var expiresOn time.Time
 		if subscription != nil {
 			if subscription.GetId() != nil {
@@ -877,12 +879,17 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 			if subscription.GetResource() != nil {
 				resource = *subscription.GetResource()
 			}
+
+			if subscription.GetNotificationUrl() != nil {
+				notificationURL = *subscription.GetNotificationUrl()
+			}
 		}
 
 		subscriptions = append(subscriptions, &Subscription{
-			ID:        subscriptionID,
-			Resource:  resource,
-			ExpiresOn: expiresOn,
+			ID:              subscriptionID,
+			Resource:        resource,
+			NotificationURL: notificationURL,
+			ExpiresOn:       expiresOn,
 		})
 
 		return true
