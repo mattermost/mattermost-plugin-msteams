@@ -155,26 +155,26 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 		setupStore              func(*mocksStore.Store)
 	}{
 		{
-			description: "Failed to get channels links",
+			description: "Failed to get channel links",
 			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for channels subscriptions").Times(1)
-				mockAPI.On("LogError", "Unable to list channel links from DB", "error", "failed to get channels links").Times(1)
+				mockAPI.On("LogError", "Unable to list channel links from DB", "error", "failed to get channel links").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("ListChannelLinks").Return(nil, errors.New("failed to get channels links")).Times(1)
+				store.On("ListChannelLinks").Return(nil, errors.New("failed to get channel links")).Times(1)
 			},
 		},
 		{
-			description: "Failed to get channels subscriptions",
+			description: "Failed to get channel subscriptions",
 			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for channels subscriptions").Times(1)
-				mockAPI.On("LogError", "Unable to get the channel subscriptions", "error", "failed to get channels subscriptions").Times(1)
+				mockAPI.On("LogError", "Unable to get the channel subscriptions", "error", "failed to get channel subscriptions").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
-				store.On("ListChannelSubscriptions").Return(nil, errors.New("failed to get channels subscriptions")).Times(1)
+				store.On("ListChannelSubscriptions").Return(nil, errors.New("failed to get channel subscriptions")).Times(1)
 			},
 		},
 		{
