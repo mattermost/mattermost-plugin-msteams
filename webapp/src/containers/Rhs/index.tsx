@@ -59,14 +59,16 @@ const Rhs = (): JSX.Element => {
 
     const handleSearchLinkedChannelsTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchLinkedChannelsText(e.target.value);
-        resetStates();
+        setTimeout(() => {
+            resetStates();
+        }, Constants.DebounceFunctionTimeLimit);
     };
 
     useEffect(() => {
         const linkedChannelsParams: SearchLinkedChannelParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
         setGetLinkedChannelsParams(linkedChannelsParams);
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
-    }, [paginationQueryParams, searchLinkedChannelsText]);
+    }, [paginationQueryParams]);
 
     useEffect(() => {
         if (refetchLinkedChannels) {
