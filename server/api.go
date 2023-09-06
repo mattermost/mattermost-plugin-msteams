@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -19,13 +20,21 @@ import (
 )
 
 const (
-	HeaderMattermostUserID = "Mattermost-User-ID"
+	HeaderMattermostUserID = "Mattermost-User-Id"
 	PathParamChannelID     = "channel_id"
 
 	// Query params
-	QueryParamTeamID     = "team_id"
-	QueryParamSearchTerm = "search_term"
+	QueryParamSearchTerm = "search"
+
+	// Path params
+	PathParamTeamID = "team_id"
+
+	// Used for storing the token in the request context to pass from one middleware to another
+	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
+	ContextTokenKey MSTeamsOAuthToken = "MS-Teams-Oauth-Token"
 )
+
+type MSTeamsOAuthToken string
 
 type API struct {
 	p      *Plugin
@@ -39,9 +48,11 @@ type Activities struct {
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
+	router.Use(p.WithRecovery)
 	api := &API{p: p, router: router, store: store}
 
 	autocompleteRouter := router.PathPrefix("/autocomplete").Subrouter()
+	msTeamsRouter := router.PathPrefix("/msteams").Subrouter()
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
@@ -49,13 +60,16 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
-	router.HandleFunc("/connected-channels", api.handleAuthRequired(api.getConnectedChannels)).Methods(http.MethodGet)
-	router.HandleFunc("/ms-teams-team-list", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
-	router.HandleFunc("/ms-teams-team-channels", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
+	router.HandleFunc("/linked-channels", api.handleAuthRequired(api.getLinkedChannels)).Methods(http.MethodGet)
 	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
 	router.HandleFunc(fmt.Sprintf("/unlink-channels/{%s}", PathParamChannelID), api.handleAuthRequired(api.checkUserConnected(api.unlinkChannels))).Methods(http.MethodDelete)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 
+	// MS Teams APIs
+	msTeamsRouter.HandleFunc("/teams", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
+	msTeamsRouter.HandleFunc(fmt.Sprintf("/teams/{%s:[A-Za-z0-9-]{36}}/channels", PathParamTeamID), api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
+
+	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
 	autocompleteRouter.HandleFunc("/channels", api.autocompleteChannels).Methods(http.MethodGet)
 
@@ -75,7 +89,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogError("Unable to read avatar", "error", err.Error())
+			a.p.API.LogError("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
@@ -144,8 +158,8 @@ func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
 		if err != nil {
 			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
-				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
+			if err = a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err != nil {
+				a.p.API.LogError("Unable to store the updated subscription expiration date", "subscriptionID", activity.SubscriptionID, "error", err.Error())
 			}
 		}
 	}
@@ -173,7 +187,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {
-			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
+			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
 		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI)
@@ -190,7 +204,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	teams, _, err := a.p.GetMSTeamsTeamList(userID)
+	teams, _, err := a.p.GetMSTeamsTeamList(userID, r)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -223,7 +237,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	teamID := args[2]
-	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -289,21 +303,20 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TODO: Add unit tests
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
-		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
-		http.Error(w, "Error trying to connect the account, please try again.", http.StatusInternalServerError)
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Message)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -335,7 +348,7 @@ func (a *API) disconnect(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
+func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
 	links, err := a.p.store.ListChannelLinksWithNames()
 	if err != nil {
@@ -356,41 +369,54 @@ func (a *API) getConnectedChannels(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
-		for index := offset; index < offset+limit && index < len(links); index++ {
-			link := links[index]
-			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] != "" && msTeamsTeamIDsVsNames[link.MSTeamsTeamID] != "" {
-				channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
-				if appErr != nil {
-					a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
-					http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
-					return
-				}
+		searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+		offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
+		matchCount := 0
+		for _, link := range links {
+			if msTeamsChannelIDsVsNames[link.MSTeamsChannelID] == "" || msTeamsTeamIDsVsNames[link.MSTeamsTeamID] == "" {
+				continue
+			}
 
-				paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
-					MattermostTeamID:      link.MattermostTeamID,
-					MattermostChannelID:   link.MattermostChannelID,
-					MSTeamsTeamID:         link.MSTeamsTeamID,
-					MSTeamsChannelID:      link.MSTeamsChannelID,
-					MattermostChannelName: link.MattermostChannelName,
-					MattermostTeamName:    link.MattermostTeamName,
-					MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
-					MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
-					MattermostChannelType: string(channel.Type),
-					MSTeamsChannelType:    msTeamsChannelIDsVsType[link.MSTeamsChannelID],
-				})
+			if len(paginatedLinks) == limit {
+				break
+			}
+
+			if strings.HasPrefix(strings.ToLower(link.MattermostChannelName), strings.ToLower(searchTerm)) {
+				if matchCount >= offset {
+					channel, appErr := a.p.API.GetChannel(link.MattermostChannelID)
+					if appErr != nil {
+						a.p.API.LogError("Error occurred while getting the channel details", "ChannelID", link.MattermostChannelID, "Error", appErr.Message)
+						http.Error(w, "Error occurred while getting the channel details", http.StatusInternalServerError)
+						return
+					}
+
+					paginatedLinks = append(paginatedLinks, &storemodels.ChannelLink{
+						MattermostTeamID:      link.MattermostTeamID,
+						MattermostChannelID:   link.MattermostChannelID,
+						MSTeamsTeamID:         link.MSTeamsTeamID,
+						MSTeamsChannelID:      link.MSTeamsChannelID,
+						MattermostChannelName: link.MattermostChannelName,
+						MattermostTeamName:    link.MattermostTeamName,
+						MSTeamsChannelName:    msTeamsChannelIDsVsNames[link.MSTeamsChannelID],
+						MSTeamsTeamName:       msTeamsTeamIDsVsNames[link.MSTeamsTeamID],
+						MattermostChannelType: string(channel.Type),
+						MSTeamsChannelType:    msTeamsChannelIDsVsType[link.MSTeamsChannelID],
+					})
+				} else {
+					matchCount++
+				}
 			}
 		}
 	}
 
-	a.writeJSON(w, http.StatusOK, paginatedLinks)
+	a.writeJSONArray(w, http.StatusOK, paginatedLinks)
 }
 
 func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
-	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID)
+	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID, r)
 	if err != nil {
-		http.Error(w, "Error occurred while fetching the MS Teams team list.", statusCode)
+		http.Error(w, "Error occurred while fetching the MS Teams teams.", statusCode)
 		return
 	}
 
@@ -399,8 +425,8 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	})
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
-	paginatedTeams := []msteams.Team{}
+	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
+	paginatedTeams := []*msteams.Team{}
 	matchCount := 0
 	for _, team := range teams {
 		if len(paginatedTeams) == limit {
@@ -416,19 +442,14 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	a.writeJSON(w, http.StatusOK, paginatedTeams)
+	a.writeJSONArray(w, http.StatusOK, paginatedTeams)
 }
 
 func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	pathParams := mux.Vars(r)
+	teamID := pathParams[PathParamTeamID]
 	userID := r.Header.Get(HeaderMattermostUserID)
-	teamID := r.URL.Query().Get(QueryParamTeamID)
-	if teamID == "" {
-		a.p.API.LogError("Error missing team ID query param.")
-		http.Error(w, "Error missing team ID query param.", http.StatusBadRequest)
-		return
-	}
-
-	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID)
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
 		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
 		return
@@ -439,8 +460,8 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 	})
 
 	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
-	offset, limit := a.p.GetOffsetAndLimitFromQueryParams(r.URL.Query())
-	paginatedChannels := []msteams.Channel{}
+	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
+	paginatedChannels := []*msteams.Channel{}
 	matchCount := 0
 	for _, channel := range channels {
 		if len(paginatedChannels) == limit {
@@ -456,7 +477,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	a.writeJSON(w, http.StatusOK, paginatedChannels)
+	a.writeJSONArray(w, http.StatusOK, paginatedChannels)
 }
 
 func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
@@ -464,8 +485,15 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 
 	var body *storemodels.ChannelLink
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		a.p.API.LogError("Error occurred while decoding link channels payload.", "Error", err.Error())
-		http.Error(w, "Error occurred while decoding link channels payload.", http.StatusInternalServerError)
+		a.p.API.LogError("Error occurred while unmarshaling link channels payload.", "Error", err.Error())
+		http.Error(w, "Error occurred while unmarshaling link channels payload.", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if body == nil {
+		a.p.API.LogError("Invalid channel link payload.")
+		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
 		return
 	}
 
@@ -475,11 +503,12 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID); errMsg != "" {
+	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID, r.Context().Value(ContextTokenKey).(*oauth2.Token)); errMsg != "" {
 		http.Error(w, errMsg, statusCode)
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	if _, err := w.Write([]byte("Channels linked successfully")); err != nil {
 		a.p.API.LogError("Failed to write response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -492,13 +521,18 @@ func (a *API) unlinkChannels(w http.ResponseWriter, r *http.Request) {
 
 	pathParams := mux.Vars(r)
 	channelID := pathParams[PathParamChannelID]
+	if !model.IsValidId(channelID) {
+		a.p.API.LogError("Invalid path param channel ID", "ChannelID", channelID)
+		http.Error(w, "Invalid path param channel ID", http.StatusBadRequest)
+		return
+	}
 
 	if errMsg, statusCode := a.p.UnlinkChannels(userID, channelID); errMsg != "" {
 		http.Error(w, errMsg, statusCode)
 		return
 	}
 
-	if _, err := w.Write([]byte("Channels unlinked successfully")); err != nil {
+	if _, err := w.Write([]byte("Channel unlinked successfully")); err != nil {
 		a.p.API.LogError("Failed to write response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -530,8 +564,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
-		a.p.API.LogError("Unable to complete OAuth.", "UserID", mmUserID, "Error", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		a.p.API.LogError("Unable to verify OAuth state", "MMUserID", mmUserID, "Error", err.Error())
+		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
 		return
 	}
 
@@ -549,15 +583,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	token, err := conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", string(codeVerifierBytes)))
 	if err != nil {
-		a.p.API.LogError("Unable to read avatar", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+		a.p.API.LogError("Unable to get OAuth2 token", "error", err.Error())
+		http.Error(w, "Unable to complete authentication", http.StatusInternalServerError)
 		return
 	}
 
 	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
 	if err = client.Connect(); err != nil {
-		a.p.API.LogError("Unable connect to the client", "error", err.Error())
-		http.Error(w, "failed to connect to the client", http.StatusBadRequest)
+		a.p.API.LogError("Unable to connect to the client", "error", err.Error())
+		http.Error(w, "failed to connect to the client", http.StatusInternalServerError)
 		return
 	}
 
@@ -587,8 +621,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if storedToken != nil {
-		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.")
-		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusInternalServerError)
+		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.", "MSTeamsUserID", msteamsUser.ID)
+		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusBadRequest)
 		return
 	}
 
@@ -629,17 +663,21 @@ func (a *API) handleAuthRequired(handleFunc http.HandlerFunc) http.HandlerFunc {
 func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mattermostUserID := r.Header.Get(HeaderMattermostUserID)
-		if _, err := a.p.store.GetTokenForMattermostUser(mattermostUserID); err != nil {
+		token, err := a.p.store.GetTokenForMattermostUser(mattermostUserID)
+		if err != nil {
 			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
 			http.Error(w, "The account is not connected.", http.StatusBadRequest)
 			return
 		}
 
+		ctx := context.WithValue(r.Context(), ContextTokenKey, token)
+		r = r.Clone(ctx)
+
 		handleFunc(w, r)
 	}
 }
 
-func (a *API) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
+func (a *API) writeJSONArray(w http.ResponseWriter, statusCode int, v interface{}) {
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
@@ -649,14 +687,36 @@ func (a *API) writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 	if err != nil {
 		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	if string(b) == "null" {
+		w.WriteHeader(statusCode)
+		_, _ = w.Write([]byte("[]"))
 		return
 	}
 
 	if _, err = w.Write(b); err != nil {
-		a.p.API.LogError("Failed to write JSON response", "Error", err.Error())
+		a.p.API.LogError("Error while writing response", "Error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(statusCode)
+}
+
+func (p *Plugin) WithRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if x := recover(); x != nil {
+				p.API.LogError("Recovered from a panic",
+					"url", r.URL.String(),
+					"error", x,
+					"stack", string(debug.Stack()))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
 }

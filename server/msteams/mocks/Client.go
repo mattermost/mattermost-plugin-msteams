@@ -231,6 +231,29 @@ func (_m *Client) GetFileContent(weburl string) ([]byte, error) {
 	return r0, r1
 }
 
+// GetHostedFileContent provides a mock function with given fields: activityIDs
+func (_m *Client) GetHostedFileContent(activityIDs *msteams.ActivityIds) ([]byte, error) {
+	ret := _m.Called(activityIDs)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(*msteams.ActivityIds) []byte); ok {
+		r0 = rf(activityIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*msteams.ActivityIds) error); ok {
+		r1 = rf(activityIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetMe provides a mock function with given fields:
 func (_m *Client) GetMe() (*msteams.User, error) {
 	ret := _m.Called()
@@ -414,15 +437,15 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 }
 
 // ListChannels provides a mock function with given fields: teamID
-func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
+func (_m *Client) ListChannels(teamID string) ([]*msteams.Channel, error) {
 	ret := _m.Called(teamID)
 
-	var r0 []msteams.Channel
-	if rf, ok := ret.Get(0).(func(string) []msteams.Channel); ok {
+	var r0 []*msteams.Channel
+	if rf, ok := ret.Get(0).(func(string) []*msteams.Channel); ok {
 		r0 = rf(teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.Channel)
+			r0 = ret.Get(0).([]*msteams.Channel)
 		}
 	}
 
@@ -437,15 +460,15 @@ func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
 }
 
 // ListTeams provides a mock function with given fields:
-func (_m *Client) ListTeams() ([]msteams.Team, error) {
+func (_m *Client) ListTeams() ([]*msteams.Team, error) {
 	ret := _m.Called()
 
-	var r0 []msteams.Team
-	if rf, ok := ret.Get(0).(func() []msteams.Team); ok {
+	var r0 []*msteams.Team
+	if rf, ok := ret.Get(0).(func() []*msteams.Team); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.Team)
+			r0 = ret.Get(0).([]*msteams.Team)
 		}
 	}
 

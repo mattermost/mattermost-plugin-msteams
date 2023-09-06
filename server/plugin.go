@@ -36,6 +36,7 @@ const (
 	pluginID              = "com.mattermost.msteams-sync"
 	clusterMutexKey       = "subscriptions_cluster_mutex"
 	lastReceivedChangeKey = "last_received_change"
+	msteamsUserTypeGuest  = "Guest"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -81,6 +82,10 @@ func (p *Plugin) GetStore() store.Store {
 
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
+}
+
+func (p *Plugin) GetSyncGuestUsers() bool {
+	return p.getConfiguration().SyncGuestUsers
 }
 
 func (p *Plugin) GetBotUserID() string {
@@ -141,7 +146,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return
 	}
 
@@ -238,9 +242,9 @@ func (p *Plugin) startSubscriptions() {
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeamID, link.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-			if err2 != nil {
-				p.API.LogError("Unable to subscribe to channels", "error", err2)
+			channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeamID, link.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+			if err != nil {
+				p.API.LogError("Unable to subscribe to channels", "error", err)
 				// Mark this subscription to be created and retried by the monitor system
 				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 					SubscriptionID: "fake-subscription-id",
@@ -253,15 +257,14 @@ func (p *Plugin) startSubscriptions() {
 				return
 			}
 
-			err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+			if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 				SubscriptionID: channelsSubscription.ID,
 				TeamID:         link.MSTeamsTeamID,
 				ChannelID:      link.MSTeamsChannelID,
 				ExpiresOn:      channelsSubscription.ExpiresOn,
 				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			if err2 != nil {
-				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
+			}); err != nil {
+				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err)
 				<-ws
 				return
 			}
@@ -270,7 +273,7 @@ func (p *Plugin) startSubscriptions() {
 		}(link)
 	}
 	wg.Wait()
-	p.API.LogDebug("Start subscription finished")
+	p.API.LogDebug("Starting subscriptions finished")
 }
 
 func (p *Plugin) stop() {
@@ -465,7 +468,7 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 
-		if msUser.Type == "Guest" {
+		if msUser.Type == msteamsUserTypeGuest {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
@@ -496,6 +499,8 @@ func (p *Plugin) syncUsers() {
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+			newMMUser.SetDefaultNotifications()
+			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 			var newUser *model.User
 			for {
@@ -518,8 +523,17 @@ func (p *Plugin) syncUsers() {
 				continue
 			}
 
-			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
-			if err != nil {
+			preferences := model.Preferences{model.Preference{
+				UserId:   newUser.Id,
+				Category: model.PreferenceCategoryNotifications,
+				Name:     model.PreferenceNameEmailInterval,
+				Value:    "0",
+			}}
+			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
+			}
+
+			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {

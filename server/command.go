@@ -17,7 +17,7 @@ const commandWaitingMessage = "Please wait while your request is being processed
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
 	if err != nil {
-		p.API.LogError("Unable to get the msteams icon for the slash command")
+		p.API.LogError("Unable to get the MS Teams icon for the slash command")
 	}
 
 	return &model.Command{
@@ -150,7 +150,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1]); errMsg != "" {
+	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1], nil); errMsg != "" {
 		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
 
@@ -175,12 +175,12 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeamID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team details.")
 	}
 
 	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeamID, link.MSTeamsChannelID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel details.")
 	}
 
 	text := fmt.Sprintf(
@@ -236,7 +236,7 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	}
 
 	if errorsFound {
-		sb.WriteString("\nThere were some errors while fetching information. Please check the server logs.")
+		sb.WriteString("\nThere were some errors while fetching details. Please check the server logs.")
 	}
 
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
@@ -256,7 +256,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
@@ -279,7 +279,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
@@ -309,7 +309,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "UserID", args.UserId, "Error", err.Error())
+		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil

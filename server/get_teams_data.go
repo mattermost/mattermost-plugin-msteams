@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
@@ -25,11 +27,11 @@ const (
 	MaxPerPageLimit     = 100
 )
 
-func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (map[string]string, map[string]string, map[string]string, bool) {
-	msTeamsTeamIDsVsNames := make(map[string]string)
-	msTeamsChannelIDsVsNames := make(map[string]string)
+func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (msTeamsTeamIDsVsNames map[string]string, msTeamsChannelIDsVsNames map[string]string, msTeamsChannelIDsVsType map[string]string, errorsFound bool) {
 	msTeamsTeamIDsVsChannelsQuery := make(map[string]string)
-	msTeamsChannelIDsVsType := make(map[string]string)
+	msTeamsTeamIDsVsNames = make(map[string]string)
+	msTeamsChannelIDsVsNames = make(map[string]string)
+	msTeamsChannelIDsVsType = make(map[string]string)
 
 	for _, link := range channelLinks {
 		if checkChannelPermissions && !p.API.HasPermissionToChannel(userID, link.MattermostChannelID, model.PermissionCreatePost) {
@@ -51,21 +53,16 @@ func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []
 		msTeamsTeamIDsVsChannelsQuery[link.MSTeamsTeamID] += "'" + link.MSTeamsChannelID + "'"
 	}
 
-	errorsFound := false
 	// Get MS Teams display names for each unique team ID and store it
-	if p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames)
 
 	// Get MS Teams channel details for all channels for each unique team
-	if p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType) {
-		errorsFound = true
-	}
+	errorsFound = p.GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType) || errorsFound
 
 	return msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType, errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
+func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) (errorsFound bool) {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
 	for teamID := range msTeamsTeamIDsVsNames {
@@ -76,7 +73,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
 	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
 	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		p.API.LogDebug("Unable to get the MS Teams teams details", "Error", err.Error())
 		return true
 	}
 
@@ -87,12 +84,11 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	return false
 }
 
-func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType map[string]string) bool {
-	errorsFound := false
+func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames, msTeamsChannelIDsVsType map[string]string) (errorsFound bool) {
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			p.API.LogDebug("Unable to get the MS Teams channel details for the team", "TeamID", teamID, "Error", err.Error())
 			errorsFound = true
 			continue
 		}
@@ -110,27 +106,39 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	return errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamList(userID string) ([]msteams.Team, int, error) {
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, http.StatusUnauthorized, err
+func (p *Plugin) GetMSTeamsTeamList(userID string, r *http.Request) ([]*msteams.Team, int, error) {
+	var client msteams.Client
+	var err error
+	if r.Context().Value(ContextTokenKey) == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return nil, http.StatusUnauthorized, err
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, r.Context().Value(ContextTokenKey).(*oauth2.Token), p.API.LogError)
 	}
 
 	teams, err := client.ListTeams()
 	if err != nil {
-		p.API.LogError("Unable to get the MS Teams team list", "Error", err.Error())
+		p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 
 	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channel, int, error) {
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Unable to get the client for user", "Error", err.Error())
-		return nil, http.StatusUnauthorized, err
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) ([]*msteams.Channel, int, error) {
+	var client msteams.Client
+	var err error
+	if r.Context().Value(ContextTokenKey) == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return nil, http.StatusUnauthorized, err
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, r.Context().Value(ContextTokenKey).(*oauth2.Token), p.API.LogError)
 	}
 
 	channels, err := client.ListChannels(teamID)
@@ -142,16 +150,16 @@ func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string) ([]msteams.Channe
 	return channels, http.StatusOK, nil
 }
 
-func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string) (string, int) {
+func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string, token *oauth2.Token) (responseMsg string, statusCode int) {
 	channel, appErr := p.API.GetChannel(mattermostChannelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get the current channel information.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
-		return "Unable to get the current channel information.", http.StatusInternalServerError
+		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
+		return "Unable to get the current channel details.", http.StatusInternalServerError
 	}
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
 		p.API.LogError("Linking/unlinking a direct or group message is not allowed.", "ChannelType", channel.Type)
-		return "Linking/unlinking a direct or group message is not allowed", http.StatusForbidden
+		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
 	}
 
 	if !p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles) {
@@ -161,7 +169,7 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 
 	if !p.store.CheckEnabledTeamByTeamID(mattermostTeamID) {
 		p.API.LogError("This team is not enabled for MS Teams sync.", "TeamID", mattermostTeamID)
-		return "This team is not enabled for MS Teams sync.", http.StatusForbidden
+		return "This team is not enabled for MS Teams sync.", http.StatusBadRequest
 	}
 
 	link, err := p.store.GetLinkByChannelID(mattermostChannelID)
@@ -179,13 +187,18 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 		return "Error occurred while getting the channel link with MS Teams channel ID", http.StatusInternalServerError
 	}
 	if link != nil {
-		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusBadRequest
+		return "The Teams channel that you're trying to link is already linked to another Mattermost channel. Please unlink that channel and try again.", http.StatusBadRequest
 	}
 
-	client, err := p.GetClientForUser(userID)
-	if err != nil {
-		p.API.LogError("Error occurred while getting client for the user.", "Error", err.Error())
-		return "Unable to link the channel, looks like your account is not connected to MS Teams", http.StatusInternalServerError
+	var client msteams.Client
+	if token == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return "Unable to link the channel, looks like your account is not connected to MS Teams", http.StatusUnauthorized
+		}
+	} else {
+		client = p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError)
 	}
 
 	if _, err = client.GetChannelInTeam(msTeamsTeamID, msTeamsChannelID); err != nil {
@@ -228,8 +241,8 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int) {
 	channel, appErr := p.API.GetChannel(mattermostChannelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get the current channel information.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
-		return "Unable to get the current channel information.", http.StatusInternalServerError
+		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
+		return "Unable to get the current channel details.", http.StatusInternalServerError
 	}
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
@@ -237,10 +250,9 @@ func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int
 		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
 	}
 
-	canLinkChannel := p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		p.API.LogError("Unable to unlink the channel, you have to be a channel admin to unlink it.", "ChannelID", mattermostChannelID)
-		return "Unable to unlink the channel, you have to be a channel admin to unlink it.", http.StatusForbidden
+	if !p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles) {
+		p.API.LogError("Unable to unlink the channel, you have to be atleast a channel admin to unlink it.", "ChannelID", mattermostChannelID)
+		return "Unable to unlink the channel, you have to be atleast a channel admin to unlink it.", http.StatusForbidden
 	}
 
 	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {
@@ -256,7 +268,7 @@ func (p *Plugin) UnlinkChannels(userID, mattermostChannelID string) (string, int
 	return "", http.StatusOK
 }
 
-func (p *Plugin) GetOffsetAndLimitFromQueryParams(query url.Values) (offset, limit int) {
+func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
 		p.API.LogError("Invalid pagination query param", "Error", err.Error())
