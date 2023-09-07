@@ -96,7 +96,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
-func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool) {
+func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if !ah.checkSubscription(event.SubscriptionID) {
 		return
 	}
@@ -232,7 +232,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
-	ah.plugin.GetAPI().LogDebug("Post generated")
+	ah.plugin.GetAPI().LogDebug("Post generated", "PostID", post.Id)
 
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
@@ -245,7 +245,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "error", appErr)
+		ah.plugin.GetAPI().LogError("Unable to create post", "PostID", post.Id, "Error", appErr)
 		return
 	}
 
@@ -348,11 +348,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
-				ah.plugin.GetAPI().LogError("Unable to recover the post", "error", err)
+				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
 				return
 			}
 		} else {
-			ah.plugin.GetAPI().LogError("Unable to update post", "error", appErr)
+			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
 			return
 		}
 	}
