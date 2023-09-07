@@ -136,7 +136,6 @@ func TestStore(t *testing.T) {
 		"testGetChatSubscription":                                    testGetChatSubscription,
 		"testGetChannelSubscription":                                 testGetChannelSubscription,
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
-		"testDeleteFakeSubscriptions":                                testDeleteFakeSubscriptions,
 		"testListChannelSubscriptions":                               testListChannelSubscriptions,
 		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
@@ -1069,37 +1068,6 @@ func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.AP
 	subscriptions, err := store.ListGlobalSubscriptions()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
-}
-
-func testDeleteFakeSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	err := store.SaveChannelSubscription(storemodels.ChannelSubscription{
-		SubscriptionID: "fake-subscription-id-1",
-		TeamID:         "team-id",
-		ChannelID:      "channel-id-1",
-		Secret:         "secret",
-		ExpiresOn:      time.Now().Add(1 * time.Minute),
-	})
-	require.NoError(t, err)
-
-	err = store.SaveChannelSubscription(storemodels.ChannelSubscription{
-		SubscriptionID: "fake-subscription-id-2",
-		TeamID:         "team-id",
-		ChannelID:      "channel-id-2",
-		Secret:         "secret",
-		ExpiresOn:      time.Now().Add(1 * time.Minute),
-	})
-	require.NoError(t, err)
-
-	subscriptions, err := store.ListChannelSubscriptions()
-	require.NoError(t, err)
-	require.Len(t, subscriptions, 2)
-
-	err = store.DeleteFakeSubscriptions()
-	require.NoError(t, err)
-
-	subscriptions, err = store.ListChannelSubscriptions()
-	require.NoError(t, err)
-	require.Len(t, subscriptions, 0)
 }
 
 func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {

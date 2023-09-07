@@ -731,29 +731,6 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (*Subscription, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 
-	subscriptionsRes, err := tc.client.Subscriptions().Get(tc.ctx, nil)
-	if err != nil {
-		tc.logError("Unable to get the subcscriptions list", NormalizeGraphAPIError(err))
-		return nil, NormalizeGraphAPIError(err)
-	}
-
-	pageIterator, err := msgraphcore.NewPageIterator[models.Subscriptionable](subscriptionsRes, tc.client.GetAdapter(), models.CreateSubscriptionCollectionResponseFromDiscriminatorValue)
-	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
-	}
-
-	var existingSubscription models.Subscriptionable
-	err = pageIterator.Iterate(context.Background(), func(subscription models.Subscriptionable) bool {
-		if subscription.GetResource() != nil && (*subscription.GetResource() == resource || *subscription.GetResource()+"?model=B" == resource) {
-			existingSubscription = subscription
-			return false
-		}
-		return true
-	})
-	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
-	}
-
 	lifecycleNotificationURL := baseURL + "lifecycle"
 	notificationURL := baseURL + "changes"
 
@@ -764,28 +741,6 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 	subscription.SetLifecycleNotificationUrl(&lifecycleNotificationURL)
 	subscription.SetClientState(&webhookSecret)
 	subscription.SetChangeType(&changeType)
-
-	if existingSubscription != nil {
-		if *existingSubscription.GetChangeType() != changeType || *existingSubscription.GetLifecycleNotificationUrl() != lifecycleNotificationURL || *existingSubscription.GetNotificationUrl() != notificationURL || *existingSubscription.GetClientState() != webhookSecret {
-			if err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
-			}
-		} else {
-			updatedSubscription := models.NewSubscription()
-			updatedSubscription.SetExpirationDateTime(&expirationDateTime)
-			if _, err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-				tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
-				return &Subscription{
-					ID:        *existingSubscription.GetId(),
-					ExpiresOn: *existingSubscription.GetExpirationDateTime(),
-				}, nil
-			}
-
-			if err = tc.client.Subscriptions().BySubscriptionId(*existingSubscription.GetId()).Delete(tc.ctx, nil); err != nil {
-				tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription", existingSubscription)
-			}
-		}
-	}
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {

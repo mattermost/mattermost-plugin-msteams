@@ -58,7 +58,6 @@ type Store interface {
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
-	DeleteFakeSubscriptions() error
 	SaveGlobalSubscription(storemodels.GlobalSubscription) error
 	SaveChatSubscription(storemodels.ChatSubscription) error
 	SaveChannelSubscription(storemodels.ChannelSubscription) error
@@ -583,15 +582,6 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 		result = append(result, subscription)
 	}
 	return result, nil
-}
-
-func (s *SQLStore) DeleteFakeSubscriptions() error {
-	query := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Like{"subscriptionID": "fake-subscription-id%"})
-	if _, err := query.Exec(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {

@@ -65,20 +65,6 @@ func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
 	return r0
 }
 
-// DeleteFakeSubscriptions provides a mock function with given fields:
-func (_m *Store) DeleteFakeSubscriptions() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DeleteLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	ret := _m.Called(channelID)
