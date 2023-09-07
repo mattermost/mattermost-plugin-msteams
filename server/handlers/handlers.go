@@ -232,7 +232,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
-	ah.plugin.GetAPI().LogDebug("Post generated", "PostID", post.Id)
+	ah.plugin.GetAPI().LogDebug("Post generated")
 
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
@@ -245,7 +245,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "PostID", post.Id, "Error", appErr)
+		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
 		return
 	}
 
