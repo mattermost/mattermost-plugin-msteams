@@ -107,6 +107,9 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 		attachmentData, err := ah.handleDownloadFile(a.ContentURL, client)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
+			if strings.Contains(err.Error(), "file size is greater than the allowed size") {
+				errorFound = true
+			}
 			continue
 		}
 
