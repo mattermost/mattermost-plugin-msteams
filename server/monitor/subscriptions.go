@@ -36,7 +36,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MattermostTeamID+link.MattermostChannelID]
+			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
 				// Check if channel subscription is not present on MS Teams
