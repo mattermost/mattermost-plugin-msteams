@@ -1220,7 +1220,7 @@ func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]by
 
 	fileSize := item.GetSize()
 	if fileSize != nil && *fileSize > fileSizeAllowed {
-		return nil, fmt.Errorf("skipping file download from MS Graph because file size is greater than allowed size")
+		return nil, fmt.Errorf("skipping file download from MS Teams because the file size is greater than the allowed size")
 	}
 
 	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
