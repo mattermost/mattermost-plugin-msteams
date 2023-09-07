@@ -478,16 +478,16 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			expectsError:   true,
 			setupClient: func(client *mocksClient.Client) {
 				client.On("DeleteSubscription", "test-id").Return(errors.New("failed to delete previous subscription")).Times(1)
-				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("failed to subscribe to channels")).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("failed to subscribe to channel")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", "failed to delete previous subscription").Times(1)
-				mockAPI.On("LogError", "Unable to create new subscription for the channel", "channelID", "channel-id", "error", "failed to subscribe to channels").Times(1)
+				mockAPI.On("LogError", "Unable to create new subscription for the channel", "channelID", "channel-id", "error", "failed to subscribe to channel").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},
 		{
-			description:    "Failed to subscribe to channels",
+			description:    "Failed to subscribe to channel",
 			subscriptionID: "test-id",
 			teamID:         "team-id",
 			channelID:      "channel-id",
@@ -495,10 +495,10 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			expectsError:   true,
 			setupClient: func(client *mocksClient.Client) {
 				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
-				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("failed to subscribe to channels")).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(nil, errors.New("failed to subscribe to channel")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to create new subscription for the channel", "channelID", "channel-id", "error", "failed to subscribe to channels").Times(1)
+				mockAPI.On("LogError", "Unable to create new subscription for the channel", "channelID", "channel-id", "error", "failed to subscribe to channel").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},
@@ -586,7 +586,7 @@ func TestMonitorRecreateChatSubscription(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {},
 		},
 		{
-			description:    "Failed to subscribe to channels",
+			description:    "Failed to subscribe to chats",
 			subscriptionID: "test-id",
 			userID:         "user-id",
 			secret:         "webhook-secret",
