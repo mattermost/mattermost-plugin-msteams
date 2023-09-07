@@ -977,9 +977,6 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 }
 
 func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID string) *Message {
-	data, _ := json.Marshal(msg)
-	fmt.Println("==================", string(data), "===================")
-
 	userID := ""
 	if msg.GetFrom() != nil && msg.GetFrom().GetUser() != nil && msg.GetFrom().GetUser().GetId() != nil {
 		userID = *msg.GetFrom().GetUser().GetId()

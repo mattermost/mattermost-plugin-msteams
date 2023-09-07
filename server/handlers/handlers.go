@@ -96,7 +96,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
-func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool) {
+func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if !ah.checkSubscription(event.SubscriptionID) {
 		return
 	}
@@ -109,16 +109,6 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookS
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
-		}
-	} else if event.LifecycleEvent == "subscriptionRemoved" {
-		_, err := ah.plugin.GetClientForApp().SubscribeToChannels(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to subscribe to channels", "error", err)
-		}
-
-		_, err = ah.plugin.GetClientForApp().SubscribeToChats(ah.plugin.GetURL()+"/", webhookSecret, !evaluationAPI)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to subscribe to chats", "error", err)
 		}
 	}
 }
@@ -242,7 +232,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
-	ah.plugin.GetAPI().LogDebug("Post generated", "post", post)
+	ah.plugin.GetAPI().LogDebug("Post generated")
 
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
@@ -255,11 +245,11 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "post", post, "error", appErr)
+		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
 		return
 	}
 
-	ah.plugin.GetAPI().LogDebug("Post created", "post", newPost)
+	ah.plugin.GetAPI().LogDebug("Post created")
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -358,11 +348,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
-				ah.plugin.GetAPI().LogError("Unable to recover the post", "post", post, "error", err)
+				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
 				return
 			}
 		} else {
-			ah.plugin.GetAPI().LogError("Unable to update post", "post", post, "error", appErr)
+			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
 			return
 		}
 	}
