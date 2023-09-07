@@ -72,12 +72,14 @@ type ClientImpl struct {
 }
 
 type Subscription struct {
-	ID        string
-	Type      string
-	ChannelID string
-	TeamID    string
-	UserID    string
-	ExpiresOn time.Time
+	ID              string
+	Type            string
+	ChannelID       string
+	Resource        string
+	TeamID          string
+	UserID          string
+	ExpiresOn       time.Time
+	NotificationURL string
 }
 
 type Channel struct {
@@ -847,6 +849,57 @@ func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
+}
+
+func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
+	r, err := tc.client.Subscriptions().Get(tc.ctx, nil)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.Subscriptionable](r, tc.client.GetAdapter(), models.CreateSubscriptionCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	subscriptions := []*Subscription{}
+	err = pageIterator.Iterate(tc.ctx, func(subscription models.Subscriptionable) bool {
+		subscriptionID := ""
+		resource := ""
+		notificationURL := ""
+		var expiresOn time.Time
+		if subscription != nil {
+			if subscription.GetId() != nil {
+				subscriptionID = *subscription.GetId()
+			}
+
+			if subscription.GetExpirationDateTime() != nil {
+				expiresOn = *subscription.GetExpirationDateTime()
+			}
+
+			if subscription.GetResource() != nil {
+				resource = *subscription.GetResource()
+			}
+
+			if subscription.GetNotificationUrl() != nil {
+				notificationURL = *subscription.GetNotificationUrl()
+			}
+		}
+
+		subscriptions = append(subscriptions, &Subscription{
+			ID:              subscriptionID,
+			Resource:        resource,
+			NotificationURL: notificationURL,
+			ExpiresOn:       expiresOn,
+		})
+
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	return subscriptions, nil
 }
 
 func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
