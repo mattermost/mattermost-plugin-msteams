@@ -55,7 +55,8 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Clie
 		return client.GetHostedFileContent(activityIDs)
 	}
 
-	data, err := client.GetFileContent(weburl)
+	fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
+	data, err := client.GetFileContent(weburl, fileSizeAllowed)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +107,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, text string, msg *msteam
 		attachmentData, err := ah.handleDownloadFile(a.ContentURL, client)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
-			continue
-		}
-
-		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
-		if len(attachmentData) > int(fileSizeAllowed) {
-			ah.plugin.GetAPI().LogError("cannot upload file to Mattermost as its size is greater than allowed size", "filename", a.Name)
-			errorFound = true
 			continue
 		}
 

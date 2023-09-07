@@ -20,26 +20,37 @@ import (
 func TestHandleDownloadFile(t *testing.T) {
 	ah := ActivityHandler{}
 	client := mocksClient.NewClient(t)
+	mockAPI := &plugintest.API{}
+	mockAPI.On("GetConfig").Return(&model.Config{
+		FileSettings: model.FileSettings{
+			MaxFileSize: model.NewInt64(5),
+		},
+	})
 
 	for _, testCase := range []struct {
 		description   string
 		userID        string
 		weburl        string
 		expectedError string
+		setupPlugin   func(plugin *mocksPlugin.PluginIface)
 		setupClient   func()
 	}{
 		{
 			description: "Successfully file downloaded",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://example.com/file1.txt",
+			setupPlugin: func(p *mocksPlugin.PluginIface) {
+				p.On("GetAPI").Return(mockAPI)
+			},
 			setupClient: func() {
-				client.On("GetFileContent", "https://example.com/file1.txt").Return([]byte("data"), nil)
+				client.On("GetFileContent", "https://example.com/file1.txt", int64(5)).Return([]byte("data"), nil)
 			},
 		},
 		{
 			description: "Successfully downloaded hosted content file",
 			userID:      testutils.GetUserID(),
 			weburl:      "https://graph.microsoft.com/beta/teams/mock-teamID/channels/mock-channelID/messages/mock-messageID/hostedContents/mock-hostedContentsID/$value",
+			setupPlugin: func(p *mocksPlugin.PluginIface) {},
 			setupClient: func() {
 				client.On("GetHostedFileContent", mock.AnythingOfType("*msteams.ActivityIds")).Return([]byte("data"), nil)
 			},
@@ -48,13 +59,17 @@ func TestHandleDownloadFile(t *testing.T) {
 			description:   "Unable to get file content",
 			userID:        testutils.GetUserID(),
 			expectedError: "Error while getting file content",
+			setupPlugin: func(p *mocksPlugin.PluginIface) {
+				p.On("GetAPI").Return(mockAPI)
+			},
 			setupClient: func() {
-				client.On("GetFileContent", "").Return(nil, errors.New("Error while getting file content"))
+				client.On("GetFileContent", "", int64(5)).Return(nil, errors.New("Error while getting file content"))
 			},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
+			testCase.setupPlugin(p)
 			testCase.setupClient()
 			ah.plugin = p
 
@@ -288,7 +303,7 @@ func TestHandleAttachments(t *testing.T) {
 				}, nil)
 			},
 			setupClient: func(client *mocksClient.Client) {
-				client.On("GetFileContent", "").Return([]byte{}, nil)
+				client.On("GetFileContent", "", int64(5)).Return([]byte{}, nil)
 			},
 			attachments: []msteams.Attachment{
 				{
@@ -315,31 +330,6 @@ func TestHandleAttachments(t *testing.T) {
 			},
 		},
 		{
-			description: "File size is greater than the max allowed size",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client)
-				p.On("GetAPI").Return(mockAPI)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetConfig").Return(&model.Config{
-					FileSettings: model.FileSettings{
-						MaxFileSize: model.NewInt64(-1),
-					},
-				})
-				mockAPI.On("LogError", "cannot upload file to Mattermost as its size is greater than allowed size", "filename", "mock-name").Return()
-			},
-			setupClient: func(client *mocksClient.Client) {
-				client.On("GetFileContent", "").Return([]byte{}, nil)
-			},
-			attachments: []msteams.Attachment{
-				{
-					Name: "mock-name",
-				},
-			},
-			expectedText:  "mock-text",
-			expectedError: true,
-		},
-		{
 			description: "Error uploading the file",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client)
@@ -355,7 +345,7 @@ func TestHandleAttachments(t *testing.T) {
 				mockAPI.On("LogError", "upload file to Mattermost failed", "filename", "mock-name", "error", "error uploading the file").Return()
 			},
 			setupClient: func(client *mocksClient.Client) {
-				client.On("GetFileContent", "").Return([]byte{}, nil)
+				client.On("GetFileContent", "", int64(5)).Return([]byte{}, nil)
 			},
 			attachments: []msteams.Attachment{
 				{
@@ -380,7 +370,7 @@ func TestHandleAttachments(t *testing.T) {
 				mockAPI.On("LogDebug", "discarding the rest of the attachments as Mattermost supports only 10 attachments per post").Return()
 			},
 			setupClient: func(client *mocksClient.Client) {
-				client.On("GetFileContent", "").Return([]byte{}, nil)
+				client.On("GetFileContent", "", int64(5)).Return([]byte{}, nil)
 			},
 			attachments: []msteams.Attachment{
 				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
