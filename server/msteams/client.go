@@ -1030,9 +1030,6 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 }
 
 func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID string) *Message {
-	data, _ := json.Marshal(msg)
-	fmt.Println("==================", string(data), "===================")
-
 	userID := ""
 	if msg.GetFrom() != nil && msg.GetFrom().GetUser() != nil && msg.GetFrom().GetUser().GetId() != nil {
 		userID = *msg.GetFrom().GetUser().GetId()
@@ -1215,7 +1212,7 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	return &user, nil
 }
 
-func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
+func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, error) {
 	u, err := url.Parse(weburl)
 	if err != nil {
 		return nil, err
@@ -1269,6 +1266,11 @@ func (tc *ClientImpl) GetFileContent(weburl string) ([]byte, error) {
 	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 	if !ok {
 		return nil, errors.New("downloadUrl not found")
+	}
+
+	fileSize := item.GetSize()
+	if fileSize != nil && *fileSize > fileSizeAllowed {
+		return nil, fmt.Errorf("skipping file download from MS Teams because the file size is greater than the allowed size")
 	}
 
 	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
