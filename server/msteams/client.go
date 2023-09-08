@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1167,10 +1168,10 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	return &user, nil
 }
 
-func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, error) {
+func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, error) {
 	u, err := url.Parse(weburl)
 	if err != nil {
-		return nil, err
+		return 0, "", err
 	}
 	u.RawQuery = ""
 	segments := strings.Split(u.Path, "/")
@@ -1188,12 +1189,12 @@ func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]by
 		}
 	}
 	if site == nil {
-		return nil, fmt.Errorf("site for %s not found", weburl)
+		return 0, "", fmt.Errorf("site for %s not found", weburl)
 	}
 
 	msDrives, err := tc.client.Sites().BySiteId(*site.GetId()).Drives().Get(tc.ctx, nil)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return 0, "", NormalizeGraphAPIError(err)
 	}
 	var itemRequest *drives.ItemItemsDriveItemItemRequestBuilder
 	var driveID string
@@ -1211,28 +1212,70 @@ func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]by
 	}
 
 	if itemRequest == nil {
-		return nil, nil
+		return 0, "", nil
 	}
 
 	item, err := itemRequest.Get(tc.ctx, nil)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return 0, "", NormalizeGraphAPIError(err)
 	}
 	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 	if !ok {
-		return nil, errors.New("downloadUrl not found")
+		return 0, "", errors.New("downloadUrl not found")
 	}
 
 	fileSize := item.GetSize()
-	if fileSize != nil && *fileSize > fileSizeAllowed {
-		return nil, fmt.Errorf("skipping file download from MS Teams because the file size is greater than the allowed size")
+	if fileSize == nil {
+		return 0, *(downloadURL.(*string)), nil
 	}
 
-	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
+	return *fileSize, *(downloadURL.(*string)), nil
+}
+
+func (tc *ClientImpl) GetFileContent(downloadURL string) ([]byte, error) {
+	data, err := drives.NewItemItemsItemContentRequestBuilder(downloadURL, tc.client.RequestAdapter).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return data, nil
+}
+
+func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWriter) {
+	rangeStart := int64(0)
+	// Get 10 MB of data from the API call in one iteration
+	rangeIncrement := int64(10485760)
+	for {
+		req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
+		if err != nil {
+			tc.logError("unable to create new request", "error", err.Error())
+			return
+		}
+
+		contentRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeStart+rangeIncrement-1)
+		req.Header.Add("Range", contentRange)
+		fmt.Println("1254", req.Header.Get("Range"))
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			tc.logError("unable to send request for getting file content", "error", err.Error())
+			return
+		}
+
+		fmt.Printf("1261 %+v\n\n", res.Header)
+		fmt.Println("1256", res.StatusCode)
+		if _, err = io.Copy(writer, res.Body); err != nil {
+			tc.logError("unable to copy response body to the writer", "error", err.Error())
+			return
+		}
+
+		contentLenStr := res.Header.Get("Content-Length")
+		contentLen, err := strconv.ParseInt(contentLenStr, 10, 64)
+		if (err == nil && contentLen < rangeIncrement) || res.StatusCode != http.StatusPartialContent {
+			writer.Close()
+			break
+		}
+
+		rangeStart += rangeIncrement
+	}
 }
 
 func (tc *ClientImpl) GetHostedFileContent(activityIDs *ActivityIds) (contentData []byte, err error) {

@@ -49,7 +49,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		}
 	}
 
-	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, text, msg, chat)
+	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
