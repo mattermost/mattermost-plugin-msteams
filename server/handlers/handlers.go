@@ -96,7 +96,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	return nil
 }
 
-func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity, webhookSecret string, evaluationAPI bool, certificate string) {
+func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if !ah.checkSubscription(event.SubscriptionID) {
 		return
 	}

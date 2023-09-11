@@ -21,8 +21,6 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-
-	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type API struct {
@@ -229,7 +227,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
-		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI, a.p.getBase64Certificate())
+		a.p.activityHandler.HandleLifecycleEvent(event)
 	}
 
 	w.WriteHeader(http.StatusOK)
