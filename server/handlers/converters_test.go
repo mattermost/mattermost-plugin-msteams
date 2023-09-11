@@ -7,11 +7,11 @@ import (
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,12 +22,6 @@ func (FakeHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestMsgToPost(t *testing.T) {
-	defaultTransport := http.DefaultClient.Transport
-	http.DefaultClient.Transport = &FakeHTTPTransport{}
-	defer func() {
-		http.DefaultClient.Transport = defaultTransport
-	}()
-	ah := ActivityHandler{}
 	for _, testCase := range []struct {
 		description string
 		channelID   string
@@ -35,7 +29,7 @@ func TestMsgToPost(t *testing.T) {
 		senderID    string
 		message     *msteams.Message
 		post        *model.Post
-		setupPlugin func(plugin *mocksPlugin.PluginIface)
+		setupPlugin func(plugin *mocksPlugin.PluginIface, client *mocksClient.Client)
 	}{
 		{
 			description: "Successfully add message to post",
@@ -47,9 +41,10 @@ func TestMsgToPost(t *testing.T) {
 				UserDisplayName: "mock-UserDisplayName",
 				UserID:          testutils.GetUserID(),
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetURL").Return("https://example.com/")
+				p.On("GetClientForApp").Return(client)
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -67,9 +62,13 @@ func TestMsgToPost(t *testing.T) {
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
-			testCase.setupPlugin(p)
+			ah := ActivityHandler{}
+			client := mocksClient.NewClient(t)
+			testCase.setupPlugin(p, client)
+
 			ah.plugin = p
-			post, _ := ah.msgToPost(testCase.userID, testCase.channelID, testCase.message, testCase.senderID)
+
+			post, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil)
 			assert.Equal(t, testCase.post, post)
 		})
 	}
@@ -96,20 +95,20 @@ func TestHandleMentions(t *testing.T) {
 			expectedMessage: "mockMessage",
 		},
 		{
-			description: "Channel mention present",
+			description: "All mention present",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
 			setupAPI:    func(api *plugintest.API) {},
 			setupStore:  func(store *mocksStore.Store) {},
 			message: &msteams.Message{
-				Text: `mockMessage <at id="0">mockMentionedText</at>`,
+				Text: `mockMessage <at id="0">Everyone</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						MentionedText: "mockMentionedText",
+						MentionedText: "Everyone",
 					},
 				},
 			},
-			expectedMessage: "mockMessage @channel",
+			expectedMessage: "mockMessage @all",
 		},
 		{
 			description: "Unable to get mm user ID for user mentions",
@@ -118,17 +117,17 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get mm UserID", "Error", mock.Anything).Once()
+				api.On("LogDebug", "Unable to get MM user ID from Teams user ID", "TeamsUserID", testutils.GetTeamsUserID(), "Error", "unable to get mm user ID").Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("unable to get mm user ID"))
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
 			},
 			message: &msteams.Message{
 				Text: `mockMessage <at id="0">mockMentionedText</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						UserID:        testutils.GetTeamUserID(),
+						UserID:        testutils.GetTeamsUserID(),
 						MentionedText: "mockMentionedText",
 					},
 				},
@@ -142,18 +141,18 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get mm user details", "Error", mock.Anything).Once()
+				api.On("LogDebug", "Unable to get MM user details", "MMUserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetMattermostID(), nil).Once()
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetMattermostID(), nil).Once()
 			},
 			message: &msteams.Message{
 				Text: `mockMessage <at id="0">mockMentionedText</at>`,
 				Mentions: []msteams.Mention{
 					{
 						ID:            0,
-						UserID:        testutils.GetTeamUserID(),
+						UserID:        testutils.GetTeamsUserID(),
 						MentionedText: "mockMentionedText",
 					},
 				},
@@ -210,30 +209,6 @@ func TestHandleMentions(t *testing.T) {
 			ah.plugin = p
 			message := ah.handleMentions(testCase.message)
 			assert.Equal(testCase.expectedMessage, message)
-		})
-	}
-}
-
-func TestConvertToMD(t *testing.T) {
-	for _, testCase := range []struct {
-		description    string
-		text           string
-		expectedOutput string
-	}{
-		{
-			description:    "Text does not contain tags",
-			text:           "This is text area",
-			expectedOutput: "This is text area",
-		},
-		{
-			description:    "Text contains div and paragraph tags",
-			text:           "This is text area with <div> and <p> tags",
-			expectedOutput: "This is text area with \n and \n tags\n\n\n\n\n",
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			text := convertToMD(testCase.text)
-			assert.Equal(t, text, testCase.expectedOutput)
 		})
 	}
 }

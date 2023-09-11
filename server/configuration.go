@@ -19,19 +19,21 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantID              string `json:"tenantid"`
-	ClientID              string `json:"clientid"`
-	ClientSecret          string `json:"clientsecret"`
-	EncryptionKey         string `json:"encryptionkey"`
-	EvaluationAPI         bool   `json:"evaluationapi"`
-	WebhookSecret         string `json:"webhooksecret"`
-	EnabledTeams          string `json:"enabledteams"`
-	SyncDirectMessages    bool   `json:"syncdirectmessages"`
-	SyncUsers             int    `json:"syncusers"`
-	EnforceConnectedUsers bool   `json:"enforceconnectedusers"`
-	AllowSkipConnectUsers bool   `json:"allowskipconnectusers"`
-	CertificatePublic     string `json:"certificatepublic"`
-	CertificateKey        string `json:"certificatekey"`
+	TenantID                   string `json:"tenantid"`
+	ClientID                   string `json:"clientid"`
+	ClientSecret               string `json:"clientsecret"`
+	EncryptionKey              string `json:"encryptionkey"`
+	EvaluationAPI              bool   `json:"evaluationapi"`
+	WebhookSecret              string `json:"webhooksecret"`
+	EnabledTeams               string `json:"enabledteams"`
+	SyncDirectMessages         bool   `json:"syncdirectmessages"`
+	SyncUsers                  int    `json:"syncusers"`
+	SyncGuestUsers             bool   `json:"syncGuestUsers"`
+	EnforceConnectedUsers      bool   `json:"enforceconnectedusers"`
+	AllowSkipConnectUsers      bool   `json:"allowskipconnectusers"`
+	CertificatePublic          string `json:"certificatepublic"`
+	CertificateKey             string `json:"certificatekey"`
+	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if

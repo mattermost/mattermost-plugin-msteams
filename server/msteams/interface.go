@@ -4,16 +4,16 @@ import (
 	"io"
 	"time"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 type Client interface {
 	Connect() error
-	CreateOrGetChatForUsers(usersIDs []string) (string, error)
+	CreateOrGetChatForUsers(usersIDs []string) (*Chat, error)
 	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
-	SendChat(chatID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
-	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader) (*Attachment, error)
+	SendChat(chatID, message string, parentMessage *Message, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
+	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *Chat) (*Attachment, error)
 	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) error
 	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) error
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
@@ -24,6 +24,7 @@ type Client interface {
 	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool, certificate string) (*Subscription, error)
 	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error
+	ListSubscriptions() ([]*Subscription, error)
 	GetTeam(teamID string) (*Team, error)
 	GetTeams(filterQuery string) ([]*Team, error)
 	GetChannelInTeam(teamID, channelID string) (*Channel, error)
@@ -40,7 +41,8 @@ type Client interface {
 	GetUser(userID string) (*User, error)
 	GetMyID() (string, error)
 	GetMe() (*User, error)
-	GetFileContent(weburl string) ([]byte, error)
+	GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, error)
+	GetHostedFileContent(activityIDs *ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)
 	ListTeams() ([]Team, error)

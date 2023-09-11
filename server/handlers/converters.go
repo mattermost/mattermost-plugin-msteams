@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattn/godown"
 	"golang.org/x/net/html"
 )
+
+const hostedContentsStr = "hostedContents"
 
 func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
@@ -30,10 +32,13 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
-	text = convertToMD(text)
+	var embeddedImages []msteams.Attachment
+	text, embeddedImages = ah.handleImages(text)
+	msg.Attachments = append(msg.Attachments, embeddedImages...)
+	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
 
@@ -44,7 +49,7 @@ func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Mess
 		}
 	}
 
-	newText, attachments, parentID := ah.handleAttachments(userID, channelID, text, msg)
+	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, text, msg, chat)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -62,35 +67,58 @@ func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Mess
 		post.AddProp("from_webhook", "true")
 		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
-	return post, nil
+	return post, errorFound
 }
 
 func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
-	for _, mention := range msg.Mentions {
+	userIDVsNames := make(map[string]string)
+	if msg.ChatID != "" {
+		for _, mention := range msg.Mentions {
+			if userIDVsNames[mention.UserID] == "" {
+				userIDVsNames[mention.UserID] = mention.MentionedText
+			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
+				userIDVsNames[mention.UserID] += " " + mention.MentionedText
+			}
+		}
+	}
+
+	idx := 0
+	for idx < len(msg.Mentions) {
 		mmMention := ""
-		if mention.UserID != "" {
+		mention := msg.Mentions[idx]
+		idx++
+		switch {
+		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm UserID", "Error", err.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "Error", getErr.DetailedError)
 				continue
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
-		} else {
-			if mention.MentionedText == "Everyone" {
-				mmMention = "@all"
-			} else {
-				mmMention = "@channel"
-			}
+		case mention.MentionedText == "Everyone" && mention.ConversationID == msg.ChatID:
+			mmMention = "@all"
+		case mention.ConversationID == msg.ChannelID:
+			mmMention = "@channel"
 		}
 
-		msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+		if mmMention == "" {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mention.MentionedText, 1)
+		} else {
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
+		}
+
+		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
+			mention = msg.Mentions[idx]
+			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+			idx++
+		}
 	}
 
 	return msg.Text
@@ -125,14 +153,43 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	return text
 }
 
-func convertToMD(text string) string {
-	if !strings.Contains(text, "<div>") && !strings.Contains(text, "<p>") {
-		return text
+func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachment) {
+	imageURLs := getImageTagsFromHTML(text)
+	var attachments []msteams.Attachment
+	for _, imageURL := range imageURLs {
+		attachments = append(attachments, msteams.Attachment{
+			ContentURL: imageURL,
+		})
 	}
-	var sb strings.Builder
-	err := godown.Convert(&sb, strings.NewReader(text), nil)
-	if err != nil {
-		return text
+
+	text = imageRE.ReplaceAllStringFunc(text, func(s string) string {
+		if strings.Contains(s, hostedContentsStr) {
+			return ""
+		}
+
+		return s
+	})
+
+	return text, attachments
+}
+
+func getImageTagsFromHTML(text string) []string {
+	tokenizer := html.NewTokenizer(strings.NewReader(text))
+	var images []string
+	for {
+		token := tokenizer.Next()
+		switch {
+		case token == html.ErrorToken:
+			return images
+		case token == html.StartTagToken:
+			if t := tokenizer.Token(); t.Data == "img" {
+				for _, a := range t.Attr {
+					if a.Key == "src" && strings.Contains(a.Val, hostedContentsStr) {
+						images = append(images, a.Val)
+						break
+					}
+				}
+			}
+		}
 	}
-	return sb.String()
 }

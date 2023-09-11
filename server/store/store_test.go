@@ -9,7 +9,6 @@ import (
 
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
@@ -38,28 +37,30 @@ func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugint
 func createTestDB(driverName string) (*sql.DB, func()) {
 	// Create postgres container
 	if driverName == model.DatabaseDriverPostgres {
-		postgresPort := nat.Port("5432/tcp")
-		postgres, _ := testcontainers.GenericContainer(context.Background(),
+		context := context.Background()
+		postgres, _ := testcontainers.GenericContainer(context,
 			testcontainers.GenericContainerRequest{
 				ContainerRequest: testcontainers.ContainerRequest{
 					Image:        "postgres",
-					ExposedPorts: []string{postgresPort.Port()},
+					ExposedPorts: []string{"5432/tcp"},
 					Env: map[string]string{
 						"POSTGRES_PASSWORD": "pass",
 						"POSTGRES_USER":     "user",
 					},
 					WaitingFor: wait.ForAll(
 						wait.ForLog("database system is ready to accept connections"),
-						wait.ForListeningPort(postgresPort),
 					),
+					SkipReaper: true,
 				},
 				Started: true,
 			})
 
-		hostPort, _ := postgres.MappedPort(context.Background(), postgresPort)
-		conn, _ := sqlx.Connect("postgres", fmt.Sprintf("postgres://user:pass@localhost:%s?sslmode=disable", hostPort.Port()))
+		time.Sleep(5 * time.Second)
+		host, _ := postgres.Host(context)
+		hostPort, _ := postgres.MappedPort(context, "5432/tcp")
+		conn, _ := sqlx.Connect(driverName, fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, host, hostPort.Int()))
 		tearDownContainer := func() {
-			if err := postgres.Terminate(context.Background()); err != nil {
+			if err := postgres.Terminate(context); err != nil {
 				log.Fatalf("failed to terminate container: %s", err.Error())
 			}
 		}
@@ -81,15 +82,17 @@ func createTestDB(driverName string) (*sql.DB, func()) {
 				WaitingFor: wait.ForAll(
 					wait.ForLog("database system is ready to accept connections"),
 				),
+				SkipReaper: true,
 			},
 			Started: true,
 		})
 
+	time.Sleep(5 * time.Second)
 	host, _ := mysql.Host(context)
 	p, _ := mysql.MappedPort(context, "3306/tcp")
 	port := p.Int()
 
-	mysqlConn, _ := sqlx.Connect("mysql", fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
+	mysqlConn, _ := sqlx.Connect(driverName, fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
 	tearDownContainer := func() {
 		if err := mysql.Terminate(context); err != nil {
 			log.Fatalf("failed to terminate container: %s", err.Error())
@@ -124,7 +127,7 @@ func TestStore(t *testing.T) {
 		"testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil": testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil,
 		"testListGlobalSubscriptionsToCheck":                         testListGlobalSubscriptionsToCheck,
 		"testListChatSubscriptionsToCheck":                           testListChatSubscriptionsToCheck,
-		"testListChannelSubscriptionsToCheck":                        testListChannelSubscriptionsToCheck,
+		"testListChannelSubscriptionsToRefresh":                      testListChannelSubscriptionsToRefresh,
 		"testSaveGlobalSubscription":                                 testSaveGlobalSubscription,
 		"testSaveChatSubscription":                                   testSaveChatSubscription,
 		"testSaveChannelSubscription":                                testSaveChannelSubscription,
@@ -133,7 +136,10 @@ func TestStore(t *testing.T) {
 		"testGetChatSubscription":                                    testGetChatSubscription,
 		"testGetChannelSubscription":                                 testGetChannelSubscription,
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
+		"testListChannelSubscriptions":                               testListChannelSubscriptions,
+		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
+		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -143,7 +149,7 @@ func TestStore(t *testing.T) {
 			})
 		}
 
-		tearDownContainer()
+		defer tearDownContainer()
 	}
 }
 
@@ -551,10 +557,10 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamsUserID() + "1")
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 }
@@ -573,11 +579,11 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
-	assert.Equal(testutils.GetTeamUserID()+"2", resp)
+	assert.Equal(testutils.GetTeamsUserID()+"2", resp)
 	assert.Nil(getErr)
 }
 
@@ -600,7 +606,7 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 		RefreshToken: "mockRefreshToken-3",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", token)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -614,7 +620,7 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", nil)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", nil)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -641,10 +647,10 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamsUserID()+"4", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID() + "4")
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "4")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
 }
@@ -659,7 +665,7 @@ func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *pl
 
 func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -669,7 +675,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -679,7 +685,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "test1", subscriptions[0].SubscriptionID)
@@ -690,7 +696,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 1)
 		assert.Equal(t, subscriptions[0].SubscriptionID, "test1")
@@ -750,9 +756,9 @@ func testListChatSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *pluginte
 	})
 }
 
-func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -762,7 +768,7 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -787,7 +793,7 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test6") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 3)
 		ids := []string{}
@@ -811,7 +817,7 @@ func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test2") }()
 
-	subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+	subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")
@@ -854,7 +860,7 @@ func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.AP
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test4") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	assert.Len(t, subscriptions, 2)
 	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
@@ -866,21 +872,21 @@ func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintes
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(100*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 0)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(2*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 }
@@ -1033,6 +1039,37 @@ func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	})
 }
 
+func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		SubscriptionID: "test1",
+		TeamID:         "team-id",
+		ChannelID:      "channel-id",
+		Secret:         "secret",
+		ExpiresOn:      time.Now().Add(1 * time.Minute),
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListChannelSubscriptions()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
+}
+
+func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: "test1",
+		Secret:         "secret",
+		Type:           "allChats",
+		ExpiresOn:      time.Now().Add(1 * time.Minute),
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListGlobalSubscriptions()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
+}
+
 func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
 	testTime := time.Now()
 	key := connectionPromptKey + "mockMattermostChannelID-1_mockMattermostUserID-1"
@@ -1052,4 +1089,23 @@ func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *
 	api.On("KVDelete", key).Return(nil).Once()
 	err = store.DeleteDMAndGMChannelPromptTime("mockMattermostUserID-1")
 	assert.Nil(t, err)
+}
+
+func testStoreAndVerifyOAuthState(t *testing.T, store *SQLStore, api *plugintest.API) {
+	assert := assert.New(t)
+	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
+
+	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
+		Name: "mockMattermostTeamID-1",
+	}, nil)
+
+	state := fmt.Sprintf("%s_%s", model.NewId(), "mockMattermostUserID")
+	key := hashKey(oAuth2KeyPrefix, state)
+	api.On("KVSetWithExpiry", key, []byte(state), int64(oAuth2StateTimeToLive)).Return(nil)
+	err := store.StoreOAuth2State(state)
+	assert.Nil(err)
+
+	api.On("KVGet", key).Return([]byte(state), nil)
+	err = store.VerifyOAuth2State(state)
+	assert.Nil(err)
 }

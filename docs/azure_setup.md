@@ -22,7 +22,7 @@ Select **Register** to submit the form.
 
 5. Navigate to **Certificates & secrets** in the left pane.
 
-6. Click on **New client secret**. Then click on **Add**, and copy the new secret on the bottom right corner of the screen. We'll use this value later in the Mattermost admin console.
+6. Click on **New client secret**. Enter the description and click on **Add**. After the creation of the client secret, copy the new secret value, not the secret ID. We'll use this value later in the Mattermost admin console.
 
 ![image](https://user-images.githubusercontent.com/77336594/226332268-93b8fa85-ba5b-4fcc-938b-ca8d642b8521.png)
 
@@ -40,7 +40,7 @@ Select **Register** to submit the form.
 - `ChannelMessage.Send`
 - `Chat.Create`
 - `Chat.ReadWrite`
-- `ChatMessage.ReadAll`
+- `ChatMessage.Read`
 - `Directory.Read.All`
 - `Files.Read.All`
 - `Files.ReadWrite.All`
@@ -57,6 +57,7 @@ Select **Register** to submit the form.
 - `Channel.ReadBasic.All`
 - `ChannelMessage.Read.All`
 - `Chat.Read.All`
+- `Files.Read.All`
 - `Group.Read.All`
 - `Team.ReadBasic.All`
 - `User.Read.All`
@@ -72,6 +73,8 @@ Select **Register** to submit the form.
 1. This account is also needed when users on Mattermost have not connected their accounts and some messages need to be posted on their behalf. See the screenshot below:
 
 ![image](https://user-images.githubusercontent.com/100013900/232403027-6d3ce866-d404-4ef2-a27b-ef5cc897cb25.png)
+
+**Note:** After you've connected the bot user to the dummy account on MS Teams, all the messages that are posted from the dummy account on MS Teams will not be synced back to Mattermost as we consider the dummy account a "bot" and messages from bots are ignored.
 
 ### Step 3: Ensure you have the metered APIs enabled (and the pay subscription associated to it)
 

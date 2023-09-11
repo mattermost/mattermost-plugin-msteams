@@ -30,6 +30,27 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 	return r0
 }
 
+// CompareAndSetJobStatus provides a mock function with given fields: jobName, oldStatus, newStatus
+func (_m *Store) CompareAndSetJobStatus(jobName string, oldStatus bool, newStatus bool) (bool, error) {
+	ret := _m.Called(jobName, oldStatus, newStatus)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string, bool, bool) bool); ok {
+		r0 = rf(jobName, oldStatus, newStatus)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, bool, bool) error); ok {
+		r1 = rf(jobName, oldStatus, newStatus)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteDMAndGMChannelPromptTime provides a mock function with given fields: userID
 func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
 	ret := _m.Called(userID)
@@ -125,6 +146,29 @@ func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.Cha
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetChannelSubscriptionByTeamsChannelID provides a mock function with given fields: teamsChannelID
+func (_m *Store) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
+	ret := _m.Called(teamsChannelID)
+
+	var r0 *storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func(string) *storemodels.ChannelSubscription); ok {
+		r0 = rf(teamsChannelID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(teamsChannelID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -432,16 +476,39 @@ func (_m *Store) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
 	return r0, r1
 }
 
-// ListChannelSubscriptionsToCheck provides a mock function with given fields:
-func (_m *Store) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error) {
+// ListChannelSubscriptions provides a mock function with given fields:
+func (_m *Store) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.ChannelSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.ChannelSubscription); ok {
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.ChannelSubscription)
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListChannelSubscriptionsToRefresh provides a mock function with given fields:
+func (_m *Store) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.ChannelSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
 		}
 	}
 
@@ -478,16 +545,39 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListGlobalSubscriptionsToCheck provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
+// ListGlobalSubscriptions provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
 
-	var r0 []storemodels.GlobalSubscription
-	if rf, ok := ret.Get(0).(func() []storemodels.GlobalSubscription); ok {
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storemodels.GlobalSubscription)
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListGlobalSubscriptionsToRefresh provides a mock function with given fields:
+func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.GlobalSubscription
+	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
 		}
 	}
 
@@ -592,6 +682,20 @@ func (_m *Store) SetAvatarCache(userID string, photo []byte) error {
 	return r0
 }
 
+// SetJobStatus provides a mock function with given fields: jobName, status
+func (_m *Store) SetJobStatus(jobName string, status bool) error {
+	ret := _m.Called(jobName, status)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(jobName, status)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt
 func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
 	ret := _m.Called(postID, lastUpdateAt)
@@ -662,6 +766,20 @@ func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, 
 	return r0
 }
 
+// StoreOAuth2State provides a mock function with given fields: state
+func (_m *Store) StoreOAuth2State(state string) error {
+	ret := _m.Called(state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(state)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // TeamsToMattermostUserID provides a mock function with given fields: userID
 func (_m *Store) TeamsToMattermostUserID(userID string) (string, error) {
 	ret := _m.Called(userID)
@@ -690,6 +808,20 @@ func (_m *Store) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn ti
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
 		r0 = rf(subscriptionID, expiresOn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// VerifyOAuth2State provides a mock function with given fields: state
+func (_m *Store) VerifyOAuth2State(state string) error {
+	ret := _m.Called(state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(state)
 	} else {
 		r0 = ret.Error(0)
 	}

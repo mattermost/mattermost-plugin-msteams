@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -22,6 +21,8 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type API struct {
@@ -47,6 +48,10 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 
+	// iFrame support
+	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
+	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
+
 	return api
 }
 
@@ -59,7 +64,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogError("Unable to read avatar", "error", err.Error())
+			a.p.API.LogError("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
@@ -157,6 +162,7 @@ func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent)
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
+		w.Header().Add("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
@@ -184,9 +190,8 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			errors += "Invalid webhook secret"
 			continue
 		}
-		a.refreshSubscriptionIfNeeded(activity)
-		err := a.p.activityHandler.Handle(activity)
-		if err != nil {
+
+		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
 		}
@@ -199,24 +204,11 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// TODO: Deduplicate this calls in case multiple activities are sent after the subscription receives the notification
-func (a *API) refreshSubscriptionIfNeeded(activity msteams.Activity) {
-	if time.Until(activity.SubscriptionExpirationDateTime) < (5 * time.Minute) {
-		expiresOn, err := a.p.msteamsAppClient.RefreshSubscription(activity.SubscriptionID)
-		if err != nil {
-			a.p.API.LogError("Unable to refresh the subscription", "error", err.Error())
-		} else {
-			if err2 := a.p.store.UpdateSubscriptionExpiresOn(activity.SubscriptionID, *expiresOn); err2 != nil {
-				a.p.API.LogError("Unable to store the subscription new expires date", "error", err2.Error())
-			}
-		}
-	}
-}
-
 // processLifecycle handles the lifecycle events received from teams subscriptions
 func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
 	if validationToken != "" {
+		w.Header().Add("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(validationToken))
 		return
@@ -234,7 +226,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {
-			a.p.API.LogError("Invalid webhook secret recevied in lifecycle event")
+			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
 		a.p.activityHandler.HandleLifecycleEvent(event, a.p.getConfiguration().WebhookSecret, a.p.getConfiguration().EvaluationAPI, a.p.getBase64Certificate())
@@ -253,7 +245,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -294,7 +286,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -365,12 +357,21 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	state, _ := json.Marshal(map[string]string{})
+	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
+	if err := a.store.StoreOAuth2State(state); err != nil {
+		a.p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
 	codeVerifier := model.NewId()
-	_ = a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier))
+	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
+		a.p.API.LogError("Error in storing the code verifier", "error", appErr.Message)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
-	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, string(state), codeVerifier)
+	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 
 	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 	_, _ = w.Write(data)
@@ -380,8 +381,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
-
-	userID := r.Header.Get("Mattermost-User-ID")
 
 	teamsDefaultScopes := []string{"https://graph.microsoft.com/.default"}
 	conf := &oauth2.Config{
@@ -396,18 +395,19 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := r.URL.Query().Get("code")
-	stateData := r.URL.Query().Get("state")
-	state := map[string]string{}
-	err := json.Unmarshal([]byte(stateData), &state)
-	if err != nil {
-		a.p.API.LogError("Unable to get the code", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+	state := r.URL.Query().Get("state")
+
+	stateArr := strings.Split(state, "_")
+	if len(stateArr) != 2 {
+		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
 
-	mmUserID := userID
-	if authType, ok := state["auth_type"]; ok && authType == "bot" {
-		mmUserID = a.p.GetBotUserID()
+	mmUserID := stateArr[1]
+	if err := a.store.VerifyOAuth2State(state); err != nil {
+		a.p.API.LogError("Unable to verify OAuth state", "MMUserID", mmUserID, "Error", err.Error())
+		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
+		return
 	}
 
 	codeVerifierBytes, appErr := a.p.API.KVGet("_code_verifier_" + mmUserID)
@@ -424,15 +424,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	token, err := conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", string(codeVerifierBytes)))
 	if err != nil {
-		a.p.API.LogError("Unable to read avatar", "error", err.Error())
-		http.Error(w, "failed to get the code", http.StatusBadRequest)
+		a.p.API.LogError("Unable to get OAuth2 token", "error", err.Error())
+		http.Error(w, "Unable to complete authentication", http.StatusInternalServerError)
 		return
 	}
 
 	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
 	if err = client.Connect(); err != nil {
-		a.p.API.LogError("Unable connect to the client", "error", err.Error())
-		http.Error(w, "failed to connect to the client", http.StatusBadRequest)
+		a.p.API.LogError("Unable to connect to the client", "error", err.Error())
+		http.Error(w, "failed to connect to the client", http.StatusInternalServerError)
 		return
 	}
 
@@ -462,8 +462,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if storedToken != nil {
-		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.")
-		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusInternalServerError)
+		a.p.API.LogError("This Teams user is already connected to another user on Mattermost.", "MSTeamsUserID", msteamsUser.ID)
+		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusBadRequest)
 		return
 	}
 
@@ -475,5 +475,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	_, _ = w.Write([]byte("<html><body><h1>Your account has been connected</h1><p>You can close this window.</p></body></html>"))
+	connectionMessage := "Your account has been connected"
+	if mmUser.Id == a.p.GetBotUserID() {
+		connectionMessage = "The bot account has been connected"
+	}
+
+	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
 }

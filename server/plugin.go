@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -25,7 +24,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -39,6 +37,8 @@ const (
 	pluginID              = "com.mattermost.msteams-sync"
 	clusterMutexKey       = "subscriptions_cluster_mutex"
 	lastReceivedChangeKey = "last_received_change"
+	msteamsUserTypeGuest  = "Guest"
+	syncUsersJobName      = "sync_users"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -63,6 +63,7 @@ type Plugin struct {
 	store        store.Store
 	clusterMutex *cluster.Mutex
 	monitor      *monitor.Monitor
+	syncUserJob  *cluster.Job
 
 	activityHandler *handlers.ActivityHandler
 
@@ -84,6 +85,10 @@ func (p *Plugin) GetStore() store.Store {
 
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
+}
+
+func (p *Plugin) GetSyncGuestUsers() bool {
+	return p.getConfiguration().SyncGuestUsers
 }
 
 func (p *Plugin) GetBotUserID() string {
@@ -144,26 +149,42 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
-		p.API.LogError("Unable to connect to the msteams", "error", err)
 		return
 	}
 
 	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
-		p.API.LogError("Unable to start the monitoring system", "error", err)
+		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-
-	if p.getConfiguration().SyncUsers > 0 {
-		go p.syncUsersPeriodically(ctx, p.getConfiguration().SyncUsers)
-	}
-
-	go p.startSubscriptions()
 	if syncSince != nil {
 		go p.syncSince(*syncSince)
+	}
+
+	if p.getConfiguration().SyncUsers > 0 {
+		p.API.LogDebug("Starting the sync users job")
+
+		// Close the previous background job if exists.
+		p.stopSyncUsersJob()
+
+		job, jobErr := cluster.Schedule(
+			p.API,
+			syncUsersJobName,
+			cluster.MakeWaitForRoundedInterval(time.Duration(p.getConfiguration().SyncUsers)*time.Minute),
+			p.syncUsersPeriodically,
+		)
+		if jobErr != nil {
+			p.API.LogError("error in scheduling the sync users job", "error", jobErr)
+			return
+		}
+
+		p.syncUserJob = job
+		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
+			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
+		}
 	}
 }
 
@@ -201,110 +222,6 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 	}
 
 	return privateKey, nil
-}
-
-func (p *Plugin) startSubscriptions() {
-	p.clusterMutex.Lock()
-	defer p.clusterMutex.Unlock()
-
-	counter := 0
-	maxRetries := 20
-	for {
-		resp, _ := http.Post(p.GetURL()+"/changes?validationToken=test-alive", "text/html", bytes.NewReader([]byte{}))
-		if resp != nil {
-			resp.Body.Close()
-			if resp.StatusCode == 200 {
-				break
-			}
-		}
-
-		counter++
-		if counter > maxRetries {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	links, err := p.store.ListChannelLinks()
-	if err != nil {
-		p.API.LogError("Unable to list channel links", "error", err)
-		return
-	}
-
-	wg := sync.WaitGroup{}
-	ws := make(chan struct{}, 20)
-
-	wg.Add(1)
-	ws <- struct{}{}
-	go func() {
-		defer wg.Done()
-		chatsSubscription, err := p.msteamsAppClient.SubscribeToChats(p.GetURL()+"/", p.getConfiguration().WebhookSecret, !p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
-		if err != nil {
-			p.API.LogError("Unable to subscribe to chats", "error", err)
-			// Mark this subscription to be created and retried by the monitor system
-			_ = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-				SubscriptionID: "fake-subscription-id",
-				Type:           "allChats",
-				ExpiresOn:      time.Now(),
-				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			<-ws
-			return
-		}
-		p.API.LogDebug("Subscription to all chats created", "subscriptionID", chatsSubscription.ID)
-
-		err = p.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
-			SubscriptionID: chatsSubscription.ID,
-			Type:           "allChats",
-			ExpiresOn:      chatsSubscription.ExpiresOn,
-			Secret:         p.getConfiguration().WebhookSecret,
-		})
-		if err != nil {
-			p.API.LogError("Unable to save the chats subscription for monitoring system", "error", err)
-			<-ws
-			return
-		}
-		<-ws
-	}()
-
-	for _, link := range links {
-		ws <- struct{}{}
-		wg.Add(1)
-		go func(link storemodels.ChannelLink) {
-			defer wg.Done()
-			channelsSubscription, err2 := p.msteamsAppClient.SubscribeToChannel(link.MSTeamsTeam, link.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
-			if err2 != nil {
-				p.API.LogError("Unable to subscribe to channels", "error", err2)
-				// Mark this subscription to be created and retried by the monitor system
-				_ = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-					SubscriptionID: "fake-subscription-id",
-					TeamID:         link.MSTeamsTeam,
-					ChannelID:      link.MSTeamsChannel,
-					ExpiresOn:      time.Now(),
-					Secret:         p.getConfiguration().WebhookSecret,
-				})
-				<-ws
-				return
-			}
-
-			err2 = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-				SubscriptionID: channelsSubscription.ID,
-				TeamID:         link.MSTeamsTeam,
-				ChannelID:      link.MSTeamsChannel,
-				ExpiresOn:      channelsSubscription.ExpiresOn,
-				Secret:         p.getConfiguration().WebhookSecret,
-			})
-			if err2 != nil {
-				p.API.LogError("Unable to save the channel subscription for monitoring system", "error", err2)
-				<-ws
-				return
-			}
-			p.API.LogDebug("Subscription to channel created", "subscriptionID", channelsSubscription.ID, "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel)
-			<-ws
-		}(link)
-	}
-	wg.Wait()
-	p.API.LogDebug("Start subscription finished")
 }
 
 func (p *Plugin) stop() {
@@ -433,20 +350,37 @@ func (p *Plugin) OnDeactivate() error {
 	return nil
 }
 
-func (p *Plugin) syncUsersPeriodically(ctx context.Context, minutes int) {
+func (p *Plugin) syncUsersPeriodically() {
+	defer func() {
+		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
+			p.API.LogDebug("Failed to set sync users job running status to false.")
+		}
+	}()
+
+	isStatusUpdated, sErr := p.store.CompareAndSetJobStatus(syncUsersJobName, false, true)
+	if sErr != nil {
+		p.API.LogError("Something went wrong while fetching sync users job status", "Error", sErr.Error())
+		return
+	}
+
+	if !isStatusUpdated {
+		p.API.LogDebug("Sync users job already running")
+		return
+	}
+
+	p.API.LogDebug("Running the Sync Users Job")
 	p.syncUsers()
-	for {
-		select {
-		case <-time.After(time.Duration(minutes) * time.Minute):
-			p.syncUsers()
-		case <-ctx.Done():
-			return
+}
+
+func (p *Plugin) stopSyncUsersJob() {
+	if p.syncUserJob != nil {
+		if err := p.syncUserJob.Close(); err != nil {
+			p.API.LogError("Failed to close background sync users job", "error", err)
 		}
 	}
 }
 
 func (p *Plugin) syncUsers() {
-	p.API.LogDebug("Starting sync user job")
 	msUsers, err := p.msteamsAppClient.ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
@@ -454,7 +388,7 @@ func (p *Plugin) syncUsers() {
 	}
 
 	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
-	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Active: true, Page: 0, PerPage: math.MaxInt32})
+	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
@@ -466,6 +400,7 @@ func (p *Plugin) syncUsers() {
 		mmUsersMap[u.Email] = u
 	}
 
+	syncGuestUsers := p.getConfiguration().SyncGuestUsers
 	for _, msUser := range msUsers {
 		userSuffixID := 1
 		if msUser.Mail == "" {
@@ -474,10 +409,50 @@ func (p *Plugin) syncUsers() {
 
 		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
 
-		mmUser, ok := mmUsersMap[msUser.Mail]
+		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
+
+		if isUserPresent && isRemoteUser(mmUser) {
+			if msUser.IsAccountEnabled {
+				// Activate the deactived Mattermost user corresponding to MS Teams user.
+				if mmUser.DeleteAt != 0 {
+					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
+						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+					}
+				}
+			} else {
+				// Deactivate the active Mattermost user corresponding to MS Teams user.
+				if mmUser.DeleteAt == 0 {
+					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+					}
+				}
+
+				continue
+			}
+		}
+
+		if msUser.Type == msteamsUserTypeGuest {
+			// Check if syncing of MS Teams guest users is disabled.
+			if !syncGuestUsers {
+				if isUserPresent && isRemoteUser(mmUser) {
+					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
+					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+						p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
+					}
+				} else {
+					// Skip syncing of MS Teams guest user.
+					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
+				}
+
+				continue
+			}
+		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
-		if !ok {
+		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
@@ -489,6 +464,8 @@ func (p *Plugin) syncUsers() {
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+			newMMUser.SetDefaultNotifications()
+			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
 			var newUser *model.User
 			for {
@@ -511,8 +488,17 @@ func (p *Plugin) syncUsers() {
 				continue
 			}
 
-			err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil)
-			if err != nil {
+			preferences := model.Preferences{model.Preference{
+				UserId:   newUser.Id,
+				Category: model.PreferenceCategoryNotifications,
+				Name:     model.PreferenceNameEmailInterval,
+				Value:    "0",
+			}}
+			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
+			}
+
+			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
@@ -568,9 +554,13 @@ func (p *Plugin) GenerateRandomPassword() string {
 func getRandomString(characterSet string, length int) string {
 	var randomString strings.Builder
 	for i := 0; i < length; i++ {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(length)))
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(characterSet))))
 		randomString.WriteString(string(characterSet[num.Int64()]))
 	}
 
 	return randomString.String()
+}
+
+func isRemoteUser(user *model.User) bool {
+	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }

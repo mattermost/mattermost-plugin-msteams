@@ -39,7 +39,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("Error while getting original chat")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything, "chat", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original chat", "chatID", "invalid-ChatID", "error", errors.New("Error while getting original chat")).Times(1)
 				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
@@ -52,24 +52,23 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(3)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetAPI").Return(mockAPI).Times(2)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
 				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chat in not-linked users)").Times(1)
-				mockAPI.On("LogError", "Unable to get original post", "error", mock.Anything, "msg", mock.Anything).Times(1)
-				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything, "msg", mock.Anything).Times(1)
+				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chats of non-connected users)").Times(1)
+				mockAPI.On("LogError", "Unable to get message from chat", "chatID", testutils.GetChatID(), "messageID", testutils.GetMessageID(), "error", nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},
@@ -81,7 +80,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -89,7 +88,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -108,7 +107,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(1)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
@@ -118,13 +117,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
 				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&msteams.Message{
 					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetTeamUserID(),
+					UserID:          testutils.GetTeamsUserID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
@@ -134,7 +133,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockAPI.On("LogDebug", "Skipping messages from bot user").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 		},
 		{
@@ -144,10 +143,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(1)
-				p.On("GetStore").Return(store).Times(2)
+				p.On("GetClientForApp").Return(client).Times(3)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
+				p.On("GetAPI").Return(mockAPI).Times(2)
+				p.On("GetStore").Return(store).Times(1)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -156,7 +155,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -167,15 +166,15 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogError", "Unable to get original channel id", "error", mock.Anything).Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(1)
+				mockAPI.On("LogError", "Unable to get the MS Teams user", "error", "unable to get user").Times(1)
+				mockAPI.On("LogError", "Unable to get original channel id", "error", "not enough users for creating a channel").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 		},
 		{
@@ -185,9 +184,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
+				p.On("GetClientForApp").Return(client).Times(4)
 				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(3)
 				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
@@ -196,12 +195,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
-						{
-							UserID: "mockUserID-1",
-						},
-						{
-							UserID: "mockUserID-2",
-						},
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
 					},
 					Type: "D",
 				}, nil).Times(1)
@@ -212,18 +207,20 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
+				client.On("GetUser", "mockUserID-2").Return(&msteams.User{ID: "mockUserID-2"}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Channel not set").Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
 				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Channel not set").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 			},
 		},
 		{
@@ -233,10 +230,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(4)
-				p.On("GetStore").Return(store).Times(6)
+				p.On("GetClientForApp").Return(client).Times(4)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(5)
+				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -244,12 +241,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
-						{
-							UserID: "mockUserID-1",
-						},
-						{
-							UserID: "mockUserID-2",
-						},
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
 					},
 					Type: "D",
 				}, nil).Times(1)
@@ -260,22 +253,23 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
+				client.On("GetUser", "mockUserID-2").Return(&msteams.User{ID: "mockUserID-2"}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Post generated", "post", mock.Anything).Times(1)
-				mockAPI.On("LogDebug", "duplicated post").Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{
-					Id: testutils.GetChannelID(),
-				}, nil).Times(1)
+				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Post generated").Times(1)
+				mockAPI.On("LogDebug", "duplicate post").Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 			},
 		},
 		{
@@ -285,10 +279,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(4)
-				p.On("GetStore").Return(store).Times(6)
+				p.On("GetClientForApp").Return(client).Times(4)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(5)
+				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -296,12 +290,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
-						{
-							UserID: "mockUserID-1",
-						},
-						{
-							UserID: "mockUserID-2",
-						},
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
 					},
 					Type: "D",
 				}, nil).Times(1)
@@ -312,23 +302,23 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
+				client.On("GetUser", "mockUserID-2").Return(&msteams.User{ID: "mockUserID-2"}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Post generated", "post", mock.Anything).Times(1)
-				mockAPI.On("LogError", "Unable to create post", "post", mock.Anything, "error", mock.Anything).Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{
-					Id: testutils.GetChannelID(),
-				}, nil).Times(1)
+				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Post generated").Times(1)
 				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(nil, testutils.GetInternalServerAppError("unable to create the post")).Times(1)
+				mockAPI.On("LogError", "Unable to create post", "Error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 			},
 		},
 		{
@@ -338,10 +328,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(6)
-				p.On("GetStore").Return(store).Times(7)
+				p.On("GetClientForApp").Return(client).Times(4)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(7)
+				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -349,12 +339,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
-						{
-							UserID: "mockUserID-1",
-						},
-						{
-							UserID: "mockUserID-2",
-						},
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
 					},
 					Type: "D",
 				}, nil).Times(1)
@@ -365,24 +351,25 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
+				client.On("GetUser", "mockUserID-2").Return(&msteams.User{ID: "mockUserID-2"}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Post generated", "post", mock.Anything).Times(1)
-				mockAPI.On("LogDebug", "Post created", "post", mock.Anything).Times(1)
-				mockAPI.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything).Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{
-					Id: testutils.GetChannelID(),
-				}, nil).Times(1)
+				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Post generated").Times(1)
 				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("LogDebug", "Post created").Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
+				mockAPI.On("LogWarn", "Error updating the MSTeams/Mattermost post link metadata", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
@@ -397,10 +384,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(5)
-				p.On("GetStore").Return(store).Times(7)
+				p.On("GetClientForApp").Return(client).Times(4)
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(6)
+				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
@@ -408,12 +395,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
-						{
-							UserID: "mockUserID-1",
-						},
-						{
-							UserID: "mockUserID-2",
-						},
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
 					},
 					Type: "D",
 				}, nil).Times(1)
@@ -424,23 +407,24 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
+				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
+				client.On("GetUser", "mockUserID-2").Return(&msteams.User{ID: "mockUserID-2"}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Post generated", "post", mock.Anything).Times(1)
-				mockAPI.On("LogDebug", "Post created", "post", mock.Anything).Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{
-					Id: testutils.GetChannelID(),
-				}, nil).Times(1)
+				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Post generated").Times(1)
 				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("LogDebug", "Post created").Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(2)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetMSTeamsChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
@@ -456,9 +440,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForUser", "mockCreator").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(4)
-				p.On("GetStore").Return(store).Times(7)
+				p.On("GetClientForApp").Return(client).Times(3)
+				p.On("GetAPI").Return(mockAPI).Times(5)
+				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -470,30 +454,28 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
-				mockAPI.On("LogDebug", "Post generated", "post", mock.Anything).Times(1)
-				mockAPI.On("LogDebug", "Post created", "post", mock.Anything).Times(1)
-				mockAPI.On("GetUserByEmail", mock.AnythingOfType("string")).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com")).Times(2)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("LogDebug", "Post generated").Times(1)
 				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("LogDebug", "Post created").Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator: "mockCreator",
+					Creator:             "mockCreator",
+					MattermostChannelID: testutils.GetChannelID(),
 				}, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
-				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator:             "mockCreator",
-					MattermostChannelID: testutils.GetChannelID(),
-				}, nil).Times(2)
 			},
 		},
 	} {
@@ -537,7 +519,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("error while getting original chat")).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get original chat", "error", mock.Anything, "chat", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to get original chat", "chatID", "invalid-ChatID", "error", errors.New("error while getting original chat")).Times(1)
 				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
@@ -550,24 +532,23 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(3)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetAPI").Return(mockAPI).Times(2)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
 				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chat in not-linked users)").Times(1)
-				mockAPI.On("LogError", "Unable to get original post", "error", mock.Anything, "msg", mock.Anything).Times(1)
-				mockAPI.On("LogError", "Unable to get original message", "error", mock.Anything, "msg", mock.Anything).Times(1)
+				mockAPI.On("LogDebug", "Unable to get the message (probably because belongs to private chats of non-connected users)").Times(1)
+				mockAPI.On("LogError", "Unable to get message from chat", "chatID", testutils.GetChatID(), "messageID", testutils.GetMessageID(), "error", nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {},
 		},
@@ -579,7 +560,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -587,7 +568,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil)
@@ -606,7 +587,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(1)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
@@ -617,13 +598,13 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
 				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&msteams.Message{
 					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetTeamUserID(),
+					UserID:          testutils.GetTeamsUserID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 				}, nil).Times(1)
@@ -632,7 +613,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("LogDebug", "Skipping messages from bot user").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 		},
 		{
@@ -643,7 +624,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(1)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
@@ -654,7 +635,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -668,7 +649,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 			},
 		},
@@ -680,10 +661,11 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetSyncDirectMessages").Return(true).Once()
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -691,7 +673,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -708,7 +690,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("LogError", "Unable to find the original post", "error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
@@ -725,10 +707,11 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(3)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetSyncDirectMessages").Return(true).Once()
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -736,7 +719,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -752,10 +735,10 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				getPostError := testutils.GetInternalServerAppError("Unable to get the post.")
 				getPostError.Id = "app.post.get.app_error"
 				mockAPI.On("GetPost", "mockMattermostID").Return(nil, getPostError).Times(1)
-				mockAPI.On("LogError", "Unable to recover the post", "post", mock.Anything, "error", mock.Anything).Times(1)
+				mockAPI.On("LogError", "Unable to recover the post", "postID", "mockMattermostID", "error", errors.New("unable to recover")).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
@@ -773,19 +756,20 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
 				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetClientForTeamsUser", testutils.GetTeamUserID()).Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(5)
-				p.On("GetStore").Return(store).Times(4)
+				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(6)
+				p.On("GetStore").Return(store).Times(3)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
+				p.On("GetSyncDirectMessages").Return(true).Once()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
 					ID: testutils.GetChatID(),
 					Members: []msteams.ChatMember{
 						{
-							UserID: testutils.GetTeamUserID(),
+							UserID: testutils.GetTeamsUserID(),
 						},
 					},
 				}, nil).Times(1)
@@ -802,16 +786,17 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetTeamsUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
 					MSTeamsChannel:      "mockMSTeamsChannel",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamUserID(), nil).Times(2)
+				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 		},
 		{
@@ -822,13 +807,12 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetClientForUser", "mockCreator").Return(client, nil).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(4)
-				p.On("GetStore").Return(store).Times(6)
+				p.On("GetClientForApp").Return(client).Times(2)
+				p.On("GetAPI").Return(mockAPI).Times(5)
+				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
-				p.On("GetSyncDirectMessages").Return(true).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{
@@ -846,21 +830,19 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("LogError", "Message reactions", "reactions", mock.Anything, "error", mock.Anything).Times(1)
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MSTeamsLastUpdateAt: time.Now(),
 					MattermostID:        "mockMattermostID",
 				}, nil).Times(1)
 				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator: "mockCreator",
-				}, nil).Times(1)
-				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					Creator:             "mockCreator",
 					MattermostChannelID: testutils.GetChannelID(),
-				}, nil).Times(2)
+				}, nil).Times(1)
 			},
 		},
 	} {
@@ -987,7 +969,7 @@ func TestHandleReactions(t *testing.T) {
 			description: "Unable to get the reactions",
 			reactions: []msteams.Reaction{
 				{
-					UserID:   testutils.GetTeamUserID(),
+					UserID:   testutils.GetTeamsUserID(),
 					Reaction: "+1",
 				},
 			},
@@ -1003,7 +985,7 @@ func TestHandleReactions(t *testing.T) {
 			description: "Unable to find the user for the reaction",
 			reactions: []msteams.Reaction{
 				{
-					UserID:   testutils.GetTeamUserID(),
+					UserID:   testutils.GetTeamsUserID(),
 					Reaction: "+1",
 				},
 			},
@@ -1014,14 +996,14 @@ func TestHandleReactions(t *testing.T) {
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{
 					{
-						UserId:    testutils.GetTeamUserID(),
+						UserId:    testutils.GetTeamsUserID(),
 						EmojiName: "+1",
 						PostId:    testutils.GetPostID(),
 					},
 				}, nil).Times(1)
 
 				mockAPI.On("RemoveReaction", &model.Reaction{
-					UserId:    testutils.GetTeamUserID(),
+					UserId:    testutils.GetTeamsUserID(),
 					EmojiName: "+1",
 					PostId:    testutils.GetPostID(),
 					ChannelId: "removedfromplugin",
@@ -1031,14 +1013,14 @@ func TestHandleReactions(t *testing.T) {
 				mockAPI.On("LogError", "unable to find the user for the reaction", "reaction", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
 			},
 		},
 		{
 			description: "Unable to remove the reaction",
 			reactions: []msteams.Reaction{
 				{
-					UserID:   testutils.GetTeamUserID(),
+					UserID:   testutils.GetTeamsUserID(),
 					Reaction: "+1",
 				},
 			},
@@ -1049,14 +1031,14 @@ func TestHandleReactions(t *testing.T) {
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{
 					{
-						UserId:    testutils.GetTeamUserID(),
+						UserId:    testutils.GetTeamsUserID(),
 						EmojiName: "+1",
 						PostId:    testutils.GetPostID(),
 					},
 				}, nil).Times(1)
 
 				mockAPI.On("RemoveReaction", &model.Reaction{
-					UserId:    testutils.GetTeamUserID(),
+					UserId:    testutils.GetTeamsUserID(),
 					EmojiName: "+1",
 					PostId:    testutils.GetPostID(),
 					ChannelId: "removedfromplugin",
@@ -1064,9 +1046,10 @@ func TestHandleReactions(t *testing.T) {
 
 				mockAPI.On("LogError", "No code reaction found for reaction", "reaction", mock.Anything).Times(2)
 				mockAPI.On("LogError", "Unable to remove reaction", "error", mock.Anything).Times(1)
+				mockAPI.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamUserID()).Return(testutils.GetID(), nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 		},
 	} {
