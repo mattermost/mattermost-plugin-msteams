@@ -156,7 +156,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			}
 
 			// If the file size is less than or equal to 20 MB, then download the file directly instead of streaming
-			if fileSize <= 20971520 {
+			if fileSize <= int64(ah.plugin.GetMaxSizeForCompleteDownload()*1024*1024) {
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {
 					ah.plugin.GetAPI().LogError("failed to get file content", "error", err.Error())
@@ -201,7 +201,7 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 		return ""
 	}
 
-	go client.GetFileContentStream(downloadURL, pipeWriter)
+	go client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
 	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "Error", err.Error())

@@ -43,7 +43,7 @@ type Client interface {
 	GetMe() (*User, error)
 	GetFileSizeAndDownloadURL(weburl string) (int64, string, error)
 	GetFileContent(downloadURL string) ([]byte, error)
-	GetFileContentStream(downloadURL string, writer *io.PipeWriter)
+	GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64)
 	GetHostedFileContent(activityIDs *ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]User, error)

@@ -59,6 +59,20 @@ func (_m *PluginIface) GetBotUserID() string {
 	return r0
 }
 
+// GetBufferSizeForStreaming provides a mock function with given fields:
+func (_m *PluginIface) GetBufferSizeForStreaming() int {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
 // GetClientForApp provides a mock function with given fields:
 func (_m *PluginIface) GetClientForApp() msteams.Client {
 	ret := _m.Called()
@@ -119,6 +133,20 @@ func (_m *PluginIface) GetClientForUser(_a0 string) (msteams.Client, error) {
 	}
 
 	return r0, r1
+}
+
+// GetMaxSizeForCompleteDownload provides a mock function with given fields:
+func (_m *PluginIface) GetMaxSizeForCompleteDownload() int {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
 }
 
 // GetStore provides a mock function with given fields:

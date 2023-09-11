@@ -32,6 +32,8 @@ type PluginIface interface {
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
 	GetSyncGuestUsers() bool
+	GetMaxSizeForCompleteDownload() int
+	GetBufferSizeForStreaming() int
 	GetBotUserID() string
 	GetURL() string
 	GetClientForApp() msteams.Client

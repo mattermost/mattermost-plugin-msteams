@@ -233,9 +233,9 @@ func (_m *Client) GetFileContent(downloadURL string) ([]byte, error) {
 	return r0, r1
 }
 
-// GetFileContentStream provides a mock function with given fields: downloadURL, writer
-func (_m *Client) GetFileContentStream(downloadURL string, writer *io.PipeWriter) {
-	_m.Called(downloadURL, writer)
+// GetFileContentStream provides a mock function with given fields: downloadURL, writer, bufferSize
+func (_m *Client) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
+	_m.Called(downloadURL, writer, bufferSize)
 }
 
 // GetFileSizeAndDownloadURL provides a mock function with given fields: weburl

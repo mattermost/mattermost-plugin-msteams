@@ -1240,10 +1240,10 @@ func (tc *ClientImpl) GetFileContent(downloadURL string) ([]byte, error) {
 	return data, nil
 }
 
-func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWriter) {
+func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
 	rangeStart := int64(0)
 	// Get 10 MB of data from the API call in one iteration
-	rangeIncrement := int64(10485760)
+	rangeIncrement := bufferSize
 	for {
 		req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 		if err != nil {
@@ -1253,20 +1253,18 @@ func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWr
 
 		contentRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeStart+rangeIncrement-1)
 		req.Header.Add("Range", contentRange)
-		fmt.Println("1254", req.Header.Get("Range"))
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			tc.logError("unable to send request for getting file content", "error", err.Error())
 			return
 		}
 
-		fmt.Printf("1261 %+v\n\n", res.Header)
-		fmt.Println("1256", res.StatusCode)
 		if _, err = io.Copy(writer, res.Body); err != nil {
 			tc.logError("unable to copy response body to the writer", "error", err.Error())
 			return
 		}
 
+		res.Body.Close()
 		contentLenStr := res.Header.Get("Content-Length")
 		contentLen, err := strconv.ParseInt(contentLenStr, 10, 64)
 		if (err == nil && contentLen < rangeIncrement) || res.StatusCode != http.StatusPartialContent {
