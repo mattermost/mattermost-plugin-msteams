@@ -119,7 +119,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				api.On("SendEphemeralPost", "", &model.Post{
 					UserId:  "bot-user-id",
 					Message: "Unable to get the current channel information.",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client) {},

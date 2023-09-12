@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -22,6 +23,8 @@ func (FakeHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestMsgToPost(t *testing.T) {
+	msteamsCreateAtTime := time.Now()
+	mmCreateAtTime := msteamsCreateAtTime.UnixNano() / int64(time.Millisecond)
 	for _, testCase := range []struct {
 		description string
 		channelID   string
@@ -40,6 +43,7 @@ func TestMsgToPost(t *testing.T) {
 				Subject:         "Subject of the messsage",
 				UserDisplayName: "mock-UserDisplayName",
 				UserID:          testutils.GetUserID(),
+				CreateAt:        msteamsCreateAtTime,
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
@@ -56,7 +60,8 @@ func TestMsgToPost(t *testing.T) {
 					"override_icon_url":                    "https://example.com//public/msteams-sync-icon.svg",
 					"override_username":                    "mock-UserDisplayName",
 				},
-				FileIds: model.StringArray{},
+				FileIds:  model.StringArray{},
+				CreateAt: mmCreateAtTime,
 			},
 		},
 	} {

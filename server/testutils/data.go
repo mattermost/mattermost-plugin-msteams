@@ -143,11 +143,12 @@ func GetFileInfo() *model.FileInfo {
 	}
 }
 
-func GetPostFromTeamsMessage() *model.Post {
+func GetPostFromTeamsMessage(createAt int64) *model.Post {
 	return &model.Post{
 		UserId:    GetUserID(),
 		ChannelId: GetChannelID(),
 		Message:   "mockText",
+		CreateAt:  createAt,
 		Props: model.StringInterface{
 			"msteams_sync_mock-BotUserID": true,
 		},
