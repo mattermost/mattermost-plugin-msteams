@@ -7,7 +7,7 @@
     "release_notes_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/releases/tag/v0.1.0",
     "icon_path": "assets/msteams-sync-icon.svg",
     "version": "1.0.8",
-    "min_server_version": "7.0.0",
+    "min_server_version": "7.8.10",
     "server": {
         "executables": {
             "linux-amd64": "server/dist/plugin-linux-amd64",
@@ -104,7 +104,7 @@
           "key": "maxSizeForCompleteDownload",
           "display_name": "Maximum size of attachments to support complete one time download (in MB)",
           "type": "number",
-          "help_text": "Set the maximum size for attachments which can be loaded into the memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost",
+          "help_text": "Set the maximum size for attachments that can be loaded into the memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost",
           "default": 20
         },{
         },{
