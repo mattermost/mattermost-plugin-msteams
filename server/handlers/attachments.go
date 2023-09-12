@@ -58,13 +58,13 @@ func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Clie
 func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attachmentName, channelID string) (fileInfoID string, resolutionErrorFound bool) {
 	contentType := http.DetectContentType(attachmentData)
 	if strings.HasPrefix(contentType, "image") && contentType != "image/svg+xml" {
-		w, h, imageErr := imaging.GetDimensions(bytes.NewReader(attachmentData))
+		width, height, imageErr := imaging.GetDimensions(bytes.NewReader(attachmentData))
 		if imageErr != nil {
 			ah.plugin.GetAPI().LogError("failed to get image dimensions", "error", imageErr.Error())
 			return "", false
 		}
 
-		imageRes := int64(w) * int64(h)
+		imageRes := int64(width) * int64(height)
 		if imageRes > *ah.plugin.GetAPI().GetConfig().FileSettings.MaxImageResolution {
 			ah.plugin.GetAPI().LogError("image resolution is too high")
 			return "", true
@@ -138,7 +138,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		if strings.Contains(a.ContentURL, hostedContentsStr) && strings.HasSuffix(a.ContentURL, "$value") {
 			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
 			if err != nil {
-				ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err.Error())
+				ah.plugin.GetAPI().LogError("failed to download the file", "filename", a.Name, "error", err.Error())
 				continue
 			}
 		} else {
@@ -155,7 +155,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				continue
 			}
 
-			// If the file size is less than or equal to 20 MB, then download the file directly instead of streaming
+			// If the file size is less than or equal to the configurable value, then download the file directly instead of streaming
 			if fileSize <= int64(ah.plugin.GetMaxSizeForCompleteDownload()*1024*1024) {
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {

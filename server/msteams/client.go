@@ -1242,7 +1242,7 @@ func (tc *ClientImpl) GetFileContent(downloadURL string) ([]byte, error) {
 
 func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
 	rangeStart := int64(0)
-	// Get 10 MB of data from the API call in one iteration
+	// Get only limited amount of data from the API call in one iteration
 	rangeIncrement := bufferSize
 	for {
 		req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
@@ -1265,9 +1265,9 @@ func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWr
 		}
 
 		res.Body.Close()
-		contentLenStr := res.Header.Get("Content-Length")
-		contentLen, err := strconv.ParseInt(contentLenStr, 10, 64)
-		if (err == nil && contentLen < rangeIncrement) || res.StatusCode != http.StatusPartialContent {
+		contentLengthHeader := res.Header.Get("Content-Length")
+		contentLength, err := strconv.ParseInt(contentLengthHeader, 10, 64)
+		if (err == nil && contentLength < rangeIncrement) || res.StatusCode != http.StatusPartialContent {
 			writer.Close()
 			break
 		}
