@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -59,7 +60,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, FileIds: attachments}
+	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, FileIds: attachments, CreateAt: msg.CreateAt.UnixNano() / int64(time.Millisecond)}
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
 
 	if senderID == ah.plugin.GetBotUserID() {

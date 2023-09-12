@@ -63,12 +63,13 @@ func GetMSTeamsChannelID() string {
 	return "qplsnwere9nurernidteoqw"
 }
 
-func GetPost(channelID, userID string) *model.Post {
+func GetPost(channelID, userID string, createAt int64) *model.Post {
 	return &model.Post{
 		Id:        GetID(),
 		FileIds:   model.StringArray{GetID()},
 		ChannelId: channelID,
 		UserId:    userID,
+		CreateAt:  createAt,
 	}
 }
 
