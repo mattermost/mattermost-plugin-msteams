@@ -258,9 +258,9 @@ const Rhs = (): JSX.Element => {
             <Dialog
                 destructive={showDestructiveDialog}
                 show={showDisconnectDialog}
-                primaryButtonText={'Disconnect'}
+                primaryButtonText={showDestructiveDialog && 'Disconnect'}
                 onCloseHandler={() => setShowDisconnectDialog(false)}
-                onSubmitHandler={disconnectUser}
+                onSubmitHandler={showDestructiveDialog && disconnectUser}
                 className='disconnect-dialog'
             >
                 <p>{dialogContent}</p>
