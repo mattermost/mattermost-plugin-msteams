@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 const (
@@ -38,6 +39,11 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	m := &Metrics{}
 
 	m.registry = prometheus.NewRegistry()
+	options := collectors.ProcessCollectorOpts{
+		Namespace: MetricsNamespace,
+	}
+	m.registry.MustRegister(collectors.NewProcessCollector(options))
+	m.registry.MustRegister(collectors.NewGoCollector())
 
 	additionalLabels := map[string]string{}
 	if info.InstallationID != "" {
