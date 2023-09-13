@@ -31,6 +31,8 @@ type configuration struct {
 	SyncGuestUsers             bool   `json:"syncGuestUsers"`
 	EnforceConnectedUsers      bool   `json:"enforceconnectedusers"`
 	AllowSkipConnectUsers      bool   `json:"allowskipconnectusers"`
+	MaxSizeForCompleteDownload int    `json:"maxSizeForCompleteDownload"`
+	BufferSizeForFileStreaming int    `json:"bufferSizeForFileStreaming"`
 	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
 }
 

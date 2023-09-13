@@ -88,6 +88,14 @@ func (p *Plugin) GetSyncGuestUsers() bool {
 	return p.getConfiguration().SyncGuestUsers
 }
 
+func (p *Plugin) GetMaxSizeForCompleteDownload() int {
+	return p.getConfiguration().MaxSizeForCompleteDownload
+}
+
+func (p *Plugin) GetBufferSizeForStreaming() int {
+	return p.getConfiguration().BufferSizeForFileStreaming
+}
+
 func (p *Plugin) GetBotUserID() string {
 	return p.userID
 }
