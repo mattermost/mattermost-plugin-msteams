@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -25,6 +27,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -36,6 +39,9 @@ const (
 	lastReceivedChangeKey = "last_received_change"
 	msteamsUserTypeGuest  = "Guest"
 	syncUsersJobName      = "sync_users"
+
+	metricsExposePort          = ":9094"
+	updateMetricsTaskFrequency = 15 * time.Minute
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -65,6 +71,7 @@ type Plugin struct {
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
+	metricsService         *metrics.Metrics
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -150,6 +157,19 @@ func (p *Plugin) connectTeamsAppClient() error {
 }
 
 func (p *Plugin) start(syncSince *time.Time) {
+	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
+
+	if enableMetrics != nil && *enableMetrics {
+		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
+			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		})
+
+		// run metrics server to expose data
+		p.runMetricsServer()
+		// run metrics updater recurring task
+		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
+	}
+
 	p.activityHandler.Start()
 
 	err := p.connectTeamsAppClient()
@@ -537,4 +557,32 @@ func getRandomString(characterSet string, length int) string {
 
 func isRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+}
+
+func (p *Plugin) runMetricsServer() {
+	logrus.WithField("port", metricsExposePort).Info("Starting Playbooks metrics server")
+
+	metricServer := metrics.NewMetricsServer(metricsExposePort, p.metricsService)
+
+	// Run server to expose metrics
+	go func() {
+		err := metricServer.Run()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logrus.WithError(err).Error("Metrics server could not be started")
+		}
+	}()
+}
+
+func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {
+	metricsUpdater := func() {
+		stats, err := store.GetStats()
+		if err != nil {
+			logrus.WithError(err).Error("error updating metrics, playbooks_active_total")
+		}
+		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
+		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
+		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
+	}
+
+	model.CreateRecurringTask("metricsUpdater", metricsUpdater, updateMetricsTaskFrequency)
 }

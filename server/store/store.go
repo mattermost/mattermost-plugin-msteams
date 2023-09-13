@@ -31,6 +31,12 @@ const (
 	backgroundJobPrefix          = "background_job"
 )
 
+type Stats struct {
+	ConnectedUsers int64
+	SyntheticUsers int64
+	LinkedChannels int64
+}
+
 type Store interface {
 	Init() error
 	GetAvatarCache(userID string) ([]byte, error)
@@ -76,6 +82,7 @@ type Store interface {
 	VerifyOAuth2State(state string) error
 	SetJobStatus(jobName string, status bool) error
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
+	GetStats() (*Stats, error)
 }
 
 type SQLStore struct {
@@ -919,6 +926,35 @@ func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus b
 		return false, errors.New(appErr.Error())
 	}
 	return isUpdated, nil
+}
+
+func (s *SQLStore) GetStats() (*Stats, error) {
+	query := s.getQueryBuilder().Select("count(mmChannelID, mmTeamID) as linkedChannels").From("msteamssync_links").Limit(maxLimitForLinks)
+	row := query.QueryRow()
+	var linkedChannels int64
+	if err := row.Scan(&linkedChannels); err != nil {
+		return nil, err
+	}
+
+	query = s.getQueryBuilder().Select("count(mmUserID)").From("msteamssync_users").Where(sq.NotEq{"token": ""}).Where(sq.NotEq{"token": nil})
+	row = query.QueryRow()
+	var connectedUsers int64
+	if err := row.Scan(&connectedUsers); err != nil {
+		return nil, err
+	}
+
+	query = s.getQueryBuilder().Select("count(id)").From("users").Where(sq.NotEq{"RemoteId": ""}).Where(sq.Like{"Username": "msteams_%"}).Where(sq.Eq{"DeleteAt": 0})
+	row = query.QueryRow()
+	var syntheticUsers int64
+	if err := row.Scan(&syntheticUsers); err != nil {
+		return nil, err
+	}
+
+	return &Stats{
+		LinkedChannels: linkedChannels,
+		ConnectedUsers: connectedUsers,
+		SyntheticUsers: syntheticUsers,
+	}, nil
 }
 
 func hashKey(prefix, hashableKey string) string {
