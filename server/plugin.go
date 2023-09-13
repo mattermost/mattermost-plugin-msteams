@@ -72,6 +72,7 @@ type Plugin struct {
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
 	metricsService         *metrics.Metrics
+	metricsServer          *metrics.Server
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -221,6 +222,9 @@ func (p *Plugin) syncSince(syncSince time.Time) {
 func (p *Plugin) stop() {
 	if p.monitor != nil {
 		p.monitor.Stop()
+	}
+	if p.metricsServer != nil {
+		p.metricsServer.Shutdown()
 	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
@@ -560,13 +564,13 @@ func isRemoteUser(user *model.User) bool {
 }
 
 func (p *Plugin) runMetricsServer() {
-	logrus.WithField("port", metricsExposePort).Info("Starting Playbooks metrics server")
+	logrus.WithField("port", metricsExposePort).Info("Starting metrics server")
 
-	metricServer := metrics.NewMetricsServer(metricsExposePort, p.metricsService)
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.metricsService)
 
 	// Run server to expose metrics
 	go func() {
-		err := metricServer.Run()
+		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logrus.WithError(err).Error("Metrics server could not be started")
 		}
@@ -577,7 +581,7 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 	metricsUpdater := func() {
 		stats, err := store.GetStats()
 		if err != nil {
-			logrus.WithError(err).Error("error updating metrics, playbooks_active_total")
+			logrus.WithError(err).Error("failed to update computed metrics")
 		}
 		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
 		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)

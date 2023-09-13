@@ -10,7 +10,7 @@ import (
 )
 
 // Service prometheus to run the server.
-type Service struct {
+type Server struct {
 	*http.Server
 }
 
@@ -22,8 +22,8 @@ func (el *ErrorLoggerWrapper) Println(v ...interface{}) {
 }
 
 // NewMetricsServer factory method to create a new prometheus server.
-func NewMetricsServer(address string, metricsService *Metrics) *Service {
-	return &Service{
+func NewMetricsServer(address string, metricsService *Metrics) *Server {
+	return &Server{
 		&http.Server{
 			ReadTimeout: 30 * time.Second,
 			Addr:        address,
@@ -35,11 +35,11 @@ func NewMetricsServer(address string, metricsService *Metrics) *Service {
 }
 
 // Run will start the prometheus server.
-func (h *Service) Run() error {
+func (h *Server) Run() error {
 	return errors.Wrap(h.Server.ListenAndServe(), "prometheus ListenAndServe")
 }
 
 // Shutdown will shutdown the prometheus server.
-func (h *Service) Shutdown() error {
+func (h *Server) Shutdown() error {
 	return errors.Wrap(h.Server.Close(), "prometheus Close")
 }
