@@ -227,7 +227,9 @@ func (p *Plugin) stop() {
 		p.monitor.Stop()
 	}
 	if p.metricsServer != nil {
-		p.metricsServer.Shutdown()
+		if err := p.metricsServer.Shutdown(); err != nil {
+			p.API.LogWarn("Error shutting down metrics server", "error", err)
+		}
 	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()

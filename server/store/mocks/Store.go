@@ -6,6 +6,8 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
+	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
 	time "time"
@@ -328,6 +330,29 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetStats provides a mock function with given fields:
+func (_m *Store) GetStats() (*store.Stats, error) {
+	ret := _m.Called()
+
+	var r0 *store.Stats
+	if rf, ok := ret.Get(0).(func() *store.Stats); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.Stats)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
