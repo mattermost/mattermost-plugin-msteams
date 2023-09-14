@@ -24,7 +24,7 @@ func (a *API) metricsMiddleware(next http.Handler) http.Handler {
 			a.p.metricsService.IncrementHTTPRequests()
 			recorder := &StatusRecorder{
 				ResponseWriter: w,
-				Status:         200,
+				Status:         http.StatusOK,
 			}
 
 			now := time.Now()
