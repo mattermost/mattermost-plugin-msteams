@@ -27,7 +27,6 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -564,7 +563,7 @@ func isRemoteUser(user *model.User) bool {
 }
 
 func (p *Plugin) runMetricsServer() {
-	logrus.WithField("port", metricsExposePort).Info("Starting metrics server")
+	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
 
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.metricsService)
 
@@ -572,7 +571,7 @@ func (p *Plugin) runMetricsServer() {
 	go func() {
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logrus.WithError(err).Error("Metrics server could not be started")
+			p.API.LogError("Metrics server could not be started", "error", err)
 		}
 	}()
 }
@@ -581,12 +580,13 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 	metricsUpdater := func() {
 		stats, err := store.GetStats()
 		if err != nil {
-			logrus.WithError(err).Error("failed to update computed metrics")
+			p.API.LogError("failed to update computed metrics", "error", err)
 		}
 		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
 		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
 		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
 	}
 
+	metricsUpdater()
 	model.CreateRecurringTask("metricsUpdater", metricsUpdater, updateMetricsTaskFrequency)
 }

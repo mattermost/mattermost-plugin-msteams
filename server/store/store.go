@@ -929,7 +929,7 @@ func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus b
 }
 
 func (s *SQLStore) GetStats() (*Stats, error) {
-	query := s.getQueryBuilder().Select("count(mmChannelID, mmTeamID) as linkedChannels").From("msteamssync_links")
+	query := s.getQueryBuilder().Select("count(mmChannelID)").From("msteamssync_links")
 	row := query.QueryRow()
 	var linkedChannels int64
 	if err := row.Scan(&linkedChannels); err != nil {
