@@ -82,7 +82,7 @@ func NewMetrics(info InstanceInfo) *Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "connected_users_total",
-		Help:        "The total number of MAttermost users connected to MS Teams users.",
+		Help:        "The total number of Mattermost users connected to MS Teams users.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.connectedUsersTotal)
