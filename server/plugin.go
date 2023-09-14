@@ -76,7 +76,11 @@ type Plugin struct {
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	api := NewAPI(p, p.store)
-	api.ServeHTTP(w, r)
+	if p.metricsService == nil {
+		api.ServeHTTP(w, r)
+	} else {
+		api.ServeHTTPWithMetrics(w, r)
+	}
 }
 
 func (p *Plugin) GetAPI() plugin.API {
