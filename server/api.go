@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -31,10 +29,9 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
 
-	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
-	if enableMetrics != nil && *enableMetrics {
+	if p.metricsService != nil {
 		// set error counter middleware handler
-		router.Use(p.metricsMiddleware)
+		router.Use(api.metricsMiddleware)
 	}
 
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
@@ -151,28 +148,6 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.router.ServeHTTP(w, r)
-}
-
-func (a *API) ServeHTTPWithMetrics(w http.ResponseWriter, r *http.Request) {
-	recorder := &StatusRecorder{
-		ResponseWriter: w,
-		Status:         200,
-	}
-	now := time.Now()
-
-	a.router.ServeHTTP(recorder, r)
-
-	elapsed := float64(time.Since(now)) / float64(time.Second)
-
-	var routeMatch mux.RouteMatch
-	a.router.Match(r, &routeMatch)
-	if routeMatch.Route != nil {
-		endpoint, err := routeMatch.Route.GetPathTemplate()
-		if err != nil {
-			endpoint = "unknown"
-		}
-		a.p.metricsService.ObserveAPIEndpointDuration(endpoint, r.Method, strconv.Itoa(recorder.Status), elapsed)
-	}
 }
 
 func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {

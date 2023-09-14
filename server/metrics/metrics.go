@@ -1,8 +1,6 @@
 package metrics
 
 import (
-	"os"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
@@ -47,7 +45,7 @@ func NewMetrics(info InstanceInfo) *Metrics {
 
 	additionalLabels := map[string]string{}
 	if info.InstallationID != "" {
-		additionalLabels[MetricsCloudInstallationLabel] = os.Getenv("MM_CLOUD_INSTALLATION_ID")
+		additionalLabels[MetricsCloudInstallationLabel] = info.InstallationID
 	}
 
 	m.apiTime = prometheus.NewHistogramVec(

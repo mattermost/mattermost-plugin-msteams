@@ -12,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/mattermost/mattermost-server/v6/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,7 +30,8 @@ func TestMsgToPost(t *testing.T) {
 		senderID    string
 		message     *msteams.Message
 		post        *model.Post
-		setupPlugin func(plugin *mocksPlugin.PluginIface, client *mocksClient.Client)
+		setupPlugin func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client)
+		setupAPI    func(*plugintest.API)
 	}{
 		{
 			description: "Successfully add message to post",
@@ -41,10 +43,14 @@ func TestMsgToPost(t *testing.T) {
 				UserDisplayName: "mock-UserDisplayName",
 				UserID:          testutils.GetUserID(),
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetURL").Return("https://example.com/")
 				p.On("GetClientForApp").Return(client)
+				p.On("GetAPI").Return(mockAPI).Once()
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -64,7 +70,9 @@ func TestMsgToPost(t *testing.T) {
 			p := mocksPlugin.NewPluginIface(t)
 			ah := ActivityHandler{}
 			client := mocksClient.NewClient(t)
-			testCase.setupPlugin(p, client)
+			mockAPI := &plugintest.API{}
+			testCase.setupAPI(mockAPI)
+			testCase.setupPlugin(p, mockAPI, client)
 
 			ah.plugin = p
 
