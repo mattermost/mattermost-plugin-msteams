@@ -23,7 +23,9 @@ func (p *Plugin) metricsMiddleware(next http.Handler) http.Handler {
 				Status:         200,
 			}
 			next.ServeHTTP(recorder, r)
-			p.metricsService.IncrementHTTPErrors()
+			if recorder.Status < 200 || recorder.Status > 299 {
+				p.metricsService.IncrementHTTPErrors()
+			}
 		} else {
 			next.ServeHTTP(w, r)
 		}

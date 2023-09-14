@@ -1119,6 +1119,9 @@ func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*M
 }
 
 func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
+	if tc.client == nil {
+		return nil, errors.New("client not initialized")
+	}
 	photo, err := tc.client.Users().ByUserId(userID).Photo().Content().Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
