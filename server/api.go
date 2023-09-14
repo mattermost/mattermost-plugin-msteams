@@ -155,9 +155,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Status:         200,
 	}
 	now := time.Now()
-	a.p.API.LogError("############# SERVING REQUEST #############")
 	a.router.ServeHTTP(recorder, r)
-	a.p.API.LogError("############# SERVED REQUEST #############")
 	elapsed := float64(time.Since(now)) / float64(time.Second)
 
 	var routeMatch mux.RouteMatch
