@@ -140,6 +140,7 @@ func TestStore(t *testing.T) {
 		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
+		"testListConnectedUsers":                                     testListConnectedUsers,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -563,6 +564,9 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamsUserID() + "1")
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
 }
 
 func testTeamsToMattermostUserIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -579,12 +583,15 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
-	assert.Equal(testutils.GetTeamsUserID()+"2", resp)
+	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "1")
+	assert.Equal(testutils.GetTeamsUserID()+"1", resp)
 	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
 }
 
 func testMattermostToTeamsUserIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -602,16 +609,19 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 	}
 
 	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken-3",
-		RefreshToken: "mockRefreshToken-3",
+		AccessToken:  "mockAccessToken-1",
+		RefreshToken: "mockRefreshToken-1",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
+	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "1")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
 }
 
 func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -620,12 +630,15 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", nil)
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", nil)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
+	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "1")
 	assert.Nil(resp)
 	assert.Contains(getErr.Error(), "no rows in result set")
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
 }
 
 func testGetTokenForMattermostUserForInvalidUserID(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -647,12 +660,15 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamsUserID()+"4", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "4")
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "1")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
 }
 
 func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -1108,4 +1124,39 @@ func testStoreAndVerifyOAuthState(t *testing.T, store *SQLStore, api *plugintest
 	api.On("KVGet", key).Return([]byte(state), nil)
 	err = store.VerifyOAuth2State(state)
 	assert.Nil(err)
+}
+
+func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	assert := assert.New(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	token := &oauth2.Token{
+		AccessToken:  "mockAccessToken-1",
+		RefreshToken: "mockRefreshToken-1",
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
+	assert.Nil(storeErr)
+
+	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
+	assert.Nil(storeErr)
+
+	resp, getErr := store.ListConnectedUsers()
+	expectedResp := []*storemodels.ConnectedUsers{
+		{
+			MattermostUserID: testutils.GetID() + "1",
+			TeamsUserID:      testutils.GetTeamsUserID() + "1",
+		},
+	}
+
+	assert.Equal(expectedResp, resp)
+	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
+
+	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
+	assert.Nil(delErr)
 }

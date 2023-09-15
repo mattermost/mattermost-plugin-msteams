@@ -133,6 +133,18 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 	return links
 }
 
+func GetConnectedUsers(count int) []*storemodels.ConnectedUsers {
+	var connectedUsers []*storemodels.ConnectedUsers
+	for i := 0; i < count; i++ {
+		connectedUsers = append(connectedUsers, &storemodels.ConnectedUsers{
+			MattermostUserID: GetUserID(),
+			TeamsUserID:      GetTeamsUserID(),
+		})
+	}
+
+	return connectedUsers
+}
+
 func GetFileInfo() *model.FileInfo {
 	return &model.FileInfo{
 		Id:       GetID(),

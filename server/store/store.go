@@ -83,6 +83,7 @@ type Store interface {
 	SetJobStatus(jobName string, status bool) error
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*Stats, error)
+	ListConnectedUsers() ([]*storemodels.ConnectedUsers, error)
 }
 
 type SQLStore struct {
@@ -955,6 +956,28 @@ func (s *SQLStore) GetStats() (*Stats, error) {
 		ConnectedUsers: connectedUsers,
 		SyntheticUsers: syntheticUsers,
 	}, nil
+}
+
+func (s *SQLStore) ListConnectedUsers() ([]*storemodels.ConnectedUsers, error) {
+	query := s.getQueryBuilder().Select("mmuserid, msteamsuserid").From("msteamssync_users").Where(sq.NotEq{"token": ""})
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var connectedUsers []*storemodels.ConnectedUsers
+	for rows.Next() {
+		connectedUser := &storemodels.ConnectedUsers{}
+		if err := rows.Scan(&connectedUser.MattermostUserID, &connectedUser.TeamsUserID); err != nil {
+			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			continue
+		}
+
+		connectedUsers = append(connectedUsers, connectedUser)
+	}
+
+	return connectedUsers, nil
 }
 
 func hashKey(prefix, hashableKey string) string {

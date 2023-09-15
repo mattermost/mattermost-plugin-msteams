@@ -570,6 +570,29 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
+// ListConnectedUsers provides a mock function with given fields:
+func (_m *Store) ListConnectedUsers() ([]*storemodels.ConnectedUsers, error) {
+	ret := _m.Called()
+
+	var r0 []*storemodels.ConnectedUsers
+	if rf, ok := ret.Get(0).(func() []*storemodels.ConnectedUsers); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.ConnectedUsers)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListGlobalSubscriptions provides a mock function with given fields:
 func (_m *Store) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
 	ret := _m.Called()
