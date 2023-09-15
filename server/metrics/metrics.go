@@ -30,7 +30,7 @@ type Metrics struct {
 
 	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
-	discardedChangeEventTotal *prometheus.CounterVec
+	processedChangeEventTotal *prometheus.CounterVec
 
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
@@ -92,14 +92,14 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventTotal)
 
-	m.discardedChangeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.processedChangeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "discared_change_event_total",
-		Help:        "The total number of MS Teams change events discarded.",
+		Help:        "The total number of MS Teams change events processed.",
 		ConstLabels: additionalLabels,
 	}, []string{"change_type", "discarded_reason"})
-	m.registry.MustRegister(m.discardedChangeEventTotal)
+	m.registry.MustRegister(m.processedChangeEventTotal)
 
 	m.lifecycleEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -158,10 +158,9 @@ func (m *Metrics) ObserveChangeEventTotal(changeType string) {
 	}
 }
 
-// TODO: Use this metrict to track discarded events
-func (m *Metrics) ObserveDiscardedChangeEventTotal(changeType string, discardedReason string) {
+func (m *Metrics) ObserveProcessedChangeEventTotal(changeType string, discardedReason string) {
 	if m != nil {
-		m.discardedChangeEventTotal.With(prometheus.Labels{"change_type": changeType, "discarded_reason": discardedReason}).Inc()
+		m.processedChangeEventTotal.With(prometheus.Labels{"change_type": changeType, "discarded_reason": discardedReason}).Inc()
 	}
 }
 
