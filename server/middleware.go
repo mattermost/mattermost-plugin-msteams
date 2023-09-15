@@ -37,13 +37,15 @@ func (a *API) metricsMiddleware(next http.Handler) http.Handler {
 
 			var routeMatch mux.RouteMatch
 			a.router.Match(r, &routeMatch)
+			endpoint := "unknown"
 			if routeMatch.Route != nil {
-				endpoint, err := routeMatch.Route.GetPathTemplate()
+				var err error
+				endpoint, err = routeMatch.Route.GetPathTemplate()
 				if err != nil {
 					endpoint = "unknown"
 				}
-				a.p.metricsService.ObserveAPIEndpointDuration(endpoint, r.Method, strconv.Itoa(recorder.Status), elapsed)
 			}
+			a.p.metricsService.ObserveAPIEndpointDuration(endpoint, r.Method, strconv.Itoa(recorder.Status), elapsed)
 		} else {
 			next.ServeHTTP(w, r)
 		}
