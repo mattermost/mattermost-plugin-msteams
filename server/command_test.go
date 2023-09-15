@@ -472,13 +472,6 @@ func TestExecuteConnectedUsersCommand(t *testing.T) {
 			description: "Successfully executed show-connected-users command",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   commandWaitingMessage,
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
-
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
