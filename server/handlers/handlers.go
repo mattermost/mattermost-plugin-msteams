@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -30,6 +31,7 @@ const (
 type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
+	GetMetrics() *metrics.Metrics
 	GetSyncDirectMessages() bool
 	GetSyncGuestUsers() bool
 	GetMaxSizeForCompleteDownload() int
