@@ -410,25 +410,33 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
-		if isUserPresent && isRemoteUser(mmUser) {
-			if msUser.IsAccountEnabled {
-				// Activate the deactived Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt != 0 {
-					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
-					}
+		if isUserPresent {
+			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
+				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
+					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 				}
-			} else {
-				// Deactivate the active Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt == 0 {
-					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
-					}
-				}
+			}
 
-				continue
+			if isRemoteUser(mmUser) {
+				if msUser.IsAccountEnabled {
+					// Activate the deactived Mattermost user corresponding to MS Teams user.
+					if mmUser.DeleteAt != 0 {
+						p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
+							p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+						}
+					}
+				} else {
+					// Deactivate the active Mattermost user corresponding to MS Teams user.
+					if mmUser.DeleteAt == 0 {
+						p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+							p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+						}
+					}
+
+					continue
+				}
 			}
 		}
 

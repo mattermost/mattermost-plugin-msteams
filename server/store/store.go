@@ -380,7 +380,7 @@ func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
 }
 
 func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
-	query := s.getQueryBuilder().Select("mmUserID").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID}).OrderBy("token IS NULL OR token = ''").Limit(1)
+	query := s.getQueryBuilder().Select("mmUserID").From("msteamssync_users").Where(sq.Eq{"msTeamsUserID": userID})
 	row := query.QueryRow()
 	var mmUserID string
 	err := row.Scan(&mmUserID)
@@ -391,7 +391,7 @@ func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
 }
 
 func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
-	query := s.getQueryBuilder().Select("msTeamsUserID").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID}).OrderBy("token IS NULL OR token = ''").Limit(1)
+	query := s.getQueryBuilder().Select("msTeamsUserID").From("msteamssync_users").Where(sq.Eq{"mmUserID": userID})
 	row := query.QueryRow()
 	var msTeamsUserID string
 	err := row.Scan(&msTeamsUserID)
@@ -547,6 +547,10 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := s.DeleteUserInfo(userID); err != nil {
+		return err
 	}
 
 	if s.driverName == "postgres" {
