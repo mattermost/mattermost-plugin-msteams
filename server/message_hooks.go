@@ -65,9 +65,8 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
 	updateRequired := true
 	if c.RequestId == "" {
-		if _, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("reaction_%s_%s", reaction.UserId, reaction.EmojiName)); alreadyUpdated {
-			updateRequired = false
-		}
+		_, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("reaction_%s_%s", reaction.UserId, reaction.EmojiName))
+		updateRequired = !alreadyUpdated
 	}
 
 	p.API.LogDebug("Reaction added hook", "reaction", reaction)
@@ -145,9 +144,8 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
 	updateRequired := true
 	if c.RequestId == "" {
-		if _, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id)); alreadyUpdated {
-			updateRequired = false
-		}
+		_, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+		updateRequired = !alreadyUpdated
 	}
 
 	client, err := p.GetClientForUser(newPost.UserId)
