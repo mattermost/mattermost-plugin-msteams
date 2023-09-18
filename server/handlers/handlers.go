@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -43,9 +45,11 @@ type PluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin PluginIface
-	queue  chan msteams.Activity
-	quit   chan bool
+	plugin               PluginIface
+	queue                chan msteams.Activity
+	quit                 chan bool
+	IgnorePluginHooksMap sync.Map
+	Mutex                sync.Mutex
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -236,6 +240,9 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
+	ah.Mutex.Lock()
+	defer ah.Mutex.Unlock()
+
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
@@ -293,6 +300,9 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	ah.Mutex.Lock()
+	defer ah.Mutex.Unlock()
+
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
@@ -347,6 +357,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	post, _ := ah.msgToPost(channelID, senderID, msg, chat)
 	post.Id = postInfo.MattermostID
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
@@ -357,6 +368,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
 			return
 		}
+
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
@@ -417,6 +430,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
+			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("reaction_%s_%s", reactionUserID, emojiName), true)
 			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,
@@ -424,6 +438,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				EmojiName: emojiName,
 			})
 			if appErr != nil {
+				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}
