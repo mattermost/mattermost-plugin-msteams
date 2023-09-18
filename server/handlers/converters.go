@@ -63,7 +63,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 	}
 
 	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID}
-	if isUpdatedActivity {
+	if !isUpdatedActivity {
 		post.FileIds = attachments
 	}
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
