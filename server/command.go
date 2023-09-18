@@ -407,7 +407,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if storedToken, _ := p.store.GetTokenForMattermostUser(args.UserId); storedToken != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first to connect again.")
+		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
 	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
@@ -433,7 +433,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	if storedToken, _ := p.store.GetTokenForMattermostUser(p.userID); storedToken != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "The bot account is already connected to MS Teams. Please disconnect the bot account first to connect again.")
+		return p.cmdError(args.UserId, args.ChannelId, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
