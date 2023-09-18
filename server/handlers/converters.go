@@ -38,6 +38,9 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 	var embeddedImages []msteams.Attachment
 	text, embeddedImages = ah.handleImages(text)
 	msg.Attachments = append(msg.Attachments, embeddedImages...)
+	if !strings.HasPrefix(text, "<p>") {
+		text = fmt.Sprintf("<p>%s</p>", text)
+	}
 	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
