@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"sync"
 	"testing"
 
 	"github.com/gosimple/slug"
@@ -50,6 +51,9 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 }
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
+}
+func (pm *pluginMock) GetStoreMutex() *sync.RWMutex {
+	return new(sync.RWMutex)
 }
 
 func newTestHandler() *ActivityHandler {

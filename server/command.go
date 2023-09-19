@@ -201,6 +201,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
 		p.API.LogDebug("Unable to create the new link", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
@@ -255,6 +257,8 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return &model.CommandResponse{}, nil
 	}
 
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
 		return &model.CommandResponse{}, nil

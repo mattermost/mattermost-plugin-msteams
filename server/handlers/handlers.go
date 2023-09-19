@@ -42,6 +42,7 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
+	GetStoreMutex() *sync.RWMutex
 }
 
 type ActivityHandler struct {
@@ -49,7 +50,6 @@ type ActivityHandler struct {
 	queue                chan msteams.Activity
 	quit                 chan bool
 	IgnorePluginHooksMap sync.Map
-	Mutex                sync.Mutex
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -120,6 +120,8 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 }
 
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
+	ah.plugin.GetStoreMutex().RLock()
+	defer ah.plugin.GetStoreMutex().RUnlock()
 	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
 		ah.plugin.GetAPI().LogDebug("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
@@ -240,8 +242,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	ah.Mutex.Lock()
-	defer ah.Mutex.Unlock()
+	ah.plugin.GetStoreMutex().RLock()
+	defer ah.plugin.GetStoreMutex().RUnlock()
 
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
@@ -300,8 +302,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	ah.Mutex.Lock()
-	defer ah.Mutex.Unlock()
+	ah.plugin.GetStoreMutex().RLock()
+	defer ah.plugin.GetStoreMutex().RUnlock()
 
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
@@ -359,6 +361,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
@@ -368,8 +371,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
 			return
 		}
-
-		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 	}
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
@@ -430,7 +431,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
-			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("reaction_%s_%s", reactionUserID, emojiName), true)
+			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
 			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,

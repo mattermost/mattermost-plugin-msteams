@@ -65,8 +65,8 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
 	updateRequired := true
 	if c.RequestId == "" {
-		_, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("reaction_%s_%s", reaction.UserId, reaction.EmojiName))
-		updateRequired = !alreadyUpdated
+		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
+		updateRequired = !ignoreHookForReaction
 	}
 
 	p.API.LogDebug("Reaction added hook", "reaction", reaction)
@@ -144,8 +144,8 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
 	updateRequired := true
 	if c.RequestId == "" {
-		_, alreadyUpdated := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
-		updateRequired = !alreadyUpdated
+		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+		updateRequired = !ignoreHookForReaction
 	}
 
 	client, err := p.GetClientForUser(newPost.UserId)
@@ -226,8 +226,8 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		}
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
@@ -275,8 +275,8 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		}
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	var teamsMessage *msteams.Message
 	if parentID != "" {
@@ -321,8 +321,8 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
@@ -368,8 +368,8 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 		return err
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	var teamsMessage *msteams.Message
 	if parentID != "" {
@@ -474,8 +474,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	if post.Id != "" && newMessage != nil {
 		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
@@ -561,8 +561,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		return "", err
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	if post.Id != "" && newMessage != nil {
 		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
@@ -686,8 +686,8 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		}
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	var updatedMessage *msteams.Message
 	if parentID != "" {
@@ -742,8 +742,8 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		}
 	}
 
-	p.activityHandler.Mutex.Lock()
-	defer p.activityHandler.Mutex.Unlock()
+	p.storeMutex.Lock()
+	defer p.storeMutex.Unlock()
 
 	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)
 	if err != nil {

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
@@ -15,6 +16,7 @@ const monitoringSystemJobName = "monitoring_system"
 type Monitor struct {
 	client           msteams.Client
 	store            store.Store
+	storeMutex       *sync.RWMutex
 	api              plugin.API
 	job              *cluster.Job
 	baseURL          string
@@ -22,10 +24,11 @@ type Monitor struct {
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func New(client msteams.Client, store store.Store, storeMutex *sync.RWMutex, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
+		storeMutex:       storeMutex,
 		api:              api,
 		baseURL:          baseURL,
 		webhookSecret:    webhookSecret,

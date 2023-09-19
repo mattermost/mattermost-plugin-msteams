@@ -66,6 +66,7 @@ type Plugin struct {
 	clusterMutex *cluster.Mutex
 	monitor      *monitor.Monitor
 	syncUserJob  *cluster.Job
+	storeMutex   *sync.RWMutex
 
 	activityHandler *handlers.ActivityHandler
 
@@ -109,6 +110,10 @@ func (p *Plugin) GetBotUserID() string {
 
 func (p *Plugin) GetClientForApp() msteams.Client {
 	return p.msteamsAppClient
+}
+
+func (p *Plugin) GetStoreMutex() *sync.RWMutex {
+	return p.storeMutex
 }
 
 func (p *Plugin) GetURL() string {
@@ -177,7 +182,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.storeMutex, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -316,6 +321,7 @@ func (p *Plugin) OnActivate() error {
 	}
 	p.userID = botID
 	p.clusterMutex = clusterMutex
+	p.storeMutex = new(sync.RWMutex)
 
 	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
 	if err != nil {
@@ -452,6 +458,8 @@ func (p *Plugin) syncUsers() {
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !isUserPresent {
+			p.storeMutex.Lock()
+			defer p.storeMutex.Unlock()
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
