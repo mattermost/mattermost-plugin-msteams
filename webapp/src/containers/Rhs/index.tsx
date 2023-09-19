@@ -330,7 +330,7 @@ const Rhs = (): JSX.Element => {
                 className='disconnect-dialog'
             >
                 <p>{dialogContent}</p>
-                {isDisconnectUserLoading && <LinearProgress/>}
+                {(isDisconnectUserLoading || isUnlinkChannelLoading) && <LinearProgress/>}
             </Dialog>
         </div>
     );
