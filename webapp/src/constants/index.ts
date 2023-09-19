@@ -9,6 +9,7 @@ const siteUrl = 'SITEURL';
 
 const DefaultPage = 0;
 const DefaultPerPage = 20;
+const DebounceFunctionTimeLimit = 500;
 
 import {pluginApiServiceConfigs} from './apiService';
 
@@ -21,5 +22,6 @@ export default {
     siteUrl,
     DefaultPage,
     DefaultPerPage,
+    DebounceFunctionTimeLimit,
     pluginApiServiceConfigs,
 };

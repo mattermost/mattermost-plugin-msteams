@@ -2,11 +2,12 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import {useDispatch} from 'react-redux';
 
-import {Spinner, Tooltip, Button, Dialog, LinearProgress} from '@brightscout/mattermost-ui-library';
+import {Spinner, Tooltip, Button, Dialog, LinearProgress, Input} from '@brightscout/mattermost-ui-library';
 
 import {General as MMConstants} from 'mattermost-redux/constants';
 
 import {setConnected} from '../../reducers/connectedState';
+import {refetch, resetRefetch} from '../../reducers/refetchState';
 import useApiRequestCompletionState from '../../hooks/useApiRequestCompletionState';
 import usePluginApi from '../../hooks/usePluginApi';
 
@@ -17,6 +18,7 @@ import './rhs.scss';
 
 const Rhs = (): JSX.Element => {
     const {state, makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
+    const refetchLinkedChannels = state.refetchReducer.refetch;
     const {connected, username} = state.connectedReducer;
     const dispatch = useDispatch();
 
@@ -26,9 +28,12 @@ const Rhs = (): JSX.Element => {
         per_page: Constants.DefaultPerPage,
     });
     const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<PaginationQueryParams | null>(null);
-    const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+    const [showDialog, setShowDialog] = useState(false);
     const [dialogContent, setDialogContent] = useState('');
     const [showDestructiveDialog, setShowDestructiveDialog] = useState(false);
+    const [primaryActionText, setPrimaryActionText] = useState('');
+    const [unlinkChannelParams, setUnlinkChannelParams] = useState<UnlinkChannelParams | null>(null);
+    const [searchLinkedChannelsText, setSearchLinkedChannelsText] = useState('');
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
@@ -38,15 +43,44 @@ const Rhs = (): JSX.Element => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName);
     }, []);
 
+    // Reset the pagination params and empty the subscription list
+    const resetStates = useCallback(() => {
+        setPaginationQueryParams({page: Constants.DefaultPage, per_page: Constants.DefaultPerPage});
+        setTotalLinkedChannels([]);
+    }, []);
+
+    const showDefaultDialog = useCallback(() => {
+        setShowDestructiveDialog(false);
+    }, []);
+
+    const unlinkChannel = () => {
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName, {channelId: unlinkChannelParams?.channelId ?? ''});
+    };
+
+    const handleSearchLinkedChannelsTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchLinkedChannelsText(e.target.value);
+        setTimeout(() => {
+            resetStates();
+        }, Constants.DebounceFunctionTimeLimit);
+    };
+
     useEffect(() => {
-        const linkedChannelsParams: PaginationQueryParams = {page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
+        const linkedChannelsParams: SearchLinkedChannelParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
         setGetLinkedChannelsParams(linkedChannelsParams);
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
     }, [paginationQueryParams]);
 
+    useEffect(() => {
+        if (refetchLinkedChannels) {
+            resetStates();
+            dispatch(resetRefetch());
+        }
+    }, [refetchLinkedChannels]);
+
     const {data: connectData} = getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName);
     const {data: linkedChannels, isLoading: linkedChannelsLoading} = getApiState(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, getLinkedChannelsParams as PaginationQueryParams);
     const {data: disconnectUserData, isLoading: isDisconnectUserLoading} = getApiState(Constants.pluginApiServiceConfigs.disconnectUser.apiServiceName);
+    const {data: unlinkChannelData, isLoading: isUnlinkChannelLoading} = getApiState(Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName, unlinkChannelParams as UnlinkChannelParams);
 
     useApiRequestCompletionState({
         serviceName: Constants.pluginApiServiceConfigs.connect.apiServiceName,
@@ -72,11 +106,25 @@ const Rhs = (): JSX.Element => {
         handleSuccess: () => {
             dispatch(setConnected({connected: false, username: ''}));
             setDialogContent(disconnectUserData as string);
-            setShowDestructiveDialog(false);
+            showDefaultDialog();
         },
         handleError: (disconnectUserError) => {
-            setShowDestructiveDialog(false);
+            showDefaultDialog();
             setDialogContent(disconnectUserError.data);
+        },
+    });
+
+    useApiRequestCompletionState({
+        serviceName: Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName,
+        payload: unlinkChannelParams as UnlinkChannelParams,
+        handleSuccess: () => {
+            setDialogContent(unlinkChannelData as string);
+            showDefaultDialog();
+            dispatch(refetch());
+        },
+        handleError: (unlinkChannelError) => {
+            showDefaultDialog();
+            setDialogContent(unlinkChannelError.data);
         },
     });
 
@@ -104,8 +152,9 @@ const Rhs = (): JSX.Element => {
                             className='rhs-disconnect__disconnect-button'
                             onClick={() => {
                                 setDialogContent('Are you sure you want to disconnect your MS Teams Account?');
-                                setShowDisconnectDialog(true);
+                                setShowDialog(true);
                                 setShowDestructiveDialog(true);
+                                setPrimaryActionText('Disconnect');
                             }}
                             variant='secondary'
                         >
@@ -140,7 +189,14 @@ const Rhs = (): JSX.Element => {
                 <div className={`rhs-body ${connected ? 'rhs-body__connect-body' : 'rhs-body__disconnect-body'}`}>
                     <div className='rhs-body__title'>{'Linked Channels'}</div>
                     <div className='rhs-body__subtitle'>{'Messages will be synchronized between linked channels.'}</div>
-                    {/* TODO: add search bar later. */}
+                    <Input
+                        iconName='MagnifyingGlass'
+                        label='Search'
+                        fullWidth={true}
+                        value={searchLinkedChannelsText}
+                        onChange={handleSearchLinkedChannelsTextChange}
+                        onClose={() => setSearchLinkedChannelsText('')}
+                    />
                     {linkedChannelsLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
                     {Boolean(totalLinkedChannels.length) && (
                         <div className='link-data__container'>
@@ -207,10 +263,13 @@ const Rhs = (): JSX.Element => {
                                             <Tooltip text={'Unlink'}>
                                                 <div
                                                     className='channel-unlink-icon'
-
-                                                    // TODO: Update later
-                                                    // eslint-disable-next-line no-alert
-                                                    onClick={() => alert('Unlink chanel')}
+                                                    onClick={() => {
+                                                        setDialogContent('Are you sure you want to unlink this channel?');
+                                                        setShowDialog(true);
+                                                        setShowDestructiveDialog(true);
+                                                        setPrimaryActionText('Unlink');
+                                                        setUnlinkChannelParams({channelId: link.mattermostChannelID});
+                                                    }}
                                                 >
                                                     {SVGIcons.channelUnlink}
                                                 </div>
@@ -257,10 +316,17 @@ const Rhs = (): JSX.Element => {
             )}
             <Dialog
                 destructive={showDestructiveDialog}
-                show={showDisconnectDialog}
-                primaryButtonText={showDestructiveDialog && 'Disconnect'}
-                onCloseHandler={() => setShowDisconnectDialog(false)}
-                onSubmitHandler={showDestructiveDialog && disconnectUser}
+                show={showDialog}
+                primaryButtonText={showDestructiveDialog && primaryActionText}
+                onCloseHandler={() => {
+                    setShowDialog(false);
+                    setTimeout(() => {
+                        setPrimaryActionText('');
+                        setShowDestructiveDialog(false);
+                        setDialogContent('');
+                    }, 500);
+                }}
+                onSubmitHandler={primaryActionText === 'Disconnect' ? disconnectUser : unlinkChannel}
                 className='disconnect-dialog'
             >
                 <p>{dialogContent}</p>

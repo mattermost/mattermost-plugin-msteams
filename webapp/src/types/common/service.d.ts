@@ -4,7 +4,8 @@ type PluginApiServiceName =
     'needsConnect' |
     'connect' |
     'getLinkedChannels' |
-    'disconnectUser';
+    'disconnectUser' |
+    'unlinkChannel';
 
 type PluginApiService = {
     path: string,
@@ -17,4 +18,4 @@ type APIError = {
     data: string,
 }
 
-type APIRequestPayload = PaginationQueryParams | void;
+type APIRequestPayload = PaginationQueryParams | UnlinkChannelParams | SearchLinkedChannelParams | void;

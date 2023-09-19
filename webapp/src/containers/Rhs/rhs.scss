@@ -95,6 +95,7 @@
         &__subtitle {
             padding: 0 10px 10px 10px;
             font-size: 13px;
+            margin-bottom: 5px;
         }
 
         &__spinner {
@@ -140,7 +141,7 @@
                 display: flex;
                 flex-direction: column;
                 padding: 10px;
-                height: 85%;
+                height: 70%;
             }
 
             &__container-values {
@@ -238,9 +239,9 @@
             margin: 10px 20px;
         }
     }
+}
 
-    // TODO: temporary class, remove after mm ui library fix
-    .disconnect-dialog {
-        opacity: 1;
-    }
+// TODO: temporary class, remove after mm ui library fix
+.disconnect-dialog {
+    opacity: 1;
 }

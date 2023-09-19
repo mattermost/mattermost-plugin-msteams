@@ -179,7 +179,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
-	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post", "error", "Unable to send the message").Return(nil)
+	plugin.API.(*plugintest.API).On("LogWarn", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogError", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
 
 	plugin.MessageHasBeenPosted(nil, &post)
@@ -270,14 +270,14 @@ func TestGetClientForTeamsUser(t *testing.T) {
 		{
 			Name: "GetClientForTeamsUser: Unable to get the token",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(nil, nil).Times(1)
+				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(nil, nil).Times(1)
 			},
 			ExpectedError: "not connected user",
 		},
 		{
 			Name: "GetClientForTeamsUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 		},
 	} {
@@ -285,7 +285,7 @@ func TestGetClientForTeamsUser(t *testing.T) {
 			assert := assert.New(t)
 			p := newTestPlugin(t)
 			test.SetupStore(p.store.(*storemocks.Store))
-			resp, err := p.GetClientForTeamsUser(testutils.GetTeamUserID())
+			resp, err := p.GetClientForTeamsUser(testutils.GetTeamsUserID())
 			if test.ExpectedError != "" {
 				assert.Nil(resp)
 				assert.EqualError(err, test.ExpectedError)
@@ -327,7 +327,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
@@ -349,7 +349,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
@@ -370,12 +370,12 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
+				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]msteams.User{
 					{
-						ID:          testutils.GetTeamUserID(),
+						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)

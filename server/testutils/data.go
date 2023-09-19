@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -23,7 +24,7 @@ func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetTeamUserID() string {
+func GetTeamsUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
 }
 
@@ -50,6 +51,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}
@@ -110,7 +112,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "test-teams-team"
+	return "testteam-team-team-team-testteamtest"
 }
 
 func GetTeamsChannelID() string {
@@ -161,4 +163,17 @@ func GetChannelLink() *storemodels.ChannelLink {
 		MSTeamsTeamID:       GetTeamID(),
 		MSTeamsChannelID:    GetChannelID(),
 	}
+}
+
+func GetLinkChannelsPayload(teamID, channelID, msTeamsTeamID, msTeamsChannelID string) string {
+	return fmt.Sprintf(`{
+		"mattermostTeamID":"%s",
+		"mattermostChannelID":"%s",
+		"msTeamsTeamID":"%s",
+		"msTeamsChannelID":"%s"
+	}`, teamID, channelID, msTeamsTeamID, msTeamsChannelID)
+}
+
+func GetTestEmail() string {
+	return "unknown-user@msteamssync"
 }

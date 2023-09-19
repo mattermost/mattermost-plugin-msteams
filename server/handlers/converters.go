@@ -30,9 +30,12 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Message, senderID string) (*model.Post, error) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, error) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
+	var embeddedImages []msteams.Attachment
+	text, embeddedImages = ah.handleImages(text)
+	msg.Attachments = append(msg.Attachments, embeddedImages...)
 	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -44,7 +47,7 @@ func (ah *ActivityHandler) msgToPost(userID, channelID string, msg *msteams.Mess
 		}
 	}
 
-	newText, attachments, parentID := ah.handleAttachments(userID, channelID, text, msg)
+	newText, attachments, parentID := ah.handleAttachments(channelID, text, msg, chat)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -71,13 +74,13 @@ func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
 		if mention.UserID != "" {
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm UserID", "Error", err.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get mm user details", "Error", getErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "Error", getErr.DetailedError)
 				continue
 			}
 
@@ -123,4 +126,38 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	}
 
 	return text
+}
+
+func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachment) {
+	imageURLs := getImageTagsFromHTML(text)
+	var attachments []msteams.Attachment
+	for _, imageURL := range imageURLs {
+		attachments = append(attachments, msteams.Attachment{
+			ContentURL: imageURL,
+		})
+	}
+
+	text = imageRE.ReplaceAllString(text, "")
+	return text, attachments
+}
+
+func getImageTagsFromHTML(text string) []string {
+	tokenizer := html.NewTokenizer(strings.NewReader(text))
+	var images []string
+	for {
+		token := tokenizer.Next()
+		switch {
+		case token == html.ErrorToken:
+			return images
+		case token == html.StartTagToken:
+			if t := tokenizer.Token(); t.Data == "img" {
+				for _, a := range t.Attr {
+					if a.Key == "src" {
+						images = append(images, a.Val)
+						break
+					}
+				}
+			}
+		}
+	}
 }

@@ -229,7 +229,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post", "error", mock.Anything).Times(1)
+				api.On("LogWarn", "Error in removing the reaction", "emojiName", testutils.GetReaction().EmojiName, "error", "unable to unset the reaction").Times(1)
 				api.On("LogError", "Unable to handle message reaction unset", "error", mock.Anything).Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -250,7 +250,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to unset the reaction")).Times(1)
 			},
 		},
 		{
@@ -426,7 +426,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error updating post", "error", mock.Anything).Times(1)
+				api.On("LogError", "Error getting post info", "error", mock.Anything).Times(1)
 				api.On("LogError", "Unable to handle message update", "error", mock.Anything).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -492,7 +492,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		{
 			Name: "MessageHasBeenUpdated: Able to get the link by channel ID but unable to update post",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error updating the post", "error", mock.Anything).Return(nil).Times(1)
+				api.On("LogWarn", "Error updating the post on MS Teams", "error", errors.New("unable to update the post")).Return(nil).Times(1)
 				api.On("LogError", "Unable to handle message update", "error", mock.Anything).Return(nil).Times(1)
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
@@ -788,7 +788,7 @@ func TestUnsetChatReaction(t *testing.T) {
 		{
 			Name: "UnsetChatReaction: Unable to get the chat ID",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "FAILING TO CREATE OR GET THE CHAT", "error", mock.Anything)
+				api.On("LogError", "Failed to create or get the chat", "error", mock.Anything).Return()
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -801,7 +801,7 @@ func TestUnsetChatReaction(t *testing.T) {
 		{
 			Name: "UnsetChatReaction: Unable to unset the chat reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post", "error", mock.Anything)
+				api.On("LogWarn", "Error in removing the chat reaction", "emojiName", "mockEmojiName", "error", "unable to unset the chat reaction")
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -812,7 +812,7 @@ func TestUnsetChatReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.Anything).Return("mockChatID", nil).Times(1)
-				uclient.On("UnsetChatReaction", "mockChatID", "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(testutils.GetInternalServerAppError("unable to unset the chat reaction")).Times(1)
+				uclient.On("UnsetChatReaction", "mockChatID", "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(errors.New("unable to unset the chat reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to unset the chat reaction",
 		},
@@ -933,7 +933,7 @@ func TestUnsetReaction(t *testing.T) {
 		{
 			Name: "UnsetReaction: Unable to unset the reaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post", "error", mock.Anything)
+				api.On("LogWarn", "Error in removing the reaction", "emojiName", "mockName", "error", "unable to unset the reaction")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
@@ -941,7 +941,7 @@ func TestUnsetReaction(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(testutils.GetInternalServerAppError("unable to unset the reaction")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(errors.New("unable to unset the reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to unset the reaction",
 		},
@@ -1022,7 +1022,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to create or get the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "FAILING TO CREATE OR GET THE CHAT", "error", mock.Anything)
+				api.On("LogError", "Failed to create or get the chat", "error", errors.New("unable to create or get the chat"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1037,7 +1037,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to send the chat",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post", "error", mock.Anything)
+				api.On("LogWarn", "Error creating post on MS Teams", "error", "unable to send the chat")
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1090,7 +1090,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the parent message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in getting parent chat", "error", mock.Anything)
+				api.On("LogWarn", "Error in getting parent chat message", "error", errors.New("error in getting parent chat message"))
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1116,7 +1116,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData"))).Return(&msteams.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("GetChatMessage", "mockChatID", "mockParentMessageID").Return(nil, errors.New("error in getting parent chat")).Once()
+				uclient.On("GetChatMessage", "mockChatID", "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1172,7 +1172,7 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to upload the attachments",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error in uploading file attachment to Teams", "error", mock.Anything)
+				api.On("LogWarn", "Error in uploading file attachment to MS Teams", "error", errors.New("unable to upload the attachments"))
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1324,7 +1324,7 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to send message with attachments",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error creating post", "error", mock.Anything).Times(1)
+				api.On("LogWarn", "Error creating post on MS Teams", "error", "unable to send message with attachments").Times(1)
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
 			},
@@ -1467,7 +1467,7 @@ func TestDelete(t *testing.T) {
 		{
 			Name: "Delete: Unable to delete the message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error deleting post", "error", mock.Anything)
+				api.On("LogError", "Error deleting post from MS Teams", "error", errors.New("unable to delete the message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1559,7 +1559,7 @@ func TestDeleteChat(t *testing.T) {
 		{
 			Name: "DeleteChat: Unable to delete the message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error deleting post", "error", mock.Anything)
+				api.On("LogError", "Error deleting post from MS Teams", "error", errors.New("unable to delete the message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1625,7 +1625,7 @@ func TestUpdate(t *testing.T) {
 		{
 			Name: "Update: Unable to get the post info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error updating post", "error", mock.Anything)
+				api.On("LogError", "Error getting post info", "error", mock.Anything)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1649,7 +1649,7 @@ func TestUpdate(t *testing.T) {
 		{
 			Name: "Update: Unable to update the message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error updating the post", "error", mock.Anything)
+				api.On("LogWarn", "Error updating the post on MS Teams", "error", errors.New("unable to update the message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1666,7 +1666,7 @@ func TestUpdate(t *testing.T) {
 		{
 			Name: "Update: Unable to get the updated message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything)
+				api.On("LogWarn", "Error in getting the message from MS Teams", "error", errors.New("unable to get the updated message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1758,7 +1758,7 @@ func TestUpdateChat(t *testing.T) {
 		{
 			Name: "UpdateChat: Unable to get the post info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error updating post", "error", mock.Anything)
+				api.On("LogError", "Error getting post info", "error", mock.Anything)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post info")).Times(1)
@@ -1795,7 +1795,7 @@ func TestUpdateChat(t *testing.T) {
 		{
 			Name: "UpdateChat: Unable to update the message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error updating the post", "error", mock.Anything)
+				api.On("LogWarn", "Error updating the post on MS Teams", "error", errors.New("unable to update the message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1812,7 +1812,7 @@ func TestUpdateChat(t *testing.T) {
 		{
 			Name: "UpdateChat: Unable to get the updated message",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything)
+				api.On("LogWarn", "Error getting the updated message from MS Teams", "error", errors.New("unable to get the updated message"))
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -2000,6 +2000,180 @@ func TestGetChatIDForChannel(t *testing.T) {
 				assert.Nil(err)
 				assert.Equal(resp, test.ExpectedResult)
 			}
+		})
+	}
+}
+
+func TestGetMentionsData(t *testing.T) {
+	for _, test := range []struct {
+		Name                  string
+		Message               string
+		ChatID                string
+		SetupAPI              func(*plugintest.API)
+		SetupStore            func(*storemocks.Store)
+		SetupClient           func(*clientmocks.Client)
+		ExpectedMessage       string
+		ExpectedMentionsCount int
+	}{
+		{
+			Name:            "GetMentionsData: mentioned in direct chat message",
+			Message:         "Hi @all",
+			ExpectedMessage: "Hi @all",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI:        func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {},
+		},
+		{
+			Name:            "GetMentionsData: mentioned all in a group chat message",
+			Message:         "Hi @all",
+			ExpectedMessage: "Hi <at id=\"0\">Everyone</at>",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI:        func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
+					Type: "G",
+				}, nil)
+			},
+			SetupStore:            func(store *storemocks.Store) {},
+			ExpectedMentionsCount: 1,
+		},
+		{
+			Name:            "GetMentionsData: error occurred while getting chat",
+			Message:         "Hi @all",
+			ExpectedMessage: "Hi <at id=\"0\">@all</at>",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get ms teams chat", "Error", "error occurred while getting chat")
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(nil, errors.New("error occurred while getting chat"))
+			},
+			SetupStore:            func(store *storemocks.Store) {},
+			ExpectedMentionsCount: 1,
+		},
+		{
+			Name:            "GetMentionsData: mentioned all in Teams channel",
+			Message:         "Hi @all",
+			ExpectedMessage: "Hi <at id=\"0\">mock-name</at>",
+			SetupAPI:        func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChannelInTeam", testutils.GetTeamID(), testutils.GetChannelID()).Return(&msteams.Channel{
+					DisplayName: "mock-name",
+				}, nil)
+			},
+			SetupStore:            func(store *storemocks.Store) {},
+			ExpectedMentionsCount: 1,
+		},
+		{
+			Name:            "GetMentionsData: error occurred while getting the MS Teams channel",
+			Message:         "Hi @all",
+			ExpectedMessage: "Hi <at id=\"0\">@all</at>",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get ms teams channel", "Error", "error occurred while getting the MS Teams channel")
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChannelInTeam", testutils.GetTeamID(), testutils.GetChannelID()).Return(nil, errors.New("error occurred while getting the MS Teams channel"))
+			},
+			SetupStore:            func(store *storemocks.Store) {},
+			ExpectedMentionsCount: 1,
+		},
+		{
+			Name:            "GetMentionsData: mentioned a user",
+			Message:         "Hi @test-username",
+			ExpectedMessage: "Hi <at id=\"0\">mock-name</at>",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetUser", testutils.GetUserID()).Return(&msteams.User{
+					DisplayName: "mock-name",
+				}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetUserID(), nil)
+			},
+			ExpectedMentionsCount: 1,
+		},
+		{
+			Name:            "GetMentionsData: mentioned all and a specific user in a group chat",
+			Message:         "Hi @all @test-username",
+			ExpectedMessage: "Hi <at id=\"0\">Everyone</at> <at id=\"1\">mock-name</at>",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
+					Type: "G",
+				}, nil)
+				client.On("GetUser", testutils.GetUserID()).Return(&msteams.User{
+					DisplayName: "mock-name",
+				}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetUserID(), nil)
+			},
+			ExpectedMentionsCount: 2,
+		},
+		{
+			Name:            "GetMentionsData: error getting MM user with username",
+			Message:         "Hi @test-username",
+			ExpectedMessage: "Hi @test-username",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get user by username", "Error", "error getting MM user with username")
+				api.On("GetUserByUsername", "test-username").Return(nil, testutils.GetInternalServerAppError("error getting MM user with username"))
+			},
+			SetupClient: func(client *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
+		},
+		{
+			Name:            "GetMentionsData: error getting msteams user ID from MM user ID",
+			Message:         "Hi @test-username",
+			ExpectedMessage: "Hi @test-username",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get msteams user ID", "Error", "error getting msteams user ID from MM user ID")
+				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
+			},
+			SetupClient: func(client *clientmocks.Client) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("error getting msteams user ID from MM user ID"))
+			},
+		},
+		{
+			Name:            "GetMentionsData: error getting msteams user",
+			Message:         "Hi @test-username",
+			ExpectedMessage: "Hi @test-username",
+			ChatID:          testutils.GetChatID(),
+			SetupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Unable to get msteams user", "Error", "error getting msteams user")
+				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetUser", testutils.GetUserID()).Return(nil, errors.New("error getting msteams user"))
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetUserID(), nil)
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin(t)
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+
+			client := p.msteamsAppClient.(*clientmocks.Client)
+			test.SetupClient(client)
+
+			msg, mentions := p.getMentionsData(test.Message, testutils.GetTeamID(), testutils.GetChannelID(), test.ChatID, client)
+			assert.Equal(test.ExpectedMessage, msg)
+			assert.Equal(test.ExpectedMentionsCount, len(mentions))
 		})
 	}
 }
