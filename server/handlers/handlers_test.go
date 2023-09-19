@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
+	storeMutex := new(sync.RWMutex)
 	for _, testCase := range []struct {
 		description string
 		activityIds msteams.ActivityIds
@@ -190,6 +192,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(4)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -236,6 +239,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -285,6 +289,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -334,6 +339,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -390,6 +396,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -444,6 +451,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
+				p.On("GetStoreMutex").Return(storeMutex).Times(4)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{
@@ -498,6 +506,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 }
 
 func TestHandleUpdatedActivity(t *testing.T) {
+	storeMutex := new(sync.RWMutex)
 	for _, testCase := range []struct {
 		description string
 		activityIds msteams.ActivityIds
@@ -628,7 +637,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(1)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -647,7 +656,9 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					Text:            "mockText",
 				}, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
+			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
@@ -666,7 +677,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -688,6 +699,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetPost", "mockMattermostID").Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
 				mockAPI.On("LogError", "Unable to find the original post", "error", mock.Anything).Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
@@ -712,7 +724,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(3)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
+				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -736,6 +748,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				getPostError.Id = "app.post.get.app_error"
 				mockAPI.On("GetPost", "mockMattermostID").Return(nil, getPostError).Times(1)
 				mockAPI.On("LogError", "Unable to recover the post", "postID", "mockMattermostID", "error", errors.New("unable to recover")).Times(1)
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
@@ -760,9 +773,9 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(6)
 				p.On("GetStore").Return(store).Times(3)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetSyncDirectMessages").Return(true).Once()
+				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -787,6 +800,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
 				mockAPI.On("GetUser", testutils.GetTeamsUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
@@ -811,8 +825,8 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
-				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
+				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{
@@ -831,6 +845,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
 				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("KVSet", lastReceivedChangeKey, mock.Anything).Return(nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)

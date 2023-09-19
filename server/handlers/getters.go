@@ -90,12 +90,13 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 
 func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSyntheticUser bool) (string, error) {
 	ah.plugin.GetStoreMutex().RLock()
-	defer ah.plugin.GetStoreMutex().RUnlock()
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
 	if err == nil && mmUserID != "" {
+		ah.plugin.GetStoreMutex().RUnlock()
 		return mmUserID, err
 	}
 
+	ah.plugin.GetStoreMutex().RUnlock()
 	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
 	if appErr != nil {
 		if !createSyntheticUser {
