@@ -13,6 +13,7 @@ import (
 
 const msteamsCommand = "msteams-sync"
 const commandWaitingMessage = "Please wait while your request is being processed."
+const wsEventOpenLinkChannelsModal = "link_channels"
 
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
@@ -146,15 +147,26 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if len(parameters) < 2 {
-		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
+	channel, appErr := p.API.GetChannel(args.ChannelId)
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1], nil); errMsg != "" {
-		return p.cmdError(args.UserId, args.ChannelId, errMsg)
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
+	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
+	if !canLinkChannel {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
+	}
+
+	p.API.PublishWebSocketEvent(
+		wsEventOpenLinkChannelsModal,
+		nil,
+		&model.WebsocketBroadcast{UserId: args.UserId},
+	)
+
 	return &model.CommandResponse{}, nil
 }
 

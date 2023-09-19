@@ -39,7 +39,8 @@
   "settings": {
     "import/resolver": {
       "node": {
-        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+        "extensions": [".js", ".jsx", ".ts", ".tsx"],
+        "paths": ["."]
       }
     }
   },
@@ -336,12 +337,8 @@
     ],
     "no-self-compare": 2,
     "no-sequences": 2,
-    "no-shadow": [
-      2,
-      {
-        "hoist": "functions"
-      }
-    ],
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": ["error"],
     "no-shadow-restricted-names": 2,
     "no-spaced-func": 2,
     "no-tabs": 0,

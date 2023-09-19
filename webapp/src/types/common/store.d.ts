@@ -1,3 +1,5 @@
+type ModalIds = import('../../constants').ModalIds;
+
 type PluginState = RootState<{ [x: string]: QueryDefinition<void, BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, {}, FetchBaseQueryMeta>, never, void, 'msTeamsPluginApi'>; }, never, 'msTeamsPluginApi'>
 
 type ReduxState = {
@@ -16,3 +18,8 @@ type ConnectedState = {
 type RefetchState = {
     refetch: boolean;
 };
+
+type GlobalModalState = {
+    modalId: ModalIds | null;
+    data?: null;
+}

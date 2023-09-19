@@ -6,13 +6,13 @@ import {Spinner, Tooltip, Button, Dialog, LinearProgress, Input} from '@brightsc
 
 import {General as MMConstants} from 'mattermost-redux/constants';
 
-import {setConnected} from '../../reducers/connectedState';
-import {refetch, resetRefetch} from '../../reducers/refetchState';
-import useApiRequestCompletionState from '../../hooks/useApiRequestCompletionState';
-import usePluginApi from '../../hooks/usePluginApi';
+import {setConnected} from 'src/reducers/connectedState';
+import {refetch, resetRefetch} from 'src/reducers/refetchState';
+import useApiRequestCompletionState from 'src/hooks/useApiRequestCompletionState';
+import usePluginApi from 'src/hooks/usePluginApi';
 
-import Constants from '../../constants';
-import {SVGIcons} from '../../constants/icons';
+import Constants from 'src/constants';
+import {SVGIcons} from 'src/constants/icons';
 
 import './rhs.scss';
 

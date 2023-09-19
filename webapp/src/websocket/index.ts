@@ -2,7 +2,10 @@ import {Action, Store} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import {setConnected} from '../reducers/connectedState';
+import {setGlobalModalState} from 'src/reducers/globalModal';
+
+import {setConnected} from 'src/reducers/connectedState';
+import {ModalIds} from 'src/constants';
 
 export function handleConnect(store: Store<GlobalState, Action<Record<string, unknown>>>) {
     return (msg: WebsocketEventParams) => {
@@ -15,5 +18,11 @@ export function handleConnect(store: Store<GlobalState, Action<Record<string, un
 export function handleDisconnect(store: Store<GlobalState, Action<Record<string, unknown>>>) {
     return (_: WebsocketEventParams) => {
         store.dispatch(setConnected({connected: false, username: ''}) as Action);
+    };
+}
+
+export function handleOpenLinkChannelsModal(store: Store<GlobalState, Action<Record<string, unknown>>>) {
+    return (_: WebsocketEventParams) => {
+        store.dispatch(setGlobalModalState({modalId: ModalIds.LINK_CHANNELS}) as Action);
     };
 }

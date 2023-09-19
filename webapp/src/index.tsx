@@ -3,17 +3,21 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import {handleConnect, handleDisconnect} from './websocket';
+import LinkChannels from 'src/containers/linkChannels';
 
-import Rhs from './containers/Rhs';
-import Constants from './constants';
-import reducer from './reducers';
+import {handleConnect, handleDisconnect, handleOpenLinkChannelsModal} from 'src/websocket';
 
-import manifest from './manifest';
+import Rhs from 'src/containers/Rhs';
 
-import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
-import MSTeamsAppManifestSetting from './components/appManifestSetting';
-import App from './app';
+import Constants from 'src/constants';
+
+import reducer from 'src/reducers';
+
+import manifest from 'src/manifest';
+
+import EnforceConnectedAccountModal from 'src/components/enforceConnectedAccountModal';
+import MSTeamsAppManifestSetting from 'src/components/appManifestSetting';
+import App from 'src/app';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -23,6 +27,7 @@ export default class Plugin {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         registry.registerReducer(reducer);
+        registry.registerRootComponent(LinkChannels);
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
@@ -44,6 +49,7 @@ export default class Plugin {
 
         registry.registerWebSocketEventHandler(`custom_${manifest.id}_connect`, handleConnect(store));
         registry.registerWebSocketEventHandler(`custom_${manifest.id}_disconnect`, handleDisconnect(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_link_channels`, handleOpenLinkChannelsModal(store));
     }
 }
 

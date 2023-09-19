@@ -19,11 +19,14 @@
     "isolatedModules": true,
     "experimentalDecorators": true,
     "jsx": "react",
-    "baseUrl": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "./*": ["./*"]
+    },
     "typeRoots": [ "./src/types", "./node_modules/@types"],
   },
   "include": [
-    "src"
+    "./**/*.ts", "./**/*.tsx"
   ],
   "exclude": [
     "dist",

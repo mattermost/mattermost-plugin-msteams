@@ -13,6 +13,10 @@ const DebounceFunctionTimeLimit = 500;
 
 import {pluginApiServiceConfigs} from './apiService';
 
+export enum ModalIds {
+    LINK_CHANNELS = 'linkChannels',
+}
+
 export default {
     iconUrl,
     mattermostIconUrl,
