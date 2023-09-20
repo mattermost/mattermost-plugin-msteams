@@ -47,7 +47,6 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetURL").Return("https://example.com/").Times(2)
 				p.On("GetClientForApp").Return(client).Once()
-				p.On("GetAPI").Return(mockAPI).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
