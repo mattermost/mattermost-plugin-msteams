@@ -144,8 +144,8 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
 	updateRequired := true
 	if c.RequestId == "" {
-		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
-		updateRequired = !ignoreHookForReaction
+		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+		updateRequired = !ignoreHook
 	}
 
 	client, err := p.GetClientForUser(newPost.UserId)
