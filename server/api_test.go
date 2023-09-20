@@ -238,7 +238,7 @@ func TestGetAvatarNotFound(t *testing.T) {
 
 	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
 	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
-	plugin.API.(*plugintest.API).On("LogError", "Unable to read avatar", "error", "not-found").Return(nil)
+	plugin.API.(*plugintest.API).On("LogError", "Unable to get user avatar", "msteamsUserID", "user-id", "error", "not-found").Return(nil)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
@@ -390,7 +390,7 @@ func TestProcessLifecycle(t *testing.T) {
 		{
 			Name: "ProcessLifecycle: Valid body with invalid webhook secret",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Invalid webhook secret recevied in lifecycle event").Times(1)
+				api.On("LogError", "Invalid webhook secret received in lifecycle event").Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:  func(store *storemocks.Store) {},
@@ -408,7 +408,11 @@ func TestProcessLifecycle(t *testing.T) {
 			SetupAPI:    func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetSubscriptionType", "mockID").Return("allChats", nil)
+				store.On("GetChannelSubscription", "mockID").Return(&storemodels.ChannelSubscription{
+					TeamID:    testutils.GetTeamsTeamID(),
+					ChannelID: testutils.GetMSTeamsChannelID(),
+				}, nil).Once()
+				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
 			},
 			RequestBody: `{
 				"Value": [{
@@ -427,7 +431,11 @@ func TestProcessLifecycle(t *testing.T) {
 				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetSubscriptionType", "mockID").Return("allChats", nil)
+				store.On("GetChannelSubscription", "mockID").Return(&storemodels.ChannelSubscription{
+					TeamID:    testutils.GetTeamsTeamID(),
+					ChannelID: testutils.GetMSTeamsChannelID(),
+				}, nil).Once()
+				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
 				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			RequestBody: `{
@@ -478,7 +486,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -576,7 +584,7 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "Error", "not connected user").Once()
+				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
@@ -676,10 +684,12 @@ func TestNeedsConnect(t *testing.T) {
 		ExpectedResult        string
 	}{
 		{
-			Name:           "NeedsConnect: EnforceConnectedUsers is false",
-			SetupPlugin:    func(api *plugintest.API) {},
-			SetupStore:     func(store *storemocks.Store) {},
-			ExpectedResult: "{\"canSkip\":false,\"needsConnect\":false}",
+			Name:        "NeedsConnect: EnforceConnectedUsers is false",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false}",
 		},
 		{
 			Name:        "NeedsConnect: Unable to get the client",
@@ -688,7 +698,7 @@ func TestNeedsConnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
 			EnforceConnectedUsers: true,
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
@@ -704,7 +714,7 @@ func TestNeedsConnect(t *testing.T) {
 			},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":false}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
@@ -720,7 +730,7 @@ func TestNeedsConnect(t *testing.T) {
 			},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true}",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -745,6 +755,75 @@ func TestNeedsConnect(t *testing.T) {
 	}
 }
 
+func TestConnect(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "connect: User connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", testutils.GetUserID()), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name: "connect: Error in storing the OAuth state",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing the oauth state").Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
+			},
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			Name: "connect: Error in storing the code verifier",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error in storing the code verifier", "error", "error in storing the code verifier").Return(nil).Times(1)
+				api.On("KVSet", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(&model.AppError{
+					Message: "error in storing the code verifier",
+				}).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			defer result.Body.Close()
+			assert.NotNil(t, result)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
+			}
+		})
+	}
+}
 func TestDisconnect(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
@@ -757,8 +836,8 @@ func TestDisconnect(t *testing.T) {
 			Name:        "Disconnect: user successfully disconnected",
 			SetupPlugin: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(nil).Times(1)
 			},
 			ExpectedResult:     "Your account has been disconnected.",
@@ -773,8 +852,8 @@ func TestDisconnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", errors.New("could not find the Teams user ID")).Times(1)
 			},
-			ExpectedResult:     "The account is not connected.\n",
-			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedResult:     "Unable to get Teams user ID from Mattermost user ID.\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
 		},
 		{
 			Name: "Disconnect: could not get the token for MM user",
@@ -782,8 +861,8 @@ func TestDisconnect(t *testing.T) {
 				api.On("LogError", "Unable to get the oauth token for the user.", "UserID", testutils.GetUserID(), "Error", "could not get the token for MM user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("could not get the token for MM user")).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
@@ -794,8 +873,8 @@ func TestDisconnect(t *testing.T) {
 				api.On("LogError", "Error occurred while disconnecting the user.", "UserID", testutils.GetUserID(), "Error", "error occurred while setting the user info").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(errors.New("error occurred while setting the user info")).Times(1)
 			},
 			ExpectedResult:     "Error occurred while disconnecting the user.\n",
@@ -806,28 +885,22 @@ func TestDisconnect(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
 			mockAPI := &plugintest.API{}
-
 			plugin.SetAPI(mockAPI)
 			defer mockAPI.AssertExpectations(t)
-
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
-
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/disconnect", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
-
 			result := w.Result()
 			assert.NotNil(t, result)
 			defer result.Body.Close()
-
 			bodyBytes, err := io.ReadAll(result.Body)
-			if err != nil {
-				bodyString := string(bodyBytes)
-				assert.Equal(test.ExpectedResult, bodyString)
-				assert.Equal(result.StatusCode, test.ExpectedStatusCode)
-			}
+			assert.Nil(err)
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
 		})
 	}
 }
@@ -944,11 +1017,11 @@ func TestGetConnectedChannels(t *testing.T) {
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/get-connected-channels", nil)
+			r := httptest.NewRequest(http.MethodGet, "/linked-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprintf("%d", DefaultPerPageLimit)},
-				QueryParamPage:    {fmt.Sprintf("%d", DefaultPage)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 			}
 
 			r.URL.RawQuery = queryParams.Encode()

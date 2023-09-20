@@ -23,7 +23,7 @@ func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetTeamUserID() string {
+func GetTeamsUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
 }
 
@@ -161,4 +161,8 @@ func GetChannelLink() *storemodels.ChannelLink {
 		MSTeamsTeamID:       GetTeamID(),
 		MSTeamsChannelID:    GetChannelID(),
 	}
+}
+
+func GetTestEmail() string {
+	return "unknown-user@msteamssync"
 }
