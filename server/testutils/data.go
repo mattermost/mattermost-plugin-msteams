@@ -24,7 +24,7 @@ func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetTeamUserID() string {
+func GetTeamsUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
 }
 
@@ -171,4 +171,8 @@ func GetLinkChannelsPayload(teamID, channelID, msTeamsTeamID, msTeamsChannelID s
 		"msTeamsTeamID":"%s",
 		"msTeamsChannelID":"%s"
 	}`, teamID, channelID, msTeamsTeamID, msTeamsChannelID)
+}
+
+func GetTestEmail() string {
+	return "unknown-user@msteamssync"
 }
