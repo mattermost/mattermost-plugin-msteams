@@ -3,42 +3,124 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-server/v6/app/imaging"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
-// handleDownloadFile handles file download
-func (ah *ActivityHandler) handleDownloadFile(userID, weburl string) ([]byte, error) {
-	client, err := ah.plugin.GetClientForUser(userID)
+func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
+	parsedURL, err := url.Parse(weburl)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := client.GetFileContent(weburl)
-	if err != nil {
-		return nil, err
+	path := strings.TrimPrefix(parsedURL.Path, "/beta/")
+	path = strings.TrimPrefix(path, "/v1.0/")
+	urlParts := strings.Split(path, "/")
+	activityIDs := &msteams.ActivityIds{}
+	if urlParts[0] == "chats" && len(urlParts) >= 6 {
+		activityIDs.ChatID = urlParts[1]
+		activityIDs.MessageID = urlParts[3]
+		activityIDs.HostedContentsID = urlParts[5]
+	} else if len(urlParts) >= 6 {
+		activityIDs.TeamID = urlParts[1]
+		activityIDs.ChannelID = urlParts[3]
+		activityIDs.MessageID = urlParts[5]
+		if strings.Contains(path, "replies") && len(urlParts) >= 10 {
+			activityIDs.ReplyID = urlParts[7]
+			activityIDs.HostedContentsID = urlParts[9]
+		} else {
+			activityIDs.HostedContentsID = urlParts[7]
+		}
 	}
 
-	return data, nil
+	return activityIDs, nil
 }
 
-// TODO: Add unit tests for this function
-func (ah *ActivityHandler) handleAttachments(userID, channelID string, text string, msg *msteams.Message) (string, model.StringArray, string) {
+// handleDownloadFile handles file download
+func (ah *ActivityHandler) handleDownloadFile(weburl string, client msteams.Client) ([]byte, error) {
+	activityIDs, err := GetResourceIDsFromURL(weburl)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.GetHostedFileContent(activityIDs)
+}
+
+func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attachmentName, channelID string) (fileInfoID string, resolutionErrorFound bool) {
+	contentType := http.DetectContentType(attachmentData)
+	if strings.HasPrefix(contentType, "image") && contentType != "image/svg+xml" {
+		width, height, imageErr := imaging.GetDimensions(bytes.NewReader(attachmentData))
+		if imageErr != nil {
+			ah.plugin.GetAPI().LogError("failed to get image dimensions", "error", imageErr.Error())
+			return "", false
+		}
+
+		imageRes := int64(width) * int64(height)
+		if imageRes > *ah.plugin.GetAPI().GetConfig().FileSettings.MaxImageResolution {
+			ah.plugin.GetAPI().LogError("image resolution is too high")
+			return "", true
+		}
+	}
+
+	if attachmentName == "" {
+		extension := ""
+		extensions, extensionErr := mime.ExtensionsByType(contentType)
+		if extensionErr != nil {
+			ah.plugin.GetAPI().LogDebug("Unable to get the extensions using content type", "error", extensionErr.Error())
+		} else if len(extensions) > 0 {
+			extension = extensions[0]
+		}
+		attachmentName = fmt.Sprintf("Image Pasted at %s%s", time.Now().Format("2023-01-02 15:03:05"), extension)
+	}
+
+	fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, attachmentName)
+	if appErr != nil {
+		ah.plugin.GetAPI().LogError("upload file to Mattermost failed", "filename", attachmentName, "error", appErr.Message)
+		return "", false
+	}
+
+	return fileInfo.Id, false
+}
+
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
 	countAttachments := 0
+	var client msteams.Client
+	if chat == nil {
+		client = ah.plugin.GetClientForApp()
+	} else {
+		for _, member := range chat.Members {
+			client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
+			if client != nil {
+				break
+			}
+		}
+	}
+
+	errorFound := false
+	if client == nil {
+		ah.plugin.GetAPI().LogError("Unable to get the client")
+		return "", nil, "", errorFound
+	}
+
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
 
 		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
-			newText = ah.handleCodeSnippet(userID, a, newText)
+			newText = ah.handleCodeSnippet(client, a, newText)
 			continue
 		}
 
@@ -49,68 +131,104 @@ func (ah *ActivityHandler) handleAttachments(userID, channelID string, text stri
 		}
 
 		// handle the download
-		attachmentData, err := ah.handleDownloadFile(userID, a.ContentURL)
-		if err != nil {
-			ah.plugin.GetAPI().LogError("file download failed", "filename", a.Name, "error", err)
-			continue
-		}
-
-		fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
-		if len(attachmentData) > int(fileSizeAllowed) {
-			ah.plugin.GetAPI().LogError("cannot upload file to mattermost as its size is greater than allowed size", "filename", a.Name)
-			continue
-		}
-
-		contentType := http.DetectContentType(attachmentData)
-		if strings.HasPrefix(contentType, "image") && contentType != "image/svg+xml" {
-			w, h, imageErr := imaging.GetDimensions(bytes.NewReader(attachmentData))
-			if imageErr != nil {
-				ah.plugin.GetAPI().LogError("failed to get image dimensions", "error", imageErr.Error())
+		var attachmentData []byte
+		var err error
+		var fileSize int64
+		downloadURL := ""
+		if strings.Contains(a.ContentURL, hostedContentsStr) && strings.HasSuffix(a.ContentURL, "$value") {
+			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
+			if err != nil {
+				ah.plugin.GetAPI().LogError("failed to download the file", "filename", a.Name, "error", err.Error())
+				continue
+			}
+		} else {
+			fileSize, downloadURL, err = client.GetFileSizeAndDownloadURL(a.ContentURL)
+			if err != nil {
+				ah.plugin.GetAPI().LogError("failed to get file size and download URL", "error", err.Error())
 				continue
 			}
 
-			imageRes := int64(w) * int64(h)
-			if imageRes > *ah.plugin.GetAPI().GetConfig().FileSettings.MaxImageResolution {
-				ah.plugin.GetAPI().LogError("image resolution is too high")
+			fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
+			if fileSize > fileSizeAllowed {
+				ah.plugin.GetAPI().LogError("skipping file download from MS Teams because the file size is greater than the allowed size")
+				errorFound = true
 				continue
+			}
+
+			// If the file size is less than or equal to the configurable value, then download the file directly instead of streaming
+			if fileSize <= int64(ah.plugin.GetMaxSizeForCompleteDownload()*1024*1024) {
+				attachmentData, err = client.GetFileContent(downloadURL)
+				if err != nil {
+					ah.plugin.GetAPI().LogError("failed to get file content", "error", err.Error())
+					continue
+				}
 			}
 		}
 
-		fileInfo, appErr := ah.plugin.GetAPI().UploadFile(attachmentData, channelID, a.Name)
-		if appErr != nil {
-			ah.plugin.GetAPI().LogError("upload file to mattermost failed", "filename", a.Name, "error", err)
-			continue
+		fileInfoID := ""
+		if attachmentData != nil {
+			fileInfoID, errorFound = ah.ProcessAndUploadFileToMM(attachmentData, a.Name, channelID)
+		} else {
+			fileInfoID = ah.GetFileFromTeamsAndUploadToMM(downloadURL, client, &model.UploadSession{
+				Id:        model.NewId(),
+				Type:      model.UploadTypeAttachment,
+				ChannelId: channelID,
+				UserId:    userID,
+				Filename:  a.Name,
+				FileSize:  fileSize,
+			})
 		}
 
-		attachments = append(attachments, fileInfo.Id)
+		if fileInfoID == "" {
+			continue
+		}
+		attachments = append(attachments, fileInfoID)
 		countAttachments++
 		if countAttachments == 10 {
-			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as mattermost supports only 10 attachments per post")
+			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
 			break
 		}
 	}
-	return newText, attachments, parentID
+
+	return newText, attachments, parentID, errorFound
 }
 
-func (ah *ActivityHandler) handleCodeSnippet(userID string, attach msteams.Attachment, text string) string {
+func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, client msteams.Client, us *model.UploadSession) string {
+	pipeReader, pipeWriter := io.Pipe()
+	uploadSession, err := ah.plugin.GetAPI().CreateUploadSession(us)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to create an upload session in Mattermost", "error", err.Error())
+		return ""
+	}
+
+	go client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
+	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "Error", err.Error())
+		return ""
+	}
+
+	return fileInfo.Id
+}
+
+func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach msteams.Attachment, text string) string {
 	var content struct {
 		Language       string `json:"language"`
 		CodeSnippetURL string `json:"codeSnippetUrl"`
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unmarshal codesnippet failed", "error", err)
+		ah.plugin.GetAPI().LogError("failed to unmarshal codesnippet", "error", err.Error())
 		return text
 	}
 	s := strings.Split(content.CodeSnippetURL, "/")
-	if len(s) != 13 && len(s) != 15 {
-		ah.plugin.GetAPI().LogError("codesnippetUrl has unexpected size", "size", content.CodeSnippetURL)
+	if !strings.Contains(content.CodeSnippetURL, "chats") && !strings.Contains(content.CodeSnippetURL, "channels") {
+		ah.plugin.GetAPI().LogError("invalid codesnippetURL", "URL", content.CodeSnippetURL)
 		return text
 	}
 
-	client, err := ah.plugin.GetClientForUser(userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogError("unable to get bot client", "error", err)
+	if (strings.Contains(content.CodeSnippetURL, "chats") && len(s) != 11) || (strings.Contains(content.CodeSnippetURL, "channels") && len(s) != 13 && len(s) != 15) {
+		ah.plugin.GetAPI().LogError("codesnippetURL has unexpected size", "URL", content.CodeSnippetURL)
 		return text
 	}
 
@@ -129,7 +247,7 @@ func (ah *ActivityHandler) handleMessageReference(attach msteams.Attachment, cha
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("unmarshal codesnippet failed", "error", err)
+		ah.plugin.GetAPI().LogError("failed to unmarshal attachment content", "error", err)
 		return "", text
 	}
 	postInfo, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID(chatOrChannelID, content.MessageID)
