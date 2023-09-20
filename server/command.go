@@ -17,7 +17,7 @@ const commandWaitingMessage = "Please wait while your request is being processed
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
 	if err != nil {
-		p.API.LogError("Unable to get the msteams icon for the slash command")
+		p.API.LogError("Unable to get the MS Teams icon for the slash command")
 	}
 
 	return &model.Command{
@@ -194,14 +194,16 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		MSTeamsChannel:      parameters[1],
 		Creator:             args.UserId,
 	}
-	err = p.store.StoreChannelLink(&channelLink)
-	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
-	}
 
 	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel: "+err.Error())
+		p.API.LogDebug("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
+	}
+
+	if err = p.store.StoreChannelLink(&channelLink); err != nil {
+		p.API.LogDebug("Unable to create the new link", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
 	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
@@ -234,15 +236,34 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
 	}
 
-	if _, err := p.store.GetLinkByChannelID(channel.Id); err != nil {
+	link, err := p.store.GetLinkByChannelID(channel.Id)
+	if err != nil {
+		p.API.LogDebug("Unable to get the link by channel ID", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "This Mattermost channel is not linked to any MS Teams channel.")
 	}
 
-	if err := p.store.DeleteLinkByChannelID(channel.Id); err != nil {
+	if err = p.store.DeleteLinkByChannelID(channel.Id); err != nil {
+		p.API.LogDebug("Unable to delete the link by channel ID", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
+
+	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannel)
+	if err != nil {
+		p.API.LogDebug("Unable to get the subscription by MS Teams channel ID", "error", err.Error())
+		return &model.CommandResponse{}, nil
+	}
+
+	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
+		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+		return &model.CommandResponse{}, nil
+	}
+
+	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
+		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+	}
+
 	return &model.CommandResponse{}, nil
 }
 
@@ -398,7 +419,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
@@ -421,7 +442,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
 
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Visit the URL for the auth dialog: %v", connectURL))
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
 
@@ -445,7 +466,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "UserID", args.UserId, "Error", err.Error())
+		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil
