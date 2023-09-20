@@ -23,7 +23,7 @@ func GetUserID() string {
 	return "sfmq19kpztg5iy47ebe51hb31w"
 }
 
-func GetTeamUserID() string {
+func GetTeamsUserID() string {
 	return "rioegneonqimomsoqwiew3qeo"
 }
 
@@ -152,4 +152,8 @@ func GetPostFromTeamsMessage() *model.Post {
 		},
 		FileIds: model.StringArray{},
 	}
+}
+
+func GetTestEmail() string {
+	return "unknown-user@msteamssync"
 }

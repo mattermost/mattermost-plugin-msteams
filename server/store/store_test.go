@@ -127,7 +127,7 @@ func TestStore(t *testing.T) {
 		"testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil": testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil,
 		"testListGlobalSubscriptionsToCheck":                         testListGlobalSubscriptionsToCheck,
 		"testListChatSubscriptionsToCheck":                           testListChatSubscriptionsToCheck,
-		"testListChannelSubscriptionsToCheck":                        testListChannelSubscriptionsToCheck,
+		"testListChannelSubscriptionsToRefresh":                      testListChannelSubscriptionsToRefresh,
 		"testSaveGlobalSubscription":                                 testSaveGlobalSubscription,
 		"testSaveChatSubscription":                                   testSaveChatSubscription,
 		"testSaveChannelSubscription":                                testSaveChannelSubscription,
@@ -136,6 +136,8 @@ func TestStore(t *testing.T) {
 		"testGetChatSubscription":                                    testGetChatSubscription,
 		"testGetChannelSubscription":                                 testGetChannelSubscription,
 		"testGetSubscriptionType":                                    testGetSubscriptionType,
+		"testListChannelSubscriptions":                               testListChannelSubscriptions,
+		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 	}
@@ -555,10 +557,10 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamUserID()+"1", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", &oauth2.Token{})
 	assert.Nil(storeErr)
 
-	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamUserID() + "1")
+	resp, getErr := store.TeamsToMattermostUserID(testutils.GetTeamsUserID() + "1")
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 }
@@ -577,11 +579,11 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamUserID()+"2", &oauth2.Token{})
+	storeErr := store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", &oauth2.Token{})
 	assert.Nil(storeErr)
 
 	resp, getErr := store.MattermostToTeamsUserID(testutils.GetID() + "2")
-	assert.Equal(testutils.GetTeamUserID()+"2", resp)
+	assert.Equal(testutils.GetTeamsUserID()+"2", resp)
 	assert.Nil(getErr)
 }
 
@@ -604,7 +606,7 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 		RefreshToken: "mockRefreshToken-3",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", token)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -618,7 +620,7 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 		return make([]byte, 16)
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamUserID()+"3", nil)
+	storeErr := store.SetUserInfo(testutils.GetID()+"3", testutils.GetTeamsUserID()+"3", nil)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetTokenForMattermostUser(testutils.GetID() + "3")
@@ -645,10 +647,10 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 		RefreshToken: "mockRefreshToken-4",
 	}
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamUserID()+"4", token)
+	storeErr := store.SetUserInfo(testutils.GetID()+"4", testutils.GetTeamsUserID()+"4", token)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamUserID() + "4")
+	resp, getErr := store.GetTokenForMSTeamsUser(testutils.GetTeamsUserID() + "4")
 	assert.Equal(token, resp)
 	assert.Nil(getErr)
 }
@@ -663,7 +665,7 @@ func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *pl
 
 func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -673,7 +675,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -683,7 +685,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "test1", subscriptions[0].SubscriptionID)
@@ -694,7 +696,7 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 1)
 		assert.Equal(t, subscriptions[0].SubscriptionID, "test1")
@@ -754,9 +756,9 @@ func testListChatSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *pluginte
 	})
 }
 
-func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -766,7 +768,7 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -791,7 +793,7 @@ func testListChannelSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugi
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test6") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToCheck()
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 3)
 		ids := []string{}
@@ -815,7 +817,7 @@ func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test2") }()
 
-	subscriptions, err := store.ListGlobalSubscriptionsToCheck()
+	subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")
@@ -858,7 +860,7 @@ func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.AP
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test4") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	assert.Len(t, subscriptions, 2)
 	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
@@ -870,21 +872,21 @@ func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintes
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToCheck()
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(100*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 0)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(2*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToCheck()
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 }
@@ -1035,6 +1037,37 @@ func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
 		require.NoError(t, err)
 		assert.Equal(t, subscriptionType, subscriptionTypeUser)
 	})
+}
+
+func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveChannelSubscription(storemodels.ChannelSubscription{
+		SubscriptionID: "test1",
+		TeamID:         "team-id",
+		ChannelID:      "channel-id",
+		Secret:         "secret",
+		ExpiresOn:      time.Now().Add(1 * time.Minute),
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListChannelSubscriptions()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
+}
+
+func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	err := store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+		SubscriptionID: "test1",
+		Secret:         "secret",
+		Type:           "allChats",
+		ExpiresOn:      time.Now().Add(1 * time.Minute),
+	})
+	require.NoError(t, err)
+	defer func() { _ = store.DeleteSubscription("test1") }()
+
+	subscriptions, err := store.ListGlobalSubscriptions()
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 1)
 }
 
 func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
