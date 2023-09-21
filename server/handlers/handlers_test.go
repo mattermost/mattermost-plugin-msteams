@@ -451,8 +451,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
 					MSTeamsChannelID: testutils.GetMSTeamsChannelID(),
 				}).Return(nil).Times(1)
 			},
@@ -502,8 +502,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
 					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},

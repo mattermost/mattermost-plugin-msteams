@@ -155,8 +155,8 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
 	channelLink := storemodels.ChannelLink{
-		MSTeamsTeamID:         "team-id",
-		MSTeamsChannelID:      "channel-id",
+		MSTeamsTeamID:       "team-id",
+		MSTeamsChannelID:    "channel-id",
 		MattermostTeamID:    "mm-team-id",
 		MattermostChannelID: "mm-channel-id",
 	}

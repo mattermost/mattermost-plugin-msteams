@@ -50,6 +50,6 @@ type Client interface {
 	GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
 	ListUsers() ([]clientmodels.User, error)
-	ListTeams() ([]clientmodels.Team, error)
+	ListTeams() ([]*clientmodels.Team, error)
 	ListChannels(teamID string) ([]clientmodels.Channel, error)
 }

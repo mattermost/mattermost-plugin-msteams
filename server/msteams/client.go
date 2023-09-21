@@ -1739,7 +1739,7 @@ func (tc *ClientImpl) ListUsers() ([]clientmodels.User, error) {
 	return users, nil
 }
 
-func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
+func (tc *ClientImpl) ListTeams() ([]*clientmodels.Team, error) {
 	requestParameters := &users.ItemJoinedTeamsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1756,9 +1756,9 @@ func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	teams := []clientmodels.Team{}
+	teams := []*clientmodels.Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
-		team := clientmodels.Team{}
+		team := &clientmodels.Team{}
 		if t.GetId() != nil {
 			team.ID = *t.GetId()
 		}

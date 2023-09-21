@@ -358,7 +358,7 @@ func (c *ClientTimerLayer) ListSubscriptions() ([]*clientmodels.Subscription, er
 	return result, err
 }
 
-func (c *ClientTimerLayer) ListTeams() ([]clientmodels.Team, error) {
+func (c *ClientTimerLayer) ListTeams() ([]*clientmodels.Team, error) {
 	start := time.Now()
 
 	result, err := c.Client.ListTeams()

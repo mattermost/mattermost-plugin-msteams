@@ -406,8 +406,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMsgID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMsgID",
 					MSTeamsChannelID: testutils.GetChatID(),
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
@@ -527,8 +527,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
 					MSTeamsChannelID: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
@@ -564,8 +564,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockTeamsTeamID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockTeamsTeamID",
 					MSTeamsChannelID: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
@@ -1529,9 +1529,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(testutils.GetInternalServerAppError("unable to store the post")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1570,9 +1570,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Once()
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1610,9 +1610,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1643,9 +1643,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1678,9 +1678,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Once()
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1724,9 +1724,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1804,8 +1804,8 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
 					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
@@ -1831,8 +1831,8 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
 					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
@@ -1886,8 +1886,8 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
 					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(errors.New("unable to store posts")).Times(1)
 			},
@@ -1920,8 +1920,8 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
 					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
@@ -2305,9 +2305,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2332,9 +2332,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2361,9 +2361,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
@@ -2388,9 +2388,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2558,9 +2558,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2585,9 +2585,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2615,9 +2615,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
@@ -2644,9 +2644,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
+					MattermostID:     testutils.GetID(),
 					MSTeamsChannelID: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
