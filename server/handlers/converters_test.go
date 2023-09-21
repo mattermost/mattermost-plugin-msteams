@@ -54,7 +54,7 @@ func TestMsgToPost(t *testing.T) {
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
 				ChannelId: testutils.GetChannelID(),
-				Message:   "## Subject of the messsage\n",
+				Message:   "## Subject of the messsage\n\n\n\n",
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,
@@ -75,7 +75,7 @@ func TestMsgToPost(t *testing.T) {
 
 			ah.plugin = p
 
-			post, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil)
+			post, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, false)
 			assert.Equal(t, testCase.post, post)
 		})
 	}

@@ -32,12 +32,15 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat, isUpdatedActivity bool) (*model.Post, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []msteams.Attachment
 	text, embeddedImages = ah.handleImages(text)
 	msg.Attachments = append(msg.Attachments, embeddedImages...)
+	if !strings.HasPrefix(text, "<p>") {
+		text = fmt.Sprintf("<p>%s</p>", text)
+	}
 	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
@@ -49,7 +52,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		}
 	}
 
-	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat)
+	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -59,7 +62,10 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, FileIds: attachments}
+	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID}
+	if !isUpdatedActivity {
+		post.FileIds = attachments
+	}
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
 
 	if senderID == ah.plugin.GetBotUserID() {

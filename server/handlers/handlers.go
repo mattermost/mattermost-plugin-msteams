@@ -180,6 +180,19 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	ah.plugin.GetStoreMutex().RLock()
+
+	// Avoid possible duplication
+	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo != nil {
+		ah.plugin.GetAPI().LogDebug("duplicate post")
+		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
+		ah.plugin.GetStoreMutex().RUnlock()
+		return
+	}
+
+	ah.plugin.GetStoreMutex().RUnlock()
+
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
@@ -239,22 +252,10 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
+	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	ah.plugin.GetStoreMutex().RLock()
-	defer ah.plugin.GetStoreMutex().RUnlock()
-
-	// Avoid possible duplication
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
-	}
-
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
 		return
@@ -268,6 +269,9 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 			Message:   "Some images could not be delivered because they exceeded the maximum resolution and/or size allowed.",
 		})
 	}
+
+	ah.plugin.GetStoreMutex().Lock()
+	defer ah.plugin.GetStoreMutex().Unlock()
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
@@ -356,7 +360,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat)
+	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
