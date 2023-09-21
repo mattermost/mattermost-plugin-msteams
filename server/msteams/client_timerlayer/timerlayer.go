@@ -330,7 +330,7 @@ func (c *ClientTimerLayer) GetUserAvatar(userID string) ([]byte, error) {
 	return result, err
 }
 
-func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, error) {
+func (c *ClientTimerLayer) ListChannels(teamID string) ([]*clientmodels.Channel, error) {
 	start := time.Now()
 
 	result, err := c.Client.ListChannels(teamID)

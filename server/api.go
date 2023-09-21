@@ -23,7 +23,12 @@ import (
 
 const (
 	HeaderMattermostUserID = "Mattermost-User-Id"
-	QueryParamSearchTerm   = "search"
+
+	// Query params
+	QueryParamSearchTerm = "search"
+
+	// Path params
+	PathParamTeamID = "team_id"
 
 	// Used for storing the token in the request context to pass from one middleware to another
 	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
@@ -78,6 +83,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	// MS Teams APIs
 	msTeamsRouter.HandleFunc("/teams", api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamList))).Methods(http.MethodGet)
+	msTeamsRouter.HandleFunc(fmt.Sprintf("/teams/{%s:[A-Za-z0-9-]{36}}/channels", PathParamTeamID), api.handleAuthRequired(api.checkUserConnected(api.getMSTeamsTeamChannels))).Methods(http.MethodGet)
 
 	// Command autocomplete APIs
 	autocompleteRouter.HandleFunc("/teams", api.autocompleteTeams).Methods(http.MethodGet)
@@ -226,18 +232,9 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := a.p.GetClientForUser(userID)
-	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
-		return
-	}
-
 	teamID := args[2]
-	channels, err := client.ListChannels(teamID)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
 	if err != nil {
-		a.p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -418,6 +415,41 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.writeJSONArray(w, http.StatusOK, paginatedTeams)
+}
+
+func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
+	pathParams := mux.Vars(r)
+	teamID := pathParams[PathParamTeamID]
+	userID := r.Header.Get(HeaderMattermostUserID)
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
+	if err != nil {
+		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
+		return
+	}
+
+	sort.Slice(channels, func(i, j int) bool {
+		return fmt.Sprintf("%s_%s", channels[i].DisplayName, channels[i].ID) < fmt.Sprintf("%s_%s", channels[j].DisplayName, channels[j].ID)
+	})
+
+	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
+	paginatedChannels := []*clientmodels.Channel{}
+	matchCount := 0
+	for _, channel := range channels {
+		if len(paginatedChannels) == limit {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(channel.DisplayName), strings.ToLower(searchTerm)) {
+			if matchCount >= offset {
+				paginatedChannels = append(paginatedChannels, channel)
+			} else {
+				matchCount++
+			}
+		}
+	}
+
+	a.writeJSONArray(w, http.StatusOK, paginatedChannels)
 }
 
 // TODO: Add unit tests

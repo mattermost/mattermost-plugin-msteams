@@ -107,6 +107,28 @@ func (p *Plugin) GetMSTeamsTeamList(userID string, r *http.Request) ([]*clientmo
 	return teams, http.StatusOK, nil
 }
 
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) ([]*clientmodels.Channel, int, error) {
+	var client msteams.Client
+	var err error
+	if r.Context().Value(ContextClientKey) == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return nil, http.StatusUnauthorized, err
+		}
+	} else {
+		client = r.Context().Value(ContextClientKey).(msteams.Client)
+	}
+
+	channels, err := client.ListChannels(teamID)
+	if err != nil {
+		p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
+		return nil, http.StatusInternalServerError, err
+	}
+
+	return channels, http.StatusOK, nil
+}
+
 func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
 	var page int
 	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {

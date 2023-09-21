@@ -112,7 +112,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "test-teams-team"
+	return "testteam-team-team-team-testteamtest"
 }
 
 func GetTeamsChannelID() string {

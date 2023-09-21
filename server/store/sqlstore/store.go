@@ -255,7 +255,7 @@ func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, erro
 	var links []*storemodels.ChannelLink
 	for rows.Next() {
 		link := &storemodels.ChannelLink{}
-		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
+		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannelID, &link.MSTeamsTeamID, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
 			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
 			continue
 		}
@@ -270,7 +270,7 @@ func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLin
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From(linksTableName).Where(sq.Eq{"mmChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannelID, &link.MSTeamsTeamID, &link.Creator)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
 	links := []storemodels.ChannelLink{}
 	for rows.Next() {
 		var link storemodels.ChannelLink
-		err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+		err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannelID, &link.MSTeamsTeamID, &link.Creator)
 		if err != nil {
 			return nil, err
 		}
@@ -305,7 +305,7 @@ func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemo
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From(linksTableName).Where(sq.Eq{"msTeamsTeamID": teamID, "msTeamsChannelID": channelID})
 	row := query.QueryRow()
 	var link storemodels.ChannelLink
-	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator)
+	err := row.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannelID, &link.MSTeamsTeamID, &link.Creator)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +326,7 @@ func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 }
 
 func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
-	query := s.getQueryBuilder().Insert(linksTableName).Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").Values(link.MattermostChannelID, link.MattermostTeamID, link.MSTeamsChannel, link.MSTeamsTeam, link.Creator)
+	query := s.getQueryBuilder().Insert(linksTableName).Columns("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").Values(link.MattermostChannelID, link.MattermostTeamID, link.MSTeamsChannelID, link.MSTeamsTeamID, link.Creator)
 	_, err := query.Exec()
 	if err != nil {
 		return err
@@ -364,8 +364,8 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storem
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
-		MSTeamsID:      postID,
-		MSTeamsChannel: chatID,
+		MSTeamsID:        postID,
+		MSTeamsChannelID: chatID,
 	}
 
 	if err := row.Scan(&postInfo.MattermostID, &lastUpdateAt); err != nil {
@@ -383,7 +383,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 		MattermostID: postID,
 	}
 
-	if err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt); err != nil {
+	if err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannelID, &lastUpdateAt); err != nil {
 		return nil, err
 	}
 
@@ -414,7 +414,7 @@ func (s *SQLStore) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
 		query := s.getQueryBuilder().Insert(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
-			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsChannelID,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
 		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
 		if tx != nil {
@@ -430,7 +430,7 @@ func (s *SQLStore) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
 		query := s.getQueryBuilder().Replace(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
-			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsChannelID,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
 		)
 		if tx != nil {
