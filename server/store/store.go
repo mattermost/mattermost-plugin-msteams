@@ -28,7 +28,14 @@ const (
 	subscriptionTypeAllChats     = "allChats"
 	oAuth2StateTimeToLive        = 300 // seconds
 	oAuth2KeyPrefix              = "oauth2_"
+	backgroundJobPrefix          = "background_job"
 )
+
+type Stats struct {
+	ConnectedUsers int64
+	SyntheticUsers int64
+	LinkedChannels int64
+}
 
 type Store interface {
 	Init() error
@@ -52,15 +59,18 @@ type Store interface {
 	TeamsToMattermostUserID(userID string) (string, error)
 	MattermostToTeamsUserID(userID string) (string, error)
 	CheckEnabledTeamByTeamID(teamID string) bool
-	ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error)
+	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
+	ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
-	ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error)
+	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
+	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(storemodels.GlobalSubscription) error
 	SaveChatSubscription(storemodels.ChatSubscription) error
 	SaveChannelSubscription(storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
+	GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error)
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
@@ -70,6 +80,9 @@ type Store interface {
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
+	SetJobStatus(jobName string, status bool) error
+	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
+	GetStats() (*Stats, error)
 }
 
 type SQLStore struct {
@@ -578,7 +591,29 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 	return result, nil
 }
 
-func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubscription, error) {
+func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {
+	query := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeChannel})
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []*storemodels.ChannelSubscription{}
+	for rows.Next() {
+		var subscription storemodels.ChannelSubscription
+		var expiresOn int64
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); scanErr != nil {
+			return nil, scanErr
+		}
+
+		subscription.ExpiresOn = time.UnixMicro(expiresOn)
+		result = append(result, &subscription)
+	}
+	return result, nil
+}
+
+func (s *SQLStore) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeChannel}).Where(sq.Lt{"expiresOn": expireTime})
 	rows, err := query.Query()
@@ -587,7 +622,7 @@ func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubsc
 	}
 	defer rows.Close()
 
-	result := []storemodels.ChannelSubscription{}
+	result := []*storemodels.ChannelSubscription{}
 	for rows.Next() {
 		var subscription storemodels.ChannelSubscription
 		var expiresOn int64
@@ -595,12 +630,34 @@ func (s *SQLStore) ListChannelSubscriptionsToCheck() ([]storemodels.ChannelSubsc
 			return nil, scanErr
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
-		result = append(result, subscription)
+		result = append(result, &subscription)
 	}
 	return result, nil
 }
 
-func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscription, error) {
+func (s *SQLStore) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
+	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeAllChats})
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []*storemodels.GlobalSubscription{}
+	for rows.Next() {
+		var subscription storemodels.GlobalSubscription
+		var expiresOn int64
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn); scanErr != nil {
+			return nil, scanErr
+		}
+
+		subscription.ExpiresOn = time.UnixMicro(expiresOn)
+		result = append(result, &subscription)
+	}
+	return result, nil
+}
+
+func (s *SQLStore) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"type": subscriptionTypeAllChats}).Where(sq.Lt{"expiresOn": expireTime})
 	rows, err := query.Query()
@@ -609,7 +666,7 @@ func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscri
 	}
 	defer rows.Close()
 
-	result := []storemodels.GlobalSubscription{}
+	result := []*storemodels.GlobalSubscription{}
 	for rows.Next() {
 		var subscription storemodels.GlobalSubscription
 		var expiresOn int64
@@ -617,7 +674,7 @@ func (s *SQLStore) ListGlobalSubscriptionsToCheck() ([]storemodels.GlobalSubscri
 			return nil, scanErr
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
-		result = append(result, subscription)
+		result = append(result, &subscription)
 	}
 	return result, nil
 }
@@ -679,6 +736,15 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 		return nil, scanErr
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
+	return &subscription, nil
+}
+
+func (s *SQLStore) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
+	row := s.getQueryBuilder().Select("subscriptionID").From("msteamssync_subscriptions").Where(sq.Eq{"msTeamsChannelID": teamsChannelID, "type": subscriptionTypeChannel}).QueryRow()
+	var subscription storemodels.ChannelSubscription
+	if scanErr := row.Scan(&subscription.SubscriptionID); scanErr != nil {
+		return nil, scanErr
+	}
 	return &subscription, nil
 }
 
@@ -832,6 +898,63 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	}
 
 	return nil
+}
+
+func (s *SQLStore) SetJobStatus(key string, status bool) error {
+	bytes, err := json.Marshal(status)
+	if err != nil {
+		return err
+	}
+
+	if appErr := s.api.KVSet(hashKey(backgroundJobPrefix, key), bytes); appErr != nil {
+		return errors.New(appErr.Error())
+	}
+	return nil
+}
+
+func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error) {
+	oldDataBytes, err := json.Marshal(oldStatus)
+	if err != nil {
+		return false, err
+	}
+	newDatabytes, err := json.Marshal(newStatus)
+	if err != nil {
+		return false, err
+	}
+	isUpdated, appErr := s.api.KVCompareAndSet(hashKey(backgroundJobPrefix, jobName), oldDataBytes, newDatabytes)
+	if appErr != nil {
+		return false, errors.New(appErr.Error())
+	}
+	return isUpdated, nil
+}
+
+func (s *SQLStore) GetStats() (*Stats, error) {
+	query := s.getQueryBuilder().Select("count(mmChannelID)").From("msteamssync_links")
+	row := query.QueryRow()
+	var linkedChannels int64
+	if err := row.Scan(&linkedChannels); err != nil {
+		return nil, err
+	}
+
+	query = s.getQueryBuilder().Select("count(mmUserID)").From("msteamssync_users").Where(sq.NotEq{"token": ""}).Where(sq.NotEq{"token": nil})
+	row = query.QueryRow()
+	var connectedUsers int64
+	if err := row.Scan(&connectedUsers); err != nil {
+		return nil, err
+	}
+
+	query = s.getQueryBuilder().Select("count(id)").From("users").Where(sq.NotEq{"RemoteId": ""}).Where(sq.Like{"Username": "msteams_%"}).Where(sq.Eq{"DeleteAt": 0})
+	row = query.QueryRow()
+	var syntheticUsers int64
+	if err := row.Scan(&syntheticUsers); err != nil {
+		return nil, err
+	}
+
+	return &Stats{
+		LinkedChannels: linkedChannels,
+		ConnectedUsers: connectedUsers,
+		SyntheticUsers: syntheticUsers,
+	}, nil
 }
 
 func hashKey(prefix, hashableKey string) string {
