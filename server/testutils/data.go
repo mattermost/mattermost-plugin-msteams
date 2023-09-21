@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -51,6 +52,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}
@@ -176,6 +178,15 @@ func GetChannelLink() *storemodels.ChannelLink {
 		MSTeamsTeamID:       GetTeamID(),
 		MSTeamsChannelID:    GetChannelID(),
 	}
+}
+
+func GetLinkChannelsPayload(teamID, channelID, msTeamsTeamID, msTeamsChannelID string) string {
+	return fmt.Sprintf(`{
+		"mattermostTeamID":"%s",
+		"mattermostChannelID":"%s",
+		"msTeamsTeamID":"%s",
+		"msTeamsChannelID":"%s"
+	}`, teamID, channelID, msTeamsTeamID, msTeamsChannelID)
 }
 
 func GetTestEmail() string {

@@ -77,6 +77,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
 	router.HandleFunc("/linked-channels", api.handleAuthRequired(api.getLinkedChannels)).Methods(http.MethodGet)
+	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
@@ -200,7 +201,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	out := []model.AutocompleteListItem{}
 	userID := r.Header.Get(HeaderMattermostUserID)
 
-	teams, _, err := a.p.GetMSTeamsTeamList(userID, r)
+	teams, _, err := a.p.GetMSTeamsTeamList(userID, nil)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -233,7 +234,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	teamID := args[2]
-	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
+	channels, _, err := a.p.GetMSTeamsTeamChannels(teamID, userID, nil)
 	if err != nil {
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
@@ -386,7 +387,7 @@ func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
-	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID, r)
+	teams, statusCode, err := a.p.GetMSTeamsTeamList(userID, r.Context().Value(ContextClientKey).(msteams.Client))
 	if err != nil {
 		http.Error(w, "Error occurred while fetching the MS Teams teams.", statusCode)
 		return
@@ -421,7 +422,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 	pathParams := mux.Vars(r)
 	teamID := pathParams[PathParamTeamID]
 	userID := r.Header.Get(HeaderMattermostUserID)
-	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r)
+	channels, statusCode, err := a.p.GetMSTeamsTeamChannels(teamID, userID, r.Context().Value(ContextClientKey).(msteams.Client))
 	if err != nil {
 		http.Error(w, "Error occurred while fetching the MS Teams team channels.", statusCode)
 		return
@@ -450,6 +451,35 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.writeJSONArray(w, http.StatusOK, paginatedChannels)
+}
+
+func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+
+	var body *storemodels.ChannelLink
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.p.API.LogError("Error occurred while unmarshaling link channels payload.", "Error", err.Error())
+		http.Error(w, "Error occurred while unmarshaling link channels payload.", http.StatusBadRequest)
+		return
+	}
+
+	if err := storemodels.IsChannelLinkPayloadValid(body); err != nil {
+		a.p.API.LogError("Invalid channel link payload.", "Error", err.Error())
+		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
+		return
+	}
+
+	if errMsg, statusCode := a.p.LinkChannels(userID, body.MattermostTeamID, body.MattermostChannelID, body.MSTeamsTeamID, body.MSTeamsChannelID, r.Context().Value(ContextClientKey).(msteams.Client)); errMsg != "" {
+		http.Error(w, errMsg, statusCode)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	if _, err := w.Write([]byte("Channels linked successfully")); err != nil {
+		a.p.API.LogError("Failed to write response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // TODO: Add unit tests

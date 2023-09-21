@@ -6,11 +6,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
+)
+
+const (
+	ErrorNoRowsInResult = "sql: no rows in result set"
 )
 
 func (p *Plugin) GetMSTeamsTeamAndChannelDetailsFromChannelLinks(channelLinks []*storemodels.ChannelLink, userID string, checkChannelPermissions bool) (msTeamsTeamIDsVsNames map[string]string, msTeamsChannelIDsVsNames map[string]string, errorsFound bool) {
@@ -57,7 +62,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
 	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
 	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		p.API.LogDebug("Unable to get the MS Teams teams details", "Error", err.Error())
 		return true
 	}
 
@@ -72,7 +77,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			p.API.LogDebug("Unable to get the MS Teams channel details for the team", "TeamID", teamID, "Error", err.Error())
 			errorsFound = true
 			continue
 		}
@@ -85,17 +90,14 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	return errorsFound
 }
 
-func (p *Plugin) GetMSTeamsTeamList(userID string, r *http.Request) ([]*clientmodels.Team, int, error) {
-	var client msteams.Client
+func (p *Plugin) GetMSTeamsTeamList(userID string, client msteams.Client) ([]*clientmodels.Team, int, error) {
 	var err error
-	if r.Context().Value(ContextClientKey) == nil {
+	if client == nil {
 		client, err = p.GetClientForUser(userID)
 		if err != nil {
 			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 			return nil, http.StatusUnauthorized, err
 		}
-	} else {
-		client = r.Context().Value(ContextClientKey).(msteams.Client)
 	}
 
 	teams, err := client.ListTeams()
@@ -107,17 +109,14 @@ func (p *Plugin) GetMSTeamsTeamList(userID string, r *http.Request) ([]*clientmo
 	return teams, http.StatusOK, nil
 }
 
-func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) ([]*clientmodels.Channel, int, error) {
-	var client msteams.Client
+func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, client msteams.Client) ([]*clientmodels.Channel, int, error) {
 	var err error
-	if r.Context().Value(ContextClientKey) == nil {
+	if client == nil {
 		client, err = p.GetClientForUser(userID)
 		if err != nil {
 			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
 			return nil, http.StatusUnauthorized, err
 		}
-	} else {
-		client = r.Context().Value(ContextClientKey).(msteams.Client)
 	}
 
 	channels, err := client.ListChannels(teamID)
@@ -127,6 +126,113 @@ func (p *Plugin) GetMSTeamsTeamChannels(teamID, userID string, r *http.Request) 
 	}
 
 	return channels, http.StatusOK, nil
+}
+
+func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msTeamsTeamID, msTeamsChannelID string, client msteams.Client) (responseMsg string, statusCode int) {
+	channel, appErr := p.API.GetChannel(mattermostChannelID)
+	if appErr != nil {
+		p.API.LogError("Unable to get the current channel details.", "ChannelID", mattermostChannelID, "Error", appErr.Message)
+		return "Unable to get the current channel details.", http.StatusInternalServerError
+	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		p.API.LogError("Linking/unlinking a direct or group message is not allowed.", "ChannelType", channel.Type)
+		return "Linking/unlinking a direct or group message is not allowed", http.StatusBadRequest
+	}
+
+	if !p.API.HasPermissionToChannel(userID, mattermostChannelID, model.PermissionManageChannelRoles) {
+		p.API.LogError("Unable to link the channel. You have to be a channel admin to link it.", "ChannelID", mattermostChannelID)
+		return "Unable to link the channel. You have to be a channel admin to link it.", http.StatusForbidden
+	}
+
+	if !p.store.CheckEnabledTeamByTeamID(mattermostTeamID) {
+		p.API.LogError("This team is not enabled for MS Teams sync.", "TeamID", mattermostTeamID)
+		return "This team is not enabled for MS Teams sync.", http.StatusBadRequest
+	}
+
+	link, err := p.store.GetLinkByChannelID(mattermostChannelID)
+	if err != nil && err.Error() != ErrorNoRowsInResult {
+		p.API.LogError("Error occurred while getting channel link with Mattermost channelID.", "ChannelID", mattermostChannelID, "Error", err.Error())
+		return "Error occurred while getting channel link with Mattermost channelID.", http.StatusInternalServerError
+	}
+	if link != nil {
+		return "A link for this channel already exists. Please unlink the channel before you link again with another channel.", http.StatusBadRequest
+	}
+
+	link, err = p.store.GetLinkByMSTeamsChannelID(msTeamsTeamID, msTeamsChannelID)
+	if err != nil && err.Error() != ErrorNoRowsInResult {
+		p.API.LogError("Error occurred while getting the channel link with MS Teams channel ID", "Error", err.Error())
+		return "Error occurred while getting the channel link with MS Teams channel ID", http.StatusInternalServerError
+	}
+	if link != nil {
+		return "The Teams channel that you're trying to link is already linked to another Mattermost channel. Please unlink that channel and try again.", http.StatusBadRequest
+	}
+
+	if client == nil {
+		client, err = p.GetClientForUser(userID)
+		if err != nil {
+			p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+			return "Unable to link the channel, looks like your account is not connected to MS Teams", http.StatusUnauthorized
+		}
+	}
+
+	if _, err = client.GetChannelInTeam(msTeamsTeamID, msTeamsChannelID); err != nil {
+		p.API.LogError("Error occurred while getting channel in MS Teams team.", "Error", err.Error())
+		return "MS Teams channel not found or you don't have the permissions to access it.", http.StatusInternalServerError
+	}
+
+	channelLink := storemodels.ChannelLink{
+		MattermostTeamID:    channel.TeamId,
+		MattermostChannelID: channel.Id,
+		MSTeamsTeamID:       msTeamsTeamID,
+		MSTeamsChannelID:    msTeamsChannelID,
+		Creator:             userID,
+	}
+
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeamID, channelLink.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	if err != nil {
+		p.API.LogError("Error occurred while subscribing to MS Teams channel", "TeamID", channelLink.MSTeamsTeamID, "ChannelID", channelLink.MSTeamsChannelID, "Error", err.Error())
+		return "Unable to subscribe to the channel: " + err.Error(), http.StatusInternalServerError
+	}
+
+	p.GetMetrics().ObserveSubscription(metrics.SubscriptionConnected)
+	if err = p.store.StoreChannelLink(&channelLink); err != nil {
+		p.API.LogError("Error occurred while storing the channel link.", "Error", err.Error())
+		return "Unable to create new link.", http.StatusInternalServerError
+	}
+
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		p.API.LogError("Unable to begin the database transaction", "error", err.Error())
+		return "Something went wrong", http.StatusInternalServerError
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogError("Unable to rollback database transaction", "error", err.Error())
+			}
+		}
+	}()
+
+	if txErr = p.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{
+		SubscriptionID: channelsSubscription.ID,
+		TeamID:         channelLink.MSTeamsTeamID,
+		ChannelID:      channelLink.MSTeamsChannelID,
+		ExpiresOn:      channelsSubscription.ExpiresOn,
+		Secret:         p.getConfiguration().WebhookSecret,
+	}); txErr != nil {
+		p.API.LogError("Error occurred while saving the channel subscription.", "Error", txErr.Error())
+		return "Error occurred while saving the subscription", http.StatusInternalServerError
+	}
+
+	if err := p.store.CommitTx(tx); err != nil {
+		p.API.LogError("Unable to commit database transaction", "error", err.Error())
+		return "Something went wrong", http.StatusInternalServerError
+	}
+
+	return "", http.StatusOK
 }
 
 func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
