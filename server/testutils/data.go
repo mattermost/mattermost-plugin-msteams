@@ -114,7 +114,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "testteam-team-team-team-testteamtest"
+	return "test-teams-team-qplsnwere9nurernidte"
 }
 
 func GetTeamsChannelID() string {
@@ -175,8 +175,8 @@ func GetChannelLink() *storemodels.ChannelLink {
 	return &storemodels.ChannelLink{
 		MattermostTeamID:    GetTeamID(),
 		MattermostChannelID: GetChannelID(),
-		MSTeamsTeamID:       GetTeamID(),
-		MSTeamsChannelID:    GetChannelID(),
+		MSTeamsTeamID:       GetTeamsTeamID(),
+		MSTeamsChannelID:    GetTeamsChannelID(),
 	}
 }
 
