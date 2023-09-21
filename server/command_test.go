@@ -881,7 +881,21 @@ func TestExecuteConnectCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+			},
+		},
+		{
+			description: "Unable to get user token",
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogDebug", "Error in getting token for Mattermost user", "UserID", testutils.GetUserID(), "Error", "unable to get user token").Return().Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Something went wrong.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("unable to get user token")).Once()
 			},
 		},
 		{
@@ -895,7 +909,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
 			},
 		},
@@ -910,7 +924,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -926,7 +940,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				}, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -976,7 +990,22 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+			},
+		},
+		{
+			description: "Unable to get bot token",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("LogDebug", "Error in getting token for bot", "Error", "unable to get bot token").Return().Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Something went wrong.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("unable to get bot token")).Once()
 			},
 		},
 		{
@@ -991,7 +1020,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
 			},
 		},
@@ -1007,7 +1036,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -1024,7 +1053,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				}, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
