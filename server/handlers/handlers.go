@@ -174,6 +174,14 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
+	// Avoid possible duplication
+	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo != nil {
+		ah.plugin.GetAPI().LogDebug("duplicate post")
+		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
+		return
+	}
+
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
@@ -236,16 +244,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	// Avoid possible duplication
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
-	}
-
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
 		return

@@ -146,7 +146,7 @@ func GetPostFromTeamsMessage() *model.Post {
 	return &model.Post{
 		UserId:    GetUserID(),
 		ChannelId: GetChannelID(),
-		Message:   "mockText",
+		Message:   "mockText\n\n\n",
 		Props: model.StringInterface{
 			"msteams_sync_mock-BotUserID": true,
 		},
