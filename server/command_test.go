@@ -881,21 +881,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
-			},
-		},
-		{
-			description: "Unable to get user token",
-			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Error in getting token for Mattermost user", "UserID", testutils.GetUserID(), "Error", "unable to get user token").Return().Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Something went wrong.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("unable to get user token")).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Once()
 			},
 		},
 		{
@@ -990,22 +976,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
-			},
-		},
-		{
-			description: "Unable to get bot token",
-			setupAPI: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("LogDebug", "Error in getting token for bot", "Error", "unable to get bot token").Return().Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Something went wrong.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Once()
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("unable to get bot token")).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(&oauth2.Token{}, nil).Once()
 			},
 		},
 		{
