@@ -24,8 +24,8 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
 	lastReceivedChangeKey = "last_received_change"
-	numberOfWorkers       = 20
-	activityQueueSize     = 1000
+	numberOfWorkers       = 50
+	activityQueueSize     = 5000
 	msteamsUserTypeGuest  = "Guest"
 )
 
