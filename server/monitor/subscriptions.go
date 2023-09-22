@@ -172,8 +172,6 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
-	m.storeMutex.Lock()
-	defer m.storeMutex.Unlock()
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 			m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())

@@ -226,9 +226,6 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		}
 	}
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
-
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
 		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
@@ -275,9 +272,6 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		}
 	}
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
-
 	var teamsMessage *msteams.Message
 	if parentID != "" {
 		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
@@ -320,9 +314,6 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
-
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
 	if err != nil {
@@ -367,9 +358,6 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 		p.API.LogError("Error in removing the reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
-
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 
 	var teamsMessage *msteams.Message
 	if parentID != "" {
@@ -474,9 +462,6 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
-
 	if post.Id != "" && newMessage != nil {
 		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
 		if err != nil {
@@ -560,9 +545,6 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		p.API.LogError("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
-
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 
 	if post.Id != "" && newMessage != nil {
 		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
@@ -686,9 +668,6 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		}
 	}
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
-
 	var updatedMessage *msteams.Message
 	if parentID != "" {
 		updatedMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
@@ -741,9 +720,6 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 			}
 		}
 	}
-
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 
 	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)
 	if err != nil {

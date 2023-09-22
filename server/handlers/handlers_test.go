@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
-	storeMutex := new(sync.RWMutex)
 	for _, testCase := range []struct {
 		description string
 		activityIds msteams.ActivityIds
@@ -112,7 +110,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -151,7 +148,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -192,7 +188,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -235,7 +230,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -283,7 +277,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -333,7 +326,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(8)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -390,7 +382,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(8)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -445,7 +436,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
-				p.On("GetStoreMutex").Return(storeMutex).Times(6)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{
@@ -500,7 +490,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 }
 
 func TestHandleUpdatedActivity(t *testing.T) {
-	storeMutex := new(sync.RWMutex)
 	for _, testCase := range []struct {
 		description string
 		activityIds msteams.ActivityIds
@@ -631,7 +620,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(1)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -671,7 +659,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -718,7 +705,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(3)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -769,7 +755,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetSyncDirectMessages").Return(true).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -820,7 +805,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(4)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{

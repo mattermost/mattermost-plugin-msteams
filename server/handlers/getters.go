@@ -89,22 +89,17 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 }
 
 func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSyntheticUser bool) (string, error) {
-	ah.plugin.GetStoreMutex().RLock()
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
 	if err == nil && mmUserID != "" {
-		ah.plugin.GetStoreMutex().RUnlock()
 		return mmUserID, err
 	}
 
-	ah.plugin.GetStoreMutex().RUnlock()
 	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
 	if appErr != nil {
 		if !createSyntheticUser {
 			return "", appErr
 		}
 
-		ah.plugin.GetStoreMutex().Lock()
-		defer ah.plugin.GetStoreMutex().Unlock()
 		userDisplayName := user.DisplayName
 		memberUUID := uuid.Parse(user.ID)
 		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)

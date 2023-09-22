@@ -42,7 +42,6 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	GetStoreMutex() *sync.RWMutex
 }
 
 type ActivityHandler struct {
@@ -120,8 +119,6 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 }
 
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
-	ah.plugin.GetStoreMutex().RLock()
-	defer ah.plugin.GetStoreMutex().RUnlock()
 	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
 		ah.plugin.GetAPI().LogDebug("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
@@ -180,18 +177,13 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return
 	}
 
-	ah.plugin.GetStoreMutex().RLock()
-
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		ah.plugin.GetStoreMutex().RUnlock()
 		return
 	}
-
-	ah.plugin.GetStoreMutex().RUnlock()
 
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
@@ -270,9 +262,6 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		})
 	}
 
-	ah.plugin.GetStoreMutex().Lock()
-	defer ah.plugin.GetStoreMutex().Unlock()
-
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		err = ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
@@ -305,9 +294,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return
 	}
-
-	ah.plugin.GetStoreMutex().RLock()
-	defer ah.plugin.GetStoreMutex().RUnlock()
 
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {

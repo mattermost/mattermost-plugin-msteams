@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"sync"
 	"testing"
 
 	"github.com/gosimple/slug"
@@ -25,7 +24,6 @@ import (
 type pluginMock struct {
 	api                        plugin.API
 	store                      store.Store
-	storeMutex                 *sync.RWMutex
 	syncDirectMessages         bool
 	syncGuestUsers             bool
 	maxSizeForCompleteDownload int
@@ -53,9 +51,6 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
-func (pm *pluginMock) GetStoreMutex() *sync.RWMutex {
-	return pm.storeMutex
-}
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{
@@ -63,7 +58,6 @@ func newTestHandler() *ActivityHandler {
 		userClient:                 &mocksClient.Client{},
 		teamsUserClient:            &mocksClient.Client{},
 		store:                      &storemocks.Store{},
-		storeMutex:                 &sync.RWMutex{},
 		api:                        &plugintest.API{},
 		botUserID:                  "bot-user-id",
 		url:                        "fake-url",
@@ -151,7 +145,6 @@ func TestGetChatChannelID(t *testing.T) {
 	client := mocksClient.NewClient(t)
 	mockAPI := &plugintest.API{}
 	store := storemocks.NewStore(t)
-	storeMutex := new(sync.RWMutex)
 
 	for _, testCase := range []struct {
 		description      string
@@ -178,7 +171,6 @@ func TestGetChatChannelID(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Times(2)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetAPI").Return(mockAPI).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(4)
 			},
 			setupAPI: func() {
 				mockAPI.On("GetDirectChannel", "mock-mmUserID1", "mock-mmUserID2").Return(&model.Channel{
@@ -209,7 +201,6 @@ func TestGetChatChannelID(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Times(2)
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetAPI").Return(mockAPI).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(4)
 			},
 			setupAPI: func() {
 				mockAPI.On("GetGroupChannel", []string{"mock-mmUserID1", "mock-mmUserID2"}).Return(&model.Channel{
@@ -238,7 +229,6 @@ func TestGetChatChannelID(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetStore").Return(store).Times(2)
 				p.On("GetAPI").Return(mockAPI).Times(2)
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupAPI: func() {
 				mockAPI.On("GetUserByEmail", "mock-userID@msteamssync").Return(&model.User{
@@ -271,7 +261,6 @@ func TestGetChatChannelID(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetStore").Return(store).Once()
-				p.On("GetStoreMutex").Return(storeMutex).Times(2)
 			},
 			setupAPI: func() {},
 			setupStore: func() {
@@ -294,7 +283,6 @@ func TestGetChatChannelID(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
 				p.On("GetClientForApp").Return(client).Times(2)
 				p.On("GetStore").Return(store).Times(2)
-				p.On("GetStoreMutex").Return(storeMutex).Times(4)
 			},
 			setupAPI: func() {},
 			setupStore: func() {

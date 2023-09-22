@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -120,8 +119,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
@@ -261,8 +259,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
@@ -441,8 +438,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
@@ -548,8 +544,7 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
@@ -638,8 +633,7 @@ func TestMonitorRecreateChatSubscription(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
@@ -706,8 +700,7 @@ func TestMonitorRefreshSubscription(t *testing.T) {
 			store := mocksStore.NewStore(t)
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
-			storeMutex := new(sync.RWMutex)
-			monitor := New(client, store, storeMutex, mockAPI, "base-url", "webhook-secret", false)
+			monitor := New(client, store, mockAPI, "base-url", "webhook-secret", false)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)

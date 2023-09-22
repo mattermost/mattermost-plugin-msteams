@@ -201,8 +201,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
 		p.API.LogDebug("Unable to create the new link", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
@@ -251,8 +249,6 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
 
-	p.storeMutex.Lock()
-	defer p.storeMutex.Unlock()
 	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannel)
 	if err != nil {
 		p.API.LogDebug("Unable to get the subscription by MS Teams channel ID", "error", err.Error())
