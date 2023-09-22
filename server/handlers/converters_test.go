@@ -54,7 +54,7 @@ func TestMsgToPost(t *testing.T) {
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
 				ChannelId: testutils.GetChannelID(),
-				Message:   "## Subject of the messsage\n\n\n\n",
+				Message:   "## Subject of the messsage\n",
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,

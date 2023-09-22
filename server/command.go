@@ -406,14 +406,8 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	_, err := p.store.GetTokenForMattermostUser(args.UserId)
-	if err == nil {
+	if storedToken, _ := p.store.GetTokenForMattermostUser(args.UserId); storedToken != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
-	}
-
-	if !strings.Contains(err.Error(), "token not found") {
-		p.API.LogDebug("Error in getting token for Mattermost user", "UserID", args.UserId, "Error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
@@ -438,14 +432,8 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
-	_, err := p.store.GetTokenForMattermostUser(p.userID)
-	if err == nil {
+	if storedToken, _ := p.store.GetTokenForMattermostUser(p.userID); storedToken != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
-	}
-
-	if !strings.Contains(err.Error(), "token not found") {
-		p.API.LogDebug("Error in getting token for bot", "Error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)

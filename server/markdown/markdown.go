@@ -7,7 +7,7 @@ import (
 )
 
 func ConvertToMD(text string) string {
-	if !strings.Contains(text, "<div>") && !strings.Contains(text, "<p>") {
+	if !(strings.Contains(text, "<div") || strings.Contains(text, "<p") || strings.Contains(text, "<img")) {
 		return text
 	}
 	var sb strings.Builder
