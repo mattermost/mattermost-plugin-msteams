@@ -247,10 +247,14 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
-		return
+	var newPost *model.Post
+	if post.Message != "" || len(post.FileIds) > 0 {
+		var appErr *model.AppError
+		newPost, appErr = ah.plugin.GetAPI().CreatePost(post)
+		if appErr != nil {
+			ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
+			return
+		}
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
