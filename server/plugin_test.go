@@ -80,7 +80,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
 	plugin.API.(*plugintest.API).Test(t)
-
 	_ = plugin.OnActivate()
 	plugin.userID = "bot-user-id"
 	return plugin

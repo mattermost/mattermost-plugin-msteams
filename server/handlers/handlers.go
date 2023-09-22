@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -43,9 +45,10 @@ type PluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin PluginIface
-	queue  chan msteams.Activity
-	quit   chan bool
+	plugin               PluginIface
+	queue                chan msteams.Activity
+	quit                 chan bool
+	IgnorePluginHooksMap sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -346,7 +349,9 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
@@ -416,6 +421,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
+			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
 			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,
@@ -423,6 +429,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				EmojiName: emojiName,
 			})
 			if appErr != nil {
+				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}
