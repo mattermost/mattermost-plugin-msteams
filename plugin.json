@@ -119,6 +119,12 @@
             "type": "custom", 
             "help_text": "",
             "default": ""            
+        },{
+          "key": "ConnectedUsersFileDownload",
+          "display_name": "Download Connected Users CSV File",
+          "type": "custom",
+          "help_text": "",
+          "default": ""
         }]
     }
 }

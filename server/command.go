@@ -146,10 +146,6 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executePromoteUserCommand(args, parameters)
 	}
 
-	if action == "show-connected-users" {
-		return p.executeShowConnectedUsersCommand(args)
-	}
-
 	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
 }
 
@@ -375,20 +371,6 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
 }
 
-func (p *Plugin) ShowConnectedUsers(userID, channelID string, connectedUsers []*storemodels.ConnectedUsers) {
-	var sb strings.Builder
-	sb.WriteString("| Mattermost User ID | MS Teams User ID | \n|:-------|:-----------|")
-	for _, connectedUser := range connectedUsers {
-		row := fmt.Sprintf("\n|%s|%s|", connectedUser.MattermostUserID, connectedUser.TeamsUserID)
-
-		if row != "\n|||" {
-			sb.WriteString(row)
-		}
-	}
-
-	p.sendBotEphemeralPost(userID, channelID, sb.String())
-}
-
 func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) bool {
 	var msTeamsFilterQuery strings.Builder
 	msTeamsFilterQuery.WriteString("id in (")
@@ -566,26 +548,6 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Account "+username+" has been promoted and updated the username to "+newUsername)
-	return &model.CommandResponse{}, nil
-}
-
-func (p *Plugin) executeShowConnectedUsersCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
-		return &model.CommandResponse{}, nil
-	}
-
-	connectedUsers, err := p.store.ListConnectedUsers()
-	if err != nil {
-		p.API.LogDebug("Unable to get connected users from store", "Error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
-	}
-
-	if len(connectedUsers) == 0 {
-		return p.cmdError(args.UserId, args.ChannelId, "No connected user present.")
-	}
-
-	p.ShowConnectedUsers(args.UserId, args.ChannelId, connectedUsers)
 	return &model.CommandResponse{}, nil
 }
 

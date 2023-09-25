@@ -4,6 +4,7 @@ import {GlobalState} from 'mattermost-redux/types/store';
 
 import manifest from './manifest';
 import Client from './client';
+import ListConnectedUsers from './components/listConnectedUsers';
 import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from './components/appManifestSetting';
 
@@ -21,6 +22,7 @@ export default class Plugin {
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
+        registry.registerAdminConsoleCustomSetting('ConnectedUsersFileDownload', ListConnectedUsers);
     }
 }
 

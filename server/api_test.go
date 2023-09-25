@@ -829,3 +829,102 @@ func TestConnect(t *testing.T) {
 		})
 	}
 }
+
+func TestListConnectedUsers(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "listConnectedUsers: Unable to get the user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetUserID()).Return(nil, testutils.GetInternalServerAppError("unable to get the user")).Times(1)
+				api.On("LogError", "Not able to get the Mattermost user", "UserID", testutils.GetUserID(), "Error", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			SetupStore:         func(store *storemocks.Store) {},
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedResult:     "not able to authorize the user\n",
+		},
+		{
+			Name: "listConnectedUsers: Insufficient permissions for the user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelUserRoleId, testutils.GetTestEmail()), nil).Times(1)
+				api.On("LogError", "Not sufficient permissions", "UserID", testutils.GetUserID()).Return(nil).Times(1)
+			},
+			SetupStore:         func(store *storemocks.Store) {},
+			ExpectedStatusCode: http.StatusForbidden,
+			ExpectedResult:     "not able to authorize the user\n",
+		},
+		{
+			Name: "listConnectedUsers: Unable to get the list of connected users from the store",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
+				api.On("LogError", "Unable to get list of connected users", "Error", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("ListConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
+			},
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedResult:     "unable to get the list of connected users\n",
+		},
+		{
+			Name: "listConnectedUsers: No user is connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("ListConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name: "listConnectedUsers: Users are connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("ListConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{
+					{
+						MattermostUserID: testutils.GetUserID(),
+						TeamsUserID:      testutils.GetTeamsUserID(),
+						Email:            testutils.GetTestEmail(),
+					},
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/list-connected-users", nil)
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.NotNil(t, result)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
+			}
+		})
+	}
+}

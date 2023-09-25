@@ -570,13 +570,13 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListConnectedUsers provides a mock function with given fields:
-func (_m *Store) ListConnectedUsers() ([]*storemodels.ConnectedUsers, error) {
-	ret := _m.Called()
+// ListConnectedUsers provides a mock function with given fields: page, perPage
+func (_m *Store) ListConnectedUsers(page int, perPage int) ([]*storemodels.ConnectedUsers, error) {
+	ret := _m.Called(page, perPage)
 
 	var r0 []*storemodels.ConnectedUsers
-	if rf, ok := ret.Get(0).(func() []*storemodels.ConnectedUsers); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(int, int) []*storemodels.ConnectedUsers); ok {
+		r0 = rf(page, perPage)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*storemodels.ConnectedUsers)
@@ -584,8 +584,8 @@ func (_m *Store) ListConnectedUsers() ([]*storemodels.ConnectedUsers, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(page, perPage)
 	} else {
 		r1 = ret.Error(1)
 	}

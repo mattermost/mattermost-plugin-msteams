@@ -31,6 +31,7 @@ func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugint
 	_ = store.Init()
 	_ = store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	_ = store.createTable("Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
+	_ = store.createTable("Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255)")
 	return store, api, tearDownContainer
 }
 
@@ -1143,11 +1144,17 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	resp, getErr := store.ListConnectedUsers()
+	_, err := store.getQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
+	assert.Nil(err)
+
+	resp, getErr := store.ListConnectedUsers(0, 100)
 	expectedResp := []*storemodels.ConnectedUsers{
 		{
 			MattermostUserID: testutils.GetID() + "1",
 			TeamsUserID:      testutils.GetTeamsUserID() + "1",
+			FirstName:        "mockFirstName",
+			LastName:         "mockLastName",
+			Email:            testutils.GetTestEmail(),
 		},
 	}
 

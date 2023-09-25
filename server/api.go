@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,6 +44,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/list-connected-users", api.listConnectedUsers).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -392,4 +395,77 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+}
+
+func (a *API) listConnectedUsers(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, appErr := a.p.API.GetUser(userID)
+	if appErr != nil {
+		a.p.API.LogError("Not able to get the Mattermost user", "UserID", userID, "Error", appErr.Error())
+		http.Error(w, "not able to authorize the user", http.StatusInternalServerError)
+		return
+	}
+
+	if !strings.Contains(user.Roles, model.SystemAdminRoleId) {
+		a.p.API.LogError("Not sufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	b := &bytes.Buffer{}
+	csvWriter := csv.NewWriter(b)
+	if err := csvWriter.Write([]string{"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id"}); err != nil {
+		a.p.API.LogError("Unable to write headers in CSV file", "Error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	page := 0
+	perPage := 100
+	for {
+		connectedUsers, err := a.p.store.ListConnectedUsers(page, perPage)
+		if err != nil {
+			a.p.API.LogError("Unable to get list of connected users", "Error", err.Error())
+			http.Error(w, "unable to get the list of connected users", http.StatusInternalServerError)
+			return
+		}
+
+		if len(connectedUsers) == 0 {
+			break
+		}
+
+		for _, connectedUser := range connectedUsers {
+			if err := csvWriter.Write([]string{connectedUser.FirstName, connectedUser.LastName, connectedUser.Email, connectedUser.MattermostUserID, connectedUser.TeamsUserID}); err != nil {
+				a.p.API.LogError("Unable to write data in CSV file", "Error", err.Error())
+				http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if len(connectedUsers) < perPage {
+			break
+		}
+
+		page++
+	}
+
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		a.p.API.LogError("Unable to flush the data in writer", "Error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment;filename=connected-users.csv")
+	if _, err := w.Write(b.Bytes()); err != nil {
+		a.p.API.LogError("Unable to write the data", "Error", err.Error())
+		http.Error(w, "unable to write the data", http.StatusInternalServerError)
+	}
 }
