@@ -17,7 +17,7 @@ const ListConnectedUsers = ({label}: Props) => {
             }}
         >
             <p>
-                {'Clicking the Download button below will generate a CSV file showing users connected to the MS Teams.'}
+                {'Download a report of all Mattermost users connected to MS Teams'}
             </p>
             <button
                 className='btn btn-primary'

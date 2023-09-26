@@ -22,7 +22,7 @@ export default class Plugin {
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
-        registry.registerAdminConsoleCustomSetting('ConnectedUsersFileDownload', ListConnectedUsers);
+        registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
     }
 }
 

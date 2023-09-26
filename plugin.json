@@ -120,8 +120,8 @@
             "help_text": "",
             "default": ""            
         },{
-          "key": "ConnectedUsersFileDownload",
-          "display_name": "Download Connected Users CSV File",
+          "key": "ConnectedUsersReportDownload",
+          "display_name": "Download Report",
           "type": "custom",
           "help_text": "",
           "default": ""
