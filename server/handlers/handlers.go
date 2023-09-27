@@ -302,10 +302,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	// Ignore if the change is already applied in the database
-	fmt.Println("\n\n before if \n\n", postInfo.MSTeamsLastUpdateAt.UnixMicro(), msg.LastUpdateAt.UnixMicro())
-
 	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
-		fmt.Println("\n\n entered \n\n")
 		return
 	}
 
