@@ -22,6 +22,13 @@ import (
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockMessage := &msteams.Message{
+		ID:           "ms-teams-id",
+		TeamID:       "ms-teams-team-id",
+		ChannelID:    "ms-teams-channel-id",
+		LastUpdateAt: mockTime,
+	}
 	for _, test := range []struct {
 		Name        string
 		SetupAPI    func(*plugintest.API)
@@ -90,26 +97,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to set the reaction")).Times(1)
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to get the post metadata",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("LogWarn", "Error getting the msteams post metadata", "error", "unable to get post info")
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(nil, errors.New("unable to get post info")).Times(1)
+				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to set the reaction")).Times(1)
 			},
 		},
 		{
@@ -121,17 +109,15 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", "unable to set post lastUpdateAt value")
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), demoTime).Return(errors.New("unable to set post lastUpdateAt value")).Times(1)
+				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), mockTime).Return(errors.New("unable to set post lastUpdateAt value")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
+				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Times(1)
 			},
 		},
 		{
@@ -142,17 +128,15 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), demoTime).Return(nil).Times(1)
+				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), mockTime).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
+				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Times(1)
 			},
 		},
 	} {
@@ -168,6 +152,13 @@ func TestReactionHasBeenAdded(t *testing.T) {
 }
 
 func TestReactionHasBeenRemoved(t *testing.T) {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockMessage := &msteams.Message{
+		ID:           "ms-teams-id",
+		TeamID:       "ms-teams-team-id",
+		ChannelID:    "ms-teams-channel-id",
+		LastUpdateAt: mockTime,
+	}
 	for _, test := range []struct {
 		Name        string
 		SetupAPI    func(*plugintest.API)
@@ -250,34 +241,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(errors.New("unable to unset the reaction")).Times(1)
-			},
-		},
-		{
-			Name: "ReactionHasBeenRemoved: Unable to get the post metadata",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				api.On("LogWarn", "Error getting the msteams post metadata", "error", "unable to get post info")
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-				}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeamID:    "mockMattermostTeam",
-					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
-				}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(nil, errors.New("unable to get post info")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to unset the reaction")).Times(1)
 			},
 		},
 		{
@@ -305,9 +269,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), demoTime).Return(errors.New("unable to set post lastUpdateAt value")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Times(1)
 			},
 		},
 		{
@@ -319,7 +282,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				api.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
 				}, nil).Times(2)
@@ -331,12 +293,11 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), demoTime).Return(nil).Times(1)
+				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), mockTime).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Times(1)
 			},
 		},
 	} {
@@ -361,6 +322,16 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				Email:       testutils.GetTestEmail(),
 			},
 		},
+	}
+	mockChannelMessage := &msteams.Message{
+		ID:        "mockMessageID",
+		TeamID:    "mockTeamsTeamID",
+		ChannelID: "mockTeamsChannelID",
+		ChatID:    testutils.GetChatID(),
+	}
+	mockChatMessage := &msteams.Message{
+		ID:     "ms-teams-id",
+		ChatID: testutils.GetChatID(),
 	}
 	for _, test := range []struct {
 		Name        string
@@ -392,8 +363,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UpdateChatMessage", testutils.GetChatID(), "mockMsgID", "", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockMsgID").Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("UpdateChatMessage", testutils.GetChatID(), "mockMsgID", "", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 		},
 		{
@@ -495,8 +465,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "mockMessageID").Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 		},
 		{
@@ -526,8 +495,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(errors.New("unable to update the post")).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "mockMessageID").Return(&msteams.Message{}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
 			},
 		},
 	} {
@@ -553,12 +521,19 @@ func TestSetChatReaction(t *testing.T) {
 			},
 		},
 	}
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockChatMessage := &msteams.Message{
+		ID:           "mockTeamsMessageID",
+		ChatID:       testutils.GetChatID(),
+		LastUpdateAt: mockTime,
+	}
 	for _, test := range []struct {
 		Name            string
 		SetupAPI        func(*plugintest.API)
 		SetupStore      func(*storemocks.Store)
 		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
 		ExpectedMessage string
+		UpdateRequired  bool
 	}{
 		{
 			Name:     "SetChatReaction: Unable to get the source user ID",
@@ -608,26 +583,26 @@ func TestSetChatReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(errors.New("unable to set the chat reaction")).Times(1)
+				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil, errors.New("unable to set the chat reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to set the chat reaction",
+			UpdateRequired:  true,
 		},
 		{
-			Name: "SetChatReaction: Unable to get the post metadata",
+			Name: "SetChatReaction: Update not required on MS Teams",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-				api.On("LogWarn", "Error getting the msteams post metadata", "error", "unable to get post info")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
+				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", mockTime).Return(nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(nil, errors.New("unable to get post info")).Once()
+				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(mockChatMessage, nil).Once()
 			},
 		},
 		{
@@ -639,17 +614,15 @@ func TestSetChatReaction(t *testing.T) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", "unable to set post lastUpdateAt value")
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", demoTime).Return(errors.New("unable to set post lastUpdateAt value")).Once()
+				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", mockTime).Return(errors.New("unable to set post lastUpdateAt value")).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Once()
+				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
+			UpdateRequired: true,
 		},
 		{
 			Name: "SetChatReaction: Valid",
@@ -659,17 +632,16 @@ func TestSetChatReaction(t *testing.T) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", demoTime).Return(nil).Once()
+				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", mockTime).Return(nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Once()
+				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
+				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Once()
 			},
+			UpdateRequired: true,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -678,7 +650,7 @@ func TestSetChatReaction(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			resp := p.SetChatReaction("mockTeamsMessageID", testutils.GetID(), testutils.GetChannelID(), "mockEmojiName", true)
+			resp := p.SetChatReaction("mockTeamsMessageID", testutils.GetID(), testutils.GetChannelID(), "mockEmojiName", test.UpdateRequired)
 			if test.ExpectedMessage != "" {
 				assert.Contains(resp.Error(), test.ExpectedMessage)
 			} else {
@@ -689,6 +661,13 @@ func TestSetChatReaction(t *testing.T) {
 }
 
 func TestSetReaction(t *testing.T) {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockChannelMessage := &msteams.Message{
+		ID:           testutils.GetID(),
+		TeamID:       "mockTeamsTeamID",
+		ChannelID:    "mockTeamsChannelID",
+		LastUpdateAt: mockTime,
+	}
 	for _, test := range []struct {
 		Name            string
 		SetupAPI        func(*plugintest.API)
@@ -736,7 +715,7 @@ func TestSetReaction(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(errors.New("unable to set the reaction")).Times(1)
+				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil, errors.New("unable to set the reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to set the reaction",
 		},
@@ -746,16 +725,13 @@ func TestSetReaction(t *testing.T) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", "", demoTime).Return(nil).Once()
+				store.On("SetPostLastUpdateAtByMattermostID", "", mockTime).Return(nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 		},
 	} {
@@ -787,6 +763,12 @@ func TestUnsetChatReaction(t *testing.T) {
 				Email:       testutils.GetTestEmail(),
 			},
 		},
+	}
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockChatMessage := &msteams.Message{
+		ID:           "mockTeamsMessageID",
+		ChatID:       testutils.GetChatID(),
+		LastUpdateAt: mockTime,
 	}
 	for _, test := range []struct {
 		Name            string
@@ -844,29 +826,9 @@ func TestUnsetChatReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(testutils.GetInternalServerAppError("unable to unset the chat reaction")).Times(1)
+				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil, testutils.GetInternalServerAppError("unable to unset the chat reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to unset the chat reaction",
-		},
-		{
-			Name: "UnsetChatReaction: Unable to get the post metadata",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-				api.On("LogWarn", "Error getting the msteams post metadata", "error", "unable to get post info")
-			},
-			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", demoTime).Return(nil).Once()
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(nil, errors.New("unable to get post info")).Once()
-			},
 		},
 		{
 			Name: "UnsetChatReaction: Unable to set the post last updateAt time",
@@ -877,16 +839,13 @@ func TestUnsetChatReaction(t *testing.T) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", "unable to set post lastUpdateAt value")
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", demoTime).Return(errors.New("unable to set post lastUpdateAt value")).Once()
+				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", mockTime).Return(errors.New("unable to set post lastUpdateAt value")).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Once()
+				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 		},
 		{
@@ -897,16 +856,13 @@ func TestUnsetChatReaction(t *testing.T) {
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(2)
-				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", demoTime).Return(nil).Once()
+				store.On("SetPostLastUpdateAtByMSTeamsID", "mockTeamsMessageID", mockTime).Return(nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Once()
+				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 		},
 	} {
@@ -927,6 +883,13 @@ func TestUnsetChatReaction(t *testing.T) {
 }
 
 func TestUnsetReaction(t *testing.T) {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	mockChannelMessage := &msteams.Message{
+		ID:           testutils.GetID(),
+		TeamID:       "mockTeamsTeamID",
+		ChannelID:    "mockTeamsChannelID",
+		LastUpdateAt: mockTime,
+	}
 	for _, test := range []struct {
 		Name            string
 		SetupAPI        func(*plugintest.API)
@@ -973,7 +936,7 @@ func TestUnsetReaction(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(testutils.GetInternalServerAppError("unable to unset the reaction")).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil, testutils.GetInternalServerAppError("unable to unset the reaction")).Times(1)
 			},
 			ExpectedMessage: "unable to unset the reaction",
 		},
@@ -981,16 +944,14 @@ func TestUnsetReaction(t *testing.T) {
 			Name:     "UnsetReaction: Valid",
 			SetupAPI: func(a *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", "", demoTime).Return(nil).Once()
+				store.On("SetPostLastUpdateAtByMattermostID", "", mockTime).Return(nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				demoTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
-				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: demoTime}, nil).Times(1)
+				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: mockTime}, nil).Times(1)
 			},
 		},
 	} {
@@ -1654,12 +1615,18 @@ func TestDeleteChat(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	mockChannelMessage := &msteams.Message{
+		ID:        "mockMSTeamsID",
+		TeamID:    "mockTeamsTeamID",
+		ChannelID: testutils.GetChannelID(),
+	}
 	for _, test := range []struct {
-		Name          string
-		SetupAPI      func(*plugintest.API)
-		SetupStore    func(*storemocks.Store)
-		SetupClient   func(*clientmocks.Client, *clientmocks.Client)
-		ExpectedError string
+		Name           string
+		SetupAPI       func(*plugintest.API)
+		SetupStore     func(*storemocks.Store)
+		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedError  string
+		UpdateRequired bool
 	}{
 		{
 			Name:     "Update: Unable to get the client",
@@ -1708,12 +1675,13 @@ func TestUpdate(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(errors.New("unable to update the message")).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
 			},
-			ExpectedError: "unable to update the message",
+			ExpectedError:  "unable to update the message",
+			UpdateRequired: true,
 		},
 		{
-			Name: "Update: Unable to get the updated message",
+			Name: "Update: Update not required on MS Teams",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error in getting the message from MS Teams", "error", errors.New("unable to get the updated message"))
 			},
@@ -1723,10 +1691,14 @@ func TestUpdate(t *testing.T) {
 					MattermostID: testutils.GetID(),
 					MSTeamsID:    "mockMSTeamsID",
 				}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsChannel: testutils.GetChannelID(),
+					MSTeamsID:      "mockMSTeamsID",
+				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", testutils.GetChannelID(), "mockMSTeamsID").Return(nil, errors.New("unable to get the updated message")).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", testutils.GetChannelID(), "mockMSTeamsID").Return(mockChannelMessage, nil).Times(1)
 			},
 		},
 		{
@@ -1747,11 +1719,9 @@ func TestUpdate(t *testing.T) {
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", testutils.GetChannelID(), "mockMSTeamsID").Return(&msteams.Message{
-					ID: testutils.GetID(),
-				}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
+			UpdateRequired: true,
 		},
 		{
 			Name: "Update: Valid",
@@ -1771,11 +1741,9 @@ func TestUpdate(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", testutils.GetChannelID(), "mockMSTeamsID").Return(&msteams.Message{
-					ID: testutils.GetID(),
-				}, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
+			UpdateRequired: true,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -1786,7 +1754,7 @@ func TestUpdate(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage??????????"
-			err := p.Update("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), true)
+			err := p.Update("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), test.UpdateRequired)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1797,12 +1765,17 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateChat(t *testing.T) {
+	mockChatMessage := &msteams.Message{
+		ID:     "mockChatID",
+		ChatID: "mockTeamsTeamID",
+	}
 	for _, test := range []struct {
-		Name          string
-		SetupAPI      func(*plugintest.API)
-		SetupStore    func(*storemocks.Store)
-		SetupClient   func(*clientmocks.Client, *clientmocks.Client)
-		ExpectedError string
+		Name           string
+		SetupAPI       func(*plugintest.API)
+		SetupStore     func(*storemocks.Store)
+		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
+		ExpectedError  string
+		UpdateRequired bool
 	}{
 		{
 			Name: "UpdateChat: Unable to get the post info",
@@ -1854,25 +1827,28 @@ func TestUpdateChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(errors.New("unable to update the message")).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
 			},
-			ExpectedError: "unable to update the message",
+			ExpectedError:  "unable to update the message",
+			UpdateRequired: true,
 		},
 		{
-			Name: "UpdateChat: Unable to get the updated message",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogWarn", "Error getting the updated message from MS Teams", "error", errors.New("unable to get the updated message"))
-			},
+			Name:     "UpdateChat: Update not required on MS Teams",
+			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
 					MSTeamsID:    "mockTeamsTeamID",
 				}, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsChannel: "mockChatID",
+					MSTeamsID:      "mockTeamsTeamID",
+				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetChatMessage", "mockChatID", "mockTeamsTeamID").Return(nil, errors.New("unable to get the updated message")).Times(1)
+				uclient.On("GetChatMessage", "mockChatID", "mockTeamsTeamID").Return(mockChatMessage, nil).Times(1)
 			},
 		},
 		{
@@ -1893,11 +1869,9 @@ func TestUpdateChat(t *testing.T) {
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetChatMessage", "mockChatID", "mockTeamsTeamID").Return(&msteams.Message{
-					ID: testutils.GetID(),
-				}, nil).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
+			UpdateRequired: true,
 		},
 		{
 			Name: "UpdateChat: Valid",
@@ -1917,11 +1891,9 @@ func TestUpdateChat(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil).Times(1)
-				uclient.On("GetChatMessage", "mockChatID", "mockTeamsTeamID").Return(&msteams.Message{
-					ID: testutils.GetID(),
-				}, nil).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
+			UpdateRequired: true,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -1932,7 +1904,7 @@ func TestUpdateChat(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())
 			mockPost.Message = "mockMessage??????????"
-			err := p.UpdateChat("mockChatID", testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), true)
+			err := p.UpdateChat("mockChatID", testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), mockPost, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), test.UpdateRequired)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {

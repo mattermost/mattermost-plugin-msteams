@@ -717,7 +717,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 			return err
 		}
 	}
-	
+
 	if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
