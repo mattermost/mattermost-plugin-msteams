@@ -27,8 +27,10 @@ type Activities struct {
 	Value []msteams.Activity
 }
 
-const DefaultPage = 0
-const MaxPerPage = 100
+const ( 
+	DefaultPage = 0
+	MaxPerPage = 100
+)
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
