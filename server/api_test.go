@@ -830,7 +830,7 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestListConnectedUsers(t *testing.T) {
+func TestGetConnectedUsers(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -839,54 +839,54 @@ func TestListConnectedUsers(t *testing.T) {
 		ExpectedStatusCode int
 	}{
 		{
-			Name: "listConnectedUsers: Unable to get the user",
+			Name: "getConnectedUsers: Unable to get the user",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetUserID()).Return(nil, testutils.GetInternalServerAppError("unable to get the user")).Times(1)
 				api.On("LogError", "Not able to get the Mattermost user", "UserID", testutils.GetUserID(), "Error", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
 			SetupStore:         func(store *storemocks.Store) {},
 			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedResult:     "not able to authorize the user\n",
+			ExpectedResult:     "something went wrong\n",
 		},
 		{
-			Name: "listConnectedUsers: Insufficient permissions for the user",
+			Name: "getConnectedUsers: Insufficient permissions for the user",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelUserRoleId, testutils.GetTestEmail()), nil).Times(1)
-				api.On("LogError", "Not sufficient permissions", "UserID", testutils.GetUserID()).Return(nil).Times(1)
+				api.On("LogError", "Insufficient permissions", "UserID", testutils.GetUserID()).Return(nil).Times(1)
 			},
 			SetupStore:         func(store *storemocks.Store) {},
 			ExpectedStatusCode: http.StatusForbidden,
 			ExpectedResult:     "not able to authorize the user\n",
 		},
 		{
-			Name: "listConnectedUsers: Unable to get the list of connected users from the store",
+			Name: "getConnectedUsers: Unable to get the list of connected users from the store",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
 				api.On("LogError", "Unable to get list of connected users", "Error", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("ListConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
+				store.On("GetConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
 			},
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedResult:     "unable to get the list of connected users\n",
 		},
 		{
-			Name: "listConnectedUsers: No user is connected",
+			Name: "getConnectedUsers: No user is connected",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("ListConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{}, nil).Times(1)
+				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{}, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name: "listConnectedUsers: Users are connected",
+			Name: "getConnectedUsers: Users are connected",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.SystemAdminRoleId, testutils.GetTestEmail()), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("ListConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{
+				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUsers{
 					{
 						MattermostUserID: testutils.GetUserID(),
 						TeamsUserID:      testutils.GetTeamsUserID(),
@@ -910,7 +910,7 @@ func TestListConnectedUsers(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/list-connected-users", nil)
+			r := httptest.NewRequest(http.MethodGet, "/connected-users", nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 

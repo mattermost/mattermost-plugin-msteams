@@ -4,7 +4,7 @@ import {GlobalState} from 'mattermost-redux/types/store';
 
 import manifest from './manifest';
 import Client from './client';
-import ListConnectedUsers from './components/listConnectedUsers';
+import ListConnectedUsers from './components/getConnectedUsers';
 import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from './components/appManifestSetting';
 

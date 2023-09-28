@@ -566,8 +566,8 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 	assert.Equal(testutils.GetID()+"1", resp)
 	assert.Nil(getErr)
 
-	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
-	assert.Nil(delErr)
+	deleteErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(deleteErr)
 }
 
 func testTeamsToMattermostUserIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
@@ -1147,7 +1147,7 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	_, err := store.getQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
 	assert.Nil(err)
 
-	resp, getErr := store.ListConnectedUsers(0, 100)
+	resp, getErr := store.GetConnectedUsers(0, 100)
 	expectedResp := []*storemodels.ConnectedUsers{
 		{
 			MattermostUserID: testutils.GetID() + "1",

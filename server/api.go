@@ -27,6 +27,9 @@ type Activities struct {
 	Value []msteams.Activity
 }
 
+const DefaultPage = 0
+const MaxPerPage = 100
+
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
@@ -44,7 +47,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
-	router.HandleFunc("/list-connected-users", api.listConnectedUsers).Methods(http.MethodGet)
+	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -397,7 +400,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
 }
 
-func (a *API) listConnectedUsers(w http.ResponseWriter, r *http.Request) {
+func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-Id")
 	if userID == "" {
 		a.p.API.LogError("Not authorized")
@@ -407,13 +410,13 @@ func (a *API) listConnectedUsers(w http.ResponseWriter, r *http.Request) {
 
 	user, appErr := a.p.API.GetUser(userID)
 	if appErr != nil {
-		a.p.API.LogError("Not able to get the Mattermost user", "UserID", userID, "Error", appErr.Error())
-		http.Error(w, "not able to authorize the user", http.StatusInternalServerError)
+		a.p.API.LogError("Not able to get the Mattermost user", "UserID", userID, "Error", appErr.Message)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if !strings.Contains(user.Roles, model.SystemAdminRoleId) {
-		a.p.API.LogError("Not sufficient permissions", "UserID", userID)
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -426,10 +429,10 @@ func (a *API) listConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := 0
-	perPage := 100
+	page := DefaultPage
+	perPage := MaxPerPage
 	for {
-		connectedUsers, err := a.p.store.ListConnectedUsers(page, perPage)
+		connectedUsers, err := a.p.store.GetConnectedUsers(page, perPage)
 		if err != nil {
 			a.p.API.LogError("Unable to get list of connected users", "Error", err.Error())
 			http.Error(w, "unable to get the list of connected users", http.StatusInternalServerError)

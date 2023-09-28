@@ -5,25 +5,21 @@ type Props = {
     disabled: boolean;
 };
 
-const ListConnectedUsers = ({label}: Props) => {
+const GettConnectedUsers = ({label}: Props) => {
     const handleClick = () => {
-        window.location.href = '/plugins/com.mattermost.msteams-sync/list-connected-users';
+        window.location.href = '/plugins/com.mattermost.msteams-sync/connected-users';
     };
 
     return (
         <div
-            style={{
-                marginTop: '20px',
-            }}
+            style={styles.divMargin}
         >
             <p>
                 {'Download a report of all Mattermost users connected to MS Teams'}
             </p>
             <button
                 className='btn btn-primary'
-                style={{
-                    marginTop: '8px',
-                }}
+                style={styles.buttonMargin}
                 onClick={handleClick}
             >
                 {label}
@@ -32,4 +28,13 @@ const ListConnectedUsers = ({label}: Props) => {
     );
 };
 
-export default ListConnectedUsers;
+const styles = {
+    divMargin: {
+        marginTop: '20px',
+    },
+    buttonMargin: {
+        marginTop: '8px',
+    },
+};
+
+export default GettConnectedUsers;

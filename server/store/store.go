@@ -83,7 +83,7 @@ type Store interface {
 	SetJobStatus(jobName string, status bool) error
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*Stats, error)
-	ListConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUsers, error)
+	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUsers, error)
 }
 
 type SQLStore struct {
@@ -958,7 +958,7 @@ func (s *SQLStore) GetStats() (*Stats, error) {
 	}, nil
 }
 
-func (s *SQLStore) ListConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUsers, error) {
+func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUsers, error) {
 	query := s.getQueryBuilder().Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From("msteamssync_users").LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
 	rows, err := query.Query()
 	if err != nil {
