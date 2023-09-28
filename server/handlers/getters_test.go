@@ -22,21 +22,25 @@ import (
 )
 
 type pluginMock struct {
-	api                plugin.API
-	store              store.Store
-	syncDirectMessages bool
-	syncGuestUsers     bool
-	botUserID          string
-	url                string
-	appClient          msteams.Client
-	userClient         msteams.Client
-	teamsUserClient    msteams.Client
+	api                        plugin.API
+	store                      store.Store
+	syncDirectMessages         bool
+	syncGuestUsers             bool
+	maxSizeForCompleteDownload int
+	bufferSizeForStreaming     int
+	botUserID                  string
+	url                        string
+	appClient                  msteams.Client
+	userClient                 msteams.Client
+	teamsUserClient            msteams.Client
 }
 
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
 func (pm *pluginMock) GetStore() store.Store                           { return pm.store }
 func (pm *pluginMock) GetSyncDirectMessages() bool                     { return pm.syncDirectMessages }
 func (pm *pluginMock) GetSyncGuestUsers() bool                         { return pm.syncGuestUsers }
+func (pm *pluginMock) GetMaxSizeForCompleteDownload() int              { return pm.maxSizeForCompleteDownload }
+func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return pm.bufferSizeForStreaming }
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
@@ -50,15 +54,17 @@ func (pm *pluginMock) GenerateRandomPassword() string {
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{
-		appClient:          &mocksClient.Client{},
-		userClient:         &mocksClient.Client{},
-		teamsUserClient:    &mocksClient.Client{},
-		store:              &storemocks.Store{},
-		api:                &plugintest.API{},
-		botUserID:          "bot-user-id",
-		url:                "fake-url",
-		syncDirectMessages: false,
-		syncGuestUsers:     false,
+		appClient:                  &mocksClient.Client{},
+		userClient:                 &mocksClient.Client{},
+		teamsUserClient:            &mocksClient.Client{},
+		store:                      &storemocks.Store{},
+		api:                        &plugintest.API{},
+		botUserID:                  "bot-user-id",
+		url:                        "fake-url",
+		syncDirectMessages:         false,
+		syncGuestUsers:             false,
+		maxSizeForCompleteDownload: 20,
+		bufferSizeForStreaming:     20,
 	})
 }
 

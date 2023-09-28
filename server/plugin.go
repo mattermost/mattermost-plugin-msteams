@@ -12,6 +12,7 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -39,6 +41,9 @@ const (
 	lastReceivedChangeKey = "last_received_change"
 	msteamsUserTypeGuest  = "Guest"
 	syncUsersJobName      = "sync_users"
+
+	metricsExposePort          = ":9094"
+	updateMetricsTaskFrequency = 15 * time.Minute
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -68,6 +73,8 @@ type Plugin struct {
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
+	metricsService         *metrics.Metrics
+	metricsServer          *metrics.Server
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -89,6 +96,14 @@ func (p *Plugin) GetSyncDirectMessages() bool {
 
 func (p *Plugin) GetSyncGuestUsers() bool {
 	return p.getConfiguration().SyncGuestUsers
+}
+
+func (p *Plugin) GetMaxSizeForCompleteDownload() int {
+	return p.getConfiguration().MaxSizeForCompleteDownload
+}
+
+func (p *Plugin) GetBufferSizeForStreaming() int {
+	return p.getConfiguration().BufferSizeForFileStreaming
 }
 
 func (p *Plugin) GetBotUserID() string {
@@ -145,6 +160,19 @@ func (p *Plugin) connectTeamsAppClient() error {
 }
 
 func (p *Plugin) start(syncSince *time.Time) {
+	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
+
+	if enableMetrics != nil && *enableMetrics {
+		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
+			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		})
+
+		// run metrics server to expose data
+		p.runMetricsServer()
+		// run metrics updater recurring task
+		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
+	}
+
 	p.activityHandler.Start()
 
 	err := p.connectTeamsAppClient()
@@ -227,6 +255,11 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 func (p *Plugin) stop() {
 	if p.monitor != nil {
 		p.monitor.Stop()
+	}
+	if p.metricsServer != nil {
+		if err := p.metricsServer.Shutdown(); err != nil {
+			p.API.LogWarn("Error shutting down metrics server", "error", err)
+		}
 	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
@@ -411,25 +444,33 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
-		if isUserPresent && isRemoteUser(mmUser) {
-			if msUser.IsAccountEnabled {
-				// Activate the deactived Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt != 0 {
-					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
-					}
+		if isUserPresent {
+			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
+				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
+					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 				}
-			} else {
-				// Deactivate the active Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt == 0 {
-					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
-					}
-				}
+			}
 
-				continue
+			if isRemoteUser(mmUser) {
+				if msUser.IsAccountEnabled {
+					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
+					if mmUser.DeleteAt != 0 {
+						p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
+							p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+						}
+					}
+				} else {
+					// Deactivate the active Mattermost user corresponding to the MS Teams user.
+					if mmUser.DeleteAt == 0 {
+						p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+							p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+						}
+					}
+
+					continue
+				}
 			}
 		}
 
@@ -563,4 +604,33 @@ func getRandomString(characterSet string, length int) string {
 
 func isRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+}
+
+func (p *Plugin) runMetricsServer() {
+	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
+
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.metricsService)
+
+	// Run server to expose metrics
+	go func() {
+		err := p.metricsServer.Run()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			p.API.LogError("Metrics server could not be started", "error", err)
+		}
+	}()
+}
+
+func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {
+	metricsUpdater := func() {
+		stats, err := store.GetStats()
+		if err != nil {
+			p.API.LogError("failed to update computed metrics", "error", err)
+		}
+		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
+		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
+		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
+	}
+
+	metricsUpdater()
+	model.CreateRecurringTask("metricsUpdater", metricsUpdater, updateMetricsTaskFrequency)
 }

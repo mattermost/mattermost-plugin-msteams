@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +21,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -451,7 +451,6 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 
 	msteamsAttachments := []models.ChatMessageAttachmentable{}
 	if parentMessage != nil && parentMessage.ID != "" {
-		parentMessage.Text = markdown.ConvertToMD(parentMessage.Text)
 		contentType := "messageReference"
 		contentData, err := json.Marshal(ChatMessageAttachment{
 			MessageID:      parentMessage.ID,
@@ -1268,10 +1267,10 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 	return &user, nil
 }
 
-func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, error) {
+func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, error) {
 	u, err := url.Parse(weburl)
 	if err != nil {
-		return nil, err
+		return 0, "", err
 	}
 	u.RawQuery = ""
 	segments := strings.Split(u.Path, "/")
@@ -1289,12 +1288,12 @@ func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]by
 		}
 	}
 	if site == nil {
-		return nil, fmt.Errorf("site for %s not found", weburl)
+		return 0, "", fmt.Errorf("site for %s not found", weburl)
 	}
 
 	msDrives, err := tc.client.Sites().BySiteId(*site.GetId()).Drives().Get(tc.ctx, nil)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return 0, "", NormalizeGraphAPIError(err)
 	}
 	var itemRequest *drives.ItemItemsDriveItemItemRequestBuilder
 	var driveID string
@@ -1312,28 +1311,68 @@ func (tc *ClientImpl) GetFileContent(weburl string, fileSizeAllowed int64) ([]by
 	}
 
 	if itemRequest == nil {
-		return nil, nil
+		return 0, "", nil
 	}
 
 	item, err := itemRequest.Get(tc.ctx, nil)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return 0, "", NormalizeGraphAPIError(err)
 	}
 	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 	if !ok {
-		return nil, errors.New("downloadUrl not found")
+		return 0, "", errors.New("downloadUrl not found")
 	}
 
 	fileSize := item.GetSize()
-	if fileSize != nil && *fileSize > fileSizeAllowed {
-		return nil, fmt.Errorf("skipping file download from MS Teams because the file size is greater than the allowed size")
+	if fileSize == nil {
+		return 0, *(downloadURL.(*string)), nil
 	}
 
-	data, err := drives.NewItemItemsItemContentRequestBuilder(*(downloadURL.(*string)), tc.client.RequestAdapter).Get(tc.ctx, nil)
+	return *fileSize, *(downloadURL.(*string)), nil
+}
+
+func (tc *ClientImpl) GetFileContent(downloadURL string) ([]byte, error) {
+	data, err := drives.NewItemItemsItemContentRequestBuilder(downloadURL, tc.client.RequestAdapter).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return data, nil
+}
+
+func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
+	rangeStart := int64(0)
+	// Get only limited amount of data from the API call in one iteration
+	rangeIncrement := bufferSize
+	for {
+		req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
+		if err != nil {
+			tc.logError("unable to create new request", "error", err.Error())
+			return
+		}
+
+		contentRange := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeStart+rangeIncrement-1)
+		req.Header.Add("Range", contentRange)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			tc.logError("unable to send request for getting file content", "error", err.Error())
+			return
+		}
+
+		if _, err = io.Copy(writer, res.Body); err != nil {
+			tc.logError("unable to copy response body to the writer", "error", err.Error())
+			return
+		}
+
+		res.Body.Close()
+		contentLengthHeader := res.Header.Get("Content-Length")
+		contentLength, err := strconv.ParseInt(contentLengthHeader, 10, 64)
+		if (err == nil && contentLength < rangeIncrement) || res.StatusCode != http.StatusPartialContent {
+			writer.Close()
+			break
+		}
+
+		rangeStart += rangeIncrement
+	}
 }
 
 func (tc *ClientImpl) GetHostedFileContent(activityIDs *ActivityIds) (contentData []byte, err error) {

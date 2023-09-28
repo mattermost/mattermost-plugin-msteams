@@ -33,6 +33,8 @@ type configuration struct {
 	AllowSkipConnectUsers      bool   `json:"allowskipconnectusers"`
 	CertificatePublic          string `json:"certificatepublic"`
 	CertificateKey             string `json:"certificatekey"`
+	MaxSizeForCompleteDownload int    `json:"maxSizeForCompleteDownload"`
+	BufferSizeForFileStreaming int    `json:"bufferSizeForFileStreaming"`
 	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
 }
 

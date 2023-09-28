@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -22,8 +24,8 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
 	lastReceivedChangeKey = "last_received_change"
-	numberOfWorkers       = 20
-	activityQueueSize     = 1000
+	numberOfWorkers       = 50
+	activityQueueSize     = 5000
 	msteamsUserTypeGuest  = "Guest"
 )
 
@@ -32,6 +34,8 @@ type PluginIface interface {
 	GetStore() store.Store
 	GetSyncDirectMessages() bool
 	GetSyncGuestUsers() bool
+	GetMaxSizeForCompleteDownload() int
+	GetBufferSizeForStreaming() int
 	GetBotUserID() string
 	GetURL() string
 	GetClientForApp() msteams.Client
@@ -41,9 +45,10 @@ type PluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin PluginIface
-	queue  chan msteams.Activity
-	quit   chan bool
+	plugin               PluginIface
+	queue                chan msteams.Activity
+	quit                 chan bool
+	IgnorePluginHooksMap sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -188,6 +193,14 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *msteams.Message, activityI
 		return
 	}
 
+	// Avoid possible duplication
+	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo != nil {
+		ah.plugin.GetAPI().LogDebug("duplicate post")
+		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
+		return
+	}
+
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
@@ -247,19 +260,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *msteams.Message, activityI
 		return
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
+	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	// Avoid possible duplication
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
-	}
-
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
 		return
@@ -358,10 +362,12 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *msteams.Message, activityI
 		return
 	}
 
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat)
+	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
@@ -431,6 +437,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
+			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
 			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,
@@ -438,6 +445,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				EmojiName: emojiName,
 			})
 			if appErr != nil {
+				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}

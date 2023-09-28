@@ -210,13 +210,13 @@ func (_m *Client) GetCodeSnippet(url string) (string, error) {
 	return r0, r1
 }
 
-// GetFileContent provides a mock function with given fields: weburl, fileSizeAllowed
-func (_m *Client) GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, error) {
-	ret := _m.Called(weburl, fileSizeAllowed)
+// GetFileContent provides a mock function with given fields: downloadURL
+func (_m *Client) GetFileContent(downloadURL string) ([]byte, error) {
+	ret := _m.Called(downloadURL)
 
 	var r0 []byte
-	if rf, ok := ret.Get(0).(func(string, int64) []byte); ok {
-		r0 = rf(weburl, fileSizeAllowed)
+	if rf, ok := ret.Get(0).(func(string) []byte); ok {
+		r0 = rf(downloadURL)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
@@ -224,13 +224,46 @@ func (_m *Client) GetFileContent(weburl string, fileSizeAllowed int64) ([]byte, 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, int64) error); ok {
-		r1 = rf(weburl, fileSizeAllowed)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(downloadURL)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+
+// GetFileContentStream provides a mock function with given fields: downloadURL, writer, bufferSize
+func (_m *Client) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
+	_m.Called(downloadURL, writer, bufferSize)
+}
+
+// GetFileSizeAndDownloadURL provides a mock function with given fields: weburl
+func (_m *Client) GetFileSizeAndDownloadURL(weburl string) (int64, string, error) {
+	ret := _m.Called(weburl)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(string) int64); ok {
+		r0 = rf(weburl)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 string
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(weburl)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(weburl)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetHostedFileContent provides a mock function with given fields: activityIDs

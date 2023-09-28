@@ -37,6 +37,11 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	api := &API{p: p, router: router, store: store}
 
+	if p.metricsService != nil {
+		// set error counter middleware handler
+		router.Use(api.metricsMiddleware)
+	}
+
 	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
 	router.HandleFunc("/changes", api.processActivity).Methods("POST")
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
