@@ -27,9 +27,9 @@ type Activities struct {
 	Value []msteams.Activity
 }
 
-const ( 
+const (
 	DefaultPage = 0
-	MaxPerPage = 100
+	MaxPerPage  = 100
 )
 
 func NewAPI(p *Plugin, store store.Store) *API {
