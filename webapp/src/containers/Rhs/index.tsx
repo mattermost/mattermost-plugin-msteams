@@ -34,6 +34,7 @@ const Rhs = (): JSX.Element => {
     const [primaryActionText, setPrimaryActionText] = useState('');
     const [unlinkChannelParams, setUnlinkChannelParams] = useState<UnlinkChannelParams | null>(null);
     const [searchLinkedChannelsText, setSearchLinkedChannelsText] = useState('');
+    const [firstRender, setFirstRender] = useState(true);
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
@@ -57,12 +58,22 @@ const Rhs = (): JSX.Element => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName, {channelId: unlinkChannelParams?.channelId ?? ''});
     };
 
-    const handleSearchLinkedChannelsTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchLinkedChannelsText(e.target.value);
-        setTimeout(() => {
+    useEffect(() => {
+        setFirstRender(false);
+    }, []);
+
+    useEffect(() => {
+        if (firstRender) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
             resetStates();
         }, Constants.DebounceFunctionTimeLimit);
-    };
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [searchLinkedChannelsText]);
 
     useEffect(() => {
         const linkedChannelsParams: SearchLinkedChannelParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
@@ -194,7 +205,7 @@ const Rhs = (): JSX.Element => {
                         label='Search'
                         fullWidth={true}
                         value={searchLinkedChannelsText}
-                        onChange={handleSearchLinkedChannelsTextChange}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchLinkedChannelsText(e.target.value)}
                         onClose={() => setSearchLinkedChannelsText('')}
                     />
                     {linkedChannelsLoading && !paginationQueryParams.page && <Spinner className='rhs-body__spinner'/>}
@@ -284,7 +295,7 @@ const Rhs = (): JSX.Element => {
                         <div className='no-link'>
                             {SVGIcons.globeIcon}
                             <div className='no-link__title'>{'There are no linked channels'}</div>
-                            {connected && (
+                            {!connected && (
                                 <button
                                     className='btn btn-primary'
 
@@ -292,14 +303,14 @@ const Rhs = (): JSX.Element => {
                                     // eslint-disable-next-line no-alert
                                     onClick={() => alert('open modal!!!!!!!!!')}
                                 >
-                                    {'Link New Channel'}
+                                    {'Link Channel'}
                                 </button>
                             )}
                         </div>
                     )}
                 </div>
             </div>
-            {connected && Boolean(totalLinkedChannels.length) && (
+            {connected && (
                 <div className='rhs-footer'>
                     <div className='rhs-footer__link-btn'>
                         <button
