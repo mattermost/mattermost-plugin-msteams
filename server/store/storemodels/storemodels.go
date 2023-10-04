@@ -41,7 +41,7 @@ type ChannelSubscription struct {
 	Secret         string
 }
 
-type ConnectedUsers struct {
+type ConnectedUser struct {
 	MattermostUserID string
 	TeamsUserID      string
 	FirstName        string

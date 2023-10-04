@@ -1148,7 +1148,7 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert.Nil(err)
 
 	resp, getErr := store.GetConnectedUsers(0, 100)
-	expectedResp := []*storemodels.ConnectedUsers{
+	expectedResp := []*storemodels.ConnectedUser{
 		{
 			MattermostUserID: testutils.GetID() + "1",
 			TeamsUserID:      testutils.GetTeamsUserID() + "1",

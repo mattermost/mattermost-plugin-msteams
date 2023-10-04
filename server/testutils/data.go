@@ -133,10 +133,10 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 	return links
 }
 
-func GetConnectedUsers(count int) []*storemodels.ConnectedUsers {
-	var connectedUsers []*storemodels.ConnectedUsers
+func GetConnectedUsers(count int) []*storemodels.ConnectedUser {
+	var connectedUsers []*storemodels.ConnectedUser
 	for i := 0; i < count; i++ {
-		connectedUsers = append(connectedUsers, &storemodels.ConnectedUsers{
+		connectedUsers = append(connectedUsers, &storemodels.ConnectedUser{
 			MattermostUserID: GetUserID(),
 			TeamsUserID:      GetTeamsUserID(),
 		})

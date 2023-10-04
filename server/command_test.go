@@ -1128,13 +1128,6 @@ func TestGetAutocompleteData(t *testing.T) {
 						},
 						SubCommands: []*model.AutocompleteData{},
 					},
-					{
-						Trigger:     "show-connected-users",
-						HelpText:    "Show connected users",
-						RoleID:      model.SystemAdminRoleId,
-						Arguments:   []*model.AutocompleteArg{},
-						SubCommands: []*model.AutocompleteData{},
-					},
 				},
 			},
 		},

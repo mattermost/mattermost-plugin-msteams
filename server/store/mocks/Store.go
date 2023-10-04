@@ -202,15 +202,15 @@ func (_m *Store) GetChatSubscription(subscriptionID string) (*storemodels.ChatSu
 }
 
 // GetConnectedUsers provides a mock function with given fields: page, perPage
-func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.ConnectedUsers, error) {
+func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.ConnectedUser, error) {
 	ret := _m.Called(page, perPage)
 
-	var r0 []*storemodels.ConnectedUsers
-	if rf, ok := ret.Get(0).(func(int, int) []*storemodels.ConnectedUsers); ok {
+	var r0 []*storemodels.ConnectedUser
+	if rf, ok := ret.Get(0).(func(int, int) []*storemodels.ConnectedUser); ok {
 		r0 = rf(page, perPage)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*storemodels.ConnectedUsers)
+			r0 = ret.Get(0).([]*storemodels.ConnectedUser)
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -50,6 +51,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
+	router.HandleFunc("/connected-users-file", api.getConnectedUsersFile).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -410,16 +412,55 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, appErr := a.p.API.GetUser(userID)
-	if appErr != nil {
-		a.p.API.LogError("Not able to get the Mattermost user", "UserID", userID, "Error", appErr.Message)
-		http.Error(w, "something went wrong", http.StatusInternalServerError)
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
 
-	if !strings.Contains(user.Roles, model.SystemAdminRoleId) {
+	connectedUsersList, err := a.p.getConnectedUsersList()
+	if err != nil {
+		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(connectedUsersList)
+	if err != nil {
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		a.p.API.LogError("Error while writing response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
 		a.p.API.LogError("Insufficient permissions", "UserID", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	connectedUsersList, err := a.p.getConnectedUsersList()
+	if err != nil {
+		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
 		return
 	}
 
@@ -431,33 +472,12 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := DefaultPage
-	perPage := MaxPerPage
-	for {
-		connectedUsers, err := a.p.store.GetConnectedUsers(page, perPage)
-		if err != nil {
-			a.p.API.LogError("Unable to get list of connected users", "Error", err.Error())
-			http.Error(w, "unable to get the list of connected users", http.StatusInternalServerError)
+	for _, connectedUser := range connectedUsersList {
+		if err := csvWriter.Write([]string{connectedUser.FirstName, connectedUser.LastName, connectedUser.Email, connectedUser.MattermostUserID, connectedUser.TeamsUserID}); err != nil {
+			a.p.API.LogError("Unable to write data in CSV file", "Error", err.Error())
+			http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
 			return
 		}
-
-		if len(connectedUsers) == 0 {
-			break
-		}
-
-		for _, connectedUser := range connectedUsers {
-			if err := csvWriter.Write([]string{connectedUser.FirstName, connectedUser.LastName, connectedUser.Email, connectedUser.MattermostUserID, connectedUser.TeamsUserID}); err != nil {
-				a.p.API.LogError("Unable to write data in CSV file", "Error", err.Error())
-				http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		if len(connectedUsers) < perPage {
-			break
-		}
-
-		page++
 	}
 
 	csvWriter.Flush()
@@ -473,4 +493,25 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		a.p.API.LogError("Unable to write the data", "Error", err.Error())
 		http.Error(w, "unable to write the data", http.StatusInternalServerError)
 	}
+}
+
+func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
+	page := DefaultPage
+	perPage := MaxPerPage
+	var connectedUserList []*storemodels.ConnectedUser
+	for {
+		connectedUsers, err := p.store.GetConnectedUsers(page, perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		connectedUserList = append(connectedUserList, connectedUsers...)
+		if len(connectedUsers) < perPage {
+			break
+		}
+
+		page++
+	}
+
+	return connectedUserList, nil
 }

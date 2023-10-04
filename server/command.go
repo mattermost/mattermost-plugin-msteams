@@ -87,10 +87,6 @@ func getAutocompleteData() *model.AutocompleteData {
 	promoteUser.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(promoteUser)
 
-	connectedUsers := model.NewAutocompleteData("show-connected-users", "", "Show connected users")
-	connectedUsers.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(connectedUsers)
-
 	return cmd
 }
 
