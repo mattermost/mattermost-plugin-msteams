@@ -91,7 +91,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *msteams.Message, chat *msteams.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -127,6 +127,10 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		// handle a message reference (reply)
 		if a.ContentType == "messageReference" {
 			parentID, newText = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
+			continue
+		}
+
+		if isUpdatedActivity {
 			continue
 		}
 

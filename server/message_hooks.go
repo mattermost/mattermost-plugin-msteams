@@ -62,7 +62,13 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 }
 
-func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reaction) {
+func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+	updateRequired := true
+	if c.RequestId == "" {
+		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
+		updateRequired = !ignoreHookForReaction
+	}
+
 	p.API.LogDebug("Reaction added hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
@@ -77,7 +83,7 @@ func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reactio
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName)
+			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
 			}
@@ -91,15 +97,15 @@ func (p *Plugin) ReactionHasBeenAdded(_ *plugin.Context, reaction *model.Reactio
 		return
 	}
 
-	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName); err != nil {
+	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName, updateRequired); err != nil {
 		p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
 	}
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
 	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
-	if reaction.ChannelId == "removefromplugin" {
-		p.API.LogError("Ignore reaction that has been triggered from the plugin handler")
+	if reaction.ChannelId == "removedfromplugin" {
+		p.API.LogInfo("Ignore reaction that has been triggered from the plugin handler")
 		return
 	}
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
@@ -135,7 +141,13 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	}
 }
 
-func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *model.Post) {
+func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
+	updateRequired := true
+	if c.RequestId == "" {
+		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+		updateRequired = !ignoreHook
+	}
+
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
 		return
@@ -174,20 +186,20 @@ func (p *Plugin) MessageHasBeenUpdated(_ *plugin.Context, newPost, oldPost *mode
 		if err != nil {
 			return
 		}
-		err = p.UpdateChat(chat.ID, user, newPost, oldPost)
+		err = p.UpdateChat(chat.ID, user, newPost, oldPost, updateRequired)
 		if err != nil {
 			p.API.LogError("Unable to handle message update", "error", err.Error())
 		}
 		return
 	}
 
-	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost)
+	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost, updateRequired)
 	if err != nil {
 		p.API.LogError("Unable to handle message update", "error", err.Error())
 	}
 }
 
-func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
+func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
 	p.API.LogDebug("Setting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
 
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
@@ -207,9 +219,11 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 		return err
 	}
 
-	if err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
-		p.API.LogError("Error creating post reaction", "error", err.Error())
-		return err
+	if updateRequired {
+		if err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+			p.API.LogError("Error creating post reaction", "error", err.Error())
+			return err
+		}
 	}
 
 	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
@@ -225,7 +239,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID string, emoj
 	return nil
 }
 
-func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post, emojiName string) error {
+func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post, emojiName string, updateRequired bool) error {
 	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "PostID", post.Id, "emojiName", emojiName)
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
@@ -250,10 +264,12 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		return err
 	}
 
-	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	if err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
-		p.API.LogError("Error setting reaction", "error", err.Error())
-		return err
+	if updateRequired {
+		teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
+		if err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+			p.API.LogError("Error setting reaction", "error", err.Error())
+			return err
+		}
 	}
 
 	var teamsMessage *msteams.Message
@@ -604,7 +620,7 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 	return nil
 }
 
-func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post) error {
+func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
 	p.API.LogDebug("Updating message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "OldPostID", oldPost.Id, "NewPostID", newPost.Id)
 
 	parentID := ""
@@ -636,19 +652,19 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	// TODO: Add the logic of processing the attachments and uploading new files to Teams
-	// once Mattermost comes up with the feature of editing attachments
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(emoji.Parse(text)))
-
-	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
-
-	if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
-		p.API.LogWarn("Error updating the post on MS Teams", "error", err)
-		// If the error is regarding payment required for metered APIs, ignore it and continue because
-		// the post is updated regardless
-		if !strings.Contains(err.Error(), "code: PaymentRequired") {
-			return err
+	if updateRequired {
+		// TODO: Add the logic of processing the attachments and uploading new files to Teams
+		// once Mattermost comes up with the feature of editing attachments
+		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
+		content := md.RenderToString([]byte(emoji.Parse(text)))
+		content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
+		if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
+			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
+			// If the error is regarding payment required for metered APIs, ignore it and continue because
+			// the post is updated regardless
+			if !strings.Contains(err.Error(), "code: PaymentRequired") {
+				return err
+			}
 		}
 	}
 
@@ -670,7 +686,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	return nil
 }
 
-func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post) error {
+func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
 	p.API.LogDebug("Updating direct message to MS Teams", "ChatID", chatID, "OldPostID", oldPost.Id, "NewPostID", newPost.Id)
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
@@ -691,17 +707,17 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		return err
 	}
 
-	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
-	content := md.RenderToString([]byte(emoji.Parse(text)))
-
-	content, mentions := p.getMentionsData(content, "", "", chatID, client)
-
-	if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
-		p.API.LogWarn("Error updating the post on MS Teams", "error", err)
-		// If the error is regarding payment required for metered APIs, ignore it and continue because
-		// the post is updated regardless
-		if !strings.Contains(err.Error(), "code: PaymentRequired") {
-			return err
+	if updateRequired {
+		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
+		content := md.RenderToString([]byte(emoji.Parse(text)))
+		content, mentions := p.getMentionsData(content, "", "", chatID, client)
+		if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
+			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
+			// If the error is regarding payment required for metered APIs, ignore it and continue because
+			// the post is updated regardless
+			if !strings.Contains(err.Error(), "code: PaymentRequired") {
+				return err
+			}
 		}
 	}
 
