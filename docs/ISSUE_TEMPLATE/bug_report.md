@@ -3,7 +3,7 @@ name: Bug report
 about: Create an issue to report the bug
 title: 'Bug: '
 labels: Bug, Triage
-assignees: @username
+assignees: '@username'
 
 ---
 
