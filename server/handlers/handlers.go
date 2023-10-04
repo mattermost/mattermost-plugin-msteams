@@ -1,3 +1,5 @@
+//go:generate mockery --name=PluginIface
+
 package handlers
 
 import (
