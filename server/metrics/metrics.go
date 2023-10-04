@@ -95,7 +95,7 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	m.processedChangeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
-		Name:        "discared_change_event_total",
+		Name:        "processed_change_event_total",
 		Help:        "The total number of MS Teams change events processed.",
 		ConstLabels: additionalLabels,
 	}, []string{"change_type", "discarded_reason"})
@@ -107,7 +107,7 @@ func NewMetrics(info InstanceInfo) *Metrics {
 		Name:        "lifecycle_event_total",
 		Help:        "The total number of MS Teams lifecycle events received.",
 		ConstLabels: additionalLabels,
-	}, []string{"lifecycle_event_type"})
+	}, []string{"event_type"})
 	m.registry.MustRegister(m.lifecycleEventTotal)
 
 	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -166,7 +166,7 @@ func (m *Metrics) ObserveProcessedChangeEventTotal(changeType string, discardedR
 
 func (m *Metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	if m != nil {
-		m.lifecycleEventTotal.With(prometheus.Labels{"lifecycle_event_type": lifecycleEventType}).Inc()
+		m.lifecycleEventTotal.With(prometheus.Labels{"event_type": lifecycleEventType}).Inc()
 	}
 }
 
