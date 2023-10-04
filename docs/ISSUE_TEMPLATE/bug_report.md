@@ -1,9 +1,9 @@
 ---
 name: Bug report
-about: Create an to report bug
+about: Create an issue to report the bug
 title: 'Bug: '
 labels: Bug, Triage
-assignees: ''
+assignees: @username
 
 ---
 
@@ -26,7 +26,7 @@ A clear and concise description of what actually happened.
 
 If applicable, add screenshots or a screen recording to elaborate on the problem.
 
-## Mattermost Version and Platform
+## Mattermost Version and other Platforms
 
  - Mattermost Version: [e.g. v7.8.10]
  - Browser and OS: [e.g. Chrome on Mac, Edge on Windows]
