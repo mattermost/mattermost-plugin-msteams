@@ -34,6 +34,10 @@ If applicable, add screenshots or a screen recording to elaborate on the problem
 ## Additional context (optional)
 
 Add any other context about the problem here, and any notes about the severity:
-* Sev 1: Affects critical functionality without a workaround
-* Sev 2: Affects major functionality with a difficult or non-obvious workaround
-* Sev 3: Affects minor, non-critical functionality
+- Timestamp during which the issue occurred.
+- Mattermost username or user ID
+- MS Teams username or user ID
+- Platform from where the message originated
+- Sev 1: Affects critical functionality without a workaround
+- Sev 2: Affects major functionality with a difficult or non-obvious workaround
+- Sev 3: Affects minor, non-critical functionality
