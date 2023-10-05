@@ -14,7 +14,7 @@ const GetConnectedUsersSetting = ({label}: Props) => {
                 {'Download a report of all Mattermost users connected to MS Teams'}
             </p>
             <a
-                href='/plugins/com.mattermost.msteams-sync/connected-users-file'
+                href='/plugins/com.mattermost.msteams-sync/connected-users/download'
                 className='btn btn-primary'
                 rel='noreferrer'
                 target='_self'

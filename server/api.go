@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -29,8 +30,10 @@ type Activities struct {
 }
 
 const (
-	DefaultPage = 0
-	MaxPerPage  = 100
+	DefaultPage       = 0
+	MaxPerPage        = 100
+	QueryParamPage    = "page"
+	QueryParamPerPage = "per_page"
 )
 
 func NewAPI(p *Plugin, store store.Store) *API {
@@ -51,7 +54,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
-	router.HandleFunc("/connected-users-file", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -418,7 +421,8 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connectedUsersList, err := a.p.getConnectedUsersList()
+	page, perPage := GetPageAndPerPage(r)
+	connectedUsersList, err := a.p.store.GetConnectedUsers(page, perPage)
 	if err != nil {
 		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
 		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
@@ -514,4 +518,22 @@ func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	}
 
 	return connectedUserList, nil
+}
+
+func GetPageAndPerPage(r *http.Request) (page, perPage int) {
+	query := r.URL.Query()
+	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
+		page = DefaultPage
+	} else {
+		page = val
+	}
+
+	val, err := strconv.Atoi(query.Get(QueryParamPerPage))
+	if err != nil || val < 0 || val > MaxPerPage {
+		perPage = MaxPerPage
+	} else {
+		perPage = val
+	}
+
+	return page, perPage
 }

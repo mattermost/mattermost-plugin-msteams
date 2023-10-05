@@ -989,7 +989,7 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connected-users-file", nil)
+			r := httptest.NewRequest(http.MethodGet, "/connected-users/download", nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 
