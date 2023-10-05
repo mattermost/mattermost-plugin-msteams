@@ -34,7 +34,6 @@ type pluginMock struct {
 	appClient                  msteams.Client
 	userClient                 msteams.Client
 	teamsUserClient            msteams.Client
-	metrics                    *metrics.Metrics
 }
 
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
