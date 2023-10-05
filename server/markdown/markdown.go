@@ -6,7 +6,7 @@ import (
 	"github.com/mattn/godown"
 )
 
-var stringsToCheckHTML = []string{
+var stringsToCheckForHTML = []string{
 	"<div",
 	"<p ",
 	"<p>",
@@ -14,7 +14,7 @@ var stringsToCheckHTML = []string{
 }
 
 func ConvertToMD(text string) string {
-	for _, tag := range stringsToCheckHTML {
+	for _, tag := range stringsToCheckForHTML {
 		if strings.Contains(text, tag) {
 			var sb strings.Builder
 			if err := godown.Convert(&sb, strings.NewReader(text), nil); err != nil {
