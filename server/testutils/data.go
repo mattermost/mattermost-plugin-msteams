@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -156,4 +157,9 @@ func GetPostFromTeamsMessage() *model.Post {
 
 func GetTestEmail() string {
 	return "unknown-user@msteamssync"
+}
+
+func GetMockTime() time.Time {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	return mockTime
 }

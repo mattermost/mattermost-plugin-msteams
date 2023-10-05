@@ -230,7 +230,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		teamsMessage, err = client.GetChatMessage(chatID, teamsMessageID)
 		if err != nil {
 			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-			return nil
+			return err
 		}
 	}
 
@@ -275,14 +275,10 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 			return err
 		}
 	} else {
-		if parentID != "" {
-			teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
-		} else {
-			teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
-		}
+		teamsMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
 		if err != nil {
 			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-			return nil
+			return err
 		}
 	}
 
@@ -657,14 +653,10 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 			}
 		}
 	} else {
-		if parentID != "" {
-			updatedMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
-		} else {
-			updatedMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
-		}
+		updatedMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
 		if err != nil {
 			p.API.LogWarn("Error in getting the message from MS Teams", "error", err)
-			return nil
+			return err
 		}
 	}
 
@@ -859,4 +851,12 @@ func getFileNameAndExtension(path string) (string, string) {
 	fileExtension := filepath.Ext(path)
 	fileName := strings.TrimSuffix(path, fileExtension)
 	return fileName, fileExtension
+}
+
+func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*msteams.Message, error) {
+	if parentID != "" {
+		return client.GetReply(teamID, channelID, parentID, msteamsID)
+	}
+
+	return client.GetMessage(teamID, channelID, msteamsID)
 }

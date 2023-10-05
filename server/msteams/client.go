@@ -1785,9 +1785,7 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	return &Message{
-		LastUpdateAt: *resp.GetLastModifiedDateTime(),
-	}, nil
+	return &Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
 }
 
 func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {
