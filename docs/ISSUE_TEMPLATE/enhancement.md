@@ -9,7 +9,7 @@ assignees: ''
 
 ## Summary
 
-What the new feature is.
+Describe the new feature.
 
 ## How important this is to me and why
 
