@@ -18,6 +18,8 @@ import (
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
+	msteamsCreateAtTime := time.Now()
+	mmCreateAtTime := msteamsCreateAtTime.UnixNano() / int64(time.Millisecond)
 	for _, testCase := range []struct {
 		description string
 		activityIds msteams.ActivityIds
@@ -126,6 +128,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -164,6 +167,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -204,6 +208,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
@@ -246,6 +251,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
@@ -293,6 +299,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
@@ -302,7 +309,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
 				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 				mockAPI.On("LogDebug", "Post generated").Times(1)
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(nil, testutils.GetInternalServerAppError("unable to create the post")).Times(1)
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(nil, testutils.GetInternalServerAppError("unable to create the post")).Times(1)
 				mockAPI.On("LogError", "Unable to create post", "Error", mock.Anything).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
@@ -342,6 +349,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
@@ -351,7 +359,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
 				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 				mockAPI.On("LogDebug", "Post generated").Times(1)
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
 				mockAPI.On("LogDebug", "Post created").Times(1)
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
 				mockAPI.On("LogWarn", "Error updating the MSTeams/Mattermost post link metadata", "error", mock.Anything).Times(1)
@@ -398,6 +406,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&msteams.User{ID: "mockUserID-1"}, nil).Once()
@@ -407,7 +416,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
 				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 				mockAPI.On("LogDebug", "Post generated").Times(1)
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
 				mockAPI.On("LogDebug", "Post created").Times(1)
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
 			},
@@ -445,13 +454,14 @@ func TestHandleCreatedActivity(t *testing.T) {
 					ChannelID:       testutils.GetChannelID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&msteams.User{ID: testutils.GetSenderID()}, nil).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
 				mockAPI.On("LogDebug", "Post generated").Times(1)
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID()), nil).Times(1)
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
 				mockAPI.On("LogDebug", "Post created").Times(1)
 				mockAPI.On("KVSet", lastReceivedChangeKey, mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
 			},
@@ -774,7 +784,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID()), nil).Times(1)
+				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
 				mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
 				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
@@ -817,7 +827,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID()), nil).Times(1)
+				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
 				mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 				mockAPI.On("LogError", "Message reactions", "reactions", mock.Anything, "error", mock.Anything).Times(1)
 				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
