@@ -150,6 +150,7 @@ type Message struct {
 	ChannelID       string
 	TeamID          string
 	ChatID          string
+	CreateAt        time.Time
 	LastUpdateAt    time.Time
 }
 
@@ -1061,6 +1062,11 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		subject = *msg.GetSubject()
 	}
 
+	createAt := time.Now()
+	if msg.GetCreatedDateTime() != nil {
+		createAt = *msg.GetCreatedDateTime()
+	}
+
 	lastUpdateAt := time.Now()
 	if msg.GetLastModifiedDateTime() != nil {
 		lastUpdateAt = *msg.GetLastModifiedDateTime()
@@ -1135,6 +1141,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		ChannelID:       channelID,
 		ChatID:          chatID,
 		Reactions:       reactions,
+		CreateAt:        createAt,
 		LastUpdateAt:    lastUpdateAt,
 	}
 }

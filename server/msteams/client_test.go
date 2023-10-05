@@ -76,6 +76,7 @@ func TestConvertToMessage(t *testing.T) {
 				message.SetReplyToId(&teamsReplyID)
 				message.SetBody(body)
 				message.SetSubject(&subject)
+				message.SetCreatedDateTime(&time.Time{})
 				message.SetLastModifiedDateTime(&time.Time{})
 				message.SetAttachments([]models.ChatMessageAttachmentable{attachment})
 				message.SetReactions([]models.ChatMessageReactionable{reaction})
@@ -88,6 +89,7 @@ func TestConvertToMessage(t *testing.T) {
 				ReplyToID:       teamsReplyID,
 				Text:            content,
 				Subject:         subject,
+				CreateAt:        time.Time{},
 				LastUpdateAt:    time.Time{},
 				Attachments: []Attachment{
 					{
@@ -119,6 +121,7 @@ func TestConvertToMessage(t *testing.T) {
 			Name: "ConvertToMessage: With no data filled",
 			ChatMessage: func() models.ChatMessageable {
 				message := models.NewChatMessage()
+				message.SetCreatedDateTime(&time.Time{})
 				message.SetLastModifiedDateTime(&time.Time{})
 				return message
 			}(),
@@ -126,6 +129,7 @@ func TestConvertToMessage(t *testing.T) {
 				Attachments:  []Attachment{},
 				Reactions:    []Reaction{},
 				Mentions:     []Mention{},
+				CreateAt:     time.Time{},
 				LastUpdateAt: time.Time{},
 				ChannelID:    testutils.GetChannelID(),
 				TeamID:       "mockTeamsTeamID",
