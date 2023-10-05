@@ -83,6 +83,7 @@ type Store interface {
 	SetJobStatus(jobName string, status bool) error
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*Stats, error)
+	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 }
 
 type SQLStore struct {
@@ -959,6 +960,28 @@ func (s *SQLStore) GetStats() (*Stats, error) {
 		ConnectedUsers: connectedUsers,
 		SyntheticUsers: syntheticUsers,
 	}, nil
+}
+
+func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error) {
+	query := s.getQueryBuilder().Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From("msteamssync_users").LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var connectedUsers []*storemodels.ConnectedUser
+	for rows.Next() {
+		connectedUser := &storemodels.ConnectedUser{}
+		if err := rows.Scan(&connectedUser.MattermostUserID, &connectedUser.TeamsUserID, &connectedUser.FirstName, &connectedUser.LastName, &connectedUser.Email); err != nil {
+			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			continue
+		}
+
+		connectedUsers = append(connectedUsers, connectedUser)
+	}
+
+	return connectedUsers, nil
 }
 
 func hashKey(prefix, hashableKey string) string {
