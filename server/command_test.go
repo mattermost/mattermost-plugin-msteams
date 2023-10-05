@@ -669,7 +669,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Please wait while your request is being processed.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID())).Times(1)
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
