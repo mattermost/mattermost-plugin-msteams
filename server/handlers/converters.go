@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -59,7 +60,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID}
+	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, CreateAt: msg.CreateAt.UnixNano() / int64(time.Millisecond)}
 	if !isUpdatedActivity {
 		post.FileIds = attachments
 	}

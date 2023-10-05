@@ -201,6 +201,29 @@ func (_m *Store) GetChatSubscription(subscriptionID string) (*storemodels.ChatSu
 	return r0, r1
 }
 
+// GetConnectedUsers provides a mock function with given fields: page, perPage
+func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.ConnectedUser, error) {
+	ret := _m.Called(page, perPage)
+
+	var r0 []*storemodels.ConnectedUser
+	if rf, ok := ret.Get(0).(func(int, int) []*storemodels.ConnectedUser); ok {
+		r0 = rf(page, perPage)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storemodels.ConnectedUser)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(page, perPage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
 func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
 	ret := _m.Called(channelID, userID)

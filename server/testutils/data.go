@@ -63,12 +63,13 @@ func GetMSTeamsChannelID() string {
 	return "qplsnwere9nurernidteoqw"
 }
 
-func GetPost(channelID, userID string) *model.Post {
+func GetPost(channelID, userID string, createAt int64) *model.Post {
 	return &model.Post{
 		Id:        GetID(),
 		FileIds:   model.StringArray{GetID()},
 		ChannelId: channelID,
 		UserId:    userID,
+		CreateAt:  createAt,
 	}
 }
 
@@ -133,6 +134,18 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 	return links
 }
 
+func GetConnectedUsers(count int) []*storemodels.ConnectedUser {
+	var connectedUsers []*storemodels.ConnectedUser
+	for i := 0; i < count; i++ {
+		connectedUsers = append(connectedUsers, &storemodels.ConnectedUser{
+			MattermostUserID: GetUserID(),
+			TeamsUserID:      GetTeamsUserID(),
+		})
+	}
+
+	return connectedUsers
+}
+
 func GetFileInfo() *model.FileInfo {
 	return &model.FileInfo{
 		Id:       GetID(),
@@ -142,11 +155,12 @@ func GetFileInfo() *model.FileInfo {
 	}
 }
 
-func GetPostFromTeamsMessage() *model.Post {
+func GetPostFromTeamsMessage(createAt int64) *model.Post {
 	return &model.Post{
 		UserId:    GetUserID(),
 		ChannelId: GetChannelID(),
 		Message:   "mockText",
+		CreateAt:  createAt,
 		Props: model.StringInterface{
 			"msteams_sync_mock-BotUserID": true,
 		},
