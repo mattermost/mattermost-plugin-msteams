@@ -1,15 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -24,6 +28,13 @@ type API struct {
 type Activities struct {
 	Value []msteams.Activity
 }
+
+const (
+	DefaultPage       = 0
+	MaxPerPage        = 100
+	QueryParamPage    = "page"
+	QueryParamPerPage = "per_page"
+)
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
@@ -42,6 +53,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
+	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -394,4 +407,135 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+}
+
+func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	page, perPage := GetPageAndPerPage(r)
+	connectedUsersList, err := a.p.store.GetConnectedUsers(page, perPage)
+	if err != nil {
+		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(connectedUsersList)
+	if err != nil {
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		a.p.API.LogError("Error while writing response", "Error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	connectedUsersList, err := a.p.getConnectedUsersList()
+	if err != nil {
+		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
+		return
+	}
+
+	b := &bytes.Buffer{}
+	csvWriter := csv.NewWriter(b)
+	if err := csvWriter.Write([]string{"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id"}); err != nil {
+		a.p.API.LogError("Unable to write headers in CSV file", "Error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	for _, connectedUser := range connectedUsersList {
+		if err := csvWriter.Write([]string{connectedUser.FirstName, connectedUser.LastName, connectedUser.Email, connectedUser.MattermostUserID, connectedUser.TeamsUserID}); err != nil {
+			a.p.API.LogError("Unable to write data in CSV file", "Error", err.Error())
+			http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		a.p.API.LogError("Unable to flush the data in writer", "Error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment;filename=connected-users.csv")
+	if _, err := w.Write(b.Bytes()); err != nil {
+		a.p.API.LogError("Unable to write the data", "Error", err.Error())
+		http.Error(w, "unable to write the data", http.StatusInternalServerError)
+	}
+}
+
+func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
+	page := DefaultPage
+	perPage := MaxPerPage
+	var connectedUserList []*storemodels.ConnectedUser
+	for {
+		connectedUsers, err := p.store.GetConnectedUsers(page, perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		connectedUserList = append(connectedUserList, connectedUsers...)
+		if len(connectedUsers) < perPage {
+			break
+		}
+
+		page++
+	}
+
+	return connectedUserList, nil
+}
+
+func GetPageAndPerPage(r *http.Request) (page, perPage int) {
+	query := r.URL.Query()
+	if val, err := strconv.Atoi(query.Get(QueryParamPage)); err != nil || val < 0 {
+		page = DefaultPage
+	} else {
+		page = val
+	}
+
+	val, err := strconv.Atoi(query.Get(QueryParamPerPage))
+	if err != nil || val < 0 || val > MaxPerPage {
+		perPage = MaxPerPage
+	} else {
+		perPage = val
+	}
+
+	return page, perPage
 }

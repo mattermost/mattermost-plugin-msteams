@@ -14,8 +14,8 @@ type Client interface {
 	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
 	SendChat(chatID, message string, parentMessage *Message, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
 	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *Chat) (*Attachment, error)
-	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) error
-	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) error
+	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error)
+	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error)
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error)
@@ -31,10 +31,10 @@ type Client interface {
 	GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error)
 	GetChat(chatID string) (*Chat, error)
 	GetChatMessage(chatID, messageID string) (*Message, error)
-	SetChatReaction(chatID, messageID, userID, emoji string) error
-	SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error
-	UnsetChatReaction(chatID, messageID, userID, emoji string) error
-	UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) error
+	SetChatReaction(chatID, messageID, userID, emoji string) (*Message, error)
+	SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error)
+	UnsetChatReaction(chatID, messageID, userID, emoji string) (*Message, error)
+	UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error)
 	GetMessage(teamID, channelID, messageID string) (*Message, error)
 	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
 	GetUserAvatar(userID string) ([]byte, error)
