@@ -40,3 +40,11 @@ type ChannelSubscription struct {
 	ExpiresOn      time.Time
 	Secret         string
 }
+
+type ConnectedUser struct {
+	MattermostUserID string
+	TeamsUserID      string
+	FirstName        string
+	LastName         string
+	Email            string
+}
