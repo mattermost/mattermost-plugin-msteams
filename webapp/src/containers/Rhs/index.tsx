@@ -70,6 +70,8 @@ const Rhs = (): JSX.Element => {
         const timer = setTimeout(() => {
             resetStates();
         }, Constants.DebounceFunctionTimeLimit);
+
+        /* eslint-disable consistent-return */
         return () => {
             clearTimeout(timer);
         };
