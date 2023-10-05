@@ -325,7 +325,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		ID:        "mockMessageID",
 		TeamID:    "mockTeamsTeamID",
 		ChannelID: "mockTeamsChannelID",
-		ChatID:    testutils.GetChatID(),
 	}
 	mockChatMessage := &msteams.Message{
 		ID:     "ms-teams-id",

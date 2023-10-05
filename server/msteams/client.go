@@ -700,7 +700,7 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
-		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).Replies().ByChatMessageId1(parentID).ToGetRequestInformation(tc.ctx, nil)
+		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).ToGetRequestInformation(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
@@ -762,7 +762,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
-	setReactionRequestItem, err := batchRequest.AddBatchRequestStep(*updateMessageRequest)
+	updateMessageRequestItem, err := batchRequest.AddBatchRequestStep(*updateMessageRequest)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
@@ -771,7 +771,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
 	}
-	getMessageRequestItem.DependsOnItem(setReactionRequestItem)
+	getMessageRequestItem.DependsOnItem(updateMessageRequestItem)
 
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
@@ -1532,7 +1532,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
-		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(messageID).Replies().ByChatMessageId1(parentID).ToGetRequestInformation(tc.ctx, nil)
+		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(messageID).ToGetRequestInformation(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
@@ -1625,7 +1625,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
-		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(messageID).Replies().ByChatMessageId1(parentID).ToGetRequestInformation(tc.ctx, nil)
+		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(messageID).ToGetRequestInformation(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
