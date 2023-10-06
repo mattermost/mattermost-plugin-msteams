@@ -21,6 +21,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -68,7 +69,7 @@ type ClientImpl struct {
 	clientSecret string
 	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
-	logError     func(msg string, keyValuePairs ...any)
+	logService   *pluginapi.LogService
 }
 
 type Subscription struct {
@@ -207,9 +208,16 @@ func NormalizeGraphAPIError(err error) error {
 	switch e := err.(type) {
 	case *odataerrors.ODataError:
 		if terr := e.GetErrorEscaped(); terr != nil {
+			code, message := "", ""
+			if terr.GetCode() != nil {
+				code = *terr.GetCode()
+			}
+			if terr.GetMessage() != nil {
+				message = *terr.GetMessage()
+			}
 			return &GraphAPIError{
-				Code:    *terr.GetCode(),
-				Message: *terr.GetMessage(),
+				Code:    code,
+				Message: message,
 			}
 		}
 	default:
@@ -235,25 +243,25 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logError func(string, ...any)) Client {
+func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
 		ctx:          context.Background(),
 		clientType:   "app",
 		tenantID:     tenantID,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		logError:     logError,
+		logService:   logService,
 	}
 }
 
-func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logError func(string, ...any)) Client {
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		tenantID:   tenantID,
 		clientID:   clientID,
 		token:      token,
-		logError:   logError,
+		logService: logService,
 	}
 
 	conf := &oauth2.Config{
@@ -271,13 +279,13 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 
 	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
 	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
 	if err != nil {
-		logError("Unable to create the client from the token", "error", err)
+		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
@@ -337,6 +345,12 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 	if err != nil {
 		return "", NormalizeGraphAPIError(err)
 	}
+
+	if r.GetId() == nil {
+		tc.logService.Debug("Received nil user ID from MS Graph for current user")
+		return "", errors.New("empty user ID")
+	}
+
 	return *r.GetId(), nil
 }
 
@@ -357,13 +371,21 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 		mail = r.GetUserPrincipalName()
 	}
 
+	if mail == nil || *mail == "" {
+		tc.logService.Debug("User principal name and mail both are empty for current user")
+		return nil, errors.New("empty user mail and principal name")
+	}
+
+	if r.GetId() == nil {
+		tc.logService.Debug("Received nil user ID from MS Graph for current user")
+		return nil, errors.New("empty user ID")
+	}
+
 	displayName := r.GetDisplayName()
 	user := &User{ID: *r.GetId()}
+	user.Mail = strings.ToLower(*mail)
 	if displayName != nil {
 		user.DisplayName = *displayName
-	}
-	if mail != nil {
-		user.Mail = strings.ToLower(*mail)
 	}
 
 	return user, nil
@@ -388,7 +410,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logError("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "Error", err.Error())
 				continue
 			}
 
@@ -456,7 +478,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 		})
 
 		if err != nil {
-			tc.logError("Unable to convert content to JSON", "error", err)
+			tc.logService.Error("Unable to convert content to JSON", "error", err)
 		} else {
 			message = fmt.Sprintf("<attachment id=%q></attachment> %s", parentMessage.ID, message)
 			content := string(contentData)
@@ -479,7 +501,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logError("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "Error", err.Error())
 				continue
 			}
 
@@ -530,15 +552,21 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 			return nil, NormalizeGraphAPIError(err)
 		}
 
-		driveID = *folderInfo.GetParentReference().GetDriveId()
-		itemID = *folderInfo.GetId() + ":/" + filename + ":"
+		if folderInfo.GetParentReference().GetDriveId() != nil {
+			driveID = *folderInfo.GetParentReference().GetDriveId()
+		}
+		if folderInfo.GetId() != nil {
+			itemID = *folderInfo.GetId() + ":/" + filename + ":"
+		}
 	} else {
 		drive, err := tc.client.Me().Drive().Get(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
 
-		driveID = *drive.GetId()
+		if drive.GetId() != nil {
+			driveID = *drive.GetId()
+		}
 		rootDirectory, err := tc.client.Drives().ByDriveId(driveID).Root().Get(tc.ctx, nil)
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
@@ -547,7 +575,11 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		var chatFolder models.DriveItemable
 		var cErr error
 		folderName := "Microsoft Teams Chat Files"
-		itemID = *rootDirectory.GetId() + ":/" + folderName
+		rootDirectoryID := ""
+		if rootDirectory.GetId() != nil {
+			rootDirectoryID = *rootDirectory.GetId()
+			itemID = rootDirectoryID + ":/" + folderName
+		}
 		chatFolder, cErr = tc.client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).Get(tc.ctx, nil)
 		if cErr != nil {
 			err := NormalizeGraphAPIError(cErr)
@@ -565,13 +597,15 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 			}
 
 			folderRequestBody.SetAdditionalData(additionalData)
-			chatFolder, cErr = tc.client.Drives().ByDriveId(driveID).Items().ByDriveItemId(*rootDirectory.GetId()).Children().Post(tc.ctx, folderRequestBody, nil)
+			chatFolder, cErr = tc.client.Drives().ByDriveId(driveID).Items().ByDriveItemId(rootDirectoryID).Children().Post(tc.ctx, folderRequestBody, nil)
 			if cErr != nil {
 				return nil, NormalizeGraphAPIError(cErr)
 			}
 		}
 
-		itemID = *chatFolder.GetId() + ":/" + filename + ":"
+		if chatFolder.GetId() != nil {
+			itemID = *chatFolder.GetId() + ":/" + filename + ":"
+		}
 	}
 
 	uploadSession, err := tc.client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).CreateUploadSession().Post(tc.ctx, nil, nil)
@@ -579,6 +613,9 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	if uploadSession.GetUploadUrl() == nil {
+		return nil, errors.New("unable to upload file as upload URL is empty")
+	}
 	req, err := http.NewRequest("PUT", *uploadSession.GetUploadUrl(), data)
 	if err != nil {
 		return nil, err
@@ -667,13 +704,15 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 		originalMessage, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).Get(tc.ctx, nil)
 	}
 	if err != nil {
-		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
 	}
 
 	if originalMessage != nil {
 		attachments := originalMessage.GetAttachments()
 		for _, a := range attachments {
-			message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+			if a.GetId() != nil {
+				message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+			}
 		}
 		rmsg.SetAttachments(attachments)
 	}
@@ -700,13 +739,15 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 
 	originalMessage, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Get(tc.ctx, nil)
 	if err != nil {
-		tc.logError("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Error in getting original message from Teams", "error", NormalizeGraphAPIError(err))
 	}
 
 	if originalMessage != nil {
 		attachments := originalMessage.GetAttachments()
 		for _, a := range attachments {
-			message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+			if a.GetId() != nil {
+				message = fmt.Sprintf("<attachment id=%q></attachment> %s", *a.GetId(), message)
+			}
 		}
 		rmsg.SetAttachments(attachments)
 	}
@@ -743,8 +784,15 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
-		tc.logError("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
+		tc.logService.Error("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
 		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if res.GetId() == nil {
+		return nil, errors.New("empty subscription ID received from MS Graph while creating subscription")
+	}
+	if res.GetExpirationDateTime() == nil {
+		return nil, errors.New("empty subscription expiration time received from MS Graph while creating subscription")
 	}
 
 	return &Subscription{
@@ -791,7 +839,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logError("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -799,7 +847,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logError("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
@@ -888,10 +936,15 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 	msTeamsGroups := res.GetValue()
 	teams := make([]*Team, len(msTeamsGroups))
 	for idx, group := range msTeamsGroups {
-		teams[idx] = &Team{
-			ID:          *group.GetId(),
-			DisplayName: *group.GetDisplayName(),
+		if group.GetId() == nil {
+			continue
 		}
+
+		team := &Team{ID: *group.GetId()}
+		if group.GetDisplayName() != nil {
+			team.DisplayName = *group.GetDisplayName()
+		}
+		teams[idx] = team
 	}
 
 	return teams, nil
@@ -928,11 +981,16 @@ func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel,
 
 	msTeamsChannels := res.GetValue()
 	channels := make([]*Channel, len(msTeamsChannels))
-	for idx, channel := range msTeamsChannels {
-		channels[idx] = &Channel{
-			ID:          *channel.GetId(),
-			DisplayName: *channel.GetDisplayName(),
+	for idx, teamsChannel := range msTeamsChannels {
+		if teamsChannel.GetId() == nil {
+			continue
 		}
+
+		channel := &Channel{ID: *teamsChannel.GetId()}
+		if teamsChannel.GetDisplayName() != nil {
+			channel.DisplayName = *teamsChannel.GetDisplayName()
+		}
+		channels[idx] = channel
 	}
 
 	return channels, nil
@@ -1156,6 +1214,10 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		userType = *u.GetUserType()
 	}
 
+	if u.GetId() == nil {
+		tc.logService.Debug("Received empty user ID from MS Graph", "UserID", userID)
+		return nil, errors.New("received empty user ID from MS Graph")
+	}
 	user := User{
 		DisplayName: displayName,
 		ID:          *u.GetId(),
@@ -1190,19 +1252,32 @@ func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, e
 		return 0, "", fmt.Errorf("site for %s not found", weburl)
 	}
 
-	msDrives, err := tc.client.Sites().BySiteId(*site.GetId()).Drives().Get(tc.ctx, nil)
+	siteID := ""
+	if site.GetId() != nil {
+		siteID = *site.GetId()
+	}
+	msDrives, err := tc.client.Sites().BySiteId(siteID).Drives().Get(tc.ctx, nil)
 	if err != nil {
 		return 0, "", NormalizeGraphAPIError(err)
 	}
 	var itemRequest *drives.ItemItemsDriveItemItemRequestBuilder
 	var driveID string
 	for _, drive := range msDrives.GetValue() {
+		if drive.GetWebUrl() == nil {
+			continue
+		}
+
 		// When certain file types are sent from MM to Teams and we get a change request from Teams, the URL is a bit different and in such cases, we don't execute the below if condition and "itemRequest" will be "nil" which is handled below. This will not cause any harm to the functionality, but we were unable to find why this is happening.
 		if strings.HasPrefix(u.String(), *drive.GetWebUrl()) {
 			path := u.String()[len(*drive.GetWebUrl()):]
 			if len(path) == 0 || path[0] != '/' {
 				path = "/" + path
 			}
+
+			if drive.GetId() == nil {
+				continue
+			}
+
 			driveID = *drive.GetId()
 			itemRequest = drives.NewItemItemsDriveItemItemRequestBuilder(tc.client.RequestAdapter.GetBaseUrl()+"/drives/"+driveID+"/root:"+path, tc.client.RequestAdapter)
 			break
@@ -1218,16 +1293,21 @@ func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, e
 		return 0, "", NormalizeGraphAPIError(err)
 	}
 	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
-	if !ok {
+	if !ok || downloadURL == nil {
 		return 0, "", errors.New("downloadUrl not found")
+	}
+
+	resultDownloadURL := ""
+	if downloadURL.(*string) != nil {
+		resultDownloadURL = *(downloadURL.(*string))
 	}
 
 	fileSize := item.GetSize()
 	if fileSize == nil {
-		return 0, *(downloadURL.(*string)), nil
+		return 0, resultDownloadURL, nil
 	}
 
-	return *fileSize, *(downloadURL.(*string)), nil
+	return *fileSize, resultDownloadURL, nil
 }
 
 func (tc *ClientImpl) GetFileContent(downloadURL string) ([]byte, error) {
@@ -1245,7 +1325,7 @@ func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWr
 	for {
 		req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 		if err != nil {
-			tc.logError("unable to create new request", "error", err.Error())
+			tc.logService.Error("unable to create new request", "error", err.Error())
 			return
 		}
 
@@ -1253,12 +1333,12 @@ func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWr
 		req.Header.Add("Range", contentRange)
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			tc.logError("unable to send request for getting file content", "error", err.Error())
+			tc.logService.Error("unable to send request for getting file content", "error", err.Error())
 			return
 		}
 
 		if _, err = io.Copy(writer, res.Body); err != nil {
-			tc.logError("unable to copy response body to the writer", "error", err.Error())
+			tc.logService.Error("unable to copy response body to the writer", "error", err.Error())
 			return
 		}
 
@@ -1403,6 +1483,10 @@ func (tc *ClientImpl) CreateChat(chatType models.ChatType, userIDs []string) (*C
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	if chat.GetId() == nil {
+		return nil, errors.New("received empty chat ID from MS Graph while creating chat")
+	}
+
 	chatDetails, err := tc.GetChat(*chat.GetId())
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1511,18 +1595,19 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 
 	users := []User{}
 	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
-		displayName := ""
+		user := User{}
 		if u.GetDisplayName() != nil {
-			displayName = *u.GetDisplayName()
+			user.DisplayName = *u.GetDisplayName()
 		}
-
-		user := User{
-			DisplayName:      displayName,
-			ID:               *u.GetId(),
-			Type:             *u.GetUserType(),
-			IsAccountEnabled: *u.GetAccountEnabled(),
+		if u.GetId() != nil {
+			user.ID = *u.GetId()
 		}
-
+		if u.GetUserType() != nil {
+			user.Type = *u.GetUserType()
+		}
+		if u.GetAccountEnabled() != nil {
+			user.IsAccountEnabled = *u.GetAccountEnabled()
+		}
 		if u.GetMail() != nil {
 			user.Mail = strings.ToLower(*u.GetMail())
 		} else if u.GetUserPrincipalName() != nil {
@@ -1557,21 +1642,18 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 
 	teams := []Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
-		description := ""
+		team := Team{}
+		if t.GetId() != nil {
+			team.ID = *t.GetId()
+		}
 		if t.GetDescription() != nil {
-			description = *t.GetDescription()
+			team.Description = *t.GetDescription()
 		}
-
-		displayName := ""
 		if t.GetDisplayName() != nil {
-			displayName = *t.GetDisplayName()
+			team.DisplayName = *t.GetDisplayName()
 		}
 
-		teams = append(teams, Team{
-			DisplayName: displayName,
-			Description: description,
-			ID:          *t.GetId(),
-		})
+		teams = append(teams, team)
 		return true
 	})
 	if err != nil {
@@ -1599,21 +1681,18 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 
 	channels := []Channel{}
 	err = pageIterator.Iterate(context.Background(), func(c models.Channelable) bool {
-		description := ""
+		channel := Channel{}
+		if c.GetId() != nil {
+			channel.ID = *c.GetId()
+		}
 		if c.GetDescription() != nil {
-			description = *c.GetDescription()
+			channel.Description = *c.GetDescription()
 		}
-
-		displayName := ""
 		if c.GetDisplayName() != nil {
-			displayName = *c.GetDisplayName()
+			channel.DisplayName = *c.GetDisplayName()
 		}
 
-		channels = append(channels, Channel{
-			DisplayName: displayName,
-			Description: description,
-			ID:          *c.GetId(),
-		})
+		channels = append(channels, channel)
 		return true
 	})
 	if err != nil {
@@ -1648,16 +1727,20 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 
 // Function to match already existing group chats
 func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
+	if c.GetId() == nil {
+		return nil
+	}
+
 	if c.GetMembers() != nil && len(c.GetMembers()) == len(userIDs) {
 		matches := map[string]bool{}
 		members := []ChatMember{}
 		for _, m := range c.GetMembers() {
 			for _, u := range userIDs {
 				userID, userErr := m.GetBackingStore().Get("userId")
-				if userErr == nil && userID != nil && *(userID.(*string)) == u {
+				if userErr == nil && userID != nil && userID.(*string) != nil && *(userID.(*string)) == u {
 					matches[u] = true
 					userEmail, emailErr := m.GetBackingStore().Get("email")
-					if emailErr == nil && userEmail != nil {
+					if emailErr == nil && userEmail != nil && userEmail.(*string) != nil {
 						members = append(members, ChatMember{
 							Email:  *(userEmail.(*string)),
 							UserID: *(userID.(*string)),
