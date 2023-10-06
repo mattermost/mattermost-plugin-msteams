@@ -458,6 +458,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
+				api.On("LogError", "Unable to create or get chat for users", "error", "unable to create or get chat for users").Return().Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
