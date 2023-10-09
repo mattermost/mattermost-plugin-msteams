@@ -406,7 +406,7 @@ func (p *Plugin) syncUsers() {
 			continue
 		}
 
-		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
+		p.API.LogDebug("Running sync user job for user", "TeamsUserID", msUser.ID)
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
@@ -421,17 +421,17 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-							p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 						}
 					}
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 						}
 					}
 
@@ -445,13 +445,13 @@ func (p *Plugin) syncUsers() {
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
+						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 					}
 				} else {
 					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
+					p.API.LogDebug("Skipping syncing of the guest user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 				}
 
 				continue
@@ -484,7 +484,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to create new MM user during sync job", "email", msUser.Mail, "error", appErr.Error())
+					p.API.LogError("Unable to create new MM user during sync job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", appErr.Error())
 					break
 				}
 
@@ -502,11 +502,11 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
-				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
+				p.API.LogError("Unable to set user info during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -520,7 +520,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to update user during sync user job", "email", mmUser.Email, "error", err.Error())
+					p.API.LogError("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					break
 				}
 
