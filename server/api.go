@@ -398,6 +398,16 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
+		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
+		}
+
+		http.Error(w, "failed to complete the OAuth", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Add("Content-Type", "text/html")
 	connectionMessage := "Your account has been connected"
 	if mmUser.Id == a.p.GetBotUserID() {

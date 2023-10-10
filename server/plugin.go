@@ -340,6 +340,21 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
+	countConnectedUsers, err := p.store.GetCountOfConnectedUsers()
+	if err != nil {
+		return errors.New("failed to load connected users from DB")
+	}
+
+	if p.getConfiguration().ConnectedUsersAllowed < countConnectedUsers {
+		return errors.New("failed to save configuration, no. of connected users allowed should be greater than the no. of users already connected")
+	}
+
+	go func() {
+		if err := p.store.PrefillWhitelist(); err != nil {
+			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
+		}
+	}()
+
 	go p.start(lastRecivedChange)
 	return nil
 }

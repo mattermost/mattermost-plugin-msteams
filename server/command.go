@@ -411,6 +411,24 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
 	}
 
+	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
+	if err != nil {
+		p.API.LogError("Error in checking if a user is present in whitelist", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+	}
+
+	if !presentInWhitelist {
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		if err != nil {
+			p.API.LogError("Error in getting the size of whitelist", "error", err.Error())
+			return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		}
+
+		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
+			return p.cmdError(args.UserId, args.ChannelId, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
+		}
+	}
+
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
 	if err := p.store.StoreOAuth2State(state); err != nil {
 		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
