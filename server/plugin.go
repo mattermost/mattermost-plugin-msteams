@@ -317,15 +317,14 @@ func (p *Plugin) OnActivate() error {
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if err != nil {
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
 		return err
 	}
 
 	if p.store == nil {
-		db, err := client.Store.GetMasterDB()
-		if err != nil {
-			return err
+		db, dbErr := client.Store.GetMasterDB()
+		if dbErr != nil {
+			return dbErr
 		}
 
 		p.store = store.New(
@@ -335,7 +334,7 @@ func (p *Plugin) OnActivate() error {
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
-		if err := p.store.Init(); err != nil {
+		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
