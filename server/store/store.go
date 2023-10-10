@@ -414,18 +414,17 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storem
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := s.RollbackTx(tx); err != nil {
-				return
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := s.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
 	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE").RunWith(tx)
@@ -450,20 +449,19 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := s.RollbackTx(tx); err != nil {
-				return
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := s.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
-	
+
 	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE").RunWith(tx)
 	row := query.QueryRow()
 	var lastUpdateAt int64
@@ -474,7 +472,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 	if txErr = row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt); txErr != nil {
 		return nil, txErr
 	}
-	
+
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
 	return &postInfo, nil
 }
@@ -488,7 +486,7 @@ func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt
 	return nil
 }
 
-func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time,tx *sql.Tx) error {
+func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time, tx *sql.Tx) error {
 	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID}).RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
@@ -808,18 +806,17 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := s.RollbackTx(tx); err != nil {
-				return
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := s.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
 	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
@@ -1077,7 +1074,7 @@ func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -1087,7 +1084,7 @@ func (s *SQLStore) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 

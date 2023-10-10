@@ -226,21 +226,20 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
-	if txErr := p.store.LockPostByMSTeamsPostID(tx, teamsMessageID); txErr != nil {
+	if txErr = p.store.LockPostByMSTeamsPostID(tx, teamsMessageID); txErr != nil {
 		return txErr
 	}
 
@@ -297,22 +296,21 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
-	if storeErr := p.store.LockPostByMMPostID(tx, postInfo.MattermostID); storeErr != nil {
-		return storeErr
+	if txErr = p.store.LockPostByMMPostID(tx, postInfo.MattermostID); txErr != nil {
+		return txErr
 	}
 
 	if updateRequired {
@@ -363,18 +361,17 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
 	if txErr = p.store.LockPostByMSTeamsPostID(tx, teamsMessageID); txErr != nil {
@@ -382,7 +379,8 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	}
 
 	teamsMessage, txErr := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
-	if err != nil {
+
+	if txErr != nil {
 		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", txErr.Error())
 		return txErr
 	}
@@ -426,21 +424,20 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
-	if txErr := p.store.LockPostByMMPostID(tx, postInfo.MattermostID); txErr != nil {
+	if txErr = p.store.LockPostByMMPostID(tx, postInfo.MattermostID); txErr != nil {
 		return txErr
 	}
 
@@ -737,21 +734,20 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
-	if txErr := p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
+	if txErr = p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
 		return txErr
 	}
 
@@ -813,21 +809,20 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				return
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
-	if txErr := p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
+	if txErr = p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
 		return txErr
 	}
 
@@ -854,7 +849,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		}
 	}
 
-	if txErr := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}, tx); txErr != nil {
+	if txErr = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}, tx); txErr != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr)
 	}
 

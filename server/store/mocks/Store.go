@@ -755,13 +755,13 @@ func (_m *Store) RollbackTx(tx *sql.Tx) error {
 	return r0
 }
 
-// SaveChannelSubscription provides a mock function with given fields: _a0
-func (_m *Store) SaveChannelSubscription(_a0 storemodels.ChannelSubscription) error {
-	ret := _m.Called(_a0)
+// SaveChannelSubscription provides a mock function with given fields: _a0, _a1
+func (_m *Store) SaveChannelSubscription(_a0 storemodels.ChannelSubscription, _a1 *sql.Tx) error {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(storemodels.ChannelSubscription) error); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(storemodels.ChannelSubscription, *sql.Tx) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}

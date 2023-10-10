@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"math"
 	"net/http"
 	"os"
@@ -126,7 +127,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
-	}).Return(nil).Times(1)
+	}, (*sql.Tx)(nil)).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 

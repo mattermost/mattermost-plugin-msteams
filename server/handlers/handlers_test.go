@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -374,7 +375,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}).Return(errors.New("unable to update the post")).Times(1)
+				}, (*sql.Tx)(nil)).Return(errors.New("unable to update the post")).Times(1)
 			},
 		},
 		{
@@ -430,7 +431,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}).Return(nil).Times(1)
+				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 		},
 		{
@@ -477,7 +478,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetChannelID(),
-				}).Return(nil).Times(1)
+				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 		},
 	} {

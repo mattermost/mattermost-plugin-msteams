@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -681,8 +682,10 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
-				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
-				s.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
+				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
+				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription"), &sql.Tx{}).Return(nil).Times(1)
+				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)

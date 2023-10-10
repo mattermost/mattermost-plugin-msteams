@@ -214,18 +214,17 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	var txErr error
-	defer func ()  {
+	defer func() {
 		if txErr != nil {
-			if err :=p.store.RollbackTx(tx); err != nil {
-				return
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
 			}
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
 			return
 		}
 
-		return
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
 	}()
 
 	if txErr = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{

@@ -264,20 +264,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		tx, err := ah.plugin.GetStore().BeginTx()
-		if err != nil {
-			return 
-		}
-		err = ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}, tx)
-		if err != nil {
+		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}, nil); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
-			if rErr := ah.plugin.GetStore().RollbackTx(tx); rErr != nil {
-				return
-			}
-		}
-
-		if err := ah.plugin.GetStore().CommitTx(tx); err != nil {
-			return
 		}
 	}
 }
