@@ -14,13 +14,18 @@ func TestConvertToMD(t *testing.T) {
 	}{
 		{
 			description:    "Text does not contain tags",
-			text:           "This is text area",
-			expectedOutput: "This is text area",
+			text:           "This is text area <></>",
+			expectedOutput: "This is text area <></>",
 		},
 		{
 			description:    "Text contains div and paragraph tags",
 			text:           "This is text area with <div> and <p> tags",
 			expectedOutput: "This is text area with \n and \n tags\n\n\n\n\n",
+		},
+		{
+			description:    "Text contains paragraph and image tags",
+			text:           "This is text area with <img src=''> and <p class=''>Paragraph</p> tags",
+			expectedOutput: "This is text area with ![]() and \nParagraph\n\n\n tags\n",
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {

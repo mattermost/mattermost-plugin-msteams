@@ -656,31 +656,49 @@ func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, pa
 }
 
 // SetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
-func (_m *Client) SetChatReaction(chatID string, messageID string, userID string, emoji string) error {
+func (_m *Client) SetChatReaction(chatID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
 	ret := _m.Called(chatID, messageID, userID, emoji)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
 		r0 = rf(chatID, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(chatID, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // SetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
-func (_m *Client) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) error {
+func (_m *Client) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *msteams.Message); ok {
 		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string, string, string) error); ok {
+		r1 = rf(teamID, channelID, parentID, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // SubscribeToChannel provides a mock function with given fields: teamID, channelID, baseURL, webhookSecret, certificate
@@ -776,59 +794,95 @@ func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecre
 }
 
 // UnsetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
-func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) error {
+func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
 	ret := _m.Called(chatID, messageID, userID, emoji)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
 		r0 = rf(chatID, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(chatID, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UnsetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
-func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) error {
+func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *msteams.Message); ok {
 		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string, string, string) error); ok {
+		r1 = rf(teamID, channelID, parentID, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdateChatMessage provides a mock function with given fields: chatID, msgID, message, mentions
-func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string, mentions []models.ChatMessageMentionable) error {
+func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
 	ret := _m.Called(chatID, msgID, message, mentions)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, []models.ChatMessageMentionable) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, []models.ChatMessageMentionable) *msteams.Message); ok {
 		r0 = rf(chatID, msgID, message, mentions)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, []models.ChatMessageMentionable) error); ok {
+		r1 = rf(chatID, msgID, message, mentions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdateMessage provides a mock function with given fields: teamID, channelID, parentID, msgID, message, mentions
-func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string, msgID string, message string, mentions []models.ChatMessageMentionable) error {
+func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, msgID, message, mentions)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, []models.ChatMessageMentionable) error); ok {
+	var r0 *msteams.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, []models.ChatMessageMentionable) *msteams.Message); ok {
 		r0 = rf(teamID, channelID, parentID, msgID, message, mentions)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*msteams.Message)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, string, string, []models.ChatMessageMentionable) error); ok {
+		r1 = rf(teamID, channelID, parentID, msgID, message, mentions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UploadFile provides a mock function with given fields: teamID, channelID, filename, filesize, mimeType, data, chat
