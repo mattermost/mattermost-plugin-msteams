@@ -86,7 +86,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("RefreshSubscription", "test-id").Return(nil, errors.New("unable to refresh the subscription")).Times(1)
 				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
-				client.On("SubscribeToChats", "base-url", "webhook-secret", true).Return(allChatsSubscription, nil).Times(1)
+				client.On("SubscribeToChats", "base-url", "webhook-secret", true, "").Return(allChatsSubscription, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for global subscriptions").Times(1)
@@ -191,7 +191,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 		{
 			description: "Empty list of subscriptions",
 			setupClient: func(client *mocksClient.Client) {
-				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret", "").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogDebug", "Checking for channels subscriptions").Times(1)

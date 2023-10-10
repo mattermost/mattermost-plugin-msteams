@@ -193,6 +193,8 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
+	requireEncryptedContent := a.p.getConfiguration().CertificateKey != ""
+
 	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
@@ -202,9 +204,13 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 				a.p.API.LogError("Invalid encrypted content", "error", err)
 			}
 			activity.Content = content
+		} else if requireEncryptedContent {
+			errors += "Not encrypted content for encrypted subscription\n"
+			continue
 		}
+
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
-			errors += "Invalid webhook secret"
+			errors += "Invalid webhook secret\n"
 			continue
 		}
 
