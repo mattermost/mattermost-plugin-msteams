@@ -6,6 +6,8 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
+	sql "database/sql"
+
 	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -18,6 +20,29 @@ type Store struct {
 	mock.Mock
 }
 
+// BeginTx provides a mock function with given fields:
+func (_m *Store) BeginTx() (*sql.Tx, error) {
+	ret := _m.Called()
+
+	var r0 *sql.Tx
+	if rf, ok := ret.Get(0).(func() *sql.Tx); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*sql.Tx)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CheckEnabledTeamByTeamID provides a mock function with given fields: teamID
 func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 	ret := _m.Called(teamID)
@@ -27,6 +52,20 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 		r0 = rf(teamID)
 	} else {
 		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// CommitTx provides a mock function with given fields: tx
+func (_m *Store) CommitTx(tx *sql.Tx) error {
+	ret := _m.Called(tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx) error); ok {
+		r0 = rf(tx)
+	} else {
+		r0 = ret.Error(0)
 	}
 
 	return r0
@@ -464,13 +503,13 @@ func (_m *Store) Init() error {
 	return r0
 }
 
-// LinkPosts provides a mock function with given fields: postInfo
-func (_m *Store) LinkPosts(postInfo storemodels.PostInfo) error {
-	ret := _m.Called(postInfo)
+// LinkPosts provides a mock function with given fields: postInfo, tx
+func (_m *Store) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
+	ret := _m.Called(postInfo, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(storemodels.PostInfo) error); ok {
-		r0 = rf(postInfo)
+	if rf, ok := ret.Get(0).(func(storemodels.PostInfo, *sql.Tx) error); ok {
+		r0 = rf(postInfo, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -639,6 +678,34 @@ func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscr
 	return r0, r1
 }
 
+// LockPostByMMPostID provides a mock function with given fields: tx, messageID
+func (_m *Store) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
+	ret := _m.Called(tx, messageID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx, string) error); ok {
+		r0 = rf(tx, messageID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// LockPostByMSTeamsPostID provides a mock function with given fields: tx, messageID
+func (_m *Store) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
+	ret := _m.Called(tx, messageID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx, string) error); ok {
+		r0 = rf(tx, messageID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // MattermostToTeamsUserID provides a mock function with given fields: userID
 func (_m *Store) MattermostToTeamsUserID(userID string) (string, error) {
 	ret := _m.Called(userID)
@@ -667,6 +734,20 @@ func (_m *Store) RecoverPost(postID string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(postID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// RollbackTx provides a mock function with given fields: tx
+func (_m *Store) RollbackTx(tx *sql.Tx) error {
+	ret := _m.Called(tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx) error); ok {
+		r0 = rf(tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -744,13 +825,13 @@ func (_m *Store) SetJobStatus(jobName string, status bool) error {
 	return r0
 }
 
-// SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt
-func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
-	ret := _m.Called(postID, lastUpdateAt)
+// SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt, tx
+func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+	ret := _m.Called(postID, lastUpdateAt, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
-		r0 = rf(postID, lastUpdateAt)
+	if rf, ok := ret.Get(0).(func(string, time.Time, *sql.Tx) error); ok {
+		r0 = rf(postID, lastUpdateAt, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -758,13 +839,13 @@ func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time
 	return r0
 }
 
-// SetPostLastUpdateAtByMattermostID provides a mock function with given fields: postID, lastUpdateAt
-func (_m *Store) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
-	ret := _m.Called(postID, lastUpdateAt)
+// SetPostLastUpdateAtByMattermostID provides a mock function with given fields: postID, lastUpdateAt, tx
+func (_m *Store) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+	ret := _m.Called(postID, lastUpdateAt, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
-		r0 = rf(postID, lastUpdateAt)
+	if rf, ok := ret.Get(0).(func(string, time.Time, *sql.Tx) error); ok {
+		r0 = rf(postID, lastUpdateAt, tx)
 	} else {
 		r0 = ret.Error(0)
 	}

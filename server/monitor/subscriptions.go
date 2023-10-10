@@ -178,8 +178,28 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}
 
-	if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
+	tx, err := m.store.BeginTx()
+	if err != nil {
+		return 
+	}
+
+	var txErr error
+	defer func ()  {
+		if txErr != nil {
+			if err := m.store.RollbackTx(tx); err != nil {
+				return
+			}
+		}
+
+		if err := m.store.CommitTx(tx); err != nil {
+			return
+		}
+
+		return
+	}()
+
+	if txErr := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}, tx); txErr != nil {
+		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
 		return
 	}
 }
@@ -218,6 +238,7 @@ func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[stri
 	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
 	for _, msteamsSubscription := range msteamsSubscriptions {
 		if strings.HasPrefix(msteamsSubscription.NotificationURL, m.baseURL) {
+			// m.client.DeleteSubscription(msteamsSubscription.ID)
 			msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
 			if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
 				allChatsSubscription = msteamsSubscription
