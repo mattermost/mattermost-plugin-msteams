@@ -201,16 +201,17 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 		if activity.EncryptedContent != nil {
 			content, err := a.processEncryptedContent(*activity.EncryptedContent)
 			if err != nil {
-				a.p.API.LogError("Invalid encrypted content", "error", err)
+				errors += err.Error() + "\n"
+				continue
 			}
 			activity.Content = content
 		} else if requireEncryptedContent {
-			errors += "Not encrypted content for encrypted subscription\n"
+			errors += "Not encrypted content for encrypted subscription"
 			continue
 		}
 
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
-			errors += "Invalid webhook secret\n"
+			errors += "Invalid webhook secret"
 			continue
 		}
 

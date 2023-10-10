@@ -227,6 +227,9 @@ func (p *Plugin) getBase64Certificate() string {
 		return ""
 	}
 	block, _ := pem.Decode([]byte(certificate))
+	if block == nil {
+		return ""
+	}
 	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(block))
 }
 
@@ -236,6 +239,9 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, errors.New("certificate private key not configured")
 	}
 	privPem, _ := pem.Decode([]byte(keyPemString))
+	if privPem == nil {
+		return nil, errors.New("invalid certificate key")
+	}
 	var err error
 	var parsedKey any
 	if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
