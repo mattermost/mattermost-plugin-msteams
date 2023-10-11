@@ -209,7 +209,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 
 	tx, err := p.store.BeginTx()
 	if err != nil {
-		p.API.LogError("Error occurred in the database", "error", err.Error())
+		p.API.LogError("Unable to begin the database transaction", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
 
@@ -217,13 +217,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	defer func() {
 		if txErr != nil {
 			if err := p.store.RollbackTx(tx); err != nil {
-				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+				p.API.LogError("Unable to rollback database transaction", "error", err.Error())
 			}
-			return
-		}
-
-		if err := p.store.CommitTx(tx); err != nil {
-			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
 		}
 	}()
 
@@ -236,6 +231,11 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}, tx); txErr != nil {
 		p.API.LogWarn("Unable to save the subscription in the monitoring system", "error", txErr.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
+	}
+
+	if err := p.store.CommitTx(tx); err != nil {
+		p.API.LogError("Unable to commit database transaction", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")

@@ -180,6 +180,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 
 	tx, err := m.store.BeginTx()
 	if err != nil {
+		m.api.LogWarn("Unable to begin database transaction", "error", err.Error())
 		return
 	}
 
@@ -237,7 +238,6 @@ func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[stri
 	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
 	for _, msteamsSubscription := range msteamsSubscriptions {
 		if strings.HasPrefix(msteamsSubscription.NotificationURL, m.baseURL) {
-			// m.client.DeleteSubscription(msteamsSubscription.ID)
 			msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription
 			if strings.Contains(msteamsSubscription.Resource, "chats/getAllMessages") {
 				allChatsSubscription = msteamsSubscription
