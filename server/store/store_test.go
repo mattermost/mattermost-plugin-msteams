@@ -1278,4 +1278,10 @@ func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 
 	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
 	assert.Nil(err)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
+
+	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
+	assert.Nil(delErr)
 }
