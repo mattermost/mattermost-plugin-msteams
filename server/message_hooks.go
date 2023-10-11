@@ -220,17 +220,19 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		return err
 	}
 
+	var teamsMessage *msteams.Message
 	if updateRequired {
-		if err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+		teamsMessage, err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
+		if err != nil {
 			p.API.LogError("Error creating post reaction", "error", err.Error())
 			return err
 		}
-	}
-
-	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
-	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-		return nil
+	} else {
+		teamsMessage, err = client.GetChatMessage(chatID, teamsMessageID)
+		if err != nil {
+			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+			return err
+		}
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
@@ -265,23 +267,20 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		return err
 	}
 
+	var teamsMessage *msteams.Message
 	if updateRequired {
 		teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-		if err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+		teamsMessage, err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+		if err != nil {
 			p.API.LogError("Error setting reaction", "error", err.Error())
 			return err
 		}
-	}
-
-	var teamsMessage *msteams.Message
-	if parentID != "" {
-		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
 	} else {
-		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
-	}
-	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-		return nil
+		teamsMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
+		if err != nil {
+			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
+			return err
+		}
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
@@ -311,15 +310,10 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	if err = client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+	teamsMessage, err := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
+	if err != nil {
 		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
 		return err
-	}
-
-	teamsMessage, err := client.GetChatMessage(chatID, teamsMessageID)
-	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
@@ -355,20 +349,10 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	if err = client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":")); err != nil {
+	teamsMessage, err := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+	if err != nil {
 		p.API.LogError("Error in removing the reaction", "emojiName", emojiName, "error", err.Error())
 		return err
-	}
-
-	var teamsMessage *msteams.Message
-	if parentID != "" {
-		teamsMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
-	} else {
-		teamsMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
-	}
-	if err != nil {
-		p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-		return nil
 	}
 
 	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
@@ -653,13 +637,15 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
+	var updatedMessage *msteams.Message
 	if updateRequired {
 		// TODO: Add the logic of processing the attachments and uploading new files to Teams
 		// once Mattermost comes up with the feature of editing attachments
 		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 		content := md.RenderToString([]byte(emoji.Parse(text)))
 		content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
-		if err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions); err != nil {
+		updatedMessage, err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions)
+		if err != nil {
 			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
 			// If the error is regarding payment required for metered APIs, ignore it and continue because
 			// the post is updated regardless
@@ -667,17 +653,12 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 				return err
 			}
 		}
-	}
-
-	var updatedMessage *msteams.Message
-	if parentID != "" {
-		updatedMessage, err = client.GetReply(teamID, channelID, parentID, postInfo.MSTeamsID)
 	} else {
-		updatedMessage, err = client.GetMessage(teamID, channelID, postInfo.MSTeamsID)
-	}
-	if err != nil {
-		p.API.LogWarn("Error in getting the message from MS Teams", "error", err)
-		return nil
+		updatedMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
+		if err != nil {
+			p.API.LogWarn("Error in getting the message from MS Teams", "error", err)
+			return err
+		}
 	}
 
 	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
@@ -708,11 +689,13 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		return err
 	}
 
+	var updatedMessage *msteams.Message
 	if updateRequired {
 		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 		content := md.RenderToString([]byte(emoji.Parse(text)))
 		content, mentions := p.getMentionsData(content, "", "", chatID, client)
-		if err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions); err != nil {
+		updatedMessage, err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions)
+		if err != nil {
 			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
 			// If the error is regarding payment required for metered APIs, ignore it and continue because
 			// the post is updated regardless
@@ -720,16 +703,16 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 				return err
 			}
 		}
+	} else {
+		updatedMessage, err = client.GetChatMessage(chatID, postInfo.MSTeamsID)
+		if err != nil {
+			p.API.LogWarn("Error getting the updated message from MS Teams", "error", err)
+			return err
+		}
 	}
 
-	updatedMessage, err := client.GetChatMessage(chatID, postInfo.MSTeamsID)
-	if err != nil {
-		p.API.LogWarn("Error getting the updated message from MS Teams", "error", err)
-	} else {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt})
-		if err != nil {
-			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
-		}
+	if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
 
 	return nil
@@ -869,4 +852,12 @@ func getFileNameAndExtension(path string) (string, string) {
 	fileExtension := filepath.Ext(path)
 	fileName := strings.TrimSuffix(path, fileExtension)
 	return fileName, fileExtension
+}
+
+func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*msteams.Message, error) {
+	if parentID != "" {
+		return client.GetReply(teamID, channelID, parentID, msteamsID)
+	}
+
+	return client.GetMessage(teamID, channelID, msteamsID)
 }

@@ -119,6 +119,12 @@
             "type": "custom", 
             "help_text": "",
             "default": ""            
+        },{
+          "key": "ConnectedUsersReportDownload",
+          "display_name": "Download Report",
+          "type": "custom",
+          "help_text": "",
+          "default": ""
         }]
     }
 }
