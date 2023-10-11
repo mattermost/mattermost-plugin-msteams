@@ -382,7 +382,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	storedToken, err := a.p.store.GetTokenForMSTeamsUser(msteamsUser.ID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the token for MS Teams user", "Error", err.Error())
+		a.p.API.LogDebug("Unable to get the token for MS Teams user", "Error", err.Error())
 	}
 
 	if storedToken != nil {
@@ -399,13 +399,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
-		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
-		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
-		}
+		if !strings.Contains(err.Error(), "Duplicate entry") {
+			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
+			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
+			}
 
-		http.Error(w, "failed to complete the OAuth", http.StatusInternalServerError)
-		return
+			http.Error(w, "failed to complete the OAuth", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("Content-Type", "text/html")
