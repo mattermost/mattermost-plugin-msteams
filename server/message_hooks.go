@@ -184,6 +184,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		var chat *msteams.Chat
 		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
+			p.API.LogError("Unable to create or get chat for users", "error", err.Error())
 			return
 		}
 		err = p.UpdateChat(chat.ID, user, newPost, oldPost, updateRequired)
