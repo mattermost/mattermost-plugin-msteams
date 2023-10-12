@@ -843,9 +843,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		updatedMessage, txErr = client.GetChatMessage(chatID, postInfo.MSTeamsID)
 		if txErr != nil {
 			p.API.LogWarn("Error getting the updated message from MS Teams", "error", txErr)
-			if !strings.Contains(txErr.Error(), "code: PaymentRequired") {
-				return txErr
-			}
+			return txErr
 		}
 	}
 

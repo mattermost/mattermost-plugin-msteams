@@ -229,7 +229,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.getConfiguration().WebhookSecret,
 	}, tx); txErr != nil {
-		p.API.LogWarn("Unable to save the subscription in the monitoring system", "error", txErr.Error())
+		p.API.LogWarn("Unable to save the subscription in the DB", "error", txErr.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 

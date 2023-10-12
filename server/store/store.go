@@ -497,42 +497,34 @@ func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpda
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
 	if s.driverName == "postgres" {
+		query := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+			postInfo.MattermostID,
+			postInfo.MSTeamsID,
+			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
+		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
 		if tx != nil {
-			if _, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-				postInfo.MattermostID,
-				postInfo.MSTeamsID,
-				postInfo.MSTeamsChannel,
-				postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-			).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").RunWith(tx).Exec(); err != nil {
+			if _, err := query.RunWith(tx).Exec(); err != nil {
 				return err
 			}
 		} else {
-			if _, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-				postInfo.MattermostID,
-				postInfo.MSTeamsID,
-				postInfo.MSTeamsChannel,
-				postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-			).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec(); err != nil {
+			if _, err := query.Exec(); err != nil {
 				return err
 			}
 		}
 	} else {
+		query := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+			postInfo.MattermostID,
+			postInfo.MSTeamsID,
+			postInfo.MSTeamsChannel,
+			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
+		)
 		if tx != nil {
-			if _, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-				postInfo.MattermostID,
-				postInfo.MSTeamsID,
-				postInfo.MSTeamsChannel,
-				postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-			).RunWith(tx).Exec(); err != nil {
+			if _, err := query.RunWith(tx).Exec(); err != nil {
 				return err
 			}
 		} else {
-			if _, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-				postInfo.MattermostID,
-				postInfo.MSTeamsID,
-				postInfo.MSTeamsChannel,
-				postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-			).Exec(); err != nil {
+			if _, err := query.Exec(); err != nil {
 				return err
 			}
 		}
@@ -1080,7 +1072,6 @@ func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
 
 func (s *SQLStore) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
 	query := s.getQueryBuilder().Select("*").From("msteamssync_posts").Where(sq.Eq{"mmPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
-
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
