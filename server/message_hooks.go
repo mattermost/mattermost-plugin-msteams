@@ -379,7 +379,6 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	}
 
 	teamsMessage, txErr := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
-
 	if txErr != nil {
 		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", txErr.Error())
 		return txErr
