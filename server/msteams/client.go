@@ -1871,6 +1871,16 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	if resp == nil {
+		tc.logService.Debug("Received nil response from MS Graph for the message")
+		return nil, errors.New("empty message response")
+	}
+
+	if resp.GetLastModifiedDateTime() == nil {
+		tc.logService.Debug("Received nil last modified date time from MS Graph for the message")
+		return nil, errors.New("empty last modified date time")
+	}
+	
 	return &Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
 }
 
