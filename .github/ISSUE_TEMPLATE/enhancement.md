@@ -2,7 +2,7 @@
 name: Enhancement/Feature Idea
 about: Suggest a new feature
 title: 'Feature Idea: '
-labels: Enhancement, Triage
+labels: Enhancement
 assignees: ''
 
 ---
