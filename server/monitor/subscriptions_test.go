@@ -463,7 +463,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 	}
 }
 
-func TestMonitorRecreateChannelSubscription(t *testing.T) {
+func TestRecreateChannelSubscription(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
 	for _, testCase := range []struct {
 		description    string
