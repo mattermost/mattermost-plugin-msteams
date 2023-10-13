@@ -737,6 +737,10 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 		}
 	}
 
+	if updateMessageRequest == nil {
+		return nil, errors.New("received nil updateMessageRequest from MS Graph")
+	}
+
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
 		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).ToGetRequestInformation(tc.ctx, nil)
@@ -748,6 +752,10 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -797,9 +805,17 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	if updateMessageRequest == nil {
+		return nil, errors.New("received nil updateMessageRequest from MS Graph")
+	}
+
 	getMessageRequest, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).ToGetRequestInformation(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -1565,9 +1581,17 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) (
 		return nil, NormalizeGraphAPIError(err)
 	}
 
+	if setReactionRequest == nil {
+		return nil, errors.New("received nil setReactionRequest from MS Graph")
+	}
+
 	getMessageRequest, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(messageID).ToGetRequestInformation(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -1614,6 +1638,10 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		}
 	}
 
+	if setReactionRequest == nil {
+		return nil, errors.New("received nil setReactionRequest from MS Graph")
+	}
+
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
 		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(messageID).ToGetRequestInformation(tc.ctx, nil)
@@ -1625,6 +1653,10 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -1658,9 +1690,17 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 		return nil, err
 	}
 
+	if unsetReactionRequest == nil {
+		return nil, errors.New("received nil unsetReactionRequest from MS Graph")
+	}
+
 	getMessageRequest, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(messageID).ToGetRequestInformation(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -1707,6 +1747,10 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		}
 	}
 
+	if unsetReactionRequest == nil {
+		return nil, errors.New("received nil unsetReactionRequest from MS Graph")
+	}
+
 	var getMessageRequest *abstractions.RequestInformation
 	if parentID != "" {
 		getMessageRequest, err = tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(messageID).ToGetRequestInformation(tc.ctx, nil)
@@ -1718,6 +1762,10 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 		if err != nil {
 			return nil, NormalizeGraphAPIError(err)
 		}
+	}
+
+	if getMessageRequest == nil {
+		return nil, errors.New("received nil getMessageRequest from MS Graph")
 	}
 
 	batchRequest := msgraphcore.NewBatchRequest(tc.client.GetAdapter())
@@ -1869,6 +1917,14 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 	resp, err := msgraphcore.GetBatchResponseById[*models.ChatMessage](batchResponse, *getMessageRequestItem.GetId(), models.CreateChatMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
+	}
+
+	if resp == nil {
+		return nil, errors.New("received nil response from MS Graph for the message")
+	}
+
+	if resp.GetLastModifiedDateTime() == nil {
+		return nil, errors.New("received nil last modified date time from MS Graph for the message")
 	}
 
 	return &Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
