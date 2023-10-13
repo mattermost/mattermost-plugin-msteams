@@ -207,15 +207,35 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		p.API.LogError("Unable to begin the database transaction", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogError("Unable to rollback database transaction", "error", err.Error())
+			}
+		}
+	}()
+
+	if txErr = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		TeamID:         channelLink.MSTeamsTeam,
 		ChannelID:      channelLink.MSTeamsChannel,
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.getConfiguration().WebhookSecret,
-	})
-	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to save the subscription in the monitoring system: "+err.Error())
+	}, tx); txErr != nil {
+		p.API.LogWarn("Unable to save the subscription in the DB", "error", txErr.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
+	}
+
+	if err := p.store.CommitTx(tx); err != nil {
+		p.API.LogError("Unable to commit database transaction", "error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")

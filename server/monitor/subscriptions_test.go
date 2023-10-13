@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -199,7 +200,9 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{}, nil).Times(1)
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil).Times(1)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(nil).Times(1)
+				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 		},
 		{
@@ -213,7 +216,9 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{}, nil).Times(1)
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil).Times(1)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(nil).Times(1)
+				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 		},
 		{
@@ -234,7 +239,9 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(3 * time.Minute)}}, nil).Times(1)
 				store.On("DeleteSubscription", "test").Return(nil).Times(1)
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil).Times(1)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(nil).Times(1)
+				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 		},
 		{
@@ -456,7 +463,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 	}
 }
 
-func TestMonitorRecreateChannelSubscription(t *testing.T) {
+func TestRecreateChannelSubscription(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
 	for _, testCase := range []struct {
 		description    string
@@ -503,6 +510,26 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {},
 		},
 		{
+			description:    "Unable to begin database transaction",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Unable to delete old channel subscription from DB", "subscriptionID", "test-id", "error", "error in deleting subscription from store").Return()
+				mockAPI.On("LogWarn", "Unable to begin database transaction", "error", "unable to begin database transaction").Return().Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
+				store.On("BeginTx").Return(&sql.Tx{}, errors.New("unable to begin database transaction")).Times(1)
+			},
+		},
+		{
 			description:    "Failed to save the channel subscription in the database",
 			subscriptionID: "test-id",
 			teamID:         "team-id",
@@ -519,7 +546,53 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(errors.New("failed to save the channel subscription in the database")).Times(1)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(errors.New("failed to save the channel subscription in the database")).Times(1)
+				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
+			},
+		},
+		{
+			description:    "Failed to save the channel subscription in the database and rollback database transaction",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   true,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogDebug", "Unable to delete old channel subscription from DB", "subscriptionID", "test-id", "error", "error in deleting subscription from store").Return()
+				mockAPI.On("LogError", "Unable to store new subscription in DB", "subscriptionID", "new-id", "error", "failed to save the channel subscription in the database").Return().Times(1)
+				mockAPI.On("LogWarn", "Unable to rollback database transaction", "error", "unable to rollback database transaction").Return(nil).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(errors.New("failed to save the channel subscription in the database")).Times(1)
+				store.On("RollbackTx", &sql.Tx{}).Return(errors.New("unable to rollback database transaction")).Times(1)
+			},
+		},
+		{
+			description:    "Unable to commit database transaction",
+			subscriptionID: "test-id",
+			teamID:         "team-id",
+			channelID:      "channel-id",
+			secret:         "webhook-secret",
+			expectsError:   false,
+			setupClient: func(client *mocksClient.Client) {
+				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
+				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret").Return(&msteams.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("LogWarn", "Unable to commit database transaction", "error", "unable to commit database transaction").Return(nil).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("DeleteSubscription", "test-id").Return(nil)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(nil)
+				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
 		},
 		{
@@ -536,7 +609,9 @@ func TestMonitorRecreateChannelSubscription(t *testing.T) {
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("DeleteSubscription", "test-id").Return(nil)
-				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", storemodels.ChannelSubscription{SubscriptionID: "new-id", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: newExpiresOn}, &sql.Tx{}).Return(nil)
+				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 		},
 	} {

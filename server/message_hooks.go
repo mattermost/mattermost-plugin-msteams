@@ -221,22 +221,45 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 	}
 
 	var teamsMessage *msteams.Message
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMSTeamsPostID(tx, teamsMessageID); txErr != nil {
+		return txErr
+	}
+
 	if updateRequired {
-		teamsMessage, err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
-		if err != nil {
-			p.API.LogError("Error creating post reaction", "error", err.Error())
-			return err
+		teamsMessage, txErr = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
+		if txErr != nil {
+			p.API.LogError("Error creating post reaction", "error", txErr.Error())
+			return txErr
 		}
 	} else {
-		teamsMessage, err = client.GetChatMessage(chatID, teamsMessageID)
-		if err != nil {
-			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-			return err
+		teamsMessage, txErr = client.GetChatMessage(chatID, teamsMessageID)
+		if txErr != nil {
+			p.API.LogWarn("Error getting the msteams post metadata", "error", txErr.Error())
+			return txErr
 		}
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
+	if txErr = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
 
 	return nil
@@ -268,23 +291,46 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 	}
 
 	var teamsMessage *msteams.Message
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMMPostID(tx, postInfo.MattermostID); txErr != nil {
+		return txErr
+	}
+
 	if updateRequired {
 		teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-		teamsMessage, err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
-		if err != nil {
-			p.API.LogError("Error setting reaction", "error", err.Error())
-			return err
+		teamsMessage, txErr = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+		if txErr != nil {
+			p.API.LogError("Error setting reaction", "error", txErr.Error())
+			return txErr
 		}
 	} else {
-		teamsMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
-		if err != nil {
-			p.API.LogWarn("Error getting the msteams post metadata", "error", err.Error())
-			return err
+		teamsMessage, txErr = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
+		if txErr != nil {
+			p.API.LogWarn("Error getting the msteams post metadata", "error", txErr.Error())
+			return txErr
 		}
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
+	if txErr = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
 
 	return nil
@@ -310,14 +356,37 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	teamsMessage, err := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
+	tx, err := p.store.BeginTx()
 	if err != nil {
-		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMSTeamsPostID(tx, teamsMessageID); txErr != nil {
+		return txErr
+	}
+
+	teamsMessage, txErr := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
+	if txErr != nil {
+		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", txErr.Error())
+		return txErr
+	}
+
+	if txErr = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
 
 	return nil
@@ -349,14 +418,37 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	teamsMessage, err := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+	tx, err := p.store.BeginTx()
 	if err != nil {
-		p.API.LogError("Error in removing the reaction", "emojiName", emojiName, "error", err.Error())
 		return err
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMMPostID(tx, postInfo.MattermostID); txErr != nil {
+		return txErr
+	}
+
+	teamsMessage, txErr := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
+	if txErr != nil {
+		p.API.LogError("Error in removing the reaction", "emojiName", emojiName, "error", txErr.Error())
+		return txErr
+	}
+
+	if txErr = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
 
 	return nil
@@ -447,9 +539,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
-		if err != nil {
+	if post.Id != "" {
+		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
@@ -531,9 +622,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		return "", err
 	}
 
-	if post.Id != "" && newMessage != nil {
-		err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt})
-		if err != nil {
+	if post.Id != "" {
+		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
@@ -638,31 +728,54 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	}
 
 	var updatedMessage *msteams.Message
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
+		return txErr
+	}
+
 	if updateRequired {
 		// TODO: Add the logic of processing the attachments and uploading new files to Teams
 		// once Mattermost comes up with the feature of editing attachments
 		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 		content := md.RenderToString([]byte(emoji.Parse(text)))
 		content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
-		updatedMessage, err = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions)
-		if err != nil {
-			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
+		updatedMessage, txErr = client.UpdateMessage(teamID, channelID, parentID, postInfo.MSTeamsID, content, mentions)
+		if txErr != nil {
+			p.API.LogWarn("Error updating the post on MS Teams", "error", txErr)
 			// If the error is regarding payment required for metered APIs, ignore it and continue because
 			// the post is updated regardless
-			if !strings.Contains(err.Error(), "code: PaymentRequired") {
-				return err
+			if !strings.Contains(txErr.Error(), "code: PaymentRequired") {
+				return txErr
 			}
 		}
 	} else {
-		updatedMessage, err = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
-		if err != nil {
-			p.API.LogWarn("Error in getting the message from MS Teams", "error", err)
-			return err
+		updatedMessage, txErr = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
+		if txErr != nil {
+			p.API.LogWarn("Error in getting the message from MS Teams", "error", txErr)
+			return txErr
 		}
 	}
 
-	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+	if txErr = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr)
 	}
 
 	return nil
@@ -690,29 +803,52 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	}
 
 	var updatedMessage *msteams.Message
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := p.store.RollbackTx(tx); err != nil {
+				p.API.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := p.store.CommitTx(tx); err != nil {
+			p.API.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = p.store.LockPostByMMPostID(tx, newPost.Id); txErr != nil {
+		return txErr
+	}
+
 	if updateRequired {
 		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
 		content := md.RenderToString([]byte(emoji.Parse(text)))
 		content, mentions := p.getMentionsData(content, "", "", chatID, client)
-		updatedMessage, err = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions)
-		if err != nil {
-			p.API.LogWarn("Error updating the post on MS Teams", "error", err)
+		updatedMessage, txErr = client.UpdateChatMessage(chatID, postInfo.MSTeamsID, content, mentions)
+		if txErr != nil {
+			p.API.LogWarn("Error updating the post on MS Teams", "error", txErr)
 			// If the error is regarding payment required for metered APIs, ignore it and continue because
 			// the post is updated regardless
-			if !strings.Contains(err.Error(), "code: PaymentRequired") {
-				return err
+			if !strings.Contains(txErr.Error(), "code: PaymentRequired") {
+				return txErr
 			}
 		}
 	} else {
-		updatedMessage, err = client.GetChatMessage(chatID, postInfo.MSTeamsID)
-		if err != nil {
-			p.API.LogWarn("Error getting the updated message from MS Teams", "error", err)
-			return err
+		updatedMessage, txErr = client.GetChatMessage(chatID, postInfo.MSTeamsID)
+		if txErr != nil {
+			p.API.LogWarn("Error getting the updated message from MS Teams", "error", txErr)
+			return txErr
 		}
 	}
 
-	if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
-		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
+	if txErr = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}, tx); txErr != nil {
+		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr)
 	}
 
 	return nil
