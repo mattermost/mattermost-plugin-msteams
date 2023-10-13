@@ -142,7 +142,6 @@ func TestStore(t *testing.T) {
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 		"testListConnectedUsers":                                     testListConnectedUsers,
-		"testGetCountOfConnectedUsers":                               testGetCountOfConnectedUsers,
 		"testStoreUserAndIsUserPresentGetSizeOfWhitelist":            testStoreUserAndIsUserPresentGetSizeOfWhitelist,
 		"testPrefillWhitelist":                                       testPrefillWhitelist,
 	}
@@ -1171,42 +1170,6 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert.Nil(delErr)
 }
 
-func testGetCountOfConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	assert := assert.New(t)
-	store.encryptionKey = func() []byte {
-		return make([]byte, 16)
-	}
-
-	count, getErr := store.GetCountOfConnectedUsers()
-	assert.Equal(0, count)
-	assert.Nil(getErr)
-
-	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken-1",
-		RefreshToken: "mockRefreshToken-1",
-	}
-
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
-	assert.Nil(storeErr)
-
-	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", token)
-	assert.Nil(storeErr)
-
-	count, getErr = store.GetCountOfConnectedUsers()
-	assert.Equal(2, count)
-	assert.Nil(getErr)
-
-	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
-	assert.Nil(delErr)
-
-	count, getErr = store.GetCountOfConnectedUsers()
-	assert.Equal(1, count)
-	assert.Nil(getErr)
-
-	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
-	assert.Nil(delErr)
-}
-
 func testStoreUserAndIsUserPresentGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert := assert.New(t)
 
@@ -1261,11 +1224,7 @@ func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", token)
 	assert.Nil(storeErr)
 
-	count, getErr := store.GetCountOfConnectedUsers()
-	assert.Equal(2, count)
-	assert.Nil(getErr)
-
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr := store.GetSizeOfWhitelist()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 

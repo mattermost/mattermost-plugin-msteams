@@ -224,27 +224,6 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	return r0, r1
 }
 
-// GetCountOfConnectedUsers provides a mock function with given fields:
-func (_m *Store) GetCountOfConnectedUsers() (int, error) {
-	ret := _m.Called()
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
 func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
 	ret := _m.Called(channelID, userID)

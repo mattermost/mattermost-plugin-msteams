@@ -400,9 +400,9 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
 		if !strings.Contains(err.Error(), "Duplicate entry") {
-			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
+			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
+				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
 			}
 
 			http.Error(w, "failed to complete the OAuth", http.StatusInternalServerError)

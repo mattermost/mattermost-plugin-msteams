@@ -89,7 +89,6 @@ type Store interface {
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
-	GetCountOfConnectedUsers() (int, error)
 	PrefillWhitelist() error
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
@@ -996,24 +995,6 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	}
 
 	return connectedUsers, nil
-}
-
-func (s *SQLStore) GetCountOfConnectedUsers() (int, error) {
-	query := s.getQueryBuilder().Select("count(*)").From(usersTableName).Where(sq.NotEq{"token": ""})
-	rows, err := query.Query()
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
-	var result int
-	if rows.Next() {
-		if scanErr := rows.Scan(&result); scanErr != nil {
-			return 0, scanErr
-		}
-	}
-
-	return result, nil
 }
 
 func (s *SQLStore) PrefillWhitelist() error {

@@ -109,13 +109,13 @@ func (p *Plugin) OnConfigurationChange() error {
 	}
 
 	if p.store != nil {
-		countConnectedUsers, err := p.store.GetCountOfConnectedUsers()
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			return errors.New("failed to load connected users from DB")
+			return errors.New("failed to get the size of whitelist from the DB")
 		}
 
-		if configuration.ConnectedUsersAllowed < countConnectedUsers {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than the no. of users already connected")
+		if configuration.ConnectedUsersAllowed < whitelistSize {
+			return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
 		}
 	}
 

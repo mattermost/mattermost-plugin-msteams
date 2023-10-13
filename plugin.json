@@ -115,9 +115,9 @@
           "default": 20
         },{
             "key": "connectedUsersAllowed",
-            "display_name": "No. of users that are allowed to connect their accounts",
+            "display_name": "Max Connected Users",
             "type": "number", 
-            "help_text": "Set the maximum no. of users who are allowed their Mattermost accounts with MS Teams. After this limit has reached, any new users will not be able to connect their accounts even if someone disconnects their account.",
+            "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
             "default": 1000
         },{
             "key": "appManifestDownload",
