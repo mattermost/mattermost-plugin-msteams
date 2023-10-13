@@ -107,7 +107,6 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	a.p.API.LogDebug("Change activity request", "activities", activities)
 	errors := ""
 	for _, activity := range activities.Value {
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
