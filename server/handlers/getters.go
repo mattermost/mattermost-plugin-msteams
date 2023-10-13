@@ -156,18 +156,18 @@ func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) 
 	for _, member := range chat.Members {
 		msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(member.UserID)
 		if clientErr != nil {
-			ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
+			ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "TeamsUserID", member.UserID, "error", clientErr.Error())
 			continue
 		}
 
 		if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 			if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 				if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-					ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "Error", appErr.Error())
+					ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "TeamsUserID", msteamsUser.ID, "Error", appErr.Error())
 				}
 			}
 
-			ah.plugin.GetAPI().LogDebug("Skipping guest user while creating DM/GM", "Email", msteamsUser.Mail)
+			ah.plugin.GetAPI().LogDebug("Skipping guest user while creating DM/GM", "TeamsUserID", msteamsUser.ID)
 			continue
 		}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"math"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -41,7 +43,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, logError func(string, ...any)) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
 	}
@@ -126,7 +128,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
-	}).Return(nil).Times(1)
+	}, (*sql.Tx)(nil)).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 
@@ -339,7 +341,7 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to create the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to create new MM user during sync job", "email", "test@test.com", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to create new MM user during sync job", "MMUserID", mock.Anything, "TeamsUserID", mock.Anything, "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Page:    0,
 					PerPage: math.MaxInt32,
@@ -361,7 +363,7 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to store the user info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to set user info during sync user job", "email", "test@test.com", "error", mock.Anything).Times(1)
+				api.On("LogError", "Unable to set user info during sync user job", "MMUserID", mock.Anything, "TeamsUserID", mock.Anything, "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Page:    0,
 					PerPage: math.MaxInt32,

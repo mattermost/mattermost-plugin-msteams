@@ -60,7 +60,8 @@ type Plugin struct {
 	stopSubscriptions func()
 	stopContext       context.Context
 
-	userID string
+	userID    string
+	apiClient *pluginapi.Client
 
 	store        store.Store
 	clusterMutex *cluster.Mutex
@@ -69,7 +70,7 @@ type Plugin struct {
 
 	activityHandler *handlers.ActivityHandler
 
-	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
+	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         *metrics.Metrics
 	metricsServer          *metrics.Server
 }
@@ -124,7 +125,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -133,7 +134,7 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
+	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -145,7 +146,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 			p.getConfiguration().TenantID,
 			p.getConfiguration().ClientID,
 			p.getConfiguration().ClientSecret,
-			p.API.LogError,
+			&p.apiClient.Log,
 		)
 	}
 	err := p.msteamsAppClient.Connect()
@@ -298,7 +299,7 @@ func (p *Plugin) OnActivate() error {
 		lastRecivedChange = &parsedTime
 	}
 
-	client := pluginapi.NewClient(p.API, p.Driver)
+	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
 	p.activityHandler = handlers.New(p)
 
@@ -306,7 +307,7 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	botID, err := client.Bot.EnsureBot(&model.Bot{
+	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -323,14 +324,14 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	if p.store == nil {
-		db, err := client.Store.GetMasterDB()
+		db, err := p.apiClient.Store.GetMasterDB()
 		if err != nil {
 			return err
 		}
 
 		p.store = store.New(
 			db,
-			client.Store.DriverName(),
+			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
@@ -406,7 +407,7 @@ func (p *Plugin) syncUsers() {
 			continue
 		}
 
-		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
+		p.API.LogDebug("Running sync user job for user", "TeamsUserID", msUser.ID)
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
@@ -421,17 +422,17 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
+						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-							p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
+							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 						}
 					}
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
+						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
+							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 						}
 					}
 
@@ -445,13 +446,13 @@ func (p *Plugin) syncUsers() {
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
+						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 					}
 				} else {
 					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
+					p.API.LogDebug("Skipping syncing of the guest user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 				}
 
 				continue
@@ -484,7 +485,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to create new MM user during sync job", "email", msUser.Mail, "error", appErr.Error())
+					p.API.LogError("Unable to create new MM user during sync job", "TeamsUserID", msUser.ID, "error", appErr.Error())
 					break
 				}
 
@@ -502,11 +503,11 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
-				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
+				p.API.LogError("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -520,7 +521,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to update user during sync user job", "email", mmUser.Email, "error", err.Error())
+					p.API.LogError("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					break
 				}
 

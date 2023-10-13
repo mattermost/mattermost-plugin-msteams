@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -214,7 +215,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get the MS Teams user", "error", "unable to get user").Times(1)
+				mockAPI.On("LogError", "Unable to get the MS Teams user", "TeamsUserID", mock.Anything, "error", "unable to get user").Times(1)
 				mockAPI.On("LogError", "Unable to get original channel id", "error", "not enough users for creating a channel").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
@@ -374,7 +375,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}).Return(errors.New("unable to update the post")).Times(1)
+				}, (*sql.Tx)(nil)).Return(errors.New("unable to update the post")).Times(1)
 			},
 		},
 		{
@@ -430,7 +431,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}).Return(nil).Times(1)
+				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 		},
 		{
@@ -477,7 +478,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetChannelID(),
-				}).Return(nil).Times(1)
+				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 		},
 	} {

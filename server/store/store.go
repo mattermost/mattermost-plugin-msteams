@@ -49,9 +49,9 @@ type Store interface {
 	StoreChannelLink(link *storemodels.ChannelLink) error
 	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
 	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
-	LinkPosts(postInfo storemodels.PostInfo) error
-	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error
-	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error
+	LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error
+	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
+	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -66,7 +66,7 @@ type Store interface {
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(storemodels.GlobalSubscription) error
 	SaveChatSubscription(storemodels.ChatSubscription) error
-	SaveChannelSubscription(storemodels.ChannelSubscription) error
+	SaveChannelSubscription(storemodels.ChannelSubscription, *sql.Tx) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
@@ -84,6 +84,11 @@ type Store interface {
 	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
+	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
+	LockPostByMMPostID(tx *sql.Tx, messageID string) error
+	BeginTx() (*sql.Tx, error)
+	RollbackTx(tx *sql.Tx) error
+	CommitTx(tx *sql.Tx) error
 }
 
 type SQLStore struct {
@@ -403,38 +408,77 @@ func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
 }
 
 func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
+	tx, err := s.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := s.RollbackTx(tx); err != nil {
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE").RunWith(tx)
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
 		MSTeamsID:      postID,
 		MSTeamsChannel: chatID,
 	}
-	err := row.Scan(&postInfo.MattermostID, &lastUpdateAt)
-	if err != nil {
-		return nil, err
+
+	if txErr = row.Scan(&postInfo.MattermostID, &lastUpdateAt); txErr != nil {
+		return nil, txErr
 	}
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
 	return &postInfo, nil
 }
 
 func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID})
+	tx, err := s.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := s.RollbackTx(tx); err != nil {
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE").RunWith(tx)
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
 		MattermostID: postID,
 	}
-	err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt)
-	if err != nil {
-		return nil, err
+
+	if txErr = row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt); txErr != nil {
+		return nil, txErr
 	}
+
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
 	return &postInfo, nil
 }
 
-func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
-	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID})
+func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID}).RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -442,8 +486,8 @@ func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt
 	return nil
 }
 
-func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time) error {
-	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID})
+func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID}).RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -451,24 +495,38 @@ func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpda
 	return nil
 }
 
-func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
+func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
 	if s.driverName == "postgres" {
-		if _, err := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		query := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt").Exec(); err != nil {
-			return err
+		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
+		if tx != nil {
+			if _, err := query.RunWith(tx).Exec(); err != nil {
+				return err
+			}
+		} else {
+			if _, err := query.Exec(); err != nil {
+				return err
+			}
 		}
 	} else {
-		if _, err := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		query := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		).Exec(); err != nil {
-			return err
+		)
+		if tx != nil {
+			if _, err := query.RunWith(tx).Exec(); err != nil {
+				return err
+			}
+		} else {
+			if _, err := query.Exec(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -706,12 +764,12 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 	return nil
 }
 
-func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription) error {
-	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).Exec(); err != nil {
+func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error {
+	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro()).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -734,11 +792,30 @@ func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
 }
 
 func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).QueryRow()
+	tx, err := s.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := s.RollbackTx(tx); err != nil {
+				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := s.CommitTx(tx); err != nil {
+			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
-	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); scanErr != nil {
-		return nil, scanErr
+	if txErr = row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); txErr != nil {
+		return nil, txErr
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
@@ -982,6 +1059,36 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	}
 
 	return connectedUsers, nil
+}
+
+func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
+	query := s.getQueryBuilder().Select("*").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
+	query := s.getQueryBuilder().Select("*").From("msteamssync_posts").Where(sq.Eq{"mmPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) BeginTx() (*sql.Tx, error) {
+	return s.db.Begin()
+}
+
+func (s *SQLStore) RollbackTx(tx *sql.Tx) error {
+	return tx.Rollback()
+}
+
+func (s *SQLStore) CommitTx(tx *sql.Tx) error {
+	return tx.Commit()
 }
 
 func hashKey(prefix, hashableKey string) string {
