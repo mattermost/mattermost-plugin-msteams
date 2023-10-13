@@ -215,7 +215,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to get the MS Teams user", "error", "unable to get user").Times(1)
+				mockAPI.On("LogError", "Unable to get the MS Teams user", "TeamsUserID", mock.Anything, "error", "unable to get user").Times(1)
 				mockAPI.On("LogError", "Unable to get original channel id", "error", "not enough users for creating a channel").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
