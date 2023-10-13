@@ -84,6 +84,10 @@ func (p *Plugin) GetAPI() plugin.API {
 	return p.API
 }
 
+func (p *Plugin) GetMetrics() *metrics.Metrics {
+	return p.metricsService
+}
+
 func (p *Plugin) GetStore() store.Store {
 	return p.store
 }
