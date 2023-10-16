@@ -399,20 +399,20 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
-// GetSizeOfWhitelist provides a mock function with given fields:
-func (_m *Store) GetSizeOfWhitelist() (int, error) {
-	ret := _m.Called()
+// GetSizeOfWhitelist provides a mock function with given fields: tx
+func (_m *Store) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
+	ret := _m.Called(tx)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(*sql.Tx) int); ok {
+		r0 = rf(tx)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(*sql.Tx) error); ok {
+		r1 = rf(tx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -748,6 +748,20 @@ func (_m *Store) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
 	return r0
 }
 
+// LockWhitelist provides a mock function with given fields: tx
+func (_m *Store) LockWhitelist(tx *sql.Tx) error {
+	ret := _m.Called(tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx) error); ok {
+		r0 = rf(tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // MattermostToTeamsUserID provides a mock function with given fields: userID
 func (_m *Store) MattermostToTeamsUserID(userID string) (string, error) {
 	ret := _m.Called(userID)
@@ -965,13 +979,13 @@ func (_m *Store) StoreOAuth2State(state string) error {
 	return r0
 }
 
-// StoreUserInWhitelist provides a mock function with given fields: userID
-func (_m *Store) StoreUserInWhitelist(userID string) error {
-	ret := _m.Called(userID)
+// StoreUserInWhitelist provides a mock function with given fields: userID, tx
+func (_m *Store) StoreUserInWhitelist(userID string, tx *sql.Tx) error {
+	ret := _m.Called(userID, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(userID)
+	if rf, ok := ret.Get(0).(func(string, *sql.Tx) error); ok {
+		r0 = rf(userID, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -998,6 +1012,20 @@ func (_m *Store) TeamsToMattermostUserID(userID string) (string, error) {
 	}
 
 	return r0, r1
+}
+
+// UnlockWhitelist provides a mock function with given fields: tx
+func (_m *Store) UnlockWhitelist(tx *sql.Tx) error {
+	ret := _m.Called(tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*sql.Tx) error); ok {
+		r0 = rf(tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UpdateSubscriptionExpiresOn provides a mock function with given fields: subscriptionID, expiresOn

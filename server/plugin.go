@@ -344,13 +344,8 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
-	whitelistSize, err := p.store.GetSizeOfWhitelist()
-	if err != nil {
-		return errors.New("failed to get the size of whitelist from the DB")
-	}
-
-	if p.getConfiguration().ConnectedUsersAllowed < whitelistSize {
-		return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
+	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
+		return err
 	}
 
 	go func() {

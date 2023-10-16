@@ -438,7 +438,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	if !presentInWhitelist {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		whitelistSize, err := p.store.GetSizeOfWhitelist(nil)
 		if err != nil {
 			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
@@ -482,7 +482,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	if !presentInWhitelist {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		whitelistSize, err := p.store.GetSizeOfWhitelist(nil)
 		if err != nil {
 			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")

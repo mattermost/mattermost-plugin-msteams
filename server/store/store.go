@@ -90,14 +90,16 @@ type Store interface {
 	GetStats() (*Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error
-	GetSizeOfWhitelist() (int, error)
-	StoreUserInWhitelist(userID string) error
+	GetSizeOfWhitelist(tx *sql.Tx) (int, error)
+	StoreUserInWhitelist(userID string, tx *sql.Tx) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
 	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
 	LockPostByMMPostID(tx *sql.Tx, messageID string) error
 	BeginTx() (*sql.Tx, error)
 	RollbackTx(tx *sql.Tx) error
 	CommitTx(tx *sql.Tx) error
+	LockWhitelist(tx *sql.Tx) error
+	UnlockWhitelist(tx *sql.Tx) error
 }
 
 type SQLStore struct {
@@ -1093,8 +1095,10 @@ func (s *SQLStore) PrefillWhitelist() error {
 				continue
 			}
 
-			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "Error", err.Error())
+			if err := s.StoreUserInWhitelist(connectedUserID, nil); err != nil {
+				if !strings.Contains(err.Error(), "Duplicate entry") {
+					s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
+				}
 			}
 		}
 
@@ -1109,11 +1113,20 @@ func (s *SQLStore) PrefillWhitelist() error {
 	return nil
 }
 
-func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
+func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(whitelistedUsersTableName)
-	rows, err := query.Query()
-	if err != nil {
-		return 0, err
+	var rows *sql.Rows
+	var err error
+	if tx == nil {
+		rows, err = query.Query()
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		rows, err = query.RunWith(tx).Query()
+		if err != nil {
+			return 0, err
+		}
 	}
 	defer rows.Close()
 
@@ -1127,11 +1140,16 @@ func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
 	return result, nil
 }
 
-func (s *SQLStore) StoreUserInWhitelist(userID string) error {
+func (s *SQLStore) StoreUserInWhitelist(userID string, tx *sql.Tx) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
-	_, err := query.Exec()
-	if err != nil {
-		return err
+	if tx == nil {
+		if _, err := query.Exec(); err != nil {
+			return err
+		}
+	} else {
+		if _, err := query.RunWith(tx).Exec(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1183,6 +1201,26 @@ func (s *SQLStore) RollbackTx(tx *sql.Tx) error {
 
 func (s *SQLStore) CommitTx(tx *sql.Tx) error {
 	return tx.Commit()
+}
+
+func (s *SQLStore) LockWhitelist(tx *sql.Tx) error {
+	if tx == nil {
+		return errors.New("cannot lock the whitelist without a transaction")
+	} else if _, err := tx.Exec(fmt.Sprintf("LOCK TABLES %s write", whitelistedUsersTableName)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) UnlockWhitelist(tx *sql.Tx) error {
+	if tx == nil {
+		return errors.New("cannot unlock the whitelist without a transaction")
+	} else if _, err := tx.Exec("UNLOCK TABLES"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func hashKey(prefix, hashableKey string) string {

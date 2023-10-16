@@ -142,7 +142,7 @@ func TestStore(t *testing.T) {
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 		"testListConnectedUsers":                                     testListConnectedUsers,
-		"testStoreUserAndIsUserPresentGetSizeOfWhitelist":            testStoreUserAndIsUserPresentGetSizeOfWhitelist,
+		"testStoreUserAndIsUserPresentAndGetSizeOfWhitelist":         testStoreUserAndIsUserPresentAndGetSizeOfWhitelist,
 		"testPrefillWhitelist":                                       testPrefillWhitelist,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
@@ -1227,17 +1227,17 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert.Nil(delErr)
 }
 
-func testStoreUserAndIsUserPresentGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert := assert.New(t)
 
-	count, getErr := store.GetSizeOfWhitelist()
+	count, getErr := store.GetSizeOfWhitelist(nil)
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
-	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID(), nil)
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetSizeOfWhitelist(nil)
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 
@@ -1249,10 +1249,10 @@ func testStoreUserAndIsUserPresentGetSizeOfWhitelist(t *testing.T, store *SQLSto
 	assert.Equal(false, present)
 	assert.Nil(presentErr)
 
-	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
+	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID(), nil)
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetSizeOfWhitelist(nil)
 	assert.Equal(2, count)
 	assert.Nil(getErr)
 
@@ -1278,18 +1278,18 @@ func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
 	assert.Nil(storeErr)
 
-	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", token)
+	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	count, getErr := store.GetSizeOfWhitelist()
+	count, getErr := store.GetSizeOfWhitelist(nil)
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
 	prefillErr := store.PrefillWhitelist()
 	assert.Nil(prefillErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
-	assert.Equal(2, count)
+	count, getErr = store.GetSizeOfWhitelist(nil)
+	assert.Equal(1, count)
 	assert.Nil(getErr)
 
 	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
