@@ -1204,20 +1204,32 @@ func (s *SQLStore) CommitTx(tx *sql.Tx) error {
 }
 
 func (s *SQLStore) LockWhitelist(tx *sql.Tx) error {
-	if tx == nil {
+	switch {
+	case tx == nil:
 		return errors.New("cannot lock the whitelist without a transaction")
-	} else if _, err := tx.Exec(fmt.Sprintf("LOCK TABLES %s write", whitelistedUsersTableName)); err != nil {
-		return err
+	case s.driverName == model.DatabaseDriverPostgres:
+		if _, err := tx.Exec(fmt.Sprintf("LOCK TABLE %s", whitelistedUsersTableName)); err != nil {
+			return err
+		}
+	case s.driverName == model.DatabaseDriverMysql:
+		if _, err := tx.Exec(fmt.Sprintf("LOCK TABLES %s write", whitelistedUsersTableName)); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (s *SQLStore) UnlockWhitelist(tx *sql.Tx) error {
-	if tx == nil {
+	switch {
+	case tx == nil:
 		return errors.New("cannot unlock the whitelist without a transaction")
-	} else if _, err := tx.Exec("UNLOCK TABLES"); err != nil {
-		return err
+	case s.driverName == model.DatabaseDriverPostgres:
+		return nil
+	case s.driverName == model.DatabaseDriverMysql:
+		if _, err := tx.Exec("UNLOCK TABLES"); err != nil {
+			return err
+		}
 	}
 
 	return nil
