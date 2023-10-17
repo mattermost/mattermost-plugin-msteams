@@ -7,6 +7,7 @@ import (
 
 const (
 	MetricsNamespace       = "msteams_connect"
+	MetricsSubsystemSystem = "system"
 	MetricsSubsystemApp    = "app"
 	MetricsSubsystemHTTP   = "http"
 	MetricsSubsystemAPI    = "api"
@@ -22,6 +23,8 @@ type InstanceInfo struct {
 // Metrics used to instrumentate metrics in prometheus.
 type Metrics struct {
 	registry *prometheus.Registry
+
+	pluginStartTime prometheus.Gauge
 
 	apiTime *prometheus.HistogramVec
 
@@ -52,6 +55,16 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	if info.InstallationID != "" {
 		additionalLabels[MetricsCloudInstallationLabel] = info.InstallationID
 	}
+
+	m.pluginStartTime = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSystem,
+		Name:        "plugin_start_time",
+		Help:        "The time the plugin started.",
+		ConstLabels: additionalLabels,
+	})
+	m.pluginStartTime.SetToCurrentTime()
+	m.registry.MustRegister(m.pluginStartTime)
 
 	m.apiTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
