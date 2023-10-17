@@ -151,7 +151,7 @@ func NewMetrics(info InstanceInfo) *Metrics {
 
 	m.changeEventQueueLength = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemAPI,
+		Subsystem:   MetricsSubsystemApp,
 		Name:        "change_event_queue_length",
 		Help:        "The length of the change event queue.",
 		ConstLabels: additionalLabels,
