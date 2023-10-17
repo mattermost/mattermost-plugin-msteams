@@ -88,11 +88,15 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
+	// This is constant for now, but report it as a metric to future proof dashboards.
+	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
+
 	for i := 0; i < numberOfWorkers; i++ {
 		go func() {
 			for {
 				select {
 				case activity := <-ah.queue:
+					ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
 					ah.handleActivity(activity)
 				case <-ah.quit:
 					// we have received a signal to stop
@@ -113,6 +117,8 @@ func (ah *ActivityHandler) Stop() {
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	ah.queue <- activity
+	ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
+
 	return nil
 }
 
