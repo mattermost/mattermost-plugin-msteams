@@ -855,7 +855,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Once()
-				s.On("GetSizeOfWhitelist").Return(0, errors.New("unable to get size of whitelist")).Once()
+				s.On("GetSizeOfWhitelist", (*sql.Tx)(nil)).Return(0, errors.New("unable to get size of whitelist")).Once()
 			},
 		},
 		{
@@ -870,7 +870,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Once()
-				s.On("GetSizeOfWhitelist").Return(0, nil).Once()
+				s.On("GetSizeOfWhitelist", (*sql.Tx)(nil)).Return(0, nil).Once()
 			},
 		},
 		{
@@ -985,7 +985,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
 				s.On("IsUserPresentInWhitelist", p.userID).Return(false, nil).Once()
-				s.On("GetSizeOfWhitelist").Return(0, errors.New("unable to get size of whitelist")).Once()
+				s.On("GetSizeOfWhitelist", (*sql.Tx)(nil)).Return(0, errors.New("unable to get size of whitelist")).Once()
 			},
 		},
 		{
@@ -1001,7 +1001,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
 				s.On("IsUserPresentInWhitelist", p.userID).Return(false, nil).Once()
-				s.On("GetSizeOfWhitelist").Return(0, nil).Once()
+				s.On("GetSizeOfWhitelist", (*sql.Tx)(nil)).Return(0, nil).Once()
 			},
 		},
 		{
