@@ -440,7 +440,7 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storem
 		}
 	}()
 
-	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE").RunWith(tx)
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -475,7 +475,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 		}
 	}()
 
-	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From("msteamssync_posts").Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE").RunWith(tx)
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -491,7 +491,7 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 }
 
 func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
-	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID}).RunWith(tx)
+	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID}).RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -500,7 +500,7 @@ func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt
 }
 
 func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time, tx *sql.Tx) error {
-	query := s.getQueryBuilder().Update("msteamssync_posts").Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID}).RunWith(tx)
+	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID}).RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpda
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
 	if s.driverName == "postgres" {
-		query := s.getQueryBuilder().Insert("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		query := s.getQueryBuilder().Insert(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
@@ -526,7 +526,7 @@ func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
 			}
 		}
 	} else {
-		query := s.getQueryBuilder().Replace("msteamssync_posts").Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		query := s.getQueryBuilder().Replace(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
 			postInfo.MSTeamsID,
 			postInfo.MSTeamsChannel,
@@ -778,11 +778,11 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 }
 
 func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error {
-	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Delete(subscriptionsTableName).Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert("msteamssync_subscriptions").Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro()).RunWith(tx).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro()).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -824,7 +824,7 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 		}
 	}()
 
-	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From("msteamssync_subscriptions").Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
+	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
 	if txErr = row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); txErr != nil {
@@ -1156,7 +1156,7 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 }
 
 func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
-	query := s.getQueryBuilder().Select("*").From("msteamssync_posts").Where(sq.Eq{"msTeamsPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("*").From(postsTableName).Where(sq.Eq{"msTeamsPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -1165,7 +1165,7 @@ func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
 }
 
 func (s *SQLStore) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
-	query := s.getQueryBuilder().Select("*").From("msteamssync_posts").Where(sq.Eq{"mmPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("*").From(postsTableName).Where(sq.Eq{"mmPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
 	if _, err := query.Exec(); err != nil {
 		return err
 	}

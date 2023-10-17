@@ -393,21 +393,20 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token)
-	if err != nil {
+	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
 		a.p.API.LogError("Unable to store the token", "error", err.Error())
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
 		if !strings.Contains(err.Error(), "Duplicate entry") {
 			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
 			}
 
-			http.Error(w, "failed to complete the OAuth", http.StatusInternalServerError)
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 			return
 		}
 	}
