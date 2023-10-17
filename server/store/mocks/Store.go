@@ -503,13 +503,13 @@ func (_m *Store) Init() error {
 	return r0
 }
 
-// LinkPosts provides a mock function with given fields: postInfo, tx
-func (_m *Store) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
-	ret := _m.Called(postInfo, tx)
+// LinkPosts provides a mock function with given fields: tx, postInfo
+func (_m *Store) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
+	ret := _m.Called(tx, postInfo)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(storemodels.PostInfo, *sql.Tx) error); ok {
-		r0 = rf(postInfo, tx)
+	if rf, ok := ret.Get(0).(func(*sql.Tx, storemodels.PostInfo) error); ok {
+		r0 = rf(tx, postInfo)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -825,13 +825,13 @@ func (_m *Store) SetJobStatus(jobName string, status bool) error {
 	return r0
 }
 
-// SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt, tx
-func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
-	ret := _m.Called(postID, lastUpdateAt, tx)
+// SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: tx, postID, lastUpdateAt
+func (_m *Store) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
+	ret := _m.Called(tx, postID, lastUpdateAt)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, time.Time, *sql.Tx) error); ok {
-		r0 = rf(postID, lastUpdateAt, tx)
+	if rf, ok := ret.Get(0).(func(*sql.Tx, string, time.Time) error); ok {
+		r0 = rf(tx, postID, lastUpdateAt)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -839,13 +839,13 @@ func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time
 	return r0
 }
 
-// SetPostLastUpdateAtByMattermostID provides a mock function with given fields: postID, lastUpdateAt, tx
-func (_m *Store) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
-	ret := _m.Called(postID, lastUpdateAt, tx)
+// SetPostLastUpdateAtByMattermostID provides a mock function with given fields: tx, postID, lastUpdateAt
+func (_m *Store) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
+	ret := _m.Called(tx, postID, lastUpdateAt)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, time.Time, *sql.Tx) error); ok {
-		r0 = rf(postID, lastUpdateAt, tx)
+	if rf, ok := ret.Get(0).(func(*sql.Tx, string, time.Time) error); ok {
+		r0 = rf(tx, postID, lastUpdateAt)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -511,7 +511,7 @@ func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, _ *pl
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
-	storeErr := store.LinkPosts(mockPostInfo, nil)
+	storeErr := store.LinkPosts(nil, mockPostInfo)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel-1", "mockMSTeamsID-1")
@@ -537,7 +537,7 @@ func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, _ 
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
-	storeErr := store.LinkPosts(mockPostInfo, nil)
+	storeErr := store.LinkPosts(nil, mockPostInfo)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID-2")
