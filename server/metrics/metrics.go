@@ -30,6 +30,9 @@ type Metrics interface {
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 	GetRegistry() *prometheus.Registry
+	ObserveChangeEventQueueCapacity(count int64)
+	IncrementChangeEventQueueLength(changeType string)
+	DecrementChangeEventQueueLength(changeType string)
 }
 
 type InstanceInfo struct {
@@ -296,19 +299,19 @@ func (m *metrics) IncrementHTTPErrors() {
 	}
 }
 
-func (m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
+func (m *metrics) ObserveChangeEventQueueCapacity(count int64) {
 	if m != nil {
 		m.changeEventQueueCapacity.Set(float64(count))
 	}
 }
 
-func (m *Metrics) IncrementChangeEventQueueLength(changeType string) {
+func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Inc()
 	}
 }
 
-func (m *Metrics) DecrementChangeEventQueueLength(changeType string) {
+func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
 	}

@@ -485,6 +485,7 @@ func TestStart(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
+			p.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventQueueCapacity", int64(5000)).Times(1)
 			mutex, _ := cluster.NewMutex(p.API, clusterMutexKey)
 			p.clusterMutex = mutex
 			test.SetupAPI(p.API.(*plugintest.API))

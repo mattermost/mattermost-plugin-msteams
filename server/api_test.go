@@ -179,6 +179,8 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			tc.PopulateMocks()
 			if tc.ExpectedBody != "" {
 				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
+			} else {
+				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", actionCreated).Times(1)
 			}
 
 			w := httptest.NewRecorder()
@@ -343,6 +345,7 @@ func TestProcessActivity(t *testing.T) {
 
 			if test.ExpectedStatusCode == http.StatusAccepted {
 				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", "mockChangeType").Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", "mockChangeType").Times(1)
 			}
 
 			test.SetupStore(plugin.store.(*storemocks.Store))

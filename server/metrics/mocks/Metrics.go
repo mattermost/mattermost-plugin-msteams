@@ -12,6 +12,11 @@ type Metrics struct {
 	mock.Mock
 }
 
+// DecrementChangeEventQueueLength provides a mock function with given fields: changeType
+func (_m *Metrics) DecrementChangeEventQueueLength(changeType string) {
+	_m.Called(changeType)
+}
+
 // GetRegistry provides a mock function with given fields:
 func (_m *Metrics) GetRegistry() *prometheus.Registry {
 	ret := _m.Called()
@@ -28,6 +33,11 @@ func (_m *Metrics) GetRegistry() *prometheus.Registry {
 	return r0
 }
 
+// IncrementChangeEventQueueLength provides a mock function with given fields: changeType
+func (_m *Metrics) IncrementChangeEventQueueLength(changeType string) {
+	_m.Called(changeType)
+}
+
 // IncrementHTTPErrors provides a mock function with given fields:
 func (_m *Metrics) IncrementHTTPErrors() {
 	_m.Called()
@@ -41,6 +51,11 @@ func (_m *Metrics) IncrementHTTPRequests() {
 // ObserveAPIEndpointDuration provides a mock function with given fields: handler, method, statusCode, elapsed
 func (_m *Metrics) ObserveAPIEndpointDuration(handler string, method string, statusCode string, elapsed float64) {
 	_m.Called(handler, method, statusCode, elapsed)
+}
+
+// ObserveChangeEventQueueCapacity provides a mock function with given fields: count
+func (_m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
+	_m.Called(count)
 }
 
 // ObserveChangeEventTotal provides a mock function with given fields: changeType
