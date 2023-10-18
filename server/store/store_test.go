@@ -1328,4 +1328,7 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 
 	err = store.CommitTx(tx)
 	assert.Nil(err)
+
+	// We are giving the other goroutine time to finish
+	time.Sleep(1 * time.Second)
 }
