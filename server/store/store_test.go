@@ -142,6 +142,8 @@ func TestStore(t *testing.T) {
 		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
 		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
 		"testListConnectedUsers":                                     testListConnectedUsers,
+		"testStoreUserAndIsUserPresentGetSizeOfWhitelist":            testStoreUserAndIsUserPresentGetSizeOfWhitelist,
+		"testPrefillWhitelist":                                       testPrefillWhitelist,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -1217,6 +1219,81 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 
 	assert.Equal(expectedResp, resp)
 	assert.Nil(getErr)
+
+	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
+	assert.Nil(delErr)
+
+	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
+	assert.Nil(delErr)
+}
+
+func testStoreUserAndIsUserPresentGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	assert := assert.New(t)
+
+	count, getErr := store.GetSizeOfWhitelist()
+	assert.Equal(0, count)
+	assert.Nil(getErr)
+
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
+	assert.Nil(storeErr)
+
+	count, getErr = store.GetSizeOfWhitelist()
+	assert.Equal(1, count)
+	assert.Nil(getErr)
+
+	present, presentErr := store.IsUserPresentInWhitelist(testutils.GetUserID())
+	assert.Equal(true, present)
+	assert.Nil(presentErr)
+
+	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	assert.Equal(false, present)
+	assert.Nil(presentErr)
+
+	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
+	assert.Nil(storeErr)
+
+	count, getErr = store.GetSizeOfWhitelist()
+	assert.Equal(2, count)
+	assert.Nil(getErr)
+
+	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	assert.Equal(true, present)
+	assert.Nil(presentErr)
+
+	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
+	assert.Nil(err)
+}
+
+func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
+	assert := assert.New(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	token := &oauth2.Token{
+		AccessToken:  "mockAccessToken-1",
+		RefreshToken: "mockRefreshToken-1",
+	}
+
+	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
+	assert.Nil(storeErr)
+
+	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", token)
+	assert.Nil(storeErr)
+
+	count, getErr := store.GetSizeOfWhitelist()
+	assert.Equal(0, count)
+	assert.Nil(getErr)
+
+	prefillErr := store.PrefillWhitelist()
+	assert.Nil(prefillErr)
+
+	count, getErr = store.GetSizeOfWhitelist()
+	assert.Equal(2, count)
+	assert.Nil(getErr)
+
+	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
+	assert.Nil(err)
 
 	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
 	assert.Nil(delErr)
