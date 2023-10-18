@@ -45,14 +45,15 @@ const (
 	discardedReasonEmptyFileID            = "empty_file_id"
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
-	actionSourceMSTeams = "msteams"
-	isDirectMessage     = "true"
-	isNotDirectMessage  = "false"
-	actionCreated       = "created"
-	actionUpdated       = "updated"
-	actionDeleted       = "deleted"
-	reactionSetAction   = "set"
-	reactionUnsetAction = "unset"
+	actionSourceMSTeams    = "msteams"
+	directMessageTrue      = "true"
+	directMessageFalse     = "false"
+	actionCreated          = "created"
+	actionUpdated          = "updated"
+	actionDeleted          = "deleted"
+	reactionSetAction      = "set"
+	reactionUnsetAction    = "unset"
+	increaseFileCountByOne = 1
 )
 
 type PluginIface interface {
@@ -291,9 +292,9 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	isDirect := isNotDirectMessage
+	isDirect := directMessageFalse
 	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
+		isDirect = directMessageTrue
 	}
 	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)
 	if errorFound {
@@ -405,9 +406,9 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		}
 	}
 
-	isDirect := isNotDirectMessage
+	isDirect := directMessageFalse
 	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
+		isDirect = directMessageTrue
 	}
 	ah.plugin.GetMetrics().ObserveMessagesCount(actionUpdated, actionSourceMSTeams, isDirect)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
@@ -504,9 +505,9 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	isDirect := isNotDirectMessage
+	isDirect := directMessageFalse
 	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
+		isDirect = directMessageTrue
 	}
 	ah.plugin.GetMetrics().ObserveMessagesCount(actionDeleted, actionSourceMSTeams, isDirect)
 	return discardedReasonNone

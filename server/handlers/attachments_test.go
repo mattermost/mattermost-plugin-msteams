@@ -290,7 +290,7 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, "", 1).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, directMessageFalse, "", increaseFileCountByOne).Times(1)
 			},
 			attachments: []msteams.Attachment{
 				{
@@ -339,7 +339,7 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, discardedReasonEmptyFileID, 1).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, directMessageFalse, discardedReasonEmptyFileID, increaseFileCountByOne).Times(1)
 			},
 			attachments: []msteams.Attachment{
 				{
@@ -370,8 +370,8 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Times(10)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, "", 1).Times(10)
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, discardedReasonFileLimitReached, 2).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, directMessageFalse, "", increaseFileCountByOne).Times(10)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, directMessageFalse, discardedReasonFileLimitReached, 2).Times(1)
 			},
 			attachments: []msteams.Attachment{
 				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},

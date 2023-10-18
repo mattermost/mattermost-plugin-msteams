@@ -389,7 +389,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(errors.New("unable to update the post")).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageTrue).Times(1)
 			},
 		},
 		{
@@ -449,7 +449,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageTrue).Times(1)
 			},
 		},
 		{
@@ -500,7 +500,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageFalse).Times(1)
 			},
 		},
 	} {
@@ -836,7 +836,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionUpdated, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionUpdated, actionSourceMSTeams, directMessageTrue).Times(1)
 			},
 		},
 		{
@@ -886,7 +886,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionUpdated, actionSourceMSTeams, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionUpdated, actionSourceMSTeams, directMessageFalse).Times(1)
 			},
 		},
 	} {
@@ -942,7 +942,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", actionDeleted, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessagesCount", actionDeleted, actionSourceMSTeams, directMessageTrue).Times(1)
 			},
 		},
 		{
@@ -1075,7 +1075,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMSTeams, isNotDirectMessage).Times(1)
+				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMSTeams, directMessageFalse).Times(1)
 			},
 		},
 		{
@@ -1115,7 +1115,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMSTeams, isNotDirectMessage).Times(1)
+				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMSTeams, directMessageFalse).Times(1)
 			},
 		},
 	} {
