@@ -431,17 +431,18 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
 	}
 
+	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
 		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "Error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist(nil)
 		if err != nil {
 			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
-			return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
 		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
@@ -452,13 +453,13 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
 	if err := p.store.StoreOAuth2State(state); err != nil {
 		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
 		p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
@@ -475,17 +476,18 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args.UserId, args.ChannelId, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	}
 
+	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
 		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist(nil)
 		if err != nil {
 			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
-			return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
 		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
@@ -496,13 +498,13 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
 	if err := p.store.StoreOAuth2State(state); err != nil {
 		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	codeVerifier := model.NewId()
 	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
 	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
