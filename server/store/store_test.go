@@ -793,6 +793,7 @@ func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plu
 			require.NoError(t, err)
 		}()
 
+		time.Sleep(1 * time.Second)
 		_, err := store.GetChannelSubscription("test")
 		require.NoError(t, err)
 
