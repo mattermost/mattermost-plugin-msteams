@@ -57,12 +57,11 @@ func (pm *pluginMock) GenerateRandomPassword() string {
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{
-		appClient:       &mocksClient.Client{},
-		userClient:      &mocksClient.Client{},
-		teamsUserClient: &mocksClient.Client{},
-		store:           &storemocks.Store{},
-		api:             &plugintest.API{},
-		// metrics:                    metrics.Metrics,
+		appClient:                  &mocksClient.Client{},
+		userClient:                 &mocksClient.Client{},
+		teamsUserClient:            &mocksClient.Client{},
+		store:                      &storemocks.Store{},
+		api:                        &plugintest.API{},
 		botUserID:                  "bot-user-id",
 		url:                        "fake-url",
 		syncDirectMessages:         false,
