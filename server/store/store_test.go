@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"testing"
@@ -1316,10 +1317,13 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 	assert.Nil(err)
 
 	currentTime := time.Now()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		_, err = store.GetSizeOfWhitelist(nil)
 		assert.Nil(err)
 		assert.Greater(time.Since(currentTime), 2*time.Second)
+		wg.Done()
 	}()
 
 	time.Sleep(2 * time.Second)
@@ -1328,7 +1332,5 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 
 	err = store.CommitTx(tx)
 	assert.Nil(err)
-
-	// We are giving the other goroutine time to finish
-	time.Sleep(1 * time.Second)
+	wg.Wait()
 }
