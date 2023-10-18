@@ -66,7 +66,7 @@ type Store interface {
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(storemodels.GlobalSubscription) error
 	SaveChatSubscription(storemodels.ChatSubscription) error
-	SaveChannelSubscription(storemodels.ChannelSubscription, *sql.Tx) error
+	SaveChannelSubscription(*sql.Tx, storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
@@ -727,7 +727,7 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 	return nil
 }
 
-func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error {
+func (s *SQLStore) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
 	if _, err := s.getQueryBuilder().Delete("msteamssync_subscriptions").Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
 		return err
 	}
