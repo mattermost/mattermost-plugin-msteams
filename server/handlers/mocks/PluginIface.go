@@ -3,9 +3,12 @@
 package mocks
 
 import (
-	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	plugin "github.com/mattermost/mattermost-server/v6/plugin"
+	metrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	mock "github.com/stretchr/testify/mock"
+
+	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+
+	plugin "github.com/mattermost/mattermost-server/v6/plugin"
 
 	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 )
@@ -144,6 +147,22 @@ func (_m *PluginIface) GetMaxSizeForCompleteDownload() int {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
+// GetMetrics provides a mock function with given fields:
+func (_m *PluginIface) GetMetrics() *metrics.Metrics {
+	ret := _m.Called()
+
+	var r0 *metrics.Metrics
+	if rf, ok := ret.Get(0).(func() *metrics.Metrics); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*metrics.Metrics)
+		}
 	}
 
 	return r0

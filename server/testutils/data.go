@@ -177,3 +177,39 @@ func GetMockTime() time.Time {
 	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
 	return mockTime
 }
+
+func GetEphemeralPost(userID, channelID, message string) *model.Post {
+	return &model.Post{
+		UserId:    userID,
+		ChannelId: channelID,
+		Message:   message,
+	}
+}
+
+func GetGlobalSubscription(subscriptionID string, expiresOn time.Time) storemodels.GlobalSubscription {
+	return storemodels.GlobalSubscription{
+		SubscriptionID: subscriptionID,
+		Type:           "allChats",
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
+}
+
+func GetChannelSubscription(subscriptionID, teamID, channelID string, expiresOn time.Time) storemodels.ChannelSubscription {
+	return storemodels.ChannelSubscription{
+		SubscriptionID: subscriptionID,
+		TeamID:         teamID,
+		ChannelID:      channelID,
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
+}
+
+func GetChatSubscription(subscriptionID, userID string, expiresOn time.Time) storemodels.ChatSubscription {
+	return storemodels.ChatSubscription{
+		SubscriptionID: subscriptionID,
+		UserID:         userID,
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
+}

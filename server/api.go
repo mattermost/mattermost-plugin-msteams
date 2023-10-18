@@ -215,6 +215,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
+		a.p.metricsService.ObserveChangeEventTotal(activity.ChangeType)
 		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
@@ -253,6 +254,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
+		a.p.metricsService.ObserveLifecycleEventTotal(event.LifecycleEvent)
 		a.p.activityHandler.HandleLifecycleEvent(event)
 	}
 
@@ -453,7 +455,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, a.p.API.LogError)
+	client := msteams.NewTokenClient(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, token, &a.p.apiClient.Log)
 	if err = client.Connect(); err != nil {
 		a.p.API.LogError("Unable to connect to the client", "error", err.Error())
 		http.Error(w, "failed to connect to the client", http.StatusInternalServerError)

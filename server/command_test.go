@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -41,11 +42,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription on MS Teams", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -74,11 +71,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: "Mock-ChannelID",
-					Message:   "This Mattermost channel is not linked to any MS Teams channel.",
-				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "Mock-ChannelID", "This Mattermost channel is not linked to any MS Teams channel.")).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to get the link by channel ID", "error", "Error while getting link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -98,11 +91,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: "Mock-ChannelID",
-					Message:   "Unable to delete link.",
-				}).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "Mock-ChannelID", "Unable to delete link.")).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the link by channel ID", "error", "Error while deleting a link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -116,10 +105,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel information.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Unable to get the current channel information.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client) {},
@@ -136,11 +122,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(false).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					ChannelId: testutils.GetChannelID(),
-					UserId:    "bot-user-id",
-					Message:   "Unable to unlink the channel, you have to be a channel admin to unlink it.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Unable to unlink the channel, you have to be a channel admin to unlink it.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client) {},
@@ -156,11 +138,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeDirect,
 				}, nil).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					ChannelId: testutils.GetChannelID(),
-					UserId:    "bot-user-id",
-					Message:   "Linking/unlinking a direct or group message is not allowed",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Linking/unlinking a direct or group message is not allowed")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client) {},
@@ -177,11 +155,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to get the subscription by MS Teams channel ID", "error", "unable to get the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -205,11 +179,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is no longer linked to this Mattermost channel.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription from the DB", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -254,11 +224,7 @@ func TestExecuteShowCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "This channel is linked to the MS Teams Channel \"\" (with id: ) in the Team \"\" (with the id: ).",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "This channel is linked to the MS Teams Channel \"\" (with id: ) in the Team \"\" (with the id: ).")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
@@ -274,10 +240,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			description: "Unable to get the link",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Link doesn't exist.",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Link doesn't exist.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "").Return(nil, errors.New("Error while getting the link")).Times(1)
@@ -290,11 +253,7 @@ func TestExecuteShowCommand(t *testing.T) {
 				ChannelId: "Invalid-ChannelID",
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: "Invalid-ChannelID",
-					Message:   "Unable to get the MS Teams team information.",
-				}).Return(testutils.GetPost("Invalid-ChannelID", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "Invalid-ChannelID", "Unable to get the MS Teams team information.")).Return(testutils.GetPost("Invalid-ChannelID", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Invalid-ChannelID").Return(&storemodels.ChannelLink{
@@ -337,17 +296,9 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   commandWaitingMessage,
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|Test MS team|Test MS channel|",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|Test MS team|Test MS channel|")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("ListChannelLinksWithNames").Return(testutils.GetChannelLinks(1), nil).Times(1)
@@ -365,11 +316,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Unable to execute the command, only system admins have access to execute this command.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Unable to execute the command, only system admins have access to execute this command.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client) {},
@@ -383,11 +330,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("LogDebug", "Unable to get links from store", "Error", "error in getting links").Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Something went wrong.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("ListChannelLinksWithNames").Return(nil, errors.New("error in getting links")).Times(1)
@@ -402,11 +345,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "No links present.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "No links present.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("ListChannelLinksWithNames").Return(nil, nil).Times(1)
@@ -425,17 +364,9 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
 				api.On("LogDebug", "Unable to get the MS Teams channel information for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
 
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   commandWaitingMessage,
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching information. Please check the server logs.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching information. Please check the server logs.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("ListChannelLinksWithNames").Return(testutils.GetChannelLinks(4), nil).Times(1)
@@ -475,10 +406,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 				UserId: testutils.GetUserID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Your account has been disconnected.",
-				}).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Your account has been disconnected.")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 
 				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
 			},
@@ -494,10 +422,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			description: "User account is not connected",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Error: the account is not connected",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Error: the account is not connected")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "").Return("", errors.New("Unable to get team UserID")).Times(1)
@@ -507,10 +432,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			description: "User account is not connected as token is not found",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Error: the account is not connected",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Error: the account is not connected")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "").Return("", nil).Times(1)
@@ -523,10 +445,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 				UserId: testutils.GetUserID(),
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Error: unable to disconnect your account, Error while disconnecting your account",
-				}).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Error: unable to disconnect your account, Error while disconnecting your account")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", nil).Times(1)
@@ -564,11 +483,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The bot account has been disconnected.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The bot account has been disconnected.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
@@ -583,11 +498,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: unable to find the connected bot account",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Error: unable to find the connected bot account")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return("", errors.New("Error: unable to find the connected bot account")).Times(1)
@@ -601,11 +512,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: unable to disconnect the bot account, Error while disconnecting the bot account",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Error: unable to disconnect the bot account, Error while disconnecting the bot account")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetUserID(), nil).Times(1)
@@ -617,10 +524,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", "", model.PermissionManageSystem).Return(false).Times(1)
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Unable to disconnect the bot account, only system admins can disconnect the bot account.",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Unable to disconnect the bot account, only system admins can disconnect the bot account.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -665,24 +569,88 @@ func TestExecuteLinkCommand(t *testing.T) {
 					},
 				}, nil).Times(2)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Please wait while your request is being processed.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The MS Teams channel is now linked to this Mattermost channel.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is now linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
-				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
-				s.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
+				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
+				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription"), &sql.Tx{}).Return(nil).Times(1)
+				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+			},
+		},
+		{
+			description: "Error in beginning the database transaction",
+			parameters:  []string{testutils.GetTeamsUserID(), testutils.GetChannelID()},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				TeamId:    testutils.GetTeamsUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(2)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("LogError", "Unable to begin the database transaction", "error", "error in beginning the database transaction")
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
+				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
+				s.On("BeginTx").Return(nil, errors.New("error in beginning the database transaction")).Times(1)
+			},
+			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+			},
+		},
+		{
+			description: "Unable to commit the database transaction",
+			parameters:  []string{testutils.GetTeamsUserID(), testutils.GetChannelID()},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				TeamId:    testutils.GetTeamsUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(2)
+				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("LogError", "Unable to commit database transaction", "error", "error in committing transaction")
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
+				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
+				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription"), &sql.Tx{}).Return(nil).Times(1)
+				s.On("CommitTx", &sql.Tx{}).Return(errors.New("error in committing transaction")).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
@@ -701,11 +669,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "A link for this channel already exists. Please unlink the channel before you link again with another channel.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "A link for this channel already exists. Please unlink the channel before you link again with another channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
@@ -730,11 +694,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Invalid link command, please pass the MS Teams team id and channel id as parameters.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Invalid link command, please pass the MS Teams team id and channel id as parameters.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore:  func(s *mockStore.Store) {},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {},
@@ -748,10 +708,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", "", "", model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "This team is not enabled for MS Teams sync.",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "This team is not enabled for MS Teams sync.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", "").Return(false).Times(1)
@@ -766,10 +723,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:  "bot-user-id",
-					Message: "Unable to get the current channel information.",
-				}).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Unable to get the current channel information.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
@@ -788,11 +742,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", "", testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(false).Times(1)
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Unable to link the channel. You have to be a channel admin to link it.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Unable to link the channel. You have to be a channel admin to link it.")).Return(testutils.GetPost(testutils.GetChannelID(), "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
@@ -810,11 +760,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeGroup,
 				}, nil).Times(1)
-				api.On("SendEphemeralPost", "", &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Linking/unlinking a direct or group message is not allowed",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Linking/unlinking a direct or group message is not allowed")).Return(testutils.GetPost(testutils.GetChannelID(), "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
@@ -839,11 +785,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					},
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "MS Teams channel not found or you don't have the permissions to access it.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "MS Teams channel not found or you don't have the permissions to access it.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
@@ -879,11 +821,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "User already connected",
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "You are already connected to MS Teams. Please disconnect your account first before connecting again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "You are already connected to MS Teams. Please disconnect your account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Once()
@@ -893,11 +831,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			description: "Unable to store OAuth state",
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the account, please try again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -908,11 +842,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			description: "Unable to set in KV store",
 			setupAPI: func(api *plugintest.API) {
 				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the account, please try again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -962,11 +892,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "User don't have permission to execute the command",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Unable to connect the bot account, only system admins can connect the bot account.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Unable to connect the bot account, only system admins can connect the bot account.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(_ *mockStore.Store) {},
 		},
@@ -974,11 +900,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Bot user already connected",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(&oauth2.Token{}, nil).Once()
@@ -989,11 +911,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the bot account, please try again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
@@ -1005,11 +923,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error trying to connect the bot account, please try again.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
@@ -1185,11 +1099,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			description: "No params",
 			params:      []string{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Invalid promote command, please pass the current username and promoted username as parameters.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Invalid promote command, please pass the current username and promoted username as parameters.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -1197,11 +1107,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			description: "Too many params",
 			params:      []string{"user1", "user2", "user3"},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Invalid promote command, please pass the current username and promoted username as parameters.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Invalid promote command, please pass the current username and promoted username as parameters.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -1211,11 +1117,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			params:      []string{"valid-user", "valid-user"},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Unable to execute the command, only system admins have access to execute this command.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Unable to execute the command, only system admins have access to execute this command.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -1225,11 +1127,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "not-existing-user").Return(nil, &model.AppError{}).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: Unable to promote account not-existing-user, user not found",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: Unable to promote account not-existing-user, user not found")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {},
 		},
@@ -1239,11 +1137,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "existing-user").Return(&model.User{Id: "test", Username: "existing-user", RemoteId: model.NewString("test")}, nil).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: Unable to promote account existing-user, it is not a known msteams user account",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: Unable to promote account existing-user, it is not a known msteams user account")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("", errors.New("not-found")).Times(1)
@@ -1255,11 +1149,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "existing-user").Return(&model.User{Id: "test", Username: "existing-user", RemoteId: nil}, nil).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: Unable to promote account existing-user, it is already a regular account",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: Unable to promote account existing-user, it is already a regular account")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
@@ -1272,11 +1162,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
 				api.On("GetUserByUsername", "new-user").Return(&model.User{Id: "test2", Username: "new-user", RemoteId: nil}, nil).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: the promoted username already exists, please use a different username.",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: the promoted username already exists, please use a different username.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
@@ -1290,11 +1176,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
 				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
 				api.On("UpdateUser", mock.Anything).Return(nil, &model.AppError{}).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Error: Unable to promote account valid-user",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: Unable to promote account valid-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
@@ -1308,11 +1190,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Once()
 				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
 				api.On("UpdateUser", &model.User{Id: "test", Username: "new-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "new-user", RemoteId: nil}, nil).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Account valid-user has been promoted and updated the username to new-user",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to new-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
@@ -1325,11 +1203,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("test")}, nil).Times(2)
 				api.On("UpdateUser", &model.User{Id: "test", Username: "valid-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "valid-user", RemoteId: nil}, nil).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    p.userID,
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Account valid-user has been promoted and updated the username to valid-user",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to valid-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)

@@ -90,7 +90,7 @@ There are two methods by which you can connect your Mattermost account to your M
 - `/msteams-sync connect-bot` :- This is used to connect the bot account in Mattermost to an account in MS Teams and it can only be run by system admins.
 - `/msteams-sync disconnect-bot` :- This is used to disconnect the bot account in Mattermost from the MS Teams account and it can only be run by system admins.
 - `/msteams-sync show-links` :- This is used to show all the currently active links and can only be run by system admins. It displays all the links that contain Mattermost team, Mattermost channel, MS Teams team, MS Teams channel.
-- `/msteams-sync promote` :- This is used to promote a synthetic user to a normal user and can only be run by system admins. This command takes two parameters i.e. current_username and the new_username. **Note that after promoting the user, he will be counted under the Mattermost license**.
+- `/msteams-sync promote` :- This is used to promote a synthetic user to a normal user and can only be run by system admins. This command takes two parameters i.e. current_username and the new_username. The promoted user must reset their password or request assistance from the administrator in order to log in to Mattermost. **Note that after promoting the user, he will be counted under the Mattermost license**.
 
 ## FAQs
     - Read about the FAQs [here](./docs/faqs.md)

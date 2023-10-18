@@ -7,6 +7,7 @@ import (
 
 	"github.com/gosimple/slug"
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -43,6 +44,7 @@ func (pm *pluginMock) GetMaxSizeForCompleteDownload() int              { return 
 func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return pm.bufferSizeForStreaming }
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
+func (pm *pluginMock) GetMetrics() *metrics.Metrics                    { return nil }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
 func (pm *pluginMock) GetClientForUser(string) (msteams.Client, error) { return pm.userClient, nil }
 func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
