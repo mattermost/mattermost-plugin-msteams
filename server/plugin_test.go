@@ -311,10 +311,11 @@ func TestGetClientForTeamsUser(t *testing.T) {
 
 func TestSyncUsers(t *testing.T) {
 	for _, test := range []struct {
-		Name        string
-		SetupAPI    func(*plugintest.API)
-		SetupStore  func(*storemocks.Store)
-		SetupClient func(*mocks.Client)
+		Name         string
+		SetupAPI     func(*plugintest.API)
+		SetupStore   func(*storemocks.Store)
+		SetupClient  func(*mocks.Client)
+		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
 			Name: "SyncUsers: Unable to get the MS Teams user list",
@@ -325,6 +326,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return(nil, errors.New("unable to get the user list")).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
 		},
 		{
 			Name: "SyncUsers: Unable to get the MM users",
@@ -343,6 +345,9 @@ func TestSyncUsers(t *testing.T) {
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
 			},
 		},
 		{
@@ -365,6 +370,9 @@ func TestSyncUsers(t *testing.T) {
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
 			},
 		},
 		{
@@ -392,6 +400,9 @@ func TestSyncUsers(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
+			},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -399,6 +410,7 @@ func TestSyncUsers(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
+			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.syncUsers()
 		})
 	}

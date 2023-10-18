@@ -403,6 +403,7 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
+	p.metricsService.ObserveUpstreamUsersTotal(int64(len(msUsers)))
 	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
@@ -468,7 +469,7 @@ func (p *Plugin) syncUsers() {
 					}
 				} else {
 					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
+					p.API.LogDebug("Skipping syncing of the guest user", "TeamsUserID", msUser.ID)
 				}
 
 				continue

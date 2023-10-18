@@ -27,6 +27,7 @@ type Metrics interface {
 	ObserveFilesCount(action, source, isDirect, discardedReason string, count int)
 	ObserveSyntheticUsersTotal(count int64)
 	ObserveLinkedChannelsTotal(count int64)
+	ObserveUpstreamUsersTotal(count int64)
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 	GetRegistry() *prometheus.Registry
@@ -60,6 +61,7 @@ type metrics struct {
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
 	linkedChannelsTotal prometheus.Gauge
+	upstreamUsersTotal  prometheus.Gauge
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
@@ -202,6 +204,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.linkedChannelsTotal)
 
+	m.upstreamUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "upstream_users_total",
+		Help:        "The total number of upstream users.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.upstreamUsersTotal)
+
 	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -284,6 +295,11 @@ func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
 func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
 	if m != nil {
 		m.linkedChannelsTotal.Set(float64(count))
+	}
+}
+func (m *metrics) ObserveUpstreamUsersTotal(count int64) {
+	if m != nil {
+		m.upstreamUsersTotal.Set(float64(count))
 	}
 }
 

@@ -103,6 +103,11 @@ func (_m *Metrics) ObserveSyntheticUsersTotal(count int64) {
 	_m.Called(count)
 }
 
+// ObserveUpstreamUsersTotal provides a mock function with given fields: count
+func (_m *Metrics) ObserveUpstreamUsersTotal(count int64) {
+	_m.Called(count)
+}
+
 type mockConstructorTestingTNewMetrics interface {
 	mock.TestingT
 	Cleanup(func())
