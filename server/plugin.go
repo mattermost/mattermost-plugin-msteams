@@ -456,7 +456,7 @@ func (p *Plugin) syncUsers() {
 					}
 				} else {
 					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
+					p.API.LogDebug("Skipping syncing of the guest user", "TeamsUserID", msUser.ID)
 				}
 
 				continue
