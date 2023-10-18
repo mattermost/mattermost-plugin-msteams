@@ -28,6 +28,7 @@ type Metrics interface {
 	ObserveSyntheticUsersTotal(count int64)
 	ObserveLinkedChannelsTotal(count int64)
 	ObserveUpstreamUsersTotal(count int64)
+	ObserveMessagesConfirmedCount(source, isDirect string)
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 	GetRegistry() *prometheus.Registry
@@ -57,6 +58,7 @@ type metrics struct {
 	messagesCount             *prometheus.CounterVec
 	reactionsCount            *prometheus.CounterVec
 	filesCount                *prometheus.CounterVec
+	messagesConfirmedCount    *prometheus.CounterVec
 
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
@@ -177,6 +179,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesCount)
 
+	m.messagesConfirmedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "messages_confirmed",
+		Help:        "The total number of messages confirmed to sent from Mattermost to MS Teams.",
+		ConstLabels: additionalLabels,
+	}, []string{"source", "is_direct"})
+	m.registry.MustRegister(m.messagesConfirmedCount)
+
 	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -283,6 +294,12 @@ func (m *metrics) ObserveReactionsCount(action, source, isDirect string) {
 func (m *metrics) ObserveFilesCount(action, source, isDirect, discardedReason string, count int) {
 	if m != nil {
 		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect, "discarded_reason": discardedReason}).Add(float64(count))
+	}
+}
+
+func (m *metrics) ObserveMessagesConfirmedCount(source, isDirect string) {
+	if m != nil {
+		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": isDirect}).Inc()
 	}
 }
 

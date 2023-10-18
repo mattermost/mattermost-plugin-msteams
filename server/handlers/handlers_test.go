@@ -118,6 +118,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetStore").Return(store).Times(1)
+				p.On("GetMetrics").Return(metrics).Times(1)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -144,7 +145,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 			},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
+			setupMetrics: func(metrics *mocksMetrics.Metrics) {
+				metrics.On("ObserveMessagesConfirmedCount", actionSourceMattermost, isDirectMessage).Times(1)
+			},
 		},
 		{
 			description: "Skipping messages from bot user",

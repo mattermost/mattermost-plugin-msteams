@@ -45,14 +45,15 @@ const (
 	discardedReasonEmptyFileID            = "empty_file_id"
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
-	actionSourceMSTeams = "msteams"
-	isDirectMessage     = "true"
-	isNotDirectMessage  = "false"
-	actionCreated       = "created"
-	actionUpdated       = "updated"
-	actionDeleted       = "deleted"
-	reactionSetAction   = "set"
-	reactionUnsetAction = "unset"
+	actionSourceMSTeams    = "msteams"
+	actionSourceMattermost = "mattermost"
+	isDirectMessage        = "true"
+	isNotDirectMessage     = "false"
+	actionCreated          = "created"
+	actionUpdated          = "updated"
+	actionDeleted          = "deleted"
+	reactionSetAction      = "set"
+	reactionUnsetAction    = "unset"
 )
 
 type PluginIface interface {
@@ -214,11 +215,17 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return discardedReasonNotUserEvent
 	}
 
+	isDirect := isNotDirectMessage
+	if activityIds.ChatID != "" {
+		isDirect = isDirectMessage
+	}
+
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
+		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(actionSourceMattermost, isDirect)
 		return discardedReasonDuplicatedPost
 	}
 
@@ -291,10 +298,6 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	isDirect := isNotDirectMessage
-	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
-	}
 	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
