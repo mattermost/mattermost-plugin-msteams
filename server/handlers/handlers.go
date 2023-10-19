@@ -13,7 +13,7 @@ import (
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
 	"github.com/mattermost/mattermost-server/v6/model"

@@ -1,5 +1,5 @@
 //go:generate mockery --name=Store
-package store
+package sqlstore
 
 import (
 	"crypto/sha512"

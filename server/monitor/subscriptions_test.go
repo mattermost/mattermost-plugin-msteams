@@ -8,7 +8,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
+	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/require"

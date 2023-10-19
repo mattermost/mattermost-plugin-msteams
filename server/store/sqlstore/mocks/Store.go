@@ -8,7 +8,7 @@ import (
 
 	sql "database/sql"
 
-	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 

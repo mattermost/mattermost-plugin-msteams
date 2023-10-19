@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"golang.org/x/oauth2"
 

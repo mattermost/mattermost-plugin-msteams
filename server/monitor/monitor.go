@@ -6,7 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
