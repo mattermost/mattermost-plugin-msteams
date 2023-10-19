@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"testing"
@@ -1310,27 +1309,26 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 	err := store.LockWhitelist(nil)
 	assert.EqualError(err, "cannot lock the whitelist without a transaction")
 
-	tx, err := store.BeginTx()
-	assert.Nil(err)
-
-	err = store.LockWhitelist(tx)
-	assert.Nil(err)
-
 	currentTime := time.Now()
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	ch := make(chan int, 1)
 	go func() {
-		_, err = store.GetSizeOfWhitelist(nil)
+		tx, err := store.BeginTx()
 		assert.Nil(err)
-		assert.Greater(time.Since(currentTime), 2*time.Second)
-		wg.Done()
+
+		err = store.LockWhitelist(tx)
+		assert.Nil(err)
+
+		ch <- 1
+		time.Sleep(1 * time.Second)
+		err = store.UnlockWhitelist(tx)
+		assert.Nil(err)
+
+		err = store.CommitTx(tx)
+		assert.Nil(err)
 	}()
 
-	time.Sleep(2 * time.Second)
-	err = store.UnlockWhitelist(tx)
+	<-ch
+	_, err = store.GetSizeOfWhitelist(nil)
 	assert.Nil(err)
-
-	err = store.CommitTx(tx)
-	assert.Nil(err)
-	wg.Wait()
+	assert.Greater(time.Since(currentTime), 1*time.Second)
 }
