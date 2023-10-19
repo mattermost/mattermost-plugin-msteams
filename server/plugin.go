@@ -40,7 +40,7 @@ const (
 	syncUsersJobName      = "sync_users"
 
 	metricsExposePort          = ":9094"
-	updateMetricsTaskFrequency = 1 * time.Second
+	updateMetricsTaskFrequency = 15 * time.Minute
 
 	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
 	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
