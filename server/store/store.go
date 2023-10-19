@@ -121,7 +121,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
 	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
-			SELECT DISTINCT index_name FROM information_schema.statistics 
+			SELECT DISTINCT index_name FROM information_schema.statistics
 			WHERE table_schema = DATABASE()
 			AND table_name = 'tableName' AND index_name = 'indexName'
 		)`
