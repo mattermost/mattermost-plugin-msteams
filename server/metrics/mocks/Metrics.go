@@ -103,6 +103,11 @@ func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirect 
 	_m.Called(action, source, isDirect)
 }
 
+// ObserveSubscriptionsCount provides a mock function with given fields: action
+func (_m *Metrics) ObserveSubscriptionsCount(action string) {
+	_m.Called(action)
+}
+
 // ObserveSyntheticUsersTotal provides a mock function with given fields: count
 func (_m *Metrics) ObserveSyntheticUsersTotal(count int64) {
 	_m.Called(count)

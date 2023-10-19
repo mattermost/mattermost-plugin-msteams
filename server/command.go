@@ -202,6 +202,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
+	p.metricsService.ObserveSubscriptionsCount(subscriptionConnected)
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
 		p.API.LogDebug("Unable to create the new link", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")

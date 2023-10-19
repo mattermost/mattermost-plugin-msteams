@@ -54,6 +54,7 @@ const (
 	actionDeleted          = "deleted"
 	reactionSetAction      = "set"
 	reactionUnsetAction    = "unset"
+	subscriptionRefreshed  = "refreshed"
 )
 
 type PluginIface interface {
@@ -145,6 +146,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
+			ah.plugin.GetMetrics().ObserveSubscriptionsCount(subscriptionRefreshed)
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}

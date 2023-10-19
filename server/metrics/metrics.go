@@ -29,6 +29,7 @@ type Metrics interface {
 	ObserveLinkedChannelsTotal(count int64)
 	ObserveUpstreamUsersTotal(count int64)
 	ObserveMessagesConfirmedCount(source, isDirect string)
+	ObserveSubscriptionsCount(action string)
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 	GetRegistry() *prometheus.Registry
@@ -59,6 +60,7 @@ type metrics struct {
 	reactionsCount            *prometheus.CounterVec
 	filesCount                *prometheus.CounterVec
 	messagesConfirmedCount    *prometheus.CounterVec
+	subscriptionsCount        *prometheus.CounterVec
 
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
@@ -188,6 +190,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"source", "is_direct"})
 	m.registry.MustRegister(m.messagesConfirmedCount)
 
+	m.subscriptionsCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "subscriptions_count",
+		Help:        "The total number of subscriptions connected, reconnected and refreshed.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.subscriptionsCount)
+
 	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -300,6 +311,12 @@ func (m *metrics) ObserveFilesCount(action, source, isDirect, discardedReason st
 func (m *metrics) ObserveMessagesConfirmedCount(source, isDirect string) {
 	if m != nil {
 		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": isDirect}).Inc()
+	}
+}
+
+func (m *metrics) ObserveSubscriptionsCount(action string) {
+	if m != nil {
+		m.subscriptionsCount.With(prometheus.Labels{"action": action}).Inc()
 	}
 }
 

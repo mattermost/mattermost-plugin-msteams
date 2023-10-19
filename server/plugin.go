@@ -40,7 +40,7 @@ const (
 	syncUsersJobName      = "sync_users"
 
 	metricsExposePort          = ":9094"
-	updateMetricsTaskFrequency = 15 * time.Minute
+	updateMetricsTaskFrequency = 1 * time.Second
 
 	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
 	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
@@ -53,6 +53,8 @@ const (
 	actionDeleted          = "deleted"
 	reactionSetAction      = "set"
 	reactionUnsetAction    = "unset"
+	subscriptionConnected  = "connected"
+	subscriptionRefreshed  = "refreshed"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -194,7 +196,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.metricsService, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
