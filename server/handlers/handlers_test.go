@@ -347,7 +347,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetMetrics").Return(metrics).Times(1)
+				p.On("GetMetrics").Return(metrics).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -393,6 +393,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMSTeams, mock.AnythingOfType("float64")).Times(1)
 			},
 		},
 		{
@@ -408,7 +409,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Times(6)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
-				p.On("GetMetrics").Return(metrics).Times(1)
+				p.On("GetMetrics").Return(metrics).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
@@ -453,6 +454,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMSTeams, mock.AnythingOfType("float64")).Times(1)
 			},
 		},
 		{
@@ -467,7 +469,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Times(5)
 				p.On("GetStore").Return(store).Times(5)
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
-				p.On("GetMetrics").Return(metrics).Times(1)
+				p.On("GetMetrics").Return(metrics).Times(2)
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&msteams.Message{
@@ -504,6 +506,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMSTeams, mock.AnythingOfType("float64")).Times(1)
 			},
 		},
 	} {
@@ -522,7 +525,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 
 			ah.plugin = p
 
-			ah.handleCreatedActivity(testCase.activityIds)
+			ah.handleCreatedActivity(testCase.activityIds, testutils.GetMockTime())
 		})
 	}
 }

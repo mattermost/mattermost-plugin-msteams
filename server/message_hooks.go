@@ -20,6 +20,7 @@ import (
 )
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
+	messageCreateTime := time.Now()
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -46,7 +47,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			for _, m := range members {
 				dstUsers = append(dstUsers, m.UserId)
 			}
-			_, err = p.SendChat(post.UserId, dstUsers, post)
+			_, err = p.SendChat(post.UserId, dstUsers, messageCreateTime, post)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 			}
@@ -56,7 +57,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 
 	user, _ := p.API.GetUser(post.UserId)
 
-	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
+	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, messageCreateTime, user, post)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 	}
@@ -460,7 +461,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	return nil
 }
 
-func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
+func (p *Plugin) SendChat(srcUser string, usersIDs []string, messageCreateTime time.Time, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending direct message to MS Teams", "SrcUser", srcUser, "UsersIDs", usersIDs, "PostID", post.Id)
 
 	parentID := ""
@@ -549,6 +550,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
+	timeElapsed := float64(time.Since(messageCreateTime)) / float64(time.Second)
+	p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
 	p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isDirectMessage)
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {
@@ -578,7 +581,7 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 	}
 }
 
-func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
+func (p *Plugin) Send(teamID, channelID string, messageCreateTime time.Time, user *model.User, post *model.Post) (string, error) {
 	p.API.LogDebug("Sending message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "PostID", post.Id)
 
 	parentID := ""
@@ -637,6 +640,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		return "", err
 	}
 
+	timeElapsed := float64(time.Since(messageCreateTime)) / float64(time.Second)
+	p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
 	p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isNotDirectMessage)
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {

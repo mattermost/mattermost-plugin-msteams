@@ -83,6 +83,11 @@ func (_m *Metrics) ObserveLinkedChannelsTotal(count int64) {
 	_m.Called(count)
 }
 
+// ObserveMessageSyncDuration provides a mock function with given fields: source, elapsed
+func (_m *Metrics) ObserveMessageSyncDuration(source string, elapsed float64) {
+	_m.Called(source, elapsed)
+}
+
 // ObserveMessagesConfirmedCount provides a mock function with given fields: source, isDirect
 func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirect string) {
 	_m.Called(source, isDirect)

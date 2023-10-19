@@ -18,6 +18,7 @@ const (
 
 type Metrics interface {
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
+	ObserveMessageSyncDuration(source string, elapsed float64)
 	ObserveConnectedUsersTotal(count int64)
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
@@ -48,7 +49,8 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime *prometheus.HistogramVec
+	apiTime         *prometheus.HistogramVec
+	messageSyncTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
@@ -108,6 +110,18 @@ func NewMetrics(info InstanceInfo) Metrics {
 		[]string{"handler", "method", "status_code"},
 	)
 	m.registry.MustRegister(m.apiTime)
+
+	m.messageSyncTime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace:   MetricsNamespace,
+			Subsystem:   MetricsSubsystemApp,
+			Name:        "message_sync_time",
+			Help:        "Time to sync the messages",
+			ConstLabels: additionalLabels,
+		},
+		[]string{"source"},
+	)
+	m.registry.MustRegister(m.messageSyncTime)
 
 	m.httpRequestsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -263,6 +277,12 @@ func (m *metrics) GetRegistry() *prometheus.Registry {
 func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
 	if m != nil {
 		m.apiTime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveMessageSyncDuration(source string, elapsed float64) {
+	if m != nil {
+		m.messageSyncTime.With(prometheus.Labels{"source": source}).Observe(elapsed)
 	}
 }
 

@@ -1491,6 +1491,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1529,6 +1530,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1558,6 +1560,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, discardedReasonUnableToGetMMData, 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1588,6 +1591,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, discardedReasonUnableToGetMMData, 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1632,6 +1636,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, discardedReasonUnableToUploadFileOnTeams, 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1666,6 +1671,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1680,7 +1686,7 @@ func TestSendChat(t *testing.T) {
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
 			mockPost.RootId = "mockRootID"
-			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost)
+			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, testutils.GetMockTime(), mockPost)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1735,6 +1741,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isNotDirectMessage, discardedReasonUnableToGetMMData, 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1761,6 +1768,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isNotDirectMessage, discardedReasonUnableToGetMMData, 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1787,6 +1795,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isNotDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
 		},
@@ -1820,6 +1829,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isNotDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1852,6 +1862,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, isNotDirectMessage, "", 1).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMessageSyncDuration", actionSourceMattermost, mock.AnythingOfType("float64")).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1865,7 +1876,7 @@ func TestSend(t *testing.T) {
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
-			resp, err := p.Send(testutils.GetID(), testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), mockPost)
+			resp, err := p.Send(testutils.GetID(), testutils.GetChannelID(), testutils.GetMockTime(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), mockPost)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
