@@ -115,6 +115,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
+		a.p.metricsService.ObserveChangeEventTotal(activity.ChangeType)
 		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
@@ -153,6 +154,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
+		a.p.metricsService.ObserveLifecycleEventTotal(event.LifecycleEvent)
 		a.p.activityHandler.HandleLifecycleEvent(event)
 	}
 
@@ -382,7 +384,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	storedToken, err := a.p.store.GetTokenForMSTeamsUser(msteamsUser.ID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the token for MS Teams user", "Error", err.Error())
+		a.p.API.LogDebug("Unable to get the token for MS Teams user", "Error", err.Error())
 	}
 
 	if storedToken != nil {
@@ -391,11 +393,22 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token)
-	if err != nil {
+	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
 		a.p.API.LogError("Unable to store the token", "error", err.Error())
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
+	}
+
+	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+		if !strings.Contains(err.Error(), "Duplicate entry") {
+			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
+			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
+			}
+
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("Content-Type", "text/html")
