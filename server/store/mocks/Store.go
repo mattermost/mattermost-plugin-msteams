@@ -399,6 +399,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
+// GetSizeOfWhitelist provides a mock function with given fields:
+func (_m *Store) GetSizeOfWhitelist() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetStats provides a mock function with given fields:
 func (_m *Store) GetStats() (*store.Stats, error) {
 	ret := _m.Called()
@@ -501,6 +522,27 @@ func (_m *Store) Init() error {
 	}
 
 	return r0
+}
+
+// IsUserPresentInWhitelist provides a mock function with given fields: userID
+func (_m *Store) IsUserPresentInWhitelist(userID string) (bool, error) {
+	ret := _m.Called(userID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // LinkPosts provides a mock function with given fields: tx, postInfo
@@ -727,6 +769,20 @@ func (_m *Store) MattermostToTeamsUserID(userID string) (string, error) {
 	return r0, r1
 }
 
+// PrefillWhitelist provides a mock function with given fields:
+func (_m *Store) PrefillWhitelist() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // RecoverPost provides a mock function with given fields: postID
 func (_m *Store) RecoverPost(postID string) error {
 	ret := _m.Called(postID)
@@ -902,6 +958,20 @@ func (_m *Store) StoreOAuth2State(state string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(state)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StoreUserInWhitelist provides a mock function with given fields: userID
+func (_m *Store) StoreUserInWhitelist(userID string) error {
+	ret := _m.Called(userID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(userID)
 	} else {
 		r0 = ret.Error(0)
 	}

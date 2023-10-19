@@ -7,6 +7,7 @@ import (
 
 const (
 	MetricsNamespace       = "msteams_connect"
+	MetricsSubsystemSystem = "system"
 	MetricsSubsystemApp    = "app"
 	MetricsSubsystemHTTP   = "http"
 	MetricsSubsystemAPI    = "api"
@@ -23,6 +24,8 @@ type InstanceInfo struct {
 type Metrics struct {
 	registry *prometheus.Registry
 
+	pluginStartTime prometheus.Gauge
+
 	apiTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
@@ -35,6 +38,9 @@ type Metrics struct {
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
 	linkedChannelsTotal prometheus.Gauge
+
+	changeEventQueueCapacity prometheus.Gauge
+	changeEventQueueLength   *prometheus.GaugeVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -52,6 +58,16 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	if info.InstallationID != "" {
 		additionalLabels[MetricsCloudInstallationLabel] = info.InstallationID
 	}
+
+	m.pluginStartTime = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSystem,
+		Name:        "plugin_start_time",
+		Help:        "The time the plugin started.",
+		ConstLabels: additionalLabels,
+	})
+	m.pluginStartTime.SetToCurrentTime()
+	m.registry.MustRegister(m.pluginStartTime)
 
 	m.apiTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -137,6 +153,24 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	})
 	m.registry.MustRegister(m.linkedChannelsTotal)
 
+	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "change_event_queue_capacity",
+		Help:        "The capacity of the change event queue.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.changeEventQueueCapacity)
+
+	m.changeEventQueueLength = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "change_event_queue_length",
+		Help:        "The length of the change event queue.",
+		ConstLabels: additionalLabels,
+	}, []string{"change_type"})
+	m.registry.MustRegister(m.changeEventQueueLength)
+
 	return m
 }
 
@@ -191,5 +225,23 @@ func (m *Metrics) IncrementHTTPRequests() {
 func (m *Metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
+	}
+}
+
+func (m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
+	if m != nil {
+		m.changeEventQueueCapacity.Set(float64(count))
+	}
+}
+
+func (m *Metrics) IncrementChangeEventQueueLength(changeType string) {
+	if m != nil {
+		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Inc()
+	}
+}
+
+func (m *Metrics) DecrementChangeEventQueueLength(changeType string) {
+	if m != nil {
+		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
 	}
 }

@@ -114,6 +114,12 @@
           "help_text": "Set the buffer size for streaming files from MS Teams to Mattermost",
           "default": 20
         },{
+            "key": "connectedUsersAllowed",
+            "display_name": "Max Connected Users",
+            "type": "number", 
+            "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
+            "default": 1000
+        },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
             "type": "custom", 
