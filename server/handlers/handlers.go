@@ -355,7 +355,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 				if postErr != nil {
 					ah.plugin.GetAPI().LogError("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
-					return
+					return discardedReasonOther
 				}
 			} else {
 				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
