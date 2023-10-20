@@ -1312,8 +1312,8 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 	currentTime := time.Now()
 	ch := make(chan int, 1)
 	go func() {
-		tx, err := store.BeginTx()
-		assert.Nil(err)
+		tx, txErr := store.BeginTx()
+		assert.Nil(txErr)
 
 		err = store.LockWhitelist(tx)
 		assert.Nil(err)
