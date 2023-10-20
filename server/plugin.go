@@ -22,7 +22,8 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -332,7 +333,7 @@ func (p *Plugin) OnActivate() error {
 			return dbErr
 		}
 
-		p.store = store.New(
+		p.store = sqlstore.New(
 			db,
 			p.apiClient.Store.DriverName(),
 			p.API,

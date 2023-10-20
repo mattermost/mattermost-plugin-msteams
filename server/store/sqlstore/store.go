@@ -1,4 +1,3 @@
-//go:generate mockery --name=Store
 package sqlstore
 
 import (
@@ -35,70 +34,6 @@ const (
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
 )
-
-type Stats struct {
-	ConnectedUsers int64
-	SyntheticUsers int64
-	LinkedChannels int64
-}
-
-type Store interface {
-	Init() error
-	GetAvatarCache(userID string) ([]byte, error)
-	SetAvatarCache(userID string, photo []byte) error
-	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
-	ListChannelLinks() ([]storemodels.ChannelLink, error)
-	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
-	GetLinkByMSTeamsChannelID(teamID, channelID string) (*storemodels.ChannelLink, error)
-	DeleteLinkByChannelID(channelID string) error
-	StoreChannelLink(link *storemodels.ChannelLink) error
-	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
-	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
-	LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error
-	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
-	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
-	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
-	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
-	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
-	DeleteUserInfo(mmUserID string) error
-	TeamsToMattermostUserID(userID string) (string, error)
-	MattermostToTeamsUserID(userID string) (string, error)
-	CheckEnabledTeamByTeamID(teamID string) bool
-	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
-	ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error)
-	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
-	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
-	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
-	SaveGlobalSubscription(storemodels.GlobalSubscription) error
-	SaveChatSubscription(storemodels.ChatSubscription) error
-	SaveChannelSubscription(storemodels.ChannelSubscription, *sql.Tx) error
-	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
-	DeleteSubscription(subscriptionID string) error
-	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
-	GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error)
-	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
-	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
-	GetSubscriptionType(subscriptionID string) (string, error)
-	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
-	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
-	DeleteDMAndGMChannelPromptTime(userID string) error
-	RecoverPost(postID string) error
-	StoreOAuth2State(state string) error
-	VerifyOAuth2State(state string) error
-	SetJobStatus(jobName string, status bool) error
-	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
-	GetStats() (*Stats, error)
-	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
-	PrefillWhitelist() error
-	GetSizeOfWhitelist() (int, error)
-	StoreUserInWhitelist(userID string) error
-	IsUserPresentInWhitelist(userID string) (bool, error)
-	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
-	LockPostByMMPostID(tx *sql.Tx, messageID string) error
-	BeginTx() (*sql.Tx, error)
-	RollbackTx(tx *sql.Tx) error
-	CommitTx(tx *sql.Tx) error
-}
 
 type SQLStore struct {
 	api           plugin.API
@@ -1023,7 +958,7 @@ func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus b
 	return isUpdated, nil
 }
 
-func (s *SQLStore) GetStats() (*Stats, error) {
+func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
 	query := s.getQueryBuilder().Select("count(mmChannelID)").From(linksTableName)
 	row := query.QueryRow()
 	var linkedChannels int64
@@ -1045,7 +980,7 @@ func (s *SQLStore) GetStats() (*Stats, error) {
 		return nil, err
 	}
 
-	return &Stats{
+	return &storemodels.Stats{
 		LinkedChannels: linkedChannels,
 		ConnectedUsers: connectedUsers,
 		SyntheticUsers: syntheticUsers,
