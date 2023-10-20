@@ -12,6 +12,7 @@ const (
 	MetricsSubsystemHTTP   = "http"
 	MetricsSubsystemAPI    = "api"
 	MetricsSubsystemEvents = "events"
+	MetricsSubsystemDB     = "db"
 
 	MetricsCloudInstallationLabel = "installationId"
 )
@@ -41,6 +42,8 @@ type Metrics struct {
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
+
+	storeTimesHistograms *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -171,6 +174,15 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
+	m.storeTimesHistograms = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemDB,
+		Name:        "store_time",
+		Help:        "Time to execute the store method",
+		ConstLabels: additionalLabels,
+	}, []string{"method", "success"})
+	m.registry.MustRegister(m.storeTimesHistograms)
+
 	return m
 }
 
@@ -243,5 +255,11 @@ func (m *Metrics) IncrementChangeEventQueueLength(changeType string) {
 func (m *Metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
+	}
+}
+
+func (m *Metrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
+	if m != nil {
+		m.storeTimesHistograms.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
 }

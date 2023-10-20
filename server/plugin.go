@@ -24,6 +24,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
+	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -333,13 +334,14 @@ func (p *Plugin) OnActivate() error {
 			return dbErr
 		}
 
-		p.store = sqlstore.New(
+		store := sqlstore.New(
 			db,
 			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
+		p.store = timerlayer.New(store, p.metricsService)
 		if err = p.store.Init(); err != nil {
 			return err
 		}

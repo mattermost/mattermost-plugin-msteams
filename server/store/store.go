@@ -1,4 +1,5 @@
 //go:generate mockery --name=Store
+//go:generate go run layer_generators/main.go
 package store
 
 import (
@@ -36,9 +37,9 @@ type Store interface {
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
-	SaveGlobalSubscription(storemodels.GlobalSubscription) error
-	SaveChatSubscription(storemodels.ChatSubscription) error
-	SaveChannelSubscription(storemodels.ChannelSubscription, *sql.Tx) error
+	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
+	SaveChatSubscription(subscription storemodels.ChatSubscription) error
+	SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
