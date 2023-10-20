@@ -102,15 +102,20 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
-	// This is constant for now, but report it as a metric to future proof dashboards.
-	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
+	metrics := ah.plugin.GetMetrics()
+	if metrics != nil {
+		// This is constant for now, but report it as a metric to future proof dashboards.
+		metrics.ObserveChangeEventQueueCapacity(activityQueueSize)
+	}
 
 	for i := 0; i < numberOfWorkers; i++ {
 		go func() {
 			for {
 				select {
 				case activity := <-ah.queue:
-					ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
+					if metrics != nil {
+						metrics.DecrementChangeEventQueueLength(activity.ChangeType)
+					}
 					ah.handleActivity(activity)
 				case <-ah.quit:
 					// we have received a signal to stop
@@ -131,7 +136,10 @@ func (ah *ActivityHandler) Stop() {
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	ah.queue <- activity
-	ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
+	metrics := ah.plugin.GetMetrics()
+	if metrics != nil {
+		metrics.IncrementChangeEventQueueLength(activity.ChangeType)
+	}
 
 	return nil
 }
@@ -146,7 +154,10 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			ah.plugin.GetMetrics().ObserveSubscriptionsCount(subscriptionRefreshed)
+			metrics := ah.plugin.GetMetrics()
+			if metrics != nil {
+				metrics.ObserveSubscriptionsCount(subscriptionRefreshed)
+			}
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
@@ -222,12 +233,15 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		isDirect = isDirectMessage
 	}
 
+	metrics := ah.plugin.GetMetrics()
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(actionSourceMattermost, isDirect)
+		if metrics != nil {
+			metrics.ObserveMessagesConfirmedCount(actionSourceMattermost, isDirect)
+		}
 		return discardedReasonDuplicatedPost
 	}
 
@@ -302,11 +316,13 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	var timeElapsed float64
 	if newPost != nil {
 		timeElapsed = float64(time.Since(msg.CreateAt)) / float64(time.Second)
+		if metrics != nil {
+			metrics.ObserveMessageSyncDuration(actionSourceMSTeams, timeElapsed)
+			metrics.ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)
+		}
 	}
 
-	ah.plugin.GetMetrics().ObserveMessageSyncDuration(actionSourceMSTeams, timeElapsed)
 	ah.plugin.GetAPI().LogDebug("Post created")
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -420,7 +436,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	if activityIds.ChatID != "" {
 		isDirect = isDirectMessage
 	}
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionUpdated, actionSourceMSTeams, isDirect)
+	metrics := ah.plugin.GetMetrics()
+	if metrics != nil {
+		metrics.ObserveMessagesCount(actionUpdated, actionSourceMSTeams, isDirect)
+	}
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirect, msg.Reactions)
 	return discardedReasonNone
@@ -458,13 +477,16 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, r
 		allReactions[reactionUserID+emojiName] = true
 	}
 
+	metrics := ah.plugin.GetMetrics()
 	for _, r := range postReactions {
 		if !allReactions[r.UserId+r.EmojiName] {
 			r.ChannelId = "removedfromplugin"
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionUnsetAction, actionSourceMSTeams, isDirect)
+			if metrics != nil {
+				metrics.ObserveReactionsCount(reactionUnsetAction, actionSourceMSTeams, isDirect)
+			}
 		}
 	}
 
@@ -494,7 +516,9 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, r
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionSetAction, actionSourceMSTeams, isDirect)
+			if metrics != nil {
+				metrics.ObserveReactionsCount(reactionSetAction, actionSourceMSTeams, isDirect)
+			}
 		}
 	}
 }
@@ -519,7 +543,10 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 	if activityIds.ChatID != "" {
 		isDirect = isDirectMessage
 	}
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionDeleted, actionSourceMSTeams, isDirect)
+	metrics := ah.plugin.GetMetrics()
+	if metrics != nil {
+		metrics.ObserveMessagesCount(actionDeleted, actionSourceMSTeams, isDirect)
+	}
 	return discardedReasonNone
 }
 

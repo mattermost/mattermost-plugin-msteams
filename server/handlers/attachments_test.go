@@ -354,7 +354,7 @@ func TestHandleAttachments(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetAPI").Return(mockAPI)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(10)
-				p.On("GetMetrics").Return(metrics).Times(11)
+				p.On("GetMetrics").Return(metrics).Times(10)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{

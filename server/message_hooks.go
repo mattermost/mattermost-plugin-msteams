@@ -550,8 +550,10 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 	}
 
 	timeElapsed := float64((newMessage.CreateAt.UnixMilli() - post.CreateAt)) / float64(1000)
-	p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
-	p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isDirectMessage)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
+		p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isDirectMessage)
+	}
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
@@ -640,8 +642,10 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	timeElapsed := float64((newMessage.CreateAt.UnixMilli() - post.CreateAt)) / float64(1000)
-	p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
-	p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isNotDirectMessage)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessageSyncDuration(actionSourceMattermost, timeElapsed)
+		p.metricsService.ObserveMessagesCount(actionCreated, actionSourceMattermost, isNotDirectMessage)
+	}
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}, nil); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
