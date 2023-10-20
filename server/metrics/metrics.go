@@ -115,7 +115,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		prometheus.HistogramOpts{
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubsystemApp,
-			Name:        "message_sync_time",
+			Name:        "messages_delay_seconds",
 			Help:        "Time to sync the messages",
 			ConstLabels: additionalLabels,
 		},
