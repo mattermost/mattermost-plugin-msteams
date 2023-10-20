@@ -130,8 +130,6 @@ func (ah *ActivityHandler) Stop() {
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
-	currentTime := time.Now()
-	activity.ActivityReceiveTime = currentTime
 	ah.queue <- activity
 	ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
 
@@ -188,7 +186,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	switch activity.ChangeType {
 	case "created":
 		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		discardedReason = ah.handleCreatedActivity(activityIds, activity.ActivityReceiveTime)
+		discardedReason = ah.handleCreatedActivity(activityIds)
 	case "updated":
 		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
 		discardedReason = ah.handleUpdatedActivity(activityIds)
@@ -202,7 +200,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds, activityReceiveTime time.Time) string {
+func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -301,7 +299,11 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	timeElapsed := float64(time.Since(activityReceiveTime)) / float64(time.Second)
+	var timeElapsed float64
+	if newPost != nil {
+		timeElapsed = float64(time.Since(msg.CreateAt)) / float64(time.Second)
+	}
+
 	ah.plugin.GetMetrics().ObserveMessageSyncDuration(actionSourceMSTeams, timeElapsed)
 	ah.plugin.GetAPI().LogDebug("Post created")
 	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)

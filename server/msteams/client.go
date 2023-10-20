@@ -162,7 +162,6 @@ type Activity struct {
 	LifecycleEvent                 string
 	SubscriptionExpirationDateTime time.Time
 	SubscriptionID                 string
-	ActivityReceiveTime            time.Time
 }
 
 type ActivityIds struct {

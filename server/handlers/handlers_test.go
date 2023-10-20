@@ -525,7 +525,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 
 			ah.plugin = p
 
-			ah.handleCreatedActivity(testCase.activityIds, testutils.GetMockTime())
+			ah.handleCreatedActivity(testCase.activityIds)
 		})
 	}
 }
