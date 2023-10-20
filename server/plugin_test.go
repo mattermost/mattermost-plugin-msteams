@@ -11,6 +11,7 @@ import (
 
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -44,7 +45,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService, metricsService metrics.Metrics) msteams.Client {
 			return clientMock
 		},
 		metricsService: &metricsmocks.Metrics{},
@@ -135,7 +136,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}, (*sql.Tx)(nil)).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
 
@@ -189,7 +190,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogWarn", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)

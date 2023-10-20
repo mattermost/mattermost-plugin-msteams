@@ -821,7 +821,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
-			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*mockClient.Client))
+			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*mockClient.Client))
 			testCase.setupMetrics(p.metricsService.(*mockMetrics.Metrics))
 			_, _ = p.executeLinkCommand(testCase.args, testCase.parameters)
 		})

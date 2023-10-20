@@ -22,8 +22,10 @@ import (
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
@@ -63,14 +65,15 @@ func (a *ConcurrentGraphRequestAdapter) GetSerializationWriterFactory() serializ
 var clientMutex sync.Mutex
 
 type ClientImpl struct {
-	client       *msgraphsdk.GraphServiceClient
-	ctx          context.Context
-	tenantID     string
-	clientID     string
-	clientSecret string
-	clientType   string // can be "app" or "token"
-	token        *oauth2.Token
-	logService   *pluginapi.LogService
+	client         *msgraphsdk.GraphServiceClient
+	ctx            context.Context
+	tenantID       string
+	clientID       string
+	clientSecret   string
+	clientType     string // can be "app" or "token"
+	token          *oauth2.Token
+	logService     *pluginapi.LogService
+	metricsService metrics.Metrics
 }
 
 type Subscription struct {
@@ -243,27 +246,52 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 	}, nil
 }
 
+type MetricsMiddleware struct {
+	metricsService metrics.Metrics
+}
+
+func (m *MetricsMiddleware) Intercept(pipeline khttp.Pipeline, middlewareIndex int, req *http.Request) (*http.Response, error) {
+	if m.metricsService != nil {
+		// Using this middleware results in the use of "users/me-token-to-replace" in the URL instead of "me"
+		// so we are fixing that.
+		// TODO: Explore why this happens and find a more appropriate solution for this
+		if strings.Contains(req.URL.Path, "users/me-token-to-replace") {
+			req.URL.Path = strings.Replace(req.URL.Path, "users/me-token-to-replace", "me", 1)
+		}
+
+		now := time.Now()
+		response, err := pipeline.Next(req, middlewareIndex)
+		elapsed := float64(time.Since(now)) / float64(time.Second)
+		m.metricsService.ObserveMSGraphAPIEndpointDuration(req.URL.RequestURI(), req.Method, fmt.Sprint(response.StatusCode), elapsed)
+		return response, err
+	}
+
+	return pipeline.Next(req, middlewareIndex)
+}
+
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
+func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService, metricsService metrics.Metrics) Client {
 	return &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "app",
-		tenantID:     tenantID,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		logService:   logService,
+		ctx:            context.Background(),
+		clientType:     "app",
+		tenantID:       tenantID,
+		clientID:       clientID,
+		clientSecret:   clientSecret,
+		logService:     logService,
+		metricsService: metricsService,
 	}
 }
 
-func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService, metricsService metrics.Metrics) Client {
 	client := &ClientImpl{
-		ctx:        context.Background(),
-		clientType: "token",
-		tenantID:   tenantID,
-		clientID:   clientID,
-		token:      token,
-		logService: logService,
+		ctx:            context.Background(),
+		clientType:     "token",
+		tenantID:       tenantID,
+		clientID:       clientID,
+		token:          token,
+		logService:     logService,
+		metricsService: metricsService,
 	}
 
 	conf := &oauth2.Config{
@@ -285,7 +313,14 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		return nil
 	}
 
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	metricsMiddleware := &MetricsMiddleware{
+		metricsService: metricsService,
+	}
+
+	metricsMiddlewares := []khttp.Middleware{metricsMiddleware}
+
+	httpClient := khttp.GetDefaultClient(metricsMiddlewares...)
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, serialization.DefaultSerializationWriterFactoryInstance, httpClient)
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
@@ -327,12 +362,26 @@ func (tc *ClientImpl) Connect() error {
 		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(cred, teamsDefaultScopes)
 	if err != nil {
+		tc.logService.Error("Unable to create the authentication provider", "error", err)
 		return err
 	}
-	tc.client = client
 
+	metricsMiddleware := &MetricsMiddleware{
+		metricsService: tc.metricsService,
+	}
+
+	metricsMiddlewares := []khttp.Middleware{metricsMiddleware}
+
+	httpClient := khttp.GetDefaultClient(metricsMiddlewares...)
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, serialization.DefaultSerializationWriterFactoryInstance, httpClient)
+	if err != nil {
+		tc.logService.Error("Unable to create the app client", "error", err)
+		return err
+	}
+
+	tc.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 	return nil
 }
 
