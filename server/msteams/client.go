@@ -255,9 +255,7 @@ func (m *MetricsMiddleware) Intercept(pipeline khttp.Pipeline, middlewareIndex i
 		// Using this middleware results in the use of "users/me-token-to-replace" in the URL instead of "me"
 		// so we are fixing that.
 		// TODO: Explore why this happens and find a more appropriate solution for this
-		if strings.Contains(req.URL.Path, "users/me-token-to-replace") {
-			req.URL.Path = strings.Replace(req.URL.Path, "users/me-token-to-replace", "me", 1)
-		}
+		req.URL.Path = strings.Replace(req.URL.Path, "users/me-token-to-replace", "me", 1)
 
 		now := time.Now()
 		response, err := pipeline.Next(req, middlewareIndex)

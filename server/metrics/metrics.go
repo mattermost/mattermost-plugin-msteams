@@ -20,6 +20,7 @@ const (
 
 type Metrics interface {
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
+	ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
 	ObserveConnectedUsersTotal(count int64)
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
@@ -38,7 +39,6 @@ type Metrics interface {
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
-	ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
 }
 
 type InstanceInfo struct {
@@ -51,7 +51,8 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime *prometheus.HistogramVec
+	apiTime        *prometheus.HistogramVec
+	msGraphAPITime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
@@ -72,8 +73,6 @@ type metrics struct {
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
-
-	msGraphAPITime *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -113,6 +112,18 @@ func NewMetrics(info InstanceInfo) Metrics {
 		[]string{"handler", "method", "status_code"},
 	)
 	m.registry.MustRegister(m.apiTime)
+
+	m.msGraphAPITime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace:   MetricsNamespace,
+			Subsystem:   MetricsSubsystemMSGraph,
+			Name:        "api_time",
+			Help:        "Time taken by the MS Graph API endpoint",
+			ConstLabels: additionalLabels,
+		},
+		[]string{"handler", "method", "status_code"},
+	)
+	m.registry.MustRegister(m.msGraphAPITime)
 
 	m.httpRequestsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -258,18 +269,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
-	m.msGraphAPITime = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubsystemMSGraph,
-			Name:        "api_time",
-			Help:        "Time taken by the MS Graph API endpoint",
-			ConstLabels: additionalLabels,
-		},
-		[]string{"handler", "method", "status_code"},
-	)
-	m.registry.MustRegister(m.msGraphAPITime)
-
 	return m
 }
 
@@ -280,6 +279,12 @@ func (m *metrics) GetRegistry() *prometheus.Registry {
 func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
 	if m != nil {
 		m.apiTime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
+	if m != nil {
+		m.msGraphAPITime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 
@@ -381,11 +386,5 @@ func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
-	}
-}
-
-func (m *metrics) ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
-	if m != nil {
-		m.msGraphAPITime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
 	}
 }
