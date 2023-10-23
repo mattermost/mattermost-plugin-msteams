@@ -26,10 +26,11 @@ var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
-	lastReceivedChangeKey = "last_received_change"
-	numberOfWorkers       = 50
-	activityQueueSize     = 5000
-	msteamsUserTypeGuest  = "Guest"
+	lastReceivedChangeKey       = "last_received_change"
+	numberOfWorkers             = 50
+	activityQueueSize           = 5000
+	msteamsUserTypeGuest        = "Guest"
+	maxFileAttachmentsSupported = 10
 
 	discardedReasonNone                   = ""
 	discardedReasonInvalidChangeType      = "invalid_change_type"
@@ -46,14 +47,15 @@ const (
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
 	actionSourceMSTeams    = "msteams"
-	actionSourceMattermost = "mattermost"
-	isDirectMessage        = "true"
-	isNotDirectMessage     = "false"
-	actionCreated          = "created"
-	actionUpdated          = "updated"
-	actionDeleted          = "deleted"
-	reactionSetAction      = "set"
-	reactionUnsetAction    = "unset"
+	ActionSourceMattermost = "mattermost"
+	DirectMessageTrue      = "true"
+	DirectMessageFalse     = "false"
+	ActionCreated          = "created"
+	ActionUpdated          = "updated"
+	ActionDeleted          = "deleted"
+	ReactionSetAction      = "set"
+	ReactionUnsetAction    = "unset"
+	IncreaseFileCountByOne = 1
 )
 
 type PluginIface interface {
@@ -215,17 +217,12 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 		return discardedReasonNotUserEvent
 	}
 
-	isDirect := isNotDirectMessage
-	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
-	}
-
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(actionSourceMattermost, isDirect)
+		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(ActionSourceMattermost, IsDirectMessage(activityIds.ChatID))
 		return discardedReasonDuplicatedPost
 	}
 
@@ -298,7 +295,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, isDirect)
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionCreated, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -309,7 +306,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}, nil); err != nil {
+		if err := ah.plugin.GetStore().LinkPosts(nil, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
@@ -408,17 +405,14 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		}
 	}
 
-	isDirect := isNotDirectMessage
-	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
-	}
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionUpdated, actionSourceMSTeams, isDirect)
+	isDirectMessage := IsDirectMessage(activityIds.ChatID)
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionUpdated, actionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-	ah.handleReactions(postInfo.MattermostID, channelID, isDirect, msg.Reactions)
+	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
 	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage string, reactions []msteams.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
@@ -456,7 +450,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, r
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionUnsetAction, actionSourceMSTeams, isDirect)
+			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionUnsetAction, actionSourceMSTeams, isDirectMessage)
 		}
 	}
 
@@ -486,7 +480,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, r
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionSetAction, actionSourceMSTeams, isDirect)
+			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionSetAction, actionSourceMSTeams, isDirectMessage)
 		}
 	}
 }
@@ -507,11 +501,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	isDirect := isNotDirectMessage
-	if activityIds.ChatID != "" {
-		isDirect = isDirectMessage
-	}
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionDeleted, actionSourceMSTeams, isDirect)
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionDeleted, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	return discardedReasonNone
 }
 
@@ -544,4 +534,12 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	}
 
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+}
+
+func IsDirectMessage(chatID string) string {
+	if chatID != "" {
+		return DirectMessageTrue
+	}
+
+	return DirectMessageFalse
 }
