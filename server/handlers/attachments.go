@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-server/v6/app/imaging"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
-func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
+func GetResourceIDsFromURL(weburl string) (*clientmodels.ActivityIds, error) {
 	parsedURL, err := url.Parse(weburl)
 	if err != nil {
 		return nil, err
@@ -25,7 +26,7 @@ func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
 	path := strings.TrimPrefix(parsedURL.Path, "/beta/")
 	path = strings.TrimPrefix(path, "/v1.0/")
 	urlParts := strings.Split(path, "/")
-	activityIDs := &msteams.ActivityIds{}
+	activityIDs := &clientmodels.ActivityIds{}
 	if urlParts[0] == "chats" && len(urlParts) >= 6 {
 		activityIDs.ChatID = urlParts[1]
 		activityIDs.MessageID = urlParts[3]
@@ -91,7 +92,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *msteams.Message, chat *msteams.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -230,7 +231,7 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 	return fileInfo.Id
 }
 
-func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach msteams.Attachment, text string) string {
+func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach clientmodels.Attachment, text string) string {
 	var content struct {
 		Language       string `json:"language"`
 		CodeSnippetURL string `json:"codeSnippetUrl"`
@@ -260,7 +261,7 @@ func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach mstea
 	return newText
 }
 
-func (ah *ActivityHandler) handleMessageReference(attach msteams.Attachment, chatOrChannelID string, text string) (string, string) {
+func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment, chatOrChannelID string, text string) (string, string) {
 	var content struct {
 		MessageID string `json:"messageId"`
 	}

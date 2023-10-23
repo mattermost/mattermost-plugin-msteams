@@ -14,6 +14,7 @@ import (
 
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -521,6 +522,7 @@ func TestAutocompleteTeams(t *testing.T) {
 		SetupAPI       func(*plugintest.API)
 		SetupStore     func(*storemocks.Store)
 		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
+		SetupMetrics   func(metrics *metricsmocks.Metrics)
 		ExpectedResult []model.AutocompleteListItem
 	}{
 		{
@@ -532,6 +534,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
 			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
@@ -545,6 +548,9 @@ func TestAutocompleteTeams(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", mock.AnythingOfType("float64")).Once()
+			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
@@ -556,7 +562,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListTeams").Return([]msteams.Team{
+				uclient.On("ListTeams").Return([]clientmodels.Team{
 					{
 						ID:          "mockTeamsTeamID-1",
 						DisplayName: "mockDisplayName-1",
@@ -568,6 +574,9 @@ func TestAutocompleteTeams(t *testing.T) {
 						Description: "mockDescription-2",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
@@ -588,7 +597,9 @@ func TestAutocompleteTeams(t *testing.T) {
 			plugin := newTestPlugin(t)
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "",
+				"", nil, nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/teams", nil)
 			r.Header.Add("Mattermost-User-ID", testutils.GetID())
@@ -612,6 +623,7 @@ func TestAutocompleteChannels(t *testing.T) {
 		SetupAPI       func(*plugintest.API)
 		SetupStore     func(*storemocks.Store)
 		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
+		SetupMetrics   func(metrics *metricsmocks.Metrics)
 		ExpectedResult []model.AutocompleteListItem
 	}{
 		{
@@ -619,6 +631,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			SetupAPI:       func(a *plugintest.API) {},
 			SetupStore:     func(store *storemocks.Store) {},
 			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
@@ -631,6 +644,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
 			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
@@ -645,6 +659,9 @@ func TestAutocompleteChannels(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", mock.AnythingOfType("float64")).Once()
+			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
 		{
@@ -657,7 +674,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListChannels", "mockData-3").Return([]msteams.Channel{
+				uclient.On("ListChannels", "mockData-3").Return([]clientmodels.Channel{
 					{
 						ID:          "mockTeamsTeamID-1",
 						DisplayName: "mockDisplayName-1",
@@ -669,6 +686,9 @@ func TestAutocompleteChannels(t *testing.T) {
 						Description: "mockDescription-2",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
@@ -690,6 +710,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)
 			if test.QueryParams != "" {

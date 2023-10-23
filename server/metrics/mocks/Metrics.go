@@ -88,6 +88,11 @@ func (_m *Metrics) ObserveMSGraphAPIEndpointDuration(handler string, method stri
 	_m.Called(handler, method, statusCode, elapsed)
 }
 
+// ObserveMSGraphClientMethodDuration provides a mock function with given fields: method, success, elapsed
+func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success string, elapsed float64) {
+	_m.Called(method, success, elapsed)
+}
+
 // ObserveMessagesConfirmedCount provides a mock function with given fields: source, isDirect
 func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirect string) {
 	_m.Called(source, isDirect)

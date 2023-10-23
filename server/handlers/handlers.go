@@ -13,6 +13,7 @@ import (
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
@@ -200,7 +201,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) string {
+func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -318,7 +319,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds) string {
+func (ah *ActivityHandler) handleUpdatedActivity(activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -420,7 +421,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, reactions []clientmodels.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
@@ -493,7 +494,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirect string, r
 	}
 }
 
-func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds) string {
+func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

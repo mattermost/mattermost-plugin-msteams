@@ -6,7 +6,7 @@ import (
 	"time"
 
 	mockMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mockStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -233,8 +233,8 @@ func TestExecuteShowCommand(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&msteams.Team{}, nil).Times(1)
-				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&msteams.Channel{}, nil).Times(1)
+				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
+				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
 			},
 		},
 		{
@@ -305,8 +305,8 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 				s.On("ListChannelLinksWithNames").Return(testutils.GetChannelLinks(1), nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client) {
-				c.On("GetTeams", mock.AnythingOfType("string")).Return([]*msteams.Team{{ID: testutils.GetTeamsTeamID(), DisplayName: "Test MS team"}}, nil).Times(1)
-				c.On("GetChannelsInTeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return([]*msteams.Channel{{ID: testutils.GetTeamsChannelID(), DisplayName: "Test MS channel"}}, nil).Times(1)
+				c.On("GetTeams", mock.AnythingOfType("string")).Return([]*clientmodels.Team{{ID: testutils.GetTeamsTeamID(), DisplayName: "Test MS team"}}, nil).Times(1)
+				c.On("GetChannelsInTeam", testutils.GetTeamsTeamID(), mock.AnythingOfType("string")).Return([]*clientmodels.Channel{{ID: testutils.GetTeamsChannelID(), DisplayName: "Test MS channel"}}, nil).Times(1)
 			},
 		},
 		{
@@ -585,10 +585,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(metrics *mockMetrics.Metrics) {
 				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -622,10 +623,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("BeginTx").Return(nil, errors.New("error in beginning the database transaction")).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(metrics *mockMetrics.Metrics) {
 				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -661,10 +663,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CommitTx", &sql.Tx{}).Return(errors.New("error in committing transaction")).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(metrics *mockMetrics.Metrics) {
 				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -690,9 +693,11 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
+				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(metrics *mockMetrics.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
+			},
 		},
 		{
 			description: "Invalid link command",
@@ -813,7 +818,9 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), "").Return(nil, errors.New("Error while getting the channel"))
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(metrics *mockMetrics.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "false", mock.AnythingOfType("float64")).Once()
+			},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {

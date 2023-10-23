@@ -8,7 +8,7 @@ import (
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -43,7 +43,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			weburl:      "https://graph.microsoft.com/beta/teams/mock-teamID/channels/mock-channelID/messages/mock-messageID/hostedContents/mock-hostedContentsID/$value",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {},
 			setupClient: func() {
-				client.On("GetHostedFileContent", mock.AnythingOfType("*msteams.ActivityIds")).Return([]byte("data"), nil)
+				client.On("GetHostedFileContent", mock.AnythingOfType("*clientmodels.ActivityIds")).Return([]byte("data"), nil)
 			},
 		},
 	} {
@@ -71,7 +71,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 	for _, testCase := range []struct {
 		description    string
 		userID         string
-		attach         msteams.Attachment
+		attach         clientmodels.Attachment
 		text           string
 		expectedOutput string
 		setupPlugin    func(plugin *mocksPlugin.PluginIface)
@@ -81,7 +81,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Successfully handled code snippet for channel",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -95,7 +95,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Successfully handled code snippet for chat",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -109,7 +109,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Unable to unmarshal codesnippet",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: "Invalid JSON",
 			},
 			text:           "mock-data",
@@ -125,7 +125,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "CodesnippetUrl has unexpected size",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet"}`,
 			},
 			text:           "mock-data",
@@ -141,7 +141,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Unable to retrieve code snippet",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -179,7 +179,7 @@ func TestHandleMessageReference(t *testing.T) {
 
 	for _, testCase := range []struct {
 		description      string
-		attach           msteams.Attachment
+		attach           clientmodels.Attachment
 		chatOrChannelID  string
 		text             string
 		expectedText     string
@@ -190,7 +190,7 @@ func TestHandleMessageReference(t *testing.T) {
 	}{
 		{
 			description: "Successfully got postID and text",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
 			},
 			chatOrChannelID:  testutils.GetChannelID(),
@@ -212,7 +212,7 @@ func TestHandleMessageReference(t *testing.T) {
 		},
 		{
 			description: "Unable to unmarshal content",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: "Invalid JSON",
 			},
 			text:         "mock-data",
@@ -225,7 +225,7 @@ func TestHandleMessageReference(t *testing.T) {
 		},
 		{
 			description: "Unable to get post info by msteam ID",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
 			},
 			chatOrChannelID: "mock-chatOrChannelID",
@@ -261,7 +261,7 @@ func TestHandleAttachments(t *testing.T) {
 		setupAPI                   func(mockAPI *plugintest.API)
 		setupClient                func(*mocksClient.Client)
 		setupMetrics               func(*mocksMetrics.Metrics)
-		attachments                []msteams.Attachment
+		attachments                []clientmodels.Attachment
 		expectedText               string
 		expectedAttachmentIDsCount int
 		expectedParentID           string
@@ -292,7 +292,7 @@ func TestHandleAttachments(t *testing.T) {
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, "", 1).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -311,7 +311,7 @@ func TestHandleAttachments(t *testing.T) {
 			},
 			setupClient:  func(client *mocksClient.Client) {},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -341,7 +341,7 @@ func TestHandleAttachments(t *testing.T) {
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, discardedReasonEmptyFileID, 1).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -373,7 +373,7 @@ func TestHandleAttachments(t *testing.T) {
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, "", 1).Times(10)
 				metrics.On("ObserveFilesCount", actionCreated, actionSourceMSTeams, isNotDirectMessage, discardedReasonFileLimitReached, 2).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 			},
 			expectedText:               "mock-text",
@@ -396,7 +396,7 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name:        "mock-name",
 					ContentType: "application/vnd.microsoft.card.codesnippet",
@@ -428,7 +428,7 @@ func TestHandleAttachments(t *testing.T) {
 			},
 			setupClient:  func(client *mocksClient.Client) {},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{{
+			attachments: []clientmodels.Attachment{{
 				Name:        "mock-name",
 				ContentType: "messageReference",
 				Content:     `{"messageId":"mock-ID"}`,
@@ -454,7 +454,7 @@ func TestHandleAttachments(t *testing.T) {
 
 			ah.plugin = p
 
-			attachments := &msteams.Message{
+			attachments := &clientmodels.Message{
 				Attachments: testCase.attachments,
 				ChatID:      testutils.GetChatID(),
 				ChannelID:   testutils.GetChannelID(),

@@ -1,52 +1,55 @@
+//go:generate mockery --name=Client
+//go:generate go run layer_generators/main.go
 package msteams
 
 import (
 	"io"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 type Client interface {
 	Connect() error
-	CreateOrGetChatForUsers(usersIDs []string) (*Chat, error)
-	SendMessage(teamID, channelID, parentID, message string) (*Message, error)
-	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
-	SendChat(chatID, message string, parentMessage *Message, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error)
-	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *Chat) (*Attachment, error)
-	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error)
-	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error)
+	CreateOrGetChatForUsers(usersIDs []string) (*clientmodels.Chat, error)
+	SendMessage(teamID, channelID, parentID, message string) (*clientmodels.Message, error)
+	SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
+	SendChat(chatID, message string, parentMessage *clientmodels.Message, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
+	UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *clientmodels.Chat) (*clientmodels.Attachment, error)
+	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
+	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
-	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error)
-	SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error)
-	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error)
-	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*Subscription, error)
+	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
+	SubscribeToChats(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
+	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*clientmodels.Subscription, error)
+	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
 	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error
-	ListSubscriptions() ([]*Subscription, error)
-	GetTeam(teamID string) (*Team, error)
-	GetTeams(filterQuery string) ([]*Team, error)
-	GetChannelInTeam(teamID, channelID string) (*Channel, error)
-	GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error)
-	GetChat(chatID string) (*Chat, error)
-	GetChatMessage(chatID, messageID string) (*Message, error)
-	SetChatReaction(chatID, messageID, userID, emoji string) (*Message, error)
-	SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error)
-	UnsetChatReaction(chatID, messageID, userID, emoji string) (*Message, error)
-	UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error)
-	GetMessage(teamID, channelID, messageID string) (*Message, error)
-	GetReply(teamID, channelID, messageID, replyID string) (*Message, error)
+	ListSubscriptions() ([]*clientmodels.Subscription, error)
+	GetTeam(teamID string) (*clientmodels.Team, error)
+	GetTeams(filterQuery string) ([]*clientmodels.Team, error)
+	GetChannelInTeam(teamID, channelID string) (*clientmodels.Channel, error)
+	GetChannelsInTeam(teamID, filterQuery string) ([]*clientmodels.Channel, error)
+	GetChat(chatID string) (*clientmodels.Chat, error)
+	GetChatMessage(chatID, messageID string) (*clientmodels.Message, error)
+	SetChatReaction(chatID, messageID, userID, emoji string) (*clientmodels.Message, error)
+	SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*clientmodels.Message, error)
+	UnsetChatReaction(chatID, messageID, userID, emoji string) (*clientmodels.Message, error)
+	UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*clientmodels.Message, error)
+	GetMessage(teamID, channelID, messageID string) (*clientmodels.Message, error)
+	GetReply(teamID, channelID, messageID, replyID string) (*clientmodels.Message, error)
 	GetUserAvatar(userID string) ([]byte, error)
-	GetUser(userID string) (*User, error)
+	GetUser(userID string) (*clientmodels.User, error)
 	GetMyID() (string, error)
-	GetMe() (*User, error)
+	GetMe() (*clientmodels.User, error)
 	GetFileSizeAndDownloadURL(weburl string) (int64, string, error)
 	GetFileContent(downloadURL string) ([]byte, error)
 	GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64)
-	GetHostedFileContent(activityIDs *ActivityIds) ([]byte, error)
+	GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
-	ListUsers() ([]User, error)
-	ListTeams() ([]Team, error)
-	ListChannels(teamID string) ([]Channel, error)
+	ListUsers() ([]clientmodels.User, error)
+	ListTeams() ([]clientmodels.Team, error)
+	ListChannels(teamID string) ([]clientmodels.Channel, error)
 }

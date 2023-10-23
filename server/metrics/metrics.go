@@ -39,6 +39,7 @@ type Metrics interface {
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
+	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
 }
 
 type InstanceInfo struct {
@@ -51,8 +52,9 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime        *prometheus.HistogramVec
-	msGraphAPITime *prometheus.HistogramVec
+	apiTime           *prometheus.HistogramVec
+	msGraphAPITime    *prometheus.HistogramVec
+	msGraphClientTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
@@ -269,6 +271,18 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
+	m.msGraphClientTime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace:   MetricsNamespace,
+			Subsystem:   MetricsSubsystemMSGraph,
+			Name:        "client_time",
+			Help:        "Time to execute the client methods",
+			ConstLabels: additionalLabels,
+		},
+		[]string{"method", "success"},
+	)
+	m.registry.MustRegister(m.msGraphClientTime)
+
 	return m
 }
 
@@ -386,5 +400,11 @@ func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
+	}
+}
+
+func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
+	if m != nil {
+		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
 }

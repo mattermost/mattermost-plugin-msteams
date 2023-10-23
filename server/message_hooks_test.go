@@ -9,7 +9,7 @@ import (
 	"time"
 
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -24,7 +24,7 @@ import (
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
-	mockMessage := &msteams.Message{
+	mockMessage := &clientmodels.Message{
 		ID:           "ms-teams-id",
 		TeamID:       "ms-teams-team-id",
 		ChannelID:    "ms-teams-channel-id",
@@ -108,7 +108,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to set the reaction")).Times(1)
 			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
+			},
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the post last updateAt time",
@@ -130,7 +132,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionSetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
@@ -155,10 +157,11 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionSetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 	} {
@@ -175,7 +178,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 }
 
 func TestReactionHasBeenRemoved(t *testing.T) {
-	mockMessage := &msteams.Message{
+	mockMessage := &clientmodels.Message{
 		ID:           "ms-teams-id",
 		TeamID:       "ms-teams-team-id",
 		ChannelID:    "ms-teams-channel-id",
@@ -273,7 +276,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to unset the reaction")).Times(1)
 			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "false", mock.AnythingOfType("float64")).Once()
+			},
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to set the post last updateAt time",
@@ -303,10 +308,11 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -336,10 +342,11 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 	} {
@@ -356,9 +363,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 }
 
 func TestMessageHasBeenUpdated(t *testing.T) {
-	mockChat := &msteams.Chat{
+	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
-		Members: []msteams.ChatMember{
+		Members: []clientmodels.ChatMember{
 			{
 				DisplayName: "mockDisplayName",
 				UserID:      testutils.GetTeamsUserID(),
@@ -366,12 +373,12 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 		},
 	}
-	mockChannelMessage := &msteams.Message{
+	mockChannelMessage := &clientmodels.Message{
 		ID:        "mockMessageID",
 		TeamID:    "mockTeamsTeamID",
 		ChannelID: "mockTeamsChannelID",
 	}
-	mockChatMessage := &msteams.Message{
+	mockChatMessage := &clientmodels.Message{
 		ID:     "ms-teams-id",
 		ChatID: testutils.GetChatID(),
 	}
@@ -579,9 +586,9 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 }
 
 func TestSetChatReaction(t *testing.T) {
-	mockChat := &msteams.Chat{
+	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
-		Members: []msteams.ChatMember{
+		Members: []clientmodels.ChatMember{
 			{
 				DisplayName: "mockDisplayName",
 				UserID:      testutils.GetTeamsUserID(),
@@ -589,7 +596,7 @@ func TestSetChatReaction(t *testing.T) {
 			},
 		},
 	}
-	mockChatMessage := &msteams.Message{
+	mockChatMessage := &clientmodels.Message{
 		ID:           "mockTeamsMessageID",
 		ChatID:       testutils.GetChatID(),
 		LastUpdateAt: testutils.GetMockTime(),
@@ -771,7 +778,7 @@ func TestSetChatReaction(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
+				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionSetAction, actionSourceMattermost, isDirectMessage).Times(1)
@@ -796,7 +803,7 @@ func TestSetChatReaction(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
+				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionSetAction, actionSourceMattermost, isDirectMessage).Times(1)
@@ -822,7 +829,7 @@ func TestSetChatReaction(t *testing.T) {
 }
 
 func TestSetReaction(t *testing.T) {
-	mockChannelMessage := &msteams.Message{
+	mockChannelMessage := &clientmodels.Message{
 		ID:           testutils.GetID(),
 		TeamID:       "mockTeamsTeamID",
 		ChannelID:    "mockTeamsChannelID",
@@ -988,9 +995,9 @@ func TestSetReaction(t *testing.T) {
 }
 
 func TestUnsetChatReaction(t *testing.T) {
-	mockChat := &msteams.Chat{
+	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
-		Members: []msteams.ChatMember{
+		Members: []clientmodels.ChatMember{
 			{
 				DisplayName: "mockDisplayName",
 				UserID:      testutils.GetTeamsUserID(),
@@ -998,7 +1005,7 @@ func TestUnsetChatReaction(t *testing.T) {
 			},
 		},
 	}
-	mockChatMessage := &msteams.Message{
+	mockChatMessage := &clientmodels.Message{
 		ID:           "mockTeamsMessageID",
 		ChatID:       testutils.GetChatID(),
 		LastUpdateAt: testutils.GetMockTime(),
@@ -1203,7 +1210,7 @@ func TestUnsetChatReaction(t *testing.T) {
 }
 
 func TestUnsetReaction(t *testing.T) {
-	mockChannelMessage := &msteams.Message{
+	mockChannelMessage := &clientmodels.Message{
 		ID:           testutils.GetID(),
 		TeamID:       "mockTeamsTeamID",
 		ChannelID:    "mockTeamsChannelID",
@@ -1318,7 +1325,7 @@ func TestUnsetReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
@@ -1338,7 +1345,7 @@ func TestUnsetReaction(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
-				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
+				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&clientmodels.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveReactionsCount", reactionUnsetAction, actionSourceMattermost, isNotDirectMessage).Times(1)
@@ -1365,9 +1372,9 @@ func TestUnsetReaction(t *testing.T) {
 }
 
 func TestSendChat(t *testing.T) {
-	mockChat := &msteams.Chat{
+	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
-		Members: []msteams.ChatMember{
+		Members: []clientmodels.ChatMember{
 			{
 				DisplayName: "mockDisplayName",
 				UserID:      testutils.GetTeamsUserID(),
@@ -1447,10 +1454,10 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
@@ -1479,12 +1486,12 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
-				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 			},
@@ -1516,12 +1523,12 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Once()
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
-				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
@@ -1551,7 +1558,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1581,7 +1588,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1614,18 +1621,18 @@ func TestSendChat(t *testing.T) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Once()
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
 				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(nil, errors.New("unable to upload the attachments")).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(&msteams.Message{
+				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(&clientmodels.Message{
 					ID:              "mockParentMessageID",
 					UserID:          "mockUserID",
 					Text:            "mockText",
 					UserDisplayName: "mockUserDisplayName",
 				}, nil).Once()
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", &msteams.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", &clientmodels.Message{
 					ID:              "mockParentMessageID",
 					UserID:          "mockUserID",
 					Text:            "mockText",
 					UserDisplayName: "mockUserDisplayName",
-				}, ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}, ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1654,12 +1661,12 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&msteams.Attachment{
+				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*msteams.Message)(nil), []*msteams.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
-				}}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1728,7 +1735,7 @@ func TestSend(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1754,7 +1761,7 @@ func TestSend(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*msteams.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1775,10 +1782,10 @@ func TestSend(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*msteams.Chat)(nil)).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*msteams.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},
@@ -1806,14 +1813,14 @@ func TestSend(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(errors.New("unable to store posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*msteams.Chat)(nil)).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*msteams.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},
-				}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1838,14 +1845,14 @@ func TestSend(t *testing.T) {
 				}, (*sql.Tx)(nil)).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*msteams.Chat)(nil)).Return(&msteams.Attachment{
+				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*msteams.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},
-				}, []models.ChatMessageMentionable{}).Return(&msteams.Message{
+				}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -2077,7 +2084,7 @@ func TestDeleteChat(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	mockChannelMessage := &msteams.Message{
+	mockChannelMessage := &clientmodels.Message{
 		ID:        "mockMSTeamsID",
 		TeamID:    "mockTeamsTeamID",
 		ChannelID: testutils.GetChannelID(),
@@ -2317,7 +2324,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateChat(t *testing.T) {
-	mockChatMessage := &msteams.Message{
+	mockChatMessage := &clientmodels.Message{
 		ID:     "mockChatID",
 		ChatID: "mockTeamsTeamID",
 	}
@@ -2562,9 +2569,9 @@ func TestUpdateChat(t *testing.T) {
 }
 
 func TestGetChatIDForChannel(t *testing.T) {
-	mockChat := &msteams.Chat{
+	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
-		Members: []msteams.ChatMember{
+		Members: []clientmodels.ChatMember{
 			{
 				DisplayName: "mockDisplayName",
 				UserID:      testutils.GetTeamsUserID(),
@@ -2691,7 +2698,7 @@ func TestGetMentionsData(t *testing.T) {
 			ChatID:          testutils.GetChatID(),
 			SetupAPI:        func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{}, nil)
+				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{}, nil)
 			},
 			SetupStore: func(store *storemocks.Store) {},
 		},
@@ -2702,7 +2709,7 @@ func TestGetMentionsData(t *testing.T) {
 			ChatID:          testutils.GetChatID(),
 			SetupAPI:        func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
+				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
 					Type: "G",
 				}, nil)
 			},
@@ -2729,7 +2736,7 @@ func TestGetMentionsData(t *testing.T) {
 			ExpectedMessage: "Hi <at id=\"0\">mock-name</at>",
 			SetupAPI:        func(api *plugintest.API) {},
 			SetupClient: func(client *clientmocks.Client) {
-				client.On("GetChannelInTeam", testutils.GetTeamID(), testutils.GetChannelID()).Return(&msteams.Channel{
+				client.On("GetChannelInTeam", testutils.GetTeamID(), testutils.GetChannelID()).Return(&clientmodels.Channel{
 					DisplayName: "mock-name",
 				}, nil)
 			},
@@ -2758,7 +2765,7 @@ func TestGetMentionsData(t *testing.T) {
 				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
 			},
 			SetupClient: func(client *clientmocks.Client) {
-				client.On("GetUser", testutils.GetUserID()).Return(&msteams.User{
+				client.On("GetUser", testutils.GetUserID()).Return(&clientmodels.User{
 					DisplayName: "mock-name",
 				}, nil)
 			},
@@ -2776,10 +2783,10 @@ func TestGetMentionsData(t *testing.T) {
 				api.On("GetUserByUsername", "test-username").Return(testutils.GetUser("mock-role", "mock-email"), nil)
 			},
 			SetupClient: func(client *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&msteams.Chat{
+				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
 					Type: "G",
 				}, nil)
-				client.On("GetUser", testutils.GetUserID()).Return(&msteams.User{
+				client.On("GetUser", testutils.GetUserID()).Return(&clientmodels.User{
 					DisplayName: "mock-name",
 				}, nil)
 			},

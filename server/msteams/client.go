@@ -1,4 +1,3 @@
-//go:generate mockery --name=Client
 package msteams
 
 import (
@@ -23,6 +22,7 @@ import (
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -76,88 +76,6 @@ type ClientImpl struct {
 	metricsService metrics.Metrics
 }
 
-type Subscription struct {
-	ID              string
-	Type            string
-	ChannelID       string
-	Resource        string
-	TeamID          string
-	UserID          string
-	ExpiresOn       time.Time
-	NotificationURL string
-}
-
-type Channel struct {
-	ID          string
-	DisplayName string
-	Description string
-}
-
-type Chat struct {
-	ID      string
-	Members []ChatMember
-	Type    string
-}
-
-type User struct {
-	DisplayName      string
-	ID               string
-	Mail             string
-	Type             string
-	IsAccountEnabled bool
-}
-
-type ChatMember struct {
-	DisplayName string
-	UserID      string
-	Email       string
-}
-
-type Team struct {
-	ID          string
-	DisplayName string
-	Description string
-}
-
-type Attachment struct {
-	ID           string
-	ContentType  string
-	Content      string
-	Name         string
-	ContentURL   string
-	ThumbnailURL string
-	Data         io.Reader
-}
-
-type Reaction struct {
-	UserID   string
-	Reaction string
-}
-
-type Mention struct {
-	ID             int32
-	UserID         string
-	MentionedText  string
-	ConversationID string
-}
-
-type Message struct {
-	ID              string
-	UserID          string
-	UserDisplayName string
-	Text            string
-	Subject         string
-	ReplyToID       string
-	Attachments     []Attachment
-	Reactions       []Reaction
-	Mentions        []Mention
-	ChannelID       string
-	TeamID          string
-	ChatID          string
-	CreateAt        time.Time
-	LastUpdateAt    time.Time
-}
-
 type Activity struct {
 	Resource                       string
 	ClientState                    string
@@ -165,15 +83,6 @@ type Activity struct {
 	LifecycleEvent                 string
 	SubscriptionExpirationDateTime time.Time
 	SubscriptionID                 string
-}
-
-type ActivityIds struct {
-	ChatID           string
-	TeamID           string
-	ChannelID        string
-	MessageID        string
-	ReplyID          string
-	HostedContentsID string
 }
 
 type AccessToken struct {
@@ -403,7 +312,7 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 	return *r.GetId(), nil
 }
 
-func (tc *ClientImpl) GetMe() (*User, error) {
+func (tc *ClientImpl) GetMe() (*clientmodels.User, error) {
 	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
 		Select: []string{"id", "mail", "userPrincipalName"},
 	}
@@ -431,7 +340,7 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 	}
 
 	displayName := r.GetDisplayName()
-	user := &User{ID: *r.GetId()}
+	user := &clientmodels.User{ID: *r.GetId()}
 	user.Mail = strings.ToLower(*mail)
 	if displayName != nil {
 		user.DisplayName = *displayName
@@ -440,11 +349,11 @@ func (tc *ClientImpl) GetMe() (*User, error) {
 	return user, nil
 }
 
-func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (*Message, error) {
+func (tc *ClientImpl) SendMessage(teamID, channelID, parentID, message string) (*clientmodels.Message, error) {
 	return tc.SendMessageWithAttachments(teamID, channelID, parentID, message, nil, nil)
 }
 
-func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, message string, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	rmsg := models.NewChatMessage()
 
 	msteamsAttachments := []models.ChatMessageAttachmentable{}
@@ -508,7 +417,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, attachments []*Attachment, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *clientmodels.Message, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	rmsg := models.NewChatMessage()
 
 	msteamsAttachments := []models.ChatMessageAttachmentable{}
@@ -592,7 +501,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *Message, a
 	return convertToMessage(res, "", "", chatID), nil
 }
 
-func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *Chat) (*Attachment, error) {
+func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize int, mimeType string, data io.Reader, chat *clientmodels.Chat) (*clientmodels.Attachment, error) {
 	driveID := ""
 	itemID := ""
 	if teamID != "" && channelID != "" {
@@ -712,7 +621,7 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 		return nil, err
 	}
 
-	attachment := Attachment{
+	attachment := clientmodels.Attachment{
 		ID:          uploadedFile.ETag[2:38],
 		Name:        uploadedFile.Name,
 		ContentURL:  uploadedFile.WebURL,
@@ -739,7 +648,7 @@ func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
 	return NormalizeGraphAPIError(tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Delete(tc.ctx, nil))
 }
 
-func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	rmsg := models.NewChatMessage()
 
 	contentType := models.HTML_BODYTYPE
@@ -820,7 +729,7 @@ func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message 
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*Message, error) {
+func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	rmsg := models.NewChatMessage()
 
 	originalMessage, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Get(tc.ctx, nil)
@@ -880,7 +789,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (*Subscription, error) {
+func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType string) (*clientmodels.Subscription, error) {
 	expirationDateTime := time.Now().Add(30 * time.Minute)
 
 	lifecycleNotificationURL := baseURL + "lifecycle"
@@ -907,13 +816,13 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType str
 		return nil, errors.New("empty subscription expiration time received from MS Graph while creating subscription")
 	}
 
-	return &Subscription{
+	return &clientmodels.Subscription{
 		ID:        *res.GetId(),
 		ExpiresOn: *res.GetExpirationDateTime(),
 	}, nil
 }
 
-func (tc *ClientImpl) SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
 	resource := "teams/getAllMessages"
 	if pay {
 		resource = "teams/getAllMessages?model=B"
@@ -922,13 +831,13 @@ func (tc *ClientImpl) SubscribeToChannels(baseURL, webhookSecret string, pay boo
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*clientmodels.Subscription, error) {
 	resource := fmt.Sprintf("/teams/%s/channels/%s/messages", teamID, channelID)
 	changeType := "created,deleted,updated"
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToChats(baseURL, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToChats(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
 	resource := "chats/getAllMessages"
 	if pay {
 		resource = "chats/getAllMessages?model=B"
@@ -937,7 +846,7 @@ func (tc *ClientImpl) SubscribeToChats(baseURL, webhookSecret string, pay bool) 
 	return tc.subscribe(baseURL, webhookSecret, resource, changeType)
 }
 
-func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string, pay bool) (*Subscription, error) {
+func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
 	resource := fmt.Sprintf("/users/%s/chats/getAllMessages", userID)
 	if pay {
 		resource = fmt.Sprintf("/users/%s/chats/getAllMessages?model=B", userID)
@@ -965,7 +874,7 @@ func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	return nil
 }
 
-func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
+func (tc *ClientImpl) ListSubscriptions() ([]*clientmodels.Subscription, error) {
 	r, err := tc.client.Subscriptions().Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -976,7 +885,7 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	subscriptions := []*Subscription{}
+	subscriptions := []*clientmodels.Subscription{}
 	err = pageIterator.Iterate(tc.ctx, func(subscription models.Subscriptionable) bool {
 		subscriptionID := ""
 		resource := ""
@@ -1000,7 +909,7 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 			}
 		}
 
-		subscriptions = append(subscriptions, &Subscription{
+		subscriptions = append(subscriptions, &clientmodels.Subscription{
 			ID:              subscriptionID,
 			Resource:        resource,
 			NotificationURL: notificationURL,
@@ -1016,7 +925,7 @@ func (tc *ClientImpl) ListSubscriptions() ([]*Subscription, error) {
 	return subscriptions, nil
 }
 
-func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
+func (tc *ClientImpl) GetTeam(teamID string) (*clientmodels.Team, error) {
 	res, err := tc.client.Teams().ByTeamId(teamID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1027,10 +936,10 @@ func (tc *ClientImpl) GetTeam(teamID string) (*Team, error) {
 		displayName = *res.GetDisplayName()
 	}
 
-	return &Team{ID: teamID, DisplayName: displayName}, nil
+	return &clientmodels.Team{ID: teamID, DisplayName: displayName}, nil
 }
 
-func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
+func (tc *ClientImpl) GetTeams(filterQuery string) ([]*clientmodels.Team, error) {
 	requestParameters := &groups.GroupsRequestBuilderGetQueryParameters{
 		Filter: &filterQuery,
 		Select: []string{"id", "displayName"},
@@ -1046,13 +955,13 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 	}
 
 	msTeamsGroups := res.GetValue()
-	teams := make([]*Team, len(msTeamsGroups))
+	teams := make([]*clientmodels.Team, len(msTeamsGroups))
 	for idx, group := range msTeamsGroups {
 		if group.GetId() == nil {
 			continue
 		}
 
-		team := &Team{ID: *group.GetId()}
+		team := &clientmodels.Team{ID: *group.GetId()}
 		if group.GetDisplayName() != nil {
 			team.DisplayName = *group.GetDisplayName()
 		}
@@ -1062,7 +971,7 @@ func (tc *ClientImpl) GetTeams(filterQuery string) ([]*Team, error) {
 	return teams, nil
 }
 
-func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*Channel, error) {
+func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*clientmodels.Channel, error) {
 	res, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1073,10 +982,10 @@ func (tc *ClientImpl) GetChannelInTeam(teamID, channelID string) (*Channel, erro
 		displayName = *res.GetDisplayName()
 	}
 
-	return &Channel{ID: channelID, DisplayName: displayName}, nil
+	return &clientmodels.Channel{ID: channelID, DisplayName: displayName}, nil
 }
 
-func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel, error) {
+func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*clientmodels.Channel, error) {
 	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
 		Filter: &filterQuery,
 		Select: []string{"id", "displayName"},
@@ -1092,13 +1001,13 @@ func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel,
 	}
 
 	msTeamsChannels := res.GetValue()
-	channels := make([]*Channel, len(msTeamsChannels))
+	channels := make([]*clientmodels.Channel, len(msTeamsChannels))
 	for idx, teamsChannel := range msTeamsChannels {
 		if teamsChannel.GetId() == nil {
 			continue
 		}
 
-		channel := &Channel{ID: *teamsChannel.GetId()}
+		channel := &clientmodels.Channel{ID: *teamsChannel.GetId()}
 		if teamsChannel.GetDisplayName() != nil {
 			channel.DisplayName = *teamsChannel.GetDisplayName()
 		}
@@ -1108,7 +1017,7 @@ func (tc *ClientImpl) GetChannelsInTeam(teamID, filterQuery string) ([]*Channel,
 	return channels, nil
 }
 
-func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
+func (tc *ClientImpl) GetChat(chatID string) (*clientmodels.Chat, error) {
 	requestParameters := &chats.ChatItemRequestBuilderGetQueryParameters{
 		Expand: []string{"members"},
 	}
@@ -1127,7 +1036,7 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 		chatType = "D"
 	}
 
-	members := []ChatMember{}
+	members := []clientmodels.ChatMember{}
 	for _, member := range res.GetMembers() {
 		displayName := ""
 		if member.GetDisplayName() != nil {
@@ -1143,17 +1052,17 @@ func (tc *ClientImpl) GetChat(chatID string) (*Chat, error) {
 			email = &emptyString
 		}
 
-		members = append(members, ChatMember{
+		members = append(members, clientmodels.ChatMember{
 			DisplayName: displayName,
 			UserID:      *(userID.(*string)),
 			Email:       *(email.(*string)),
 		})
 	}
 
-	return &Chat{ID: chatID, Members: members, Type: chatType}, nil
+	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType}, nil
 }
 
-func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID string) *Message {
+func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID string) *clientmodels.Message {
 	userID := ""
 	if msg.GetFrom() != nil && msg.GetFrom().GetUser() != nil && msg.GetFrom().GetUser().GetId() != nil {
 		userID = *msg.GetFrom().GetUser().GetId()
@@ -1193,7 +1102,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		lastUpdateAt = *msg.GetLastModifiedDateTime()
 	}
 
-	attachments := []Attachment{}
+	attachments := []clientmodels.Attachment{}
 	for _, attachment := range msg.GetAttachments() {
 		contentType := ""
 		if attachment.GetContentType() != nil {
@@ -1211,7 +1120,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		if attachment.GetContentUrl() != nil {
 			contentURL = *attachment.GetContentUrl()
 		}
-		attachments = append(attachments, Attachment{
+		attachments = append(attachments, clientmodels.Attachment{
 			ContentType: contentType,
 			Content:     content,
 			Name:        name,
@@ -1219,9 +1128,9 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		})
 	}
 
-	mentions := []Mention{}
+	mentions := []clientmodels.Mention{}
 	for _, m := range msg.GetMentions() {
-		mention := Mention{}
+		mention := clientmodels.Mention{}
 		if m.GetId() != nil && m.GetMentionText() != nil {
 			mention.ID = *m.GetId()
 			mention.MentionedText = *m.GetMentionText()
@@ -1242,14 +1151,14 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 		mentions = append(mentions, mention)
 	}
 
-	reactions := []Reaction{}
+	reactions := []clientmodels.Reaction{}
 	for _, reaction := range msg.GetReactions() {
 		if reaction.GetReactionType() != nil && reaction.GetUser() != nil && reaction.GetUser().GetUser() != nil && reaction.GetUser().GetUser().GetId() != nil {
-			reactions = append(reactions, Reaction{UserID: *reaction.GetUser().GetUser().GetId(), Reaction: *reaction.GetReactionType()})
+			reactions = append(reactions, clientmodels.Reaction{UserID: *reaction.GetUser().GetUser().GetId(), Reaction: *reaction.GetReactionType()})
 		}
 	}
 
-	return &Message{
+	return &clientmodels.Message{
 		ID:              msgID,
 		UserID:          userID,
 		UserDisplayName: userDisplayName,
@@ -1267,7 +1176,7 @@ func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID stri
 	}
 }
 
-func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message, error) {
+func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*clientmodels.Message, error) {
 	res, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(messageID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1275,7 +1184,7 @@ func (tc *ClientImpl) GetMessage(teamID, channelID, messageID string) (*Message,
 	return convertToMessage(res, teamID, channelID, ""), nil
 }
 
-func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error) {
+func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*clientmodels.Message, error) {
 	res, err := tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(messageID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1283,7 +1192,7 @@ func (tc *ClientImpl) GetChatMessage(chatID, messageID string) (*Message, error)
 	return convertToMessage(res, "", "", chatID), nil
 }
 
-func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*Message, error) {
+func (tc *ClientImpl) GetReply(teamID, channelID, messageID, replyID string) (*clientmodels.Message, error) {
 	res, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(messageID).Replies().ByChatMessageId1(replyID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1301,7 +1210,7 @@ func (tc *ClientImpl) GetUserAvatar(userID string) ([]byte, error) {
 	return photo, nil
 }
 
-func (tc *ClientImpl) GetUser(userID string) (*User, error) {
+func (tc *ClientImpl) GetUser(userID string) (*clientmodels.User, error) {
 	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "mail", "userPrincipalName", "userType"},
 	}
@@ -1336,7 +1245,7 @@ func (tc *ClientImpl) GetUser(userID string) (*User, error) {
 		tc.logService.Debug("Received empty user ID from MS Graph", "UserID", userID)
 		return nil, errors.New("received empty user ID from MS Graph")
 	}
-	user := User{
+	user := clientmodels.User{
 		DisplayName: displayName,
 		ID:          *u.GetId(),
 		Mail:        strings.ToLower(email),
@@ -1472,7 +1381,7 @@ func (tc *ClientImpl) GetFileContentStream(downloadURL string, writer *io.PipeWr
 	}
 }
 
-func (tc *ClientImpl) GetHostedFileContent(activityIDs *ActivityIds) (contentData []byte, err error) {
+func (tc *ClientImpl) GetHostedFileContent(activityIDs *clientmodels.ActivityIds) (contentData []byte, err error) {
 	if activityIDs.ChatID != "" {
 		contentData, err = tc.client.Chats().ByChatId(activityIDs.ChatID).Messages().ByChatMessageId(activityIDs.MessageID).HostedContents().ByChatMessageHostedContentId(activityIDs.HostedContentsID).Content().Get(tc.ctx, nil)
 	} else {
@@ -1499,8 +1408,8 @@ func (tc *ClientImpl) GetCodeSnippet(url string) (string, error) {
 	return string(data), nil
 }
 
-func GetResourceIds(resource string) ActivityIds {
-	result := ActivityIds{}
+func GetResourceIds(resource string) clientmodels.ActivityIds {
+	result := clientmodels.ActivityIds{}
 	data := strings.Split(resource, "/")
 
 	if len(data) <= 1 {
@@ -1532,7 +1441,7 @@ func GetResourceIds(resource string) ActivityIds {
 	return result
 }
 
-func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
+func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*clientmodels.Chat, error) {
 	if len(userIDs) == 2 {
 		return tc.CreateChat(models.ONEONONE_CHATTYPE, userIDs)
 	}
@@ -1563,7 +1472,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	var chat *Chat
+	var chat *clientmodels.Chat
 	err = pageIterator.Iterate(tc.ctx, func(c *models.Chat) bool {
 		chat = checkGroupChat(c, userIDs)
 		return chat == nil
@@ -1579,7 +1488,7 @@ func (tc *ClientImpl) CreateOrGetChatForUsers(userIDs []string) (*Chat, error) {
 	return tc.CreateChat(models.GROUP_CHATTYPE, userIDs)
 }
 
-func (tc *ClientImpl) CreateChat(chatType models.ChatType, userIDs []string) (*Chat, error) {
+func (tc *ClientImpl) CreateChat(chatType models.ChatType, userIDs []string) (*clientmodels.Chat, error) {
 	members := make([]models.ConversationMemberable, len(userIDs))
 	for idx, userID := range userIDs {
 		conversationMember := models.NewConversationMember()
@@ -1613,7 +1522,7 @@ func (tc *ClientImpl) CreateChat(chatType models.ChatType, userIDs []string) (*C
 	return chatDetails, nil
 }
 
-func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) (*Message, error) {
+func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) (*clientmodels.Message, error) {
 	userInfo := map[string]any{
 		"user": map[string]string{
 			"id": userID,
@@ -1656,7 +1565,7 @@ func (tc *ClientImpl) SetChatReaction(chatID, messageID, userID, emoji string) (
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error) {
+func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*clientmodels.Message, error) {
 	userInfo := map[string]any{
 		"user": map[string]string{
 			"id": userID,
@@ -1721,7 +1630,7 @@ func (tc *ClientImpl) SetReaction(teamID, channelID, parentID, messageID, userID
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string) (*Message, error) {
+func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string) (*clientmodels.Message, error) {
 	userInfo := map[string]any{
 		"user": map[string]string{
 			"id": userID,
@@ -1765,7 +1674,7 @@ func (tc *ClientImpl) UnsetChatReaction(chatID, messageID, userID, emoji string)
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*Message, error) {
+func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji string) (*clientmodels.Message, error) {
 	userInfo := map[string]any{
 		"user": map[string]string{
 			"id": userID,
@@ -1830,7 +1739,7 @@ func (tc *ClientImpl) UnsetReaction(teamID, channelID, parentID, messageID, user
 	return tc.SendBatchRequestAndGetMessage(batchRequest, getMessageRequestItem)
 }
 
-func (tc *ClientImpl) ListUsers() ([]User, error) {
+func (tc *ClientImpl) ListUsers() ([]clientmodels.User, error) {
 	requestParameters := &users.UsersRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "mail", "userPrincipalName", "userType", "accountEnabled"},
 	}
@@ -1847,9 +1756,9 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	users := []User{}
+	users := []clientmodels.User{}
 	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
-		user := User{}
+		user := clientmodels.User{}
 		if u.GetDisplayName() != nil {
 			user.DisplayName = *u.GetDisplayName()
 		}
@@ -1877,7 +1786,7 @@ func (tc *ClientImpl) ListUsers() ([]User, error) {
 	return users, nil
 }
 
-func (tc *ClientImpl) ListTeams() ([]Team, error) {
+func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
 	requestParameters := &users.ItemJoinedTeamsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1894,9 +1803,9 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	teams := []Team{}
+	teams := []clientmodels.Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
-		team := Team{}
+		team := clientmodels.Team{}
 		if t.GetId() != nil {
 			team.ID = *t.GetId()
 		}
@@ -1916,7 +1825,7 @@ func (tc *ClientImpl) ListTeams() ([]Team, error) {
 	return teams, nil
 }
 
-func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
+func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1933,9 +1842,9 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	channels := []Channel{}
+	channels := []clientmodels.Channel{}
 	err = pageIterator.Iterate(context.Background(), func(c models.Channelable) bool {
-		channel := Channel{}
+		channel := clientmodels.Channel{}
 		if c.GetId() != nil {
 			channel.ID = *c.GetId()
 		}
@@ -1955,7 +1864,7 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]Channel, error) {
 	return channels, nil
 }
 
-func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.BatchRequest, getMessageRequestItem msgraphcore.BatchItem) (*Message, error) {
+func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.BatchRequest, getMessageRequestItem msgraphcore.BatchItem) (*clientmodels.Message, error) {
 	batchResponse, err := batchRequest.Send(tc.ctx, tc.client.GetAdapter())
 	if err != nil {
 		return nil, NormalizeGraphAPIError(err)
@@ -1974,7 +1883,7 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 		return nil, errors.New("received nil last modified date time from MS Graph for the message")
 	}
 
-	return &Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
+	return &clientmodels.Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
 }
 
 func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {
@@ -2002,14 +1911,14 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 }
 
 // Function to match already existing group chats
-func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
+func checkGroupChat(c models.Chatable, userIDs []string) *clientmodels.Chat {
 	if c.GetId() == nil {
 		return nil
 	}
 
 	if c.GetMembers() != nil && len(c.GetMembers()) == len(userIDs) {
 		matches := map[string]bool{}
-		members := []ChatMember{}
+		members := []clientmodels.ChatMember{}
 		for _, m := range c.GetMembers() {
 			for _, u := range userIDs {
 				userID, userErr := m.GetBackingStore().Get("userId")
@@ -2017,7 +1926,7 @@ func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
 					matches[u] = true
 					userEmail, emailErr := m.GetBackingStore().Get("email")
 					if emailErr == nil && userEmail != nil && userEmail.(*string) != nil {
-						members = append(members, ChatMember{
+						members = append(members, clientmodels.ChatMember{
 							Email:  *(userEmail.(*string)),
 							UserID: *(userID.(*string)),
 						})
@@ -2029,7 +1938,7 @@ func checkGroupChat(c models.Chatable, userIDs []string) *Chat {
 		}
 
 		if len(matches) == len(userIDs) {
-			return &Chat{
+			return &clientmodels.Chat{
 				ID:      *c.GetId(),
 				Members: members,
 				Type:    "G",
