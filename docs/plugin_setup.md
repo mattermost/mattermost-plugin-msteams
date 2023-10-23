@@ -17,5 +17,6 @@
     - **Prompt interval for DMs and GMs (in hours)**: This setting is for configuring the interval after which the user will get a prompt to connect their account when they try to post a message in a DM or GM without connecting their account. Leaving it empty will disable the prompt.
     - **Maximum size of attachments to support complete one time download (in MB)**: This setting is for configuring the maximum size of attachments that can be loaded into memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost.
     - **Buffer size for streaming files (in MB)**: This setting is for configuring the buffer size for streaming files from MS Teams to Mattermost.
+    - **Max Connected Users**: This setting sets the maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.
 
     ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/e6a74693-1760-401f-bac2-83749c49fa2e)
