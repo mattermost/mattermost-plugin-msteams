@@ -46,14 +46,6 @@ const (
 	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 
 	actionSourceMattermost = "mattermost"
-	directMessageTrue      = "true"
-	directMessageFalse     = "false"
-	actionCreated          = "created"
-	actionUpdated          = "updated"
-	actionDeleted          = "deleted"
-	reactionSetAction      = "set"
-	reactionUnsetAction    = "unset"
-	increaseFileCountByOne = 1
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.

@@ -25,7 +25,6 @@ var emojisReverseMap map[string]string
 var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
-// TODO: add a common constant package to avoid repetition of variables.
 const (
 	lastReceivedChangeKey       = "last_received_change"
 	numberOfWorkers             = 50
@@ -48,14 +47,14 @@ const (
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
 	actionSourceMSTeams    = "msteams"
-	directMessageTrue      = "true"
-	directMessageFalse     = "false"
-	actionCreated          = "created"
-	actionUpdated          = "updated"
-	actionDeleted          = "deleted"
-	reactionSetAction      = "set"
-	reactionUnsetAction    = "unset"
-	increaseFileCountByOne = 1
+	DirectMessageTrue      = "true"
+	DirectMessageFalse     = "false"
+	ActionCreated          = "created"
+	ActionUpdated          = "updated"
+	ActionDeleted          = "deleted"
+	ReactionSetAction      = "set"
+	ReactionUnsetAction    = "unset"
+	IncreaseFileCountByOne = 1
 )
 
 type PluginIface interface {
@@ -294,7 +293,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionCreated, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionCreated, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -405,7 +404,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionUpdated, actionSourceMSTeams, isDirectMessage)
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionUpdated, actionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
 	return discardedReasonNone
@@ -449,7 +448,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage st
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionUnsetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionUnsetAction, actionSourceMSTeams, isDirectMessage)
 		}
 	}
 
@@ -479,7 +478,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage st
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
-			ah.plugin.GetMetrics().ObserveReactionsCount(reactionSetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionSetAction, actionSourceMSTeams, isDirectMessage)
 		}
 	}
 }
@@ -500,7 +499,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	ah.plugin.GetMetrics().ObserveMessagesCount(actionDeleted, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(ActionDeleted, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	return discardedReasonNone
 }
 
@@ -537,8 +536,8 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 
 func IsDirectMessage(chatID string) string {
 	if chatID != "" {
-		return directMessageTrue
+		return DirectMessageTrue
 	}
 
-	return directMessageFalse
+	return DirectMessageFalse
 }
