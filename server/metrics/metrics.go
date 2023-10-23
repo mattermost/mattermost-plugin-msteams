@@ -17,23 +17,29 @@ const (
 )
 
 type Metrics interface {
+	// Histogram metrics
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
-	ObserveConnectedUsersTotal(count int64)
+
+	// Counter metrics
+	IncrementHTTPRequests()
+	IncrementHTTPErrors()
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
 	ObserveMessagesCount(action, source, isDirect string)
 	ObserveReactionsCount(action, source, isDirect string)
 	ObserveFilesCount(action, source, isDirect, discardedReason string, count int)
+
+	// Gauge metrics
+	ObserveConnectedUsersTotal(count int64)
 	ObserveSyntheticUsersTotal(count int64)
 	ObserveLinkedChannelsTotal(count int64)
 	ObserveUpstreamUsersTotal(count int64)
-	IncrementHTTPRequests()
-	IncrementHTTPErrors()
-	GetRegistry() *prometheus.Registry
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
+
+	GetRegistry() *prometheus.Registry
 }
 
 type InstanceInfo struct {
