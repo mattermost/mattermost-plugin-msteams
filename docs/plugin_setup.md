@@ -19,4 +19,5 @@
     - **Buffer size for streaming files (in MB)**: This setting is for configuring the buffer size for streaming files from MS Teams to Mattermost.
     - **Max Connected Users**: This setting sets the maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.
 
-    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/e6a74693-1760-401f-bac2-83749c49fa2e)
+    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/78c53c0c-60a1-4fed-85d0-546d3fe3c53e)
+
