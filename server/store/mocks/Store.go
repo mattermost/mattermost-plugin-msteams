@@ -979,13 +979,13 @@ func (_m *Store) StoreOAuth2State(state string) error {
 	return r0
 }
 
-// StoreUserInWhitelist provides a mock function with given fields: userID, tx
-func (_m *Store) StoreUserInWhitelist(userID string, tx *sql.Tx) error {
-	ret := _m.Called(userID, tx)
+// StoreUserInWhitelist provides a mock function with given fields: tx, userID
+func (_m *Store) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
+	ret := _m.Called(tx, userID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *sql.Tx) error); ok {
-		r0 = rf(userID, tx)
+	if rf, ok := ret.Get(0).(func(*sql.Tx, string) error); ok {
+		r0 = rf(tx, userID)
 	} else {
 		r0 = ret.Error(0)
 	}

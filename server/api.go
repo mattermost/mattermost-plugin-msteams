@@ -415,12 +415,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err = a.p.store.UnlockWhitelist(tx); err != nil {
 			a.p.API.LogError("Unable to unlock whitelist", "error", err.Error())
-			return
 		}
 
 		if err = a.p.store.CommitTx(tx); err != nil {
 			a.p.API.LogError("Unable to commit transaction", "error", err.Error())
-			return
 		}
 	}()
 
@@ -439,7 +437,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(mmUserID, tx); err != nil {
+	if err := a.p.store.StoreUserInWhitelist(tx, mmUserID); err != nil {
 		if !strings.Contains(err.Error(), "Duplicate entry") {
 			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"testing"
@@ -1235,7 +1236,7 @@ func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQL
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
-	storeErr := store.StoreUserInWhitelist(testutils.GetUserID(), nil)
+	storeErr := store.StoreUserInWhitelist(nil, testutils.GetUserID())
 	assert.Nil(storeErr)
 
 	count, getErr = store.GetSizeOfWhitelist(nil)
@@ -1250,7 +1251,7 @@ func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQL
 	assert.Equal(false, present)
 	assert.Nil(presentErr)
 
-	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID(), nil)
+	storeErr = store.StoreUserInWhitelist(nil, testutils.GetTeamsUserID())
 	assert.Nil(storeErr)
 
 	count, getErr = store.GetSizeOfWhitelist(nil)
@@ -1311,24 +1312,28 @@ func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API
 
 	currentTime := time.Now()
 	ch := make(chan int, 1)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		tx, txErr := store.BeginTx()
 		assert.Nil(txErr)
 
-		err = store.LockWhitelist(tx)
-		assert.Nil(err)
+		txErr = store.LockWhitelist(tx)
+		assert.Nil(txErr)
 
 		ch <- 1
 		time.Sleep(1 * time.Second)
-		err = store.UnlockWhitelist(tx)
-		assert.Nil(err)
+		txErr = store.UnlockWhitelist(tx)
+		assert.Nil(txErr)
 
-		err = store.CommitTx(tx)
-		assert.Nil(err)
+		txErr = store.CommitTx(tx)
+		assert.Nil(txErr)
 	}()
 
 	<-ch
 	_, err = store.GetSizeOfWhitelist(nil)
 	assert.Nil(err)
 	assert.Greater(time.Since(currentTime), 1*time.Second)
+	wg.Wait()
 }

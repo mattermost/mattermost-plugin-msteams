@@ -91,7 +91,7 @@ type Store interface {
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error
 	GetSizeOfWhitelist(tx *sql.Tx) (int, error)
-	StoreUserInWhitelist(userID string, tx *sql.Tx) error
+	StoreUserInWhitelist(tx *sql.Tx, userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
 	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
 	LockPostByMMPostID(tx *sql.Tx, messageID string) error
@@ -1079,6 +1079,8 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 func (s *SQLStore) PrefillWhitelist() error {
 	page := 0
 	perPage := 100
+
+	// TODO: Explore whether we need to lock the whitelist here and how to do it
 	for {
 		query := s.getQueryBuilder().Select("mmuserid").From(usersTableName).Where(sq.NotEq{"token": ""}).Offset(uint64(page * perPage)).Limit(uint64(perPage))
 		rows, err := query.Query()
@@ -1095,7 +1097,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 				continue
 			}
 
-			if err := s.StoreUserInWhitelist(connectedUserID, nil); err != nil {
+			if err := s.StoreUserInWhitelist(nil, connectedUserID); err != nil {
 				if !strings.Contains(err.Error(), "Duplicate entry") {
 					s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
 				}
@@ -1119,14 +1121,12 @@ func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 	var err error
 	if tx == nil {
 		rows, err = query.Query()
-		if err != nil {
-			return 0, err
-		}
 	} else {
 		rows, err = query.RunWith(tx).Query()
-		if err != nil {
-			return 0, err
-		}
+	}
+
+	if err != nil {
+		return 0, err
 	}
 	defer rows.Close()
 
@@ -1140,7 +1140,7 @@ func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 	return result, nil
 }
 
-func (s *SQLStore) StoreUserInWhitelist(userID string, tx *sql.Tx) error {
+func (s *SQLStore) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
 	if tx == nil {
 		if _, err := query.Exec(); err != nil {

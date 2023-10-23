@@ -49,19 +49,19 @@ func (c *configuration) ProcessConfiguration() {
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	configuration.ProcessConfiguration()
-	if len(configuration.TenantID) == 0 {
+	if configuration.TenantID == "" {
 		return errors.New("tenant ID should not be empty")
 	}
-	if len(configuration.ClientID) == 0 {
+	if configuration.ClientID == "" {
 		return errors.New("client ID should not be empty")
 	}
-	if len(configuration.ClientSecret) == 0 {
+	if configuration.ClientSecret == "" {
 		return errors.New("client secret should not be empty")
 	}
-	if len(configuration.EncryptionKey) == 0 {
+	if configuration.EncryptionKey == "" {
 		return errors.New("encryption key should not be empty")
 	}
-	if len(configuration.WebhookSecret) == 0 {
+	if configuration.WebhookSecret == "" {
 		return errors.New("webhook secret should not be empty")
 	}
 	if configuration.MaxSizeForCompleteDownload < 0 {
@@ -78,7 +78,7 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 		}
 
 		if configuration.ConnectedUsersAllowed < whitelistSize {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
+			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist")
 		}
 	}
 
