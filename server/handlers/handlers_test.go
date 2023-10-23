@@ -382,11 +382,11 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("LinkPosts", storemodels.PostInfo{
+				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}, (*sql.Tx)(nil)).Return(errors.New("unable to update the post")).Times(1)
+				}).Return(errors.New("unable to update the post")).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageTrue).Times(1)
@@ -442,11 +442,11 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("LinkPosts", storemodels.PostInfo{
+				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
-				}, (*sql.Tx)(nil)).Return(nil).Times(1)
+				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageTrue).Times(1)
@@ -493,11 +493,11 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MattermostChannelID: testutils.GetChannelID(),
 				}, nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("LinkPosts", storemodels.PostInfo{
+				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 					MattermostID:   testutils.GetID(),
 					MSTeamsID:      testutils.GetMessageID(),
 					MSTeamsChannel: testutils.GetChannelID(),
-				}, (*sql.Tx)(nil)).Return(nil).Times(1)
+				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMSTeams, directMessageFalse).Times(1)
