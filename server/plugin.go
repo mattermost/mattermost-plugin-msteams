@@ -46,13 +46,6 @@ const (
 	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 
 	actionSourceMattermost = "mattermost"
-	isDirectMessage        = "true"
-	isNotDirectMessage     = "false"
-	actionCreated          = "created"
-	actionUpdated          = "updated"
-	actionDeleted          = "deleted"
-	reactionSetAction      = "set"
-	reactionUnsetAction    = "unset"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -334,15 +327,14 @@ func (p *Plugin) OnActivate() error {
 	p.userID = botID
 	p.clusterMutex = clusterMutex
 
-	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if err != nil {
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
 		return err
 	}
 
 	if p.store == nil {
-		db, err := p.apiClient.Store.GetMasterDB()
-		if err != nil {
-			return err
+		db, dbErr := p.apiClient.Store.GetMasterDB()
+		if dbErr != nil {
+			return dbErr
 		}
 
 		p.store = store.New(
@@ -352,10 +344,25 @@ func (p *Plugin) OnActivate() error {
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
-		if err := p.store.Init(); err != nil {
+		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
+
+	whitelistSize, err := p.store.GetSizeOfWhitelist()
+	if err != nil {
+		return errors.New("failed to get the size of whitelist from the DB")
+	}
+
+	if p.getConfiguration().ConnectedUsersAllowed < whitelistSize {
+		return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
+	}
+
+	go func() {
+		if err := p.store.PrefillWhitelist(); err != nil {
+			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
+		}
+	}()
 
 	go p.start(lastRecivedChange)
 	return nil

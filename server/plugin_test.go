@@ -11,6 +11,7 @@ import (
 
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -129,15 +130,15 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
+	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
-	}, (*sql.Tx)(nil)).Return(nil).Times(1)
+	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", actionCreated, actionSourceMattermost, isNotDirectMessage).Times(1)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, handlers.DirectMessageFalse).Times(1)
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }

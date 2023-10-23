@@ -28,7 +28,7 @@ type Metrics interface {
 	ObserveLifecycleEventTotal(lifecycleEventType string)
 	ObserveMessagesCount(action, source, isDirect string)
 	ObserveReactionsCount(action, source, isDirect string)
-	ObserveFilesCount(action, source, isDirect, discardedReason string, count int)
+	ObserveFilesCount(action, source, isDirect, discardedReason string, count int64)
 
 	// Gauge metrics
 	ObserveConnectedUsersTotal(count int64)
@@ -274,21 +274,21 @@ func (m *metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	}
 }
 
-func (m *metrics) ObserveMessagesCount(action, source, isDirect string) {
+func (m *metrics) ObserveMessagesCount(action, source, isDirectMessage string) {
 	if m != nil {
-		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect}).Inc()
+		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage}).Inc()
 	}
 }
 
-func (m *metrics) ObserveReactionsCount(action, source, isDirect string) {
+func (m *metrics) ObserveReactionsCount(action, source, isDirectMessage string) {
 	if m != nil {
-		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect}).Inc()
+		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFilesCount(action, source, isDirect, discardedReason string, count int) {
+func (m *metrics) ObserveFilesCount(action, source, isDirectMessage, discardedReason string, count int64) {
 	if m != nil {
-		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect, "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage, "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
