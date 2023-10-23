@@ -1455,7 +1455,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", int64(increaseFileCountByOne)).Times(1)
 			},
 			ExpectedError: "unable to send the chat",
 		},
@@ -1489,7 +1489,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1527,7 +1527,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1556,7 +1556,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1586,7 +1586,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1630,7 +1630,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToUploadFileOnTeams, increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToUploadFileOnTeams, int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1664,7 +1664,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageTrue, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageTrue).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1733,7 +1733,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageFalse).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1759,7 +1759,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageFalse).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1785,7 +1785,7 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageFalse).Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
@@ -1818,7 +1818,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageFalse).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1850,7 +1850,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", increaseFileCountByOne).Times(1)
+				metrics.On("ObserveFilesCount", actionCreated, actionSourceMattermost, directMessageFalse, "", int64(increaseFileCountByOne)).Times(1)
 				metrics.On("ObserveMessagesCount", actionCreated, actionSourceMattermost, directMessageFalse).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",

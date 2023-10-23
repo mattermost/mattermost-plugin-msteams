@@ -508,13 +508,13 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne))
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne))
 			continue
 		}
 
@@ -523,11 +523,11 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToUploadFileOnTeams, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, discardedReasonUnableToUploadFileOnTeams, int64(increaseFileCountByOne))
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, "", increaseFileCountByOne)
+		p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageTrue, "", int64(increaseFileCountByOne))
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -604,13 +604,13 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne))
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToGetMMData, int64(increaseFileCountByOne))
 			continue
 		}
 
@@ -619,11 +619,11 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToUploadFileOnTeams, increaseFileCountByOne)
+			p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, discardedReasonUnableToUploadFileOnTeams, int64(increaseFileCountByOne))
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, "", increaseFileCountByOne)
+		p.metricsService.ObserveFilesCount(actionCreated, actionSourceMattermost, directMessageFalse, "", int64(increaseFileCountByOne))
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
