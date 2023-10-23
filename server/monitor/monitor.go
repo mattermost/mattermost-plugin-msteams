@@ -11,12 +11,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
 
-const (
-	monitoringSystemJobName = "monitoring_system"
-	subscriptionConnected   = "connected"
-	subscriptionReconnected = "reconnected"
-	subscriptionRefreshed   = "refreshed"
-)
+const monitoringSystemJobName = "monitoring_system"
 
 type Monitor struct {
 	client           msteams.Client
