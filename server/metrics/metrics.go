@@ -194,7 +194,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "subscriptions_count",
-		Help:        "The total number of subscriptions connected, reconnected and refreshed.",
+		Help:        "The total number of connected, reconnected and refreshed subscriptions.",
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsCount)
