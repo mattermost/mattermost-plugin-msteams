@@ -410,14 +410,13 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
+	p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
-	p.API.LogDebug("Count of MM users", "count", len(mmUsers))
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
 	for _, u := range mmUsers {
 		mmUsersMap[u.Email] = u
@@ -453,7 +452,7 @@ func (p *Plugin) syncUsers() {
 					if mmUser.DeleteAt == 0 {
 						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the Mattermost user account", "TeamsUserID", msUser.ID, "Error", err.Error())
+							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 						}
 					}
 
@@ -611,9 +610,9 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
-		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
-		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
+		p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
+		p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
+		p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
 	}
 
 	metricsUpdater()

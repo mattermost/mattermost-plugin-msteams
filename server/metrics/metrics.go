@@ -1,3 +1,4 @@
+//go:generate mockery --name=Metrics
 package metrics
 
 import (
@@ -20,7 +21,10 @@ const (
 
 type Metrics interface {
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
-	ObserveConnectedUsersTotal(count int64)
+
+	IncrementHTTPRequests()
+	IncrementHTTPErrors()
+
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
@@ -28,14 +32,16 @@ type Metrics interface {
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
-	ObserveSyntheticUsersTotal(count int64)
-	ObserveLinkedChannelsTotal(count int64)
-	IncrementHTTPRequests()
-	IncrementHTTPErrors()
-	GetRegistry() *prometheus.Registry
+
+	ObserveConnectedUsers(count int64)
+	ObserveSyntheticUsers(count int64)
+	ObserveLinkedChannels(count int64)
+	ObserveUpstreamUsers(count int64)
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
+
+	GetRegistry() *prometheus.Registry
 }
 
 type InstanceInfo struct {
@@ -60,9 +66,10 @@ type metrics struct {
 	reactionsCount            *prometheus.CounterVec
 	filesCount                *prometheus.CounterVec
 
-	connectedUsersTotal prometheus.Gauge
-	syntheticUsersTotal prometheus.Gauge
-	linkedChannelsTotal prometheus.Gauge
+	connectedUsers prometheus.Gauge
+	syntheticUsers prometheus.Gauge
+	linkedChannels prometheus.Gauge
+	upstreamUsers  prometheus.Gauge
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
@@ -178,32 +185,41 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesCount)
 
-	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "connected_users_total",
 		Help:        "The total number of Mattermost users connected to MS Teams users.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.connectedUsersTotal)
+	m.registry.MustRegister(m.connectedUsers)
 
-	m.syntheticUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "synthetic_users_total",
 		Help:        "The total number of synthetic users.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.syntheticUsersTotal)
+	m.registry.MustRegister(m.syntheticUsers)
 
-	m.linkedChannelsTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.linkedChannels = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "linked_channels_total",
 		Help:        "The total number of linked channels to MS Teams.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.linkedChannelsTotal)
+	m.registry.MustRegister(m.linkedChannels)
+
+	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "upstream_users",
+		Help:        "The total number of upstream users.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.upstreamUsers)
 
 	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -236,9 +252,9 @@ func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string,
 	}
 }
 
-func (m *metrics) ObserveConnectedUsersTotal(count int64) {
+func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
-		m.connectedUsersTotal.Set(float64(count))
+		m.connectedUsers.Set(float64(count))
 	}
 }
 
@@ -284,15 +300,20 @@ func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDir
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveSyntheticUsers(count int64) {
 	if m != nil {
-		m.syntheticUsersTotal.Set(float64(count))
+		m.syntheticUsers.Set(float64(count))
 	}
 }
 
-func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
-		m.linkedChannelsTotal.Set(float64(count))
+		m.linkedChannels.Set(float64(count))
+	}
+}
+func (m *metrics) ObserveUpstreamUsers(count int64) {
+	if m != nil {
+		m.upstreamUsers.Set(float64(count))
 	}
 }
 
