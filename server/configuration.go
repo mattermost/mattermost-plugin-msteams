@@ -34,6 +34,7 @@ type configuration struct {
 	MaxSizeForCompleteDownload int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming int    `json:"bufferSizeForFileStreaming"`
 	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
+	ConnectedUsersAllowed      int    `json:"connectedUsersAllowed"`
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if
@@ -107,11 +108,22 @@ func (p *Plugin) OnConfigurationChange() error {
 		return errors.Wrap(err, "failed to load plugin configuration")
 	}
 
+	if p.store != nil {
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		if err != nil {
+			return errors.New("failed to get the size of whitelist from the DB")
+		}
+
+		if configuration.ConnectedUsersAllowed < whitelistSize {
+			return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
+		}
+	}
+
 	p.setConfiguration(configuration)
 
 	// Only restart the application if the OnActivate is already executed
 	if p.store != nil {
-		p.restart()
+		go p.restart()
 	}
 
 	return nil
