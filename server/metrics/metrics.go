@@ -199,7 +199,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "messages_confirmed_total",
-		Help:        "The total number of messages confirmed to sent from Mattermost to MS Teams.",
+		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
 		ConstLabels: additionalLabels,
 	}, []string{"source", "is_direct"})
 	m.registry.MustRegister(m.messagesConfirmedCount)
