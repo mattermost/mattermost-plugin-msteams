@@ -213,7 +213,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users_total",
+		Name:        "upstream_users",
 		Help:        "The total number of upstream users.",
 		ConstLabels: additionalLabels,
 	})
