@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
@@ -134,7 +135,7 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(subscriptionConnected)
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
 			m.api.LogError("Unable to delete the old all chats subscription", "error", err.Error())
@@ -173,7 +174,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(subscriptionReconnected)
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 			m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
@@ -200,7 +201,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}()
 
-	if txErr = m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}, tx); txErr != nil {
+	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); txErr != nil {
 		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
 		return
 	}
@@ -216,7 +217,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(subscriptionReconnected)
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 	}
@@ -229,7 +230,7 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(subscriptionRefreshed)
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	mockMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -551,7 +552,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 		setupAPI     func(*plugintest.API)
 		setupStore   func(*mockStore.Store)
 		setupClient  func(*mockClient.Client, *mockClient.Client)
-		setupMetrics func(metrics *mockMetrics.Metrics)
+		setupMetrics func(mockmetrics *mockMetrics.Metrics)
 	}{
 		{
 			description: "Successfully executed link command",
@@ -581,15 +582,15 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
 				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
-				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription"), &sql.Tx{}).Return(nil).Times(1)
+				s.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
 				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -625,9 +626,9 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -659,15 +660,15 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
 				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
-				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription"), &sql.Tx{}).Return(nil).Times(1)
+				s.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
 				s.On("CommitTx", &sql.Tx{}).Return(errors.New("error in committing transaction")).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", subscriptionConnected).Times(1)
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
 		{
@@ -715,7 +716,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			},
 			setupStore:   func(s *mockStore.Store) {},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Team is not enabled for MS Teams sync",
@@ -732,7 +733,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", "").Return(false).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to get the current channel information",
@@ -748,7 +749,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to link the channel as only channel admin can link it",
@@ -768,7 +769,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to link channel as channel is either a direct or group message",
@@ -787,7 +788,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to find MS Teams channel as user don't have the permissions to access it",
@@ -854,13 +855,60 @@ func TestExecuteConnectCommand(t *testing.T) {
 			},
 		},
 		{
+			description: "Error in checking if the user is present in whitelist",
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error in checking if a user is present in whitelist", "UserID", testutils.GetUserID(), "Error", "error in accessing whitelist").Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error in trying to connect the account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, errors.New("error in accessing whitelist")).Once()
+			},
+		},
+		{
+			description: "Error in getting the size of whitelist",
+			setupAPI: func(api *plugintest.API) {
+				api.On("LogError", "Error in getting the size of whitelist", "Error", "unable to get size of whitelist").Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error in trying to connect the account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Once()
+				s.On("GetSizeOfWhitelist").Return(0, errors.New("unable to get size of whitelist")).Once()
+			},
+		},
+		{
+			description: "Size of whitelist has reached maximum limit",
+			setupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Once()
+				s.On("GetSizeOfWhitelist").Return(0, nil).Once()
+			},
+		},
+		{
 			description: "Unable to store OAuth state",
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
 			},
 		},
@@ -868,10 +916,11 @@ func TestExecuteConnectCommand(t *testing.T) {
 			description: "Unable to set in KV store",
 			setupAPI: func(api *plugintest.API) {
 				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -888,6 +937,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -933,14 +983,64 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			},
 		},
 		{
+			description: "Error in checking if the bot user is present in whitelist",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("LogError", "Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", "error in accessing whitelist").Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error in trying to connect the bot account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(false, errors.New("error in accessing whitelist")).Once()
+			},
+		},
+		{
+			description: "Error in getting the size of whitelist",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("LogError", "Error in getting the size of whitelist", "Error", "unable to get size of whitelist").Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Error in trying to connect the bot account, please try again.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(false, nil).Once()
+				s.On("GetSizeOfWhitelist").Return(0, errors.New("unable to get size of whitelist")).Once()
+			},
+		},
+		{
+			description: "Size of whitelist has reached maximum limit",
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    p.userID,
+					ChannelId: testutils.GetChannelID(),
+					Message:   "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(false, nil).Once()
+				s.On("GetSizeOfWhitelist").Return(0, nil).Once()
+			},
+		},
+		{
 			description: "Unable to store OAuth state",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
 			},
 		},
@@ -949,10 +1049,11 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
@@ -970,6 +1071,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
+				s.On("IsUserPresentInWhitelist", p.userID).Return(true, nil).Once()
 				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
