@@ -305,11 +305,9 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 	}
 
 	text := fmt.Sprintf(
-		"This channel is linked to the MS Teams Channel \"%s\" (with id: %s) in the Team \"%s\" (with the id: %s).",
+		"This channel is linked to the MS Teams Channel \"%s\" in the Team \"%s\".",
 		msteamsChannel.DisplayName,
-		msteamsChannel.ID,
 		msteamsTeam.DisplayName,
-		msteamsTeam.ID,
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
