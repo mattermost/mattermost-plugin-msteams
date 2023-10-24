@@ -537,9 +537,5 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 }
 
 func IsDirectMessage(chatID string) bool {
-	if chatID != "" {
-		return true
-	}
-
-	return false
+	return chatID != ""
 }
