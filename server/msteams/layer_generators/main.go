@@ -40,13 +40,10 @@ func buildTimerLayer() error {
 
 	formatedCode, err := format.Source(code)
 	if err != nil {
-		log.Println("44")
 		return err
 	}
 
-	err = os.MkdirAll("client_timerlayer", 0700)
-	if err != nil {
-		log.Println("51")
+	if err = os.MkdirAll("client_timerlayer", 0700); err != nil {
 		return err
 	}
 
@@ -181,7 +178,6 @@ func generateLayer(name, templateFile string) ([]byte, error) {
 		},
 		"errorPresent": func(results []string) bool {
 			for _, typeName := range results {
-				log.Println("188", typeName)
 				if isError(typeName) {
 					return true
 				}
