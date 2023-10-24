@@ -46,8 +46,6 @@ const (
 	discardedReasonEmptyFileID            = "empty_file_id"
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 	discardedReasonExpiredSubscription    = "expired_subscription"
-
-	IncreaseFileCountByOne = 1
 )
 
 type PluginIface interface {

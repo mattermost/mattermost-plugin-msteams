@@ -68,6 +68,11 @@ func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
 }
 
+// ObserveFileCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage
+func (_m *Metrics) ObserveFileCount(action string, source string, discardedReason string, isDirectMessage bool) {
+	_m.Called(action, source, discardedReason, isDirectMessage)
+}
+
 // ObserveFilesCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage, count
 func (_m *Metrics) ObserveFilesCount(action string, source string, discardedReason string, isDirectMessage bool, count int64) {
 	_m.Called(action, source, discardedReason, isDirectMessage, count)

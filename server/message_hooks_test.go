@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -1457,7 +1456,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 			},
 			ExpectedError: "unable to send the chat",
 		},
@@ -1491,7 +1490,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1529,7 +1528,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1558,7 +1557,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1588,7 +1587,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1632,7 +1631,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1666,7 +1665,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1735,7 +1734,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1761,7 +1760,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1787,7 +1786,7 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
@@ -1820,7 +1819,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1852,7 +1851,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
