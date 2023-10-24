@@ -63,8 +63,8 @@ func (_m *Metrics) ObserveChangeEventTotal(changeType string) {
 	_m.Called(changeType)
 }
 
-// ObserveConnectedUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveConnectedUsersTotal(count int64) {
+// ObserveConnectedUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
 }
 
@@ -78,8 +78,8 @@ func (_m *Metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	_m.Called(lifecycleEventType)
 }
 
-// ObserveLinkedChannelsTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveLinkedChannelsTotal(count int64) {
+// ObserveLinkedChannels provides a mock function with given fields: count
+func (_m *Metrics) ObserveLinkedChannels(count int64) {
 	_m.Called(count)
 }
 
@@ -108,13 +108,13 @@ func (_m *Metrics) ObserveSubscriptionsCount(action string) {
 	_m.Called(action)
 }
 
-// ObserveSyntheticUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveSyntheticUsersTotal(count int64) {
+// ObserveSyntheticUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveSyntheticUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveUpstreamUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveUpstreamUsersTotal(count int64) {
+// ObserveUpstreamUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 	_m.Called(count)
 }
 
