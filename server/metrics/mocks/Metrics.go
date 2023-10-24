@@ -68,9 +68,9 @@ func (_m *Metrics) ObserveConnectedUsersTotal(count int64) {
 	_m.Called(count)
 }
 
-// ObserveFilesCount provides a mock function with given fields: action, source, isDirect, discardedReason, count
-func (_m *Metrics) ObserveFilesCount(action string, source string, isDirect string, discardedReason string, count int64) {
-	_m.Called(action, source, isDirect, discardedReason, count)
+// ObserveFilesCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage, count
+func (_m *Metrics) ObserveFilesCount(action string, source string, discardedReason string, isDirectMessage bool, count int64) {
+	_m.Called(action, source, discardedReason, isDirectMessage, count)
 }
 
 // ObserveLifecycleEventTotal provides a mock function with given fields: lifecycleEventType
@@ -83,9 +83,9 @@ func (_m *Metrics) ObserveLinkedChannelsTotal(count int64) {
 	_m.Called(count)
 }
 
-// ObserveMessagesCount provides a mock function with given fields: action, source, isDirect
-func (_m *Metrics) ObserveMessagesCount(action string, source string, isDirect string) {
-	_m.Called(action, source, isDirect)
+// ObserveMessagesCount provides a mock function with given fields: action, source, isDirectMessage
+func (_m *Metrics) ObserveMessagesCount(action string, source string, isDirectMessage bool) {
+	_m.Called(action, source, isDirectMessage)
 }
 
 // ObserveProcessedChangeEventTotal provides a mock function with given fields: changeType, discardedReason
@@ -93,9 +93,9 @@ func (_m *Metrics) ObserveProcessedChangeEventTotal(changeType string, discarded
 	_m.Called(changeType, discardedReason)
 }
 
-// ObserveReactionsCount provides a mock function with given fields: action, source, isDirect
-func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirect string) {
-	_m.Called(action, source, isDirect)
+// ObserveReactionsCount provides a mock function with given fields: action, source, isDirectMessage
+func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirectMessage bool) {
+	_m.Called(action, source, isDirectMessage)
 }
 
 // ObserveSyntheticUsersTotal provides a mock function with given fields: count
