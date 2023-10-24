@@ -46,13 +46,6 @@ const (
 	discardedReasonEmptyFileID            = "empty_file_id"
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
-	actionSourceMSTeams    = "msteams"
-	ActionSourceMattermost = "mattermost"
-	ActionCreated          = "created"
-	ActionUpdated          = "updated"
-	ActionDeleted          = "deleted"
-	ReactionSetAction      = "set"
-	ReactionUnsetAction    = "unset"
 	IncreaseFileCountByOne = 1
 )
 
@@ -220,7 +213,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(ActionSourceMattermost, IsDirectMessage(activityIds.ChatID))
+		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(metrics.ActionSourceMattermost, IsDirectMessage(activityIds.ChatID))
 		return discardedReasonDuplicatedPost
 	}
 
@@ -293,7 +286,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionCreated, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -408,7 +401,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionUpdated, actionSourceMSTeams, isDirectMessage)
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
 	return discardedReasonNone
@@ -452,7 +445,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionUnsetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 
@@ -482,7 +475,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
-			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionSetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 }
@@ -503,7 +496,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionDeleted, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	return discardedReasonNone
 }
 

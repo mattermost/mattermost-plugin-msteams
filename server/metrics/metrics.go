@@ -16,6 +16,14 @@ const (
 	MetricsSubsystemEvents = "events"
 
 	MetricsCloudInstallationLabel = "installationId"
+
+	ActionSourceMSTeams    = "msteams"
+	ActionSourceMattermost = "mattermost"
+	ActionCreated          = "created"
+	ActionUpdated          = "updated"
+	ActionDeleted          = "deleted"
+	ReactionSetAction      = "set"
+	ReactionUnsetAction    = "unset"
 )
 
 type Metrics interface {
@@ -188,7 +196,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.messagesConfirmedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
-		Name:        "messages_confirmed",
+		Name:        "messages_confirmed_total",
 		Help:        "The total number of messages confirmed to sent from Mattermost to MS Teams.",
 		ConstLabels: additionalLabels,
 	}, []string{"source", "is_direct"})
