@@ -429,8 +429,6 @@ func (p *Plugin) syncUsers() {
 			continue
 		}
 
-		p.API.LogDebug("Running sync user job for user", "TeamsUserID", msUser.ID)
-
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
 		if isUserPresent {
@@ -472,9 +470,6 @@ func (p *Plugin) syncUsers() {
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 					}
-				} else {
-					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "TeamsUserID", msUser.ID)
 				}
 
 				continue
