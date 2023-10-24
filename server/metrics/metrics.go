@@ -31,6 +31,7 @@ type Metrics interface {
 	ObserveLinkedChannelsTotal(count int64)
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
+	ObserveChangeEventRejectedTotal()
 	GetRegistry() *prometheus.Registry
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
@@ -49,8 +50,9 @@ type metrics struct {
 
 	apiTime *prometheus.HistogramVec
 
-	httpRequestsTotal prometheus.Counter
-	httpErrorsTotal   prometheus.Counter
+	httpRequestsTotal        prometheus.Counter
+	httpErrorsTotal          prometheus.Counter
+	changeEventRejectedTotal prometheus.Counter
 
 	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
@@ -122,6 +124,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
+
+	m.changeEventRejectedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "change_event_rejected_total",
+		Help:        "The total number of change events rejected due to the activity queue size being full.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.changeEventRejectedTotal)
 
 	m.changeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -298,6 +309,12 @@ func (m *metrics) IncrementHTTPRequests() {
 func (m *metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
+	}
+}
+
+func (m *metrics) ObserveChangeEventRejectedTotal() {
+	if m != nil {
+		m.changeEventRejectedTotal.Inc()
 	}
 }
 
