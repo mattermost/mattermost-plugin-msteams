@@ -41,6 +41,7 @@ const (
 	discardedReasonInactiveUser           = "inactive_user"
 	discardedReasonDuplicatedPost         = "duplicated_post"
 	discardedReasonAlreadyAppliedChange   = "already_applied_change"
+	discardedReasonExpiredSubscription    = "expired_subscription"
 )
 
 type PluginIface interface {
@@ -157,31 +158,30 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 }
 
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
+	metrics := ah.plugin.GetMetrics()
+
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
 	if activityIds.ChatID == "" {
 		if !ah.checkSubscription(activity.SubscriptionID) {
-			ah.plugin.GetAPI().LogDebug("The subscription is no longer active", "subscriptionID", activity.SubscriptionID)
+			metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReasonExpiredSubscription)
 			return
 		}
 	}
-	metrics := ah.plugin.GetMetrics()
 
 	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
 		discardedReason = ah.handleCreatedActivity(activityIds)
 	case "updated":
-		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
 		discardedReason = ah.handleUpdatedActivity(activityIds)
 	case "deleted":
-		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
 		discardedReason = discardedReasonInvalidChangeType
-		ah.plugin.GetAPI().LogWarn("Unhandled activity", "activity", activity, "error", "Not handled activity")
+		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
 	}
+
 	metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
 }
 
@@ -289,7 +289,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}, nil); err != nil {
+		if err := ah.plugin.GetStore().LinkPosts(nil, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
@@ -352,7 +352,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 					ah.plugin.GetAPI().LogError("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
 					return discardedReasonOther
 				}
-				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				if postErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
+					return discardedReasonOther
+				}
 			} else {
 				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
 				return discardedReasonOther

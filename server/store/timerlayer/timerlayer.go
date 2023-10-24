@@ -358,10 +358,10 @@ func (s *TimerLayer) IsUserPresentInWhitelist(userID string) (bool, error) {
 	return result, err
 }
 
-func (s *TimerLayer) LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error {
+func (s *TimerLayer) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
 	start := time.Now()
 
-	err := s.Store.LinkPosts(postInfo, tx)
+	err := s.Store.LinkPosts(tx, postInfo)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -540,10 +540,10 @@ func (s *TimerLayer) RecoverPost(postID string) error {
 	return err
 }
 
-func (s *TimerLayer) SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error {
+func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
 	start := time.Now()
 
-	err := s.Store.SaveChannelSubscription(subscription, tx)
+	err := s.Store.SaveChannelSubscription(tx, subscription)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -610,10 +610,10 @@ func (s *TimerLayer) SetJobStatus(jobName string, status bool) error {
 	return err
 }
 
-func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
 	start := time.Now()
 
-	err := s.Store.SetPostLastUpdateAtByMSTeamsID(postID, lastUpdateAt, tx)
+	err := s.Store.SetPostLastUpdateAtByMSTeamsID(tx, postID, lastUpdateAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -624,10 +624,10 @@ func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt 
 	return err
 }
 
-func (s *TimerLayer) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error {
+func (s *TimerLayer) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
 	start := time.Now()
 
-	err := s.Store.SetPostLastUpdateAtByMattermostID(postID, lastUpdateAt, tx)
+	err := s.Store.SetPostLastUpdateAtByMattermostID(tx, postID, lastUpdateAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

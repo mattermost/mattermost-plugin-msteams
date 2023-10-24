@@ -222,13 +222,13 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		}
 	}()
 
-	if txErr = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+	if txErr = p.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		TeamID:         channelLink.MSTeamsTeam,
 		ChannelID:      channelLink.MSTeamsChannel,
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.getConfiguration().WebhookSecret,
-	}, tx); txErr != nil {
+	}); txErr != nil {
 		p.API.LogWarn("Unable to save the subscription in the DB", "error", txErr.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
@@ -305,11 +305,9 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 	}
 
 	text := fmt.Sprintf(
-		"This channel is linked to the MS Teams Channel \"%s\" (with id: %s) in the Team \"%s\" (with the id: %s).",
+		"This channel is linked to the MS Teams Channel \"%s\" in the Team \"%s\".",
 		msteamsChannel.DisplayName,
-		msteamsChannel.ID,
 		msteamsTeam.DisplayName,
-		msteamsTeam.ID,
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)

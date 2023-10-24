@@ -22,9 +22,9 @@ type Store interface {
 	StoreChannelLink(link *storemodels.ChannelLink) error
 	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
 	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
-	LinkPosts(postInfo storemodels.PostInfo, tx *sql.Tx) error
-	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
-	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time, tx *sql.Tx) error
+	LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error
+	SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
+	SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -39,7 +39,7 @@ type Store interface {
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
-	SaveChannelSubscription(subscription storemodels.ChannelSubscription, tx *sql.Tx) error
+	SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)

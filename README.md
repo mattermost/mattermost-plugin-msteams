@@ -84,7 +84,7 @@ There are two methods by which you can connect your Mattermost account to your M
 - `/msteams-sync disconnect` :- This is used to disconnect your Mattermost account from MS Teams account.
 - `/msteams-sync link` :- This is used to link the currently active Mattermost channel with an MS Teams channel and it can only be run by users who are channel admins and above. To run this command, you must have your Mattermost account connected with MS Teams. This command takes two arguments - MS Teams team ID and channel ID which you can get from command autocomplete.
 - `/msteams-sync unlink` :- This is used to unlink the currently active Mattermost channel with the MS Teams channel and it can only be run by users who are channel admins and above. To run this command, you don't need to have your Mattermost account connected to MS Teams.
-- `/msteams-sync show` :- This is used to show the link of the currently active Mattermost channel. It displays the team name, team ID, channel name and channel ID of MS Teams to which the currently active MM channel is linked.
+- `/msteams-sync show` :- This is used to show the link of the currently active Mattermost channel. It displays the team name and channel name of MS Teams to which the currently active MM channel is linked.
 
 ### System admins only
 - `/msteams-sync connect-bot` :- This is used to connect the bot account in Mattermost to an account in MS Teams and it can only be run by system admins.
