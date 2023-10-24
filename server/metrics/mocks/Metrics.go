@@ -103,6 +103,11 @@ func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirectM
 	_m.Called(action, source, isDirectMessage)
 }
 
+// ObserveStoreMethodDuration provides a mock function with given fields: method, success, elapsed
+func (_m *Metrics) ObserveStoreMethodDuration(method string, success string, elapsed float64) {
+	_m.Called(method, success, elapsed)
+}
+
 // ObserveSyntheticUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveSyntheticUsers(count int64) {
 	_m.Called(count)

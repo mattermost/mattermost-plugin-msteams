@@ -8,8 +8,6 @@ import (
 
 	sql "database/sql"
 
-	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
 	time "time"
@@ -421,15 +419,15 @@ func (_m *Store) GetSizeOfWhitelist() (int, error) {
 }
 
 // GetStats provides a mock function with given fields:
-func (_m *Store) GetStats() (*store.Stats, error) {
+func (_m *Store) GetStats() (*storemodels.Stats, error) {
 	ret := _m.Called()
 
-	var r0 *store.Stats
-	if rf, ok := ret.Get(0).(func() *store.Stats); ok {
+	var r0 *storemodels.Stats
+	if rf, ok := ret.Get(0).(func() *storemodels.Stats); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*store.Stats)
+			r0 = ret.Get(0).(*storemodels.Stats)
 		}
 	}
 

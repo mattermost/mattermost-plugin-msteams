@@ -2,6 +2,12 @@ package storemodels
 
 import "time"
 
+type Stats struct {
+	ConnectedUsers int64
+	SyntheticUsers int64
+	LinkedChannels int64
+}
+
 type ChannelLink struct {
 	MattermostTeamID      string
 	MattermostTeamName    string
