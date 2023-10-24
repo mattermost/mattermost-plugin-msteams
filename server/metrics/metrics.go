@@ -1,3 +1,4 @@
+//go:generate mockery --name=Metrics
 package metrics
 
 import (
@@ -31,10 +32,10 @@ type Metrics interface {
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
 
-	ObserveConnectedUsersTotal(count int64)
-	ObserveSyntheticUsersTotal(count int64)
-	ObserveLinkedChannelsTotal(count int64)
-	ObserveUpstreamUsersTotal(count int64)
+	ObserveConnectedUsers(count int64)
+	ObserveSyntheticUsers(count int64)
+	ObserveLinkedChannels(count int64)
+	ObserveUpstreamUsers(count int64)
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
@@ -250,7 +251,7 @@ func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string,
 	}
 }
 
-func (m *metrics) ObserveConnectedUsersTotal(count int64) {
+func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
 		m.connectedUsers.Set(float64(count))
 	}
@@ -292,18 +293,18 @@ func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDi
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveSyntheticUsers(count int64) {
 	if m != nil {
 		m.syntheticUsers.Set(float64(count))
 	}
 }
 
-func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
 	}
 }
-func (m *metrics) ObserveUpstreamUsersTotal(count int64) {
+func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
 	}

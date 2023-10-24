@@ -348,7 +348,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -373,7 +373,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -402,7 +402,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveUpstreamUsersTotal", int64(1)).Times(1)
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 	} {
