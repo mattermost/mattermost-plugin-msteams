@@ -22,12 +22,12 @@ func (el *ErrorLoggerWrapper) Println(v ...interface{}) {
 }
 
 // NewMetricsServer factory method to create a new prometheus server.
-func NewMetricsServer(address string, metricsService *Metrics) *Server {
+func NewMetricsServer(address string, metricsService Metrics) *Server {
 	return &Server{
 		&http.Server{
 			ReadTimeout: 30 * time.Second,
 			Addr:        address,
-			Handler: promhttp.HandlerFor(metricsService.registry, promhttp.HandlerOpts{
+			Handler: promhttp.HandlerFor(metricsService.GetRegistry(), promhttp.HandlerOpts{
 				ErrorLog: &ErrorLoggerWrapper{},
 			}),
 		},
