@@ -134,7 +134,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 		{
@@ -159,7 +159,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				uclient.On("GetMessage", "ms-teams-team-id", "ms-teams-channel-id", "ms-teams-id").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -307,7 +307,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 		{
@@ -340,7 +340,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -413,7 +413,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateChatMessage", testutils.GetChatID(), "mockMsgID", "", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{
@@ -527,7 +527,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 		{
@@ -563,7 +563,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -749,7 +749,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -775,7 +775,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -800,7 +800,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockTeamsMessageID").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -944,7 +944,7 @@ func TestSetReaction(t *testing.T) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 		{
@@ -965,7 +965,7 @@ func TestSetReaction(t *testing.T) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionSetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -1135,7 +1135,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{
@@ -1159,7 +1159,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{
@@ -1182,7 +1182,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, true).Times(1)
 			},
 		},
 	} {
@@ -1322,7 +1322,7 @@ func TestUnsetReaction(t *testing.T) {
 				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 		{
@@ -1342,7 +1342,7 @@ func TestUnsetReaction(t *testing.T) {
 				uclient.On("GetMessage", "mockTeamsTeamID", "mockTeamsChannelID", "").Return(&msteams.Message{LastUpdateAt: testutils.GetMockTime()}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", handlers.ReactionUnsetAction, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -1456,7 +1456,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
 			},
 			ExpectedError: "unable to send the chat",
 		},
@@ -1490,8 +1490,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1528,8 +1528,8 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1557,8 +1557,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, discardedReasonUnableToGetMMData, int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1587,8 +1587,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, discardedReasonUnableToGetMMData, int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1631,8 +1631,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, discardedReasonUnableToUploadFileOnTeams, int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1665,8 +1665,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1734,8 +1734,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse, discardedReasonUnableToGetMMData, int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1760,8 +1760,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse, discardedReasonUnableToGetMMData, int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1786,8 +1786,8 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
 		},
@@ -1819,8 +1819,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1851,8 +1851,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse, "", int64(handlers.IncreaseFileCountByOne)).Times(1)
-				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveFilesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionCreated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1955,7 +1955,7 @@ func TestDelete(t *testing.T) {
 				uclient.On("DeleteMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID").Return(nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionDeleted, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionDeleted, handlers.ActionSourceMattermost, false).Times(1)
 			},
 		},
 	} {
@@ -2056,7 +2056,7 @@ func TestDeleteChat(t *testing.T) {
 				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionDeleted, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionDeleted, handlers.ActionSourceMattermost, true).Times(1)
 			},
 		},
 	} {
@@ -2239,7 +2239,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -2267,7 +2267,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -2293,7 +2293,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, false).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -2481,7 +2481,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -2510,7 +2510,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},
@@ -2538,7 +2538,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, handlers.DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", handlers.ActionUpdated, handlers.ActionSourceMattermost, true).Times(1)
 			},
 			UpdateRequired: true,
 		},

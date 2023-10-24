@@ -146,7 +146,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesConfirmedCount", ActionSourceMattermost, DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesConfirmedCount", ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{
@@ -392,7 +392,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}).Return(errors.New("unable to update the post")).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -452,7 +452,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -503,7 +503,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", ActionCreated, actionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
@@ -839,7 +839,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionUpdated, actionSourceMSTeams, DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", ActionUpdated, actionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -889,7 +889,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionUpdated, actionSourceMSTeams, DirectMessageFalse).Times(1)
+				metrics.On("ObserveMessagesCount", ActionUpdated, actionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
@@ -945,7 +945,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveMessagesCount", ActionDeleted, actionSourceMSTeams, DirectMessageTrue).Times(1)
+				metrics.On("ObserveMessagesCount", ActionDeleted, actionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -1078,7 +1078,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveReactionsCount", ReactionUnsetAction, actionSourceMSTeams, DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", ReactionUnsetAction, actionSourceMSTeams, false).Times(1)
 			},
 		},
 		{
@@ -1118,7 +1118,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveReactionsCount", ReactionUnsetAction, actionSourceMSTeams, DirectMessageFalse).Times(1)
+				metrics.On("ObserveReactionsCount", ReactionUnsetAction, actionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
@@ -1137,7 +1137,7 @@ func TestHandleReactions(t *testing.T) {
 
 			mockAPI.On("LogDebug", "Handling reactions", "reactions", mock.Anything).Times(1)
 
-			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), "false", testCase.reactions)
+			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), false, testCase.reactions)
 		})
 	}
 }
