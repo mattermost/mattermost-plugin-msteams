@@ -47,13 +47,12 @@ const (
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 	discardedReasonExpiredSubscription    = "expired_subscription"
 
-	actionSourceMSTeams    = "msteams"
-	ActionCreated          = "created"
-	ActionUpdated          = "updated"
-	ActionDeleted          = "deleted"
-	ReactionSetAction      = "set"
-	ReactionUnsetAction    = "unset"
-	IncreaseFileCountByOne = 1
+	actionSourceMSTeams = "msteams"
+	ActionCreated       = "created"
+	ActionUpdated       = "updated"
+	ActionDeleted       = "deleted"
+	ReactionSetAction   = "set"
+	ReactionUnsetAction = "unset"
 )
 
 type PluginIface interface {
