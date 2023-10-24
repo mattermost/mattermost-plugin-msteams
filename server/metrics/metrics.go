@@ -33,7 +33,6 @@ const (
 
 type Metrics interface {
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
-	ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
@@ -55,6 +54,7 @@ type Metrics interface {
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
+	ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
 	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
