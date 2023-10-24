@@ -47,10 +47,10 @@ type Metrics interface {
 	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
 	ObserveSubscriptionsCount(action string)
 
-	ObserveConnectedUsersTotal(count int64)
-	ObserveSyntheticUsersTotal(count int64)
-	ObserveLinkedChannelsTotal(count int64)
-	ObserveUpstreamUsersTotal(count int64)
+	ObserveConnectedUsers(count int64)
+	ObserveSyntheticUsers(count int64)
+	ObserveLinkedChannels(count int64)
+	ObserveUpstreamUsers(count int64)
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
@@ -262,7 +262,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users_total",
+		Name:        "upstream_users",
 		Help:        "The total number of upstream users.",
 		ConstLabels: additionalLabels,
 	})
@@ -305,7 +305,7 @@ func (m *metrics) ObserveMSGraphAPIEndpointDuration(handler, method, statusCode 
 	}
 }
 
-func (m *metrics) ObserveConnectedUsersTotal(count int64) {
+func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
 		m.connectedUsers.Set(float64(count))
 	}
@@ -359,18 +359,18 @@ func (m *metrics) ObserveSubscriptionsCount(action string) {
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveSyntheticUsers(count int64) {
 	if m != nil {
 		m.syntheticUsers.Set(float64(count))
 	}
 }
 
-func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
 	}
 }
-func (m *metrics) ObserveUpstreamUsersTotal(count int64) {
+func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
 	}
