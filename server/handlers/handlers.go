@@ -47,8 +47,6 @@ const (
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
 	actionSourceMSTeams    = "msteams"
-	DirectMessageTrue      = "true"
-	DirectMessageFalse     = "false"
 	ActionCreated          = "created"
 	ActionUpdated          = "updated"
 	ActionDeleted          = "deleted"
@@ -410,7 +408,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []msteams.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
@@ -534,10 +532,10 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }
 
-func IsDirectMessage(chatID string) string {
+func IsDirectMessage(chatID string) bool {
 	if chatID != "" {
-		return DirectMessageTrue
+		return true
 	}
 
-	return DirectMessageFalse
+	return false
 }

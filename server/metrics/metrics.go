@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
@@ -22,9 +24,9 @@ type Metrics interface {
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
-	ObserveMessagesCount(action, source, isDirectMessage string)
-	ObserveReactionsCount(action, source, isDirectMessage string)
-	ObserveFilesCount(action, source, isDirectMessage, discardedReason string, count int64)
+	ObserveMessagesCount(action, source string, isDirectMessage bool)
+	ObserveReactionsCount(action, source string, isDirectMessage bool)
+	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveSyntheticUsersTotal(count int64)
 	ObserveLinkedChannelsTotal(count int64)
 	IncrementHTTPRequests()
@@ -257,21 +259,21 @@ func (m *metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	}
 }
 
-func (m *metrics) ObserveMessagesCount(action, source, isDirectMessage string) {
+func (m *metrics) ObserveMessagesCount(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage}).Inc()
+		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveReactionsCount(action, source, isDirectMessage string) {
+func (m *metrics) ObserveReactionsCount(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage}).Inc()
+		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFilesCount(action, source, isDirectMessage, discardedReason string, count int64) {
+func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64) {
 	if m != nil {
-		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirectMessage, "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
