@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	mockMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -552,7 +552,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 		setupAPI     func(*plugintest.API)
 		setupStore   func(*mockStore.Store)
 		setupClient  func(*mockClient.Client, *mockClient.Client)
-		setupMetrics func(metrics *mockMetrics.Metrics)
+		setupMetrics func(mockmetrics *mockMetrics.Metrics)
 	}{
 		{
 			description: "Successfully executed link command",
@@ -588,8 +588,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", handlers.SubscriptionRefreshed).Times(1)
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
 			},
 		},
 		{
@@ -625,8 +625,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", handlers.SubscriptionRefreshed).Times(1)
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
 			},
 		},
 		{
@@ -664,8 +664,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {
-				metrics.On("ObserveSubscriptionsCount", handlers.SubscriptionRefreshed).Times(1)
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
 			},
 		},
 		{
@@ -693,7 +693,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&msteams.Channel{}, nil)
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Invalid link command",
@@ -711,7 +711,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			},
 			setupStore:   func(s *mockStore.Store) {},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Team is not enabled for MS Teams sync",
@@ -728,7 +728,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", "").Return(false).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to get the current channel information",
@@ -744,7 +744,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to link the channel as only channel admin can link it",
@@ -764,7 +764,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to link channel as channel is either a direct or group message",
@@ -783,7 +783,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 		{
 			description: "Unable to find MS Teams channel as user don't have the permissions to access it",
@@ -814,7 +814,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), "").Return(nil, errors.New("Error while getting the channel"))
 			},
-			setupMetrics: func(metrics *mockMetrics.Metrics) {},
+			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {

@@ -46,19 +46,7 @@ const (
 	discardedReasonEmptyFileID            = "empty_file_id"
 	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
 
-	actionSourceMSTeams     = "msteams"
-	ActionSourceMattermost  = "mattermost"
-	DirectMessageTrue       = "true"
-	DirectMessageFalse      = "false"
-	ActionCreated           = "created"
-	ActionUpdated           = "updated"
-	ActionDeleted           = "deleted"
-	ReactionSetAction       = "set"
-	ReactionUnsetAction     = "unset"
-	SubscriptionRefreshed   = "refreshed"
-	SubscriptionConnected   = "connected"
-	SubscriptionReconnected = "reconnected"
-	IncreaseFileCountByOne  = 1
+	IncreaseFileCountByOne = 1
 )
 
 type PluginIface interface {
@@ -150,7 +138,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
-			ah.plugin.GetMetrics().ObserveSubscriptionsCount(SubscriptionRefreshed)
+			ah.plugin.GetMetrics().ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
@@ -226,7 +214,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(ActionSourceMattermost, IsDirectMessage(activityIds.ChatID))
+		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(metrics.ActionSourceMattermost, IsDirectMessage(activityIds.ChatID))
 		return discardedReasonDuplicatedPost
 	}
 
@@ -299,7 +287,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	}
 
 	ah.plugin.GetAPI().LogDebug("Post created")
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionCreated, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,
@@ -373,7 +361,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 					ah.plugin.GetAPI().LogError("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
 					return discardedReasonOther
 				}
-				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				if postErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
+					return discardedReasonOther
+				}
 			} else {
 				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
 				return discardedReasonOther
@@ -410,13 +402,13 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 	}
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionUpdated, actionSourceMSTeams, isDirectMessage)
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
 	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []msteams.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
@@ -454,7 +446,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage st
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionUnsetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 
@@ -484,7 +476,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID, isDirectMessage st
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
-			ah.plugin.GetMetrics().ObserveReactionsCount(ReactionSetAction, actionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 }
@@ -505,7 +497,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds
 		return discardedReasonOther
 	}
 
-	ah.plugin.GetMetrics().ObserveMessagesCount(ActionDeleted, actionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 	return discardedReasonNone
 }
 
@@ -540,10 +532,6 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }
 
-func IsDirectMessage(chatID string) string {
-	if chatID != "" {
-		return DirectMessageTrue
-	}
-
-	return DirectMessageFalse
+func IsDirectMessage(chatID string) bool {
+	return chatID != ""
 }
