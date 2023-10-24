@@ -27,6 +27,7 @@ type Metrics interface {
 	ObserveMessagesCount(action, source string, isDirectMessage bool)
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
+	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
 	ObserveSyntheticUsersTotal(count int64)
 	ObserveLinkedChannelsTotal(count int64)
 	IncrementHTTPRequests()
@@ -274,6 +275,12 @@ func (m *metrics) ObserveReactionsCount(action, source string, isDirectMessage b
 func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64) {
 	if m != nil {
 		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
+	}
+}
+
+func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
+	if m != nil {
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
 	}
 }
 

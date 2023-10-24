@@ -509,13 +509,13 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true)
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true)
 			continue
 		}
 
@@ -524,11 +524,11 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true)
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne))
+		p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, "", true)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -605,13 +605,13 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false)
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false)
 			continue
 		}
 
@@ -620,11 +620,11 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, false, int64(handlers.IncreaseFileCountByOne))
+			p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, false)
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFilesCount(handlers.ActionCreated, actionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne))
+		p.metricsService.ObserveFileCount(handlers.ActionCreated, actionSourceMattermost, "", false)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))

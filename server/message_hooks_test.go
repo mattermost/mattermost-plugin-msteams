@@ -1456,7 +1456,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", true).Times(1)
 			},
 			ExpectedError: "unable to send the chat",
 		},
@@ -1490,7 +1490,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1528,7 +1528,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1557,7 +1557,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1587,7 +1587,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1631,7 +1631,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1665,7 +1665,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", true).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, true).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1734,7 +1734,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1760,7 +1760,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1786,7 +1786,7 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", false).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
@@ -1819,7 +1819,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", false).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1851,7 +1851,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveFilesCount", handlers.ActionCreated, actionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				metrics.On("ObserveFileCount", handlers.ActionCreated, actionSourceMattermost, "", false).Times(1)
 				metrics.On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
