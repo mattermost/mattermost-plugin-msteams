@@ -43,6 +43,11 @@ const (
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
+
+	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
+	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
+
+	actionSourceMattermost = "mattermost"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -73,7 +78,7 @@ type Plugin struct {
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
-	metricsService         *metrics.Metrics
+	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
 }
 
@@ -86,7 +91,7 @@ func (p *Plugin) GetAPI() plugin.API {
 	return p.API
 }
 
-func (p *Plugin) GetMetrics() *metrics.Metrics {
+func (p *Plugin) GetMetrics() metrics.Metrics {
 	return p.metricsService
 }
 

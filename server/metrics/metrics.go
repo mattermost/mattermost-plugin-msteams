@@ -1,6 +1,9 @@
+//go:generate mockery --name=Metrics
 package metrics
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
@@ -17,12 +20,33 @@ const (
 	MetricsCloudInstallationLabel = "installationId"
 )
 
+type Metrics interface {
+	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
+	ObserveConnectedUsersTotal(count int64)
+	ObserveChangeEventTotal(changeType string)
+	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
+	ObserveLifecycleEventTotal(lifecycleEventType string)
+	ObserveMessagesCount(action, source string, isDirectMessage bool)
+	ObserveReactionsCount(action, source string, isDirectMessage bool)
+	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
+	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
+	ObserveSyntheticUsersTotal(count int64)
+	ObserveLinkedChannelsTotal(count int64)
+	IncrementHTTPRequests()
+	IncrementHTTPErrors()
+	GetRegistry() *prometheus.Registry
+	ObserveChangeEventQueueCapacity(count int64)
+	IncrementChangeEventQueueLength(changeType string)
+	DecrementChangeEventQueueLength(changeType string)
+	ObserveStoreMethodDuration(method, success string, elapsed float64)
+}
+
 type InstanceInfo struct {
 	InstallationID string
 }
 
-// Metrics used to instrumentate metrics in prometheus.
-type Metrics struct {
+// metrics used to instrumentate metrics in prometheus.
+type metrics struct {
 	registry *prometheus.Registry
 
 	pluginStartTime prometheus.Gauge
@@ -35,6 +59,9 @@ type Metrics struct {
 	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
 	processedChangeEventTotal *prometheus.CounterVec
+	messagesCount             *prometheus.CounterVec
+	reactionsCount            *prometheus.CounterVec
+	filesCount                *prometheus.CounterVec
 
 	connectedUsersTotal prometheus.Gauge
 	syntheticUsersTotal prometheus.Gauge
@@ -47,8 +74,8 @@ type Metrics struct {
 }
 
 // NewMetrics Factory method to create a new metrics collector.
-func NewMetrics(info InstanceInfo) *Metrics {
-	m := &Metrics{}
+func NewMetrics(info InstanceInfo) Metrics {
+	m := &metrics{}
 
 	m.registry = prometheus.NewRegistry()
 	options := collectors.ProcessCollectorOpts{
@@ -129,6 +156,33 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	}, []string{"event_type"})
 	m.registry.MustRegister(m.lifecycleEventTotal)
 
+	m.messagesCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "messages_count",
+		Help:        "The total number of messages for different actions and sources",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct"})
+	m.registry.MustRegister(m.messagesCount)
+
+	m.reactionsCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "reactions_count",
+		Help:        "The total number of reactions for different actions and sources",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct"})
+	m.registry.MustRegister(m.reactionsCount)
+
+	m.filesCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "files_count",
+		Help:        "The total number of files for different actions and sources",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct", "discarded_reason"})
+	m.registry.MustRegister(m.filesCount)
+
 	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -186,79 +240,107 @@ func NewMetrics(info InstanceInfo) *Metrics {
 	return m
 }
 
-func (m *Metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
+func (m *metrics) GetRegistry() *prometheus.Registry {
+	return m.registry
+}
+
+func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
 	if m != nil {
 		m.apiTime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 
-func (m *Metrics) ObserveConnectedUsersTotal(count int64) {
+func (m *metrics) ObserveConnectedUsersTotal(count int64) {
 	if m != nil {
 		m.connectedUsersTotal.Set(float64(count))
 	}
 }
 
-func (m *Metrics) ObserveChangeEventTotal(changeType string) {
+func (m *metrics) ObserveChangeEventTotal(changeType string) {
 	if m != nil {
 		m.changeEventTotal.With(prometheus.Labels{"change_type": changeType}).Inc()
 	}
 }
 
-func (m *Metrics) ObserveProcessedChangeEventTotal(changeType string, discardedReason string) {
+func (m *metrics) ObserveProcessedChangeEventTotal(changeType string, discardedReason string) {
 	if m != nil {
 		m.processedChangeEventTotal.With(prometheus.Labels{"change_type": changeType, "discarded_reason": discardedReason}).Inc()
 	}
 }
 
-func (m *Metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
+func (m *metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	if m != nil {
 		m.lifecycleEventTotal.With(prometheus.Labels{"event_type": lifecycleEventType}).Inc()
 	}
 }
 
-func (m *Metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveMessagesCount(action, source string, isDirectMessage bool) {
+	if m != nil {
+		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+	}
+}
+
+func (m *metrics) ObserveReactionsCount(action, source string, isDirectMessage bool) {
+	if m != nil {
+		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+	}
+}
+
+func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64) {
+	if m != nil {
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
+	}
+}
+
+func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
+	if m != nil {
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+	}
+}
+
+func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
 	if m != nil {
 		m.syntheticUsersTotal.Set(float64(count))
 	}
 }
 
-func (m *Metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
 	if m != nil {
 		m.linkedChannelsTotal.Set(float64(count))
 	}
 }
 
-func (m *Metrics) IncrementHTTPRequests() {
+func (m *metrics) IncrementHTTPRequests() {
 	if m != nil {
 		m.httpRequestsTotal.Inc()
 	}
 }
 
-func (m *Metrics) IncrementHTTPErrors() {
+func (m *metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
 	}
 }
 
-func (m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
+func (m *metrics) ObserveChangeEventQueueCapacity(count int64) {
 	if m != nil {
 		m.changeEventQueueCapacity.Set(float64(count))
 	}
 }
 
-func (m *Metrics) IncrementChangeEventQueueLength(changeType string) {
+func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Inc()
 	}
 }
 
-func (m *Metrics) DecrementChangeEventQueueLength(changeType string) {
+func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
 	}
 }
 
-func (m *Metrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
+func (m *metrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
 	if m != nil {
 		m.storeTimesHistograms.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}

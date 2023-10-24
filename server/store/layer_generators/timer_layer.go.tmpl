@@ -19,7 +19,7 @@ import (
 
 type {{.Name}} struct {
 	store.Store
-	metrics *metrics.Metrics
+	metrics metrics.Metrics
 }
 
 {{range $index, $element := .Methods}}
@@ -44,7 +44,7 @@ func (s *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$ele
 }
 {{end}}
 
-func New(childStore store.Store, metrics *metrics.Metrics) *{{.Name}} {
+func New(childStore store.Store, metrics metrics.Metrics) *{{.Name}} {
 	return &{{.Name}}{
 		Store: childStore,
 		metrics: metrics,

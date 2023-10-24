@@ -19,7 +19,7 @@ import (
 
 type TimerLayer struct {
 	store.Store
-	metrics *metrics.Metrics
+	metrics metrics.Metrics
 }
 
 func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
@@ -750,7 +750,7 @@ func (s *TimerLayer) VerifyOAuth2State(state string) error {
 	return err
 }
 
-func New(childStore store.Store, metrics *metrics.Metrics) *TimerLayer {
+func New(childStore store.Store, metrics metrics.Metrics) *TimerLayer {
 	return &TimerLayer{
 		Store:   childStore,
 		metrics: metrics,
