@@ -1098,7 +1098,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 			}
 
 			if err := s.StoreUserInWhitelist(nil, connectedUserID); err != nil {
-				if !strings.Contains(err.Error(), "Duplicate entry") {
+				if !(strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value")) {
 					s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
 				}
 			}

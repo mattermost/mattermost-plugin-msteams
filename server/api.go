@@ -406,6 +406,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer func() {
+		if err = a.p.store.CommitTx(tx); err != nil {
+			a.p.API.LogError("Unable to commit transaction", "error", err.Error())
+		}
+	}()
+
 	if err = a.p.store.LockWhitelist(tx); err != nil {
 		a.p.API.LogError("Unable to lock whitelist", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -415,10 +421,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err = a.p.store.UnlockWhitelist(tx); err != nil {
 			a.p.API.LogError("Unable to unlock whitelist", "error", err.Error())
-		}
-
-		if err = a.p.store.CommitTx(tx); err != nil {
-			a.p.API.LogError("Unable to commit transaction", "error", err.Error())
 		}
 	}()
 
@@ -438,7 +440,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.p.store.StoreUserInWhitelist(tx, mmUserID); err != nil {
-		if !strings.Contains(err.Error(), "Duplicate entry") {
+		if !(strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value")) {
 			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
