@@ -78,8 +78,8 @@ func (_m *Metrics) ObserveFilesCount(action string, source string, discardedReas
 	_m.Called(action, source, discardedReason, isDirectMessage, count)
 }
 
-// ObserveLifecycleEventTotal provides a mock function with given fields: lifecycleEventType
-func (_m *Metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
+// ObserveLifecycleEvent provides a mock function with given fields: lifecycleEventType
+func (_m *Metrics) ObserveLifecycleEvent(lifecycleEventType string) {
 	_m.Called(lifecycleEventType)
 }
 

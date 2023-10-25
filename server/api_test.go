@@ -489,7 +489,7 @@ func TestProcessLifecycle(t *testing.T) {
 			}
 
 			if test.ExpectedStatusCode == http.StatusOK {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveLifecycleEventTotal", mock.AnythingOfType("string")).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveLifecycleEvent", mock.AnythingOfType("string")).Times(1)
 			}
 
 			test.SetupStore(plugin.store.(*storemocks.Store))

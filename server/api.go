@@ -152,7 +152,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
-		a.p.GetMetrics().ObserveLifecycleEventTotal(event.LifecycleEvent)
+		a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent)
 		a.p.activityHandler.HandleLifecycleEvent(event)
 	}
 

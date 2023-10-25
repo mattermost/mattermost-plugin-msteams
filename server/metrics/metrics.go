@@ -39,7 +39,7 @@ type Metrics interface {
 	IncrementHTTPErrors()
 
 	ObserveChangeEvent(changeType string, discardedReason string)
-	ObserveLifecycleEventTotal(lifecycleEventType string)
+	ObserveLifecycleEvent(lifecycleEventType string)
 	ObserveMessagesCount(action, source string, isDirectMessage bool)
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
@@ -324,7 +324,7 @@ func (m *metrics) ObserveChangeEvent(changeType string, discardedReason string) 
 	}
 }
 
-func (m *metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
+func (m *metrics) ObserveLifecycleEvent(lifecycleEventType string) {
 	if m != nil {
 		m.lifecycleEventTotal.With(prometheus.Labels{"event_type": lifecycleEventType}).Inc()
 	}
