@@ -88,6 +88,11 @@ func (_m *Metrics) ObserveLinkedChannels(count int64) {
 	_m.Called(count)
 }
 
+// ObserveMSGraphClientMethodDuration provides a mock function with given fields: method, success, elapsed
+func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success string, elapsed float64) {
+	_m.Called(method, success, elapsed)
+}
+
 // ObserveMessagesConfirmedCount provides a mock function with given fields: source, isDirectMessage
 func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
 	_m.Called(source, isDirectMessage)

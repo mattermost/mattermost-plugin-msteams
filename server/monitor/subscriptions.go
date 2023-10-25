@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
-func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription) {
+func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription) {
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
@@ -90,7 +90,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	}
 // }
 
-func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription) {
+func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
@@ -242,14 +242,14 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }
 
-func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription, err error) {
+func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription, err error) {
 	msteamsSubscriptions, err := m.client.ListSubscriptions()
 	if err != nil {
 		m.api.LogError("Unable to list MS Teams subscriptions", "error", err.Error())
 		return nil, nil, err
 	}
 
-	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
+	msteamsSubscriptionsMap = make(map[string]*clientmodels.Subscription)
 	for _, msteamsSubscription := range msteamsSubscriptions {
 		if strings.HasPrefix(msteamsSubscription.NotificationURL, m.baseURL) {
 			msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription

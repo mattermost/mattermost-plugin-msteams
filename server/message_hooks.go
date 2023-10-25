@@ -12,6 +12,7 @@ import (
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -182,7 +183,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}
-		var chat *msteams.Chat
+		var chat *clientmodels.Chat
 		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			p.API.LogError("Unable to create or get chat for users", "error", err.Error())
@@ -221,7 +222,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		return err
 	}
 
-	var teamsMessage *msteams.Message
+	var teamsMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -295,7 +296,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		return err
 	}
 
-	var teamsMessage *msteams.Message
+	var teamsMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -512,7 +513,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	var attachments []*msteams.Attachment
+	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
@@ -532,7 +533,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		}
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-		var attachment *msteams.Attachment
+		var attachment *clientmodels.Attachment
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
@@ -552,7 +553,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	content, mentions := p.getMentionsData(content, "", "", chat.ID, client)
 
-	var parentMessage *msteams.Message
+	var parentMessage *clientmodels.Message
 	if parentID != "" {
 		parentMessage, err = client.GetChatMessage(chat.ID, parentID)
 		if err != nil {
@@ -618,7 +619,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		text = user.Username + ":\n\n" + post.Message
 	}
 
-	var attachments []*msteams.Attachment
+	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
@@ -638,7 +639,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		}
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-		var attachment *msteams.Attachment
+		var attachment *clientmodels.Attachment
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
@@ -779,7 +780,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	var updatedMessage *msteams.Message
+	var updatedMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -858,7 +859,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		return err
 	}
 
-	var updatedMessage *msteams.Message
+	var updatedMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -1050,7 +1051,7 @@ func getFileNameAndExtension(path string) (string, string) {
 	return fileName, fileExtension
 }
 
-func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*msteams.Message, error) {
+func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*clientmodels.Message, error) {
 	if parentID != "" {
 		return client.GetReply(teamID, channelID, parentID, msteamsID)
 	}

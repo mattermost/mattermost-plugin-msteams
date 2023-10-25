@@ -6,12 +6,13 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 )
 
-func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID string) (*msteams.Message, error) {
+func (ah *ActivityHandler) getMessageFromChat(chat *clientmodels.Chat, messageID string) (*clientmodels.Message, error) {
 	var client msteams.Client
 	for _, member := range chat.Members {
 		client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
@@ -31,7 +32,7 @@ func (ah *ActivityHandler) getMessageFromChat(chat *msteams.Chat, messageID stri
 	return msg, nil
 }
 
-func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, replyID string) (*msteams.Message, error) {
+func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, replyID string) (*clientmodels.Message, error) {
 	msg, err := ah.plugin.GetClientForApp().GetReply(teamID, channelID, messageID, replyID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get reply from channel", "replyID", replyID, "error", err)
@@ -40,7 +41,7 @@ func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, rep
 	return msg, nil
 }
 
-func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID string) (*msteams.Message, error) {
+func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID string) (*clientmodels.Message, error) {
 	msg, err := ah.plugin.GetClientForApp().GetMessage(teamID, channelID, messageID)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get message from channel", "messageID", messageID, "error", err)
@@ -57,7 +58,7 @@ func (ah *ActivityHandler) getUserIDForChannelLink(teamID string, channelID stri
 	return ah.plugin.GetBotUserID()
 }
 
-func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.ActivityIds) (*msteams.Message, *msteams.Chat, error) {
+func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds clientmodels.ActivityIds) (*clientmodels.Message, *clientmodels.Chat, error) {
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
 		if err != nil || chat == nil {
@@ -88,7 +89,7 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(activityIds msteams.
 	return msg, nil, nil
 }
 
-func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSyntheticUser bool) (string, error) {
+func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, createSyntheticUser bool) (string, error) {
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
 	if err == nil && mmUserID != "" {
 		return mmUserID, err
@@ -151,7 +152,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *msteams.User, createSy
 	return u.Id, err
 }
 
-func (ah *ActivityHandler) getChatChannelID(chat *msteams.Chat) (string, error) {
+func (ah *ActivityHandler) getChatChannelID(chat *clientmodels.Chat) (string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(member.UserID)
