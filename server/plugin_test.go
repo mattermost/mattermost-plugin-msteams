@@ -11,9 +11,10 @@ import (
 
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -56,7 +57,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.msteamsAppClient.(*mocks.Client).On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannels", mock.Anything, plugin.configuration.WebhookSecret).Return("channel-subscription-id", nil)
 	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChats", mock.Anything, plugin.configuration.WebhookSecret).Return("chats-subscription-id", nil)
-	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannel", mock.Anything, mock.Anything, "/plugins/com.mattermost.msteams-sync/", plugin.configuration.WebhookSecret).Return(&msteams.Subscription{ID: "channel-subscription-id"}, nil)
+	plugin.msteamsAppClient.(*mocks.Client).On("SubscribeToChannel", mock.Anything, mock.Anything, "/plugins/com.mattermost.msteams-sync/", plugin.configuration.WebhookSecret).Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
 	plugin.msteamsAppClient.(*mocks.Client).Test(t)
 	bot := &model.Bot{
 		Username:    botUsername,
@@ -137,8 +138,9 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", handlers.ActionCreated, actionSourceMattermost, false).Times(1)
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }
@@ -191,9 +193,10 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
+	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogWarn", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }
@@ -312,10 +315,11 @@ func TestGetClientForTeamsUser(t *testing.T) {
 
 func TestSyncUsers(t *testing.T) {
 	for _, test := range []struct {
-		Name        string
-		SetupAPI    func(*plugintest.API)
-		SetupStore  func(*storemocks.Store)
-		SetupClient func(*mocks.Client)
+		Name         string
+		SetupAPI     func(*plugintest.API)
+		SetupStore   func(*storemocks.Store)
+		SetupClient  func(*mocks.Client)
+		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
 			Name: "SyncUsers: Unable to get the MS Teams user list",
@@ -326,6 +330,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return(nil, errors.New("unable to get the user list")).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
 		},
 		{
 			Name: "SyncUsers: Unable to get the MM users",
@@ -338,12 +343,15 @@ func TestSyncUsers(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {},
 			SetupClient: func(client *mocks.Client) {
-				client.On("ListUsers").Return([]msteams.User{
+				client.On("ListUsers").Return([]clientmodels.User{
 					{
 						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -360,12 +368,15 @@ func TestSyncUsers(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {},
 			SetupClient: func(client *mocks.Client) {
-				client.On("ListUsers").Return([]msteams.User{
+				client.On("ListUsers").Return([]clientmodels.User{
 					{
 						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -386,12 +397,15 @@ func TestSyncUsers(t *testing.T) {
 				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
 			},
 			SetupClient: func(client *mocks.Client) {
-				client.On("ListUsers").Return([]msteams.User{
+				client.On("ListUsers").Return([]clientmodels.User{
 					{
 						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 	} {
@@ -400,6 +414,7 @@ func TestSyncUsers(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
+			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.syncUsers()
 		})
 	}

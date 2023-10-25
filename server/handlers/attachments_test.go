@@ -7,8 +7,9 @@ import (
 	"time"
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -43,7 +44,7 @@ func TestHandleDownloadFile(t *testing.T) {
 			weburl:      "https://graph.microsoft.com/beta/teams/mock-teamID/channels/mock-channelID/messages/mock-messageID/hostedContents/mock-hostedContentsID/$value",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {},
 			setupClient: func() {
-				client.On("GetHostedFileContent", mock.AnythingOfType("*msteams.ActivityIds")).Return([]byte("data"), nil)
+				client.On("GetHostedFileContent", mock.AnythingOfType("*clientmodels.ActivityIds")).Return([]byte("data"), nil)
 			},
 		},
 	} {
@@ -71,7 +72,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 	for _, testCase := range []struct {
 		description    string
 		userID         string
-		attach         msteams.Attachment
+		attach         clientmodels.Attachment
 		text           string
 		expectedOutput string
 		setupPlugin    func(plugin *mocksPlugin.PluginIface)
@@ -81,7 +82,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Successfully handled code snippet for channel",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -95,7 +96,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Successfully handled code snippet for chat",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -109,7 +110,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Unable to unmarshal codesnippet",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: "Invalid JSON",
 			},
 			text:           "mock-data",
@@ -125,7 +126,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "CodesnippetUrl has unexpected size",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet"}`,
 			},
 			text:           "mock-data",
@@ -141,7 +142,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 		{
 			description: "Unable to retrieve code snippet",
 			userID:      testutils.GetUserID(),
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 			},
 			text:           "mock-data",
@@ -179,7 +180,7 @@ func TestHandleMessageReference(t *testing.T) {
 
 	for _, testCase := range []struct {
 		description      string
-		attach           msteams.Attachment
+		attach           clientmodels.Attachment
 		chatOrChannelID  string
 		text             string
 		expectedText     string
@@ -190,7 +191,7 @@ func TestHandleMessageReference(t *testing.T) {
 	}{
 		{
 			description: "Successfully got postID and text",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
 			},
 			chatOrChannelID:  testutils.GetChannelID(),
@@ -212,7 +213,7 @@ func TestHandleMessageReference(t *testing.T) {
 		},
 		{
 			description: "Unable to unmarshal content",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: "Invalid JSON",
 			},
 			text:         "mock-data",
@@ -225,7 +226,7 @@ func TestHandleMessageReference(t *testing.T) {
 		},
 		{
 			description: "Unable to get post info by msteam ID",
-			attach: msteams.Attachment{
+			attach: clientmodels.Attachment{
 				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
 			},
 			chatOrChannelID: "mock-chatOrChannelID",
@@ -257,11 +258,11 @@ func TestHandleMessageReference(t *testing.T) {
 func TestHandleAttachments(t *testing.T) {
 	for _, testCase := range []struct {
 		description                string
-		setupPlugin                func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics)
+		setupPlugin                func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics)
 		setupAPI                   func(mockAPI *plugintest.API)
 		setupClient                func(*mocksClient.Client)
 		setupMetrics               func(*mocksMetrics.Metrics)
-		attachments                []msteams.Attachment
+		attachments                []clientmodels.Attachment
 		expectedText               string
 		expectedAttachmentIDsCount int
 		expectedParentID           string
@@ -269,11 +270,11 @@ func TestHandleAttachments(t *testing.T) {
 	}{
 		{
 			description: "Successfully handled attachments",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
-				p.On("GetMetrics").Return(metrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -289,10 +290,10 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
 			},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", ActionCreated, actionSourceMSTeams, "", false, int64(IncreaseFileCountByOne)).Times(1)
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -302,7 +303,7 @@ func TestHandleAttachments(t *testing.T) {
 		},
 		{
 			description: "Client is nil",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(nil)
 				p.On("GetAPI").Return(mockAPI)
 			},
@@ -310,8 +311,8 @@ func TestHandleAttachments(t *testing.T) {
 				mockAPI.On("LogError", "Unable to get the client").Return()
 			},
 			setupClient:  func(client *mocksClient.Client) {},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -319,11 +320,11 @@ func TestHandleAttachments(t *testing.T) {
 		},
 		{
 			description: "Error uploading the file",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetAPI").Return(mockAPI).Times(3)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
-				p.On("GetMetrics").Return(metrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -338,10 +339,10 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
 			},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", ActionCreated, actionSourceMSTeams, discardedReasonEmptyFileID, false, int64(IncreaseFileCountByOne)).Times(1)
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonEmptyFileID, false).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
@@ -350,11 +351,11 @@ func TestHandleAttachments(t *testing.T) {
 		},
 		{
 			description: "Number of attachments are greater than 10",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetAPI").Return(mockAPI)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(10)
-				p.On("GetMetrics").Return(metrics).Times(11)
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -369,11 +370,11 @@ func TestHandleAttachments(t *testing.T) {
 				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(10)
 				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Times(10)
 			},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {
-				metrics.On("ObserveFilesCount", ActionCreated, actionSourceMSTeams, "", false, int64(IncreaseFileCountByOne)).Times(10)
-				metrics.On("ObserveFilesCount", ActionCreated, actionSourceMSTeams, discardedReasonFileLimitReached, false, int64(2)).Times(1)
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(10)
+				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonFileLimitReached, false, int64(2)).Times(1)
 			},
-			attachments: []msteams.Attachment{
+			attachments: []clientmodels.Attachment{
 				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 			},
 			expectedText:               "mock-text",
@@ -381,8 +382,9 @@ func TestHandleAttachments(t *testing.T) {
 		},
 		{
 			description: "Attachment type code snippet",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client)
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -395,8 +397,8 @@ func TestHandleAttachments(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
 			},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
+			attachments: []clientmodels.Attachment{
 				{
 					Name:        "mock-name",
 					ContentType: "application/vnd.microsoft.card.codesnippet",
@@ -407,7 +409,8 @@ func TestHandleAttachments(t *testing.T) {
 		},
 		{
 			description: "Attachment type message reference",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, metrics *mocksMetrics.Metrics) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 				p.On("GetClientForApp").Return(client)
 				p.On("GetStore").Return(store, nil)
 				p.On("GetAPI").Return(mockAPI)
@@ -427,8 +430,8 @@ func TestHandleAttachments(t *testing.T) {
 				}, nil)
 			},
 			setupClient:  func(client *mocksClient.Client) {},
-			setupMetrics: func(metrics *mocksMetrics.Metrics) {},
-			attachments: []msteams.Attachment{{
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
+			attachments: []clientmodels.Attachment{{
 				Name:        "mock-name",
 				ContentType: "messageReference",
 				Content:     `{"messageId":"mock-ID"}`,
@@ -443,18 +446,18 @@ func TestHandleAttachments(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			store := mocksStore.NewStore(t)
-			metrics := mocksMetrics.NewMetrics(t)
+			mockmetrics := mocksMetrics.NewMetrics(t)
 
 			mockAPI.AssertExpectations(t)
 
-			testCase.setupPlugin(p, mockAPI, client, store, metrics)
+			testCase.setupPlugin(p, mockAPI, client, store, mockmetrics)
 			testCase.setupAPI(mockAPI)
 			testCase.setupClient(client)
-			testCase.setupMetrics(metrics)
+			testCase.setupMetrics(mockmetrics)
 
 			ah.plugin = p
 
-			attachments := &msteams.Message{
+			attachments := &clientmodels.Message{
 				Attachments: testCase.attachments,
 				ChatID:      testutils.GetChatID(),
 				ChannelID:   testutils.GetChannelID(),

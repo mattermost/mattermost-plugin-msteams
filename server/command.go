@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-api/experimental/command"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -202,6 +203,9 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
+	if p.metricsService != nil {
+		p.metricsService.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
+	}
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
 		p.API.LogDebug("Unable to create the new link", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
@@ -305,11 +309,9 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 	}
 
 	text := fmt.Sprintf(
-		"This channel is linked to the MS Teams Channel \"%s\" (with id: %s) in the Team \"%s\" (with the id: %s).",
+		"This channel is linked to the MS Teams Channel \"%s\" in the Team \"%s\".",
 		msteamsChannel.DisplayName,
-		msteamsChannel.ID,
 		msteamsTeam.DisplayName,
-		msteamsTeam.ID,
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)

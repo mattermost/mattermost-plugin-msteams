@@ -8,8 +8,6 @@ import (
 
 	sql "database/sql"
 
-	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-
 	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
 	time "time"
@@ -421,15 +419,15 @@ func (_m *Store) GetSizeOfWhitelist() (int, error) {
 }
 
 // GetStats provides a mock function with given fields:
-func (_m *Store) GetStats() (*store.Stats, error) {
+func (_m *Store) GetStats() (*storemodels.Stats, error) {
 	ret := _m.Called()
 
-	var r0 *store.Stats
-	if rf, ok := ret.Get(0).(func() *store.Stats); ok {
+	var r0 *storemodels.Stats
+	if rf, ok := ret.Get(0).(func() *storemodels.Stats); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*store.Stats)
+			r0 = ret.Get(0).(*storemodels.Stats)
 		}
 	}
 
@@ -811,13 +809,13 @@ func (_m *Store) RollbackTx(tx *sql.Tx) error {
 	return r0
 }
 
-// SaveChannelSubscription provides a mock function with given fields: _a0, _a1
-func (_m *Store) SaveChannelSubscription(_a0 *sql.Tx, _a1 storemodels.ChannelSubscription) error {
-	ret := _m.Called(_a0, _a1)
+// SaveChannelSubscription provides a mock function with given fields: tx, channelSubscription
+func (_m *Store) SaveChannelSubscription(tx *sql.Tx, channelSubscription storemodels.ChannelSubscription) error {
+	ret := _m.Called(tx, channelSubscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*sql.Tx, storemodels.ChannelSubscription) error); ok {
-		r0 = rf(_a0, _a1)
+		r0 = rf(tx, channelSubscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -825,13 +823,13 @@ func (_m *Store) SaveChannelSubscription(_a0 *sql.Tx, _a1 storemodels.ChannelSub
 	return r0
 }
 
-// SaveChatSubscription provides a mock function with given fields: _a0
-func (_m *Store) SaveChatSubscription(_a0 storemodels.ChatSubscription) error {
-	ret := _m.Called(_a0)
+// SaveChatSubscription provides a mock function with given fields: chatsubscription
+func (_m *Store) SaveChatSubscription(chatsubscription storemodels.ChatSubscription) error {
+	ret := _m.Called(chatsubscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.ChatSubscription) error); ok {
-		r0 = rf(_a0)
+		r0 = rf(chatsubscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -839,13 +837,13 @@ func (_m *Store) SaveChatSubscription(_a0 storemodels.ChatSubscription) error {
 	return r0
 }
 
-// SaveGlobalSubscription provides a mock function with given fields: _a0
-func (_m *Store) SaveGlobalSubscription(_a0 storemodels.GlobalSubscription) error {
-	ret := _m.Called(_a0)
+// SaveGlobalSubscription provides a mock function with given fields: globalSubscription
+func (_m *Store) SaveGlobalSubscription(globalSubscription storemodels.GlobalSubscription) error {
+	ret := _m.Called(globalSubscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.GlobalSubscription) error); ok {
-		r0 = rf(_a0)
+		r0 = rf(globalSubscription)
 	} else {
 		r0 = ret.Error(0)
 	}

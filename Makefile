@@ -12,6 +12,10 @@ DLV_DEBUG_PORT := 2346
 DEFAULT_GOOS := $(shell go env GOOS)
 DEFAULT_GOARCH := $(shell go env GOARCH)
 
+# We need to export GOBIN to allow it to be set
+# for processes spawned from the Makefile
+export GOBIN ?= $(PWD)/bin
+
 export GO111MODULE=on
 
 # You can include assets this directory into the bundle. This can be e.g. used to include profile pictures.
@@ -274,8 +278,10 @@ endif
 	cd ${STARTERTEMPLATE_PATH} && go run ./build/sync/main.go ./build/sync/plan.yml $(PWD)
 
 ## Build the generated code
+generate: export PATH := $(GOBIN):$(PATH)
 generate:
-	cd server && go generate ./...
+	$(GO) install github.com/vektra/mockery/v2/...@v2.18.0
+	cd server && $(GO) generate ./...
 
 # Help documentation à la https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help:
