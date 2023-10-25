@@ -38,7 +38,7 @@ type Metrics interface {
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 
-	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
+	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
 	ObserveMessagesCount(action, source string, isDirectMessage bool)
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
@@ -78,13 +78,13 @@ type metrics struct {
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
 
-	lifecycleEventTotal       *prometheus.CounterVec
-	processedChangeEventTotal *prometheus.CounterVec
-	messagesCount             *prometheus.CounterVec
-	reactionsCount            *prometheus.CounterVec
-	filesCount                *prometheus.CounterVec
-	messagesConfirmedCount    *prometheus.CounterVec
-	subscriptionsCount        *prometheus.CounterVec
+	lifecycleEventTotal    *prometheus.CounterVec
+	changeEventTotal       *prometheus.CounterVec
+	messagesCount          *prometheus.CounterVec
+	reactionsCount         *prometheus.CounterVec
+	filesCount             *prometheus.CounterVec
+	messagesConfirmedCount *prometheus.CounterVec
+	subscriptionsCount     *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -161,14 +161,14 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
 
-	m.processedChangeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.changeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
-		Name:        "processed_change_event_total",
+		Name:        "change_event_total",
 		Help:        "The total number of MS Teams change events processed.",
 		ConstLabels: additionalLabels,
 	}, []string{"change_type", "discarded_reason"})
-	m.registry.MustRegister(m.processedChangeEventTotal)
+	m.registry.MustRegister(m.changeEventTotal)
 
 	m.lifecycleEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -318,9 +318,9 @@ func (m *metrics) ObserveConnectedUsers(count int64) {
 	}
 }
 
-func (m *metrics) ObserveProcessedChangeEventTotal(changeType string, discardedReason string) {
+func (m *metrics) ObserveChangeEvent(changeType string, discardedReason string) {
 	if m != nil {
-		m.processedChangeEventTotal.With(prometheus.Labels{"change_type": changeType, "discarded_reason": discardedReason}).Inc()
+		m.changeEventTotal.With(prometheus.Labels{"change_type": changeType, "discarded_reason": discardedReason}).Inc()
 	}
 }
 

@@ -53,14 +53,14 @@ func (_m *Metrics) ObserveAPIEndpointDuration(handler string, method string, sta
 	_m.Called(handler, method, statusCode, elapsed)
 }
 
+// ObserveChangeEvent provides a mock function with given fields: changeType, discardedReason
+func (_m *Metrics) ObserveChangeEvent(changeType string, discardedReason string) {
+	_m.Called(changeType, discardedReason)
+}
+
 // ObserveChangeEventQueueCapacity provides a mock function with given fields: count
 func (_m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
 	_m.Called(count)
-}
-
-// ObserveChangeEventTotal provides a mock function with given fields: changeType
-func (_m *Metrics) ObserveChangeEventTotal(changeType string) {
-	_m.Called(changeType)
 }
 
 // ObserveConnectedUsers provides a mock function with given fields: count
@@ -101,11 +101,6 @@ func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage 
 // ObserveMessagesCount provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveMessagesCount(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
-}
-
-// ObserveProcessedChangeEventTotal provides a mock function with given fields: changeType, discardedReason
-func (_m *Metrics) ObserveProcessedChangeEventTotal(changeType string, discardedReason string) {
-	_m.Called(changeType, discardedReason)
 }
 
 // ObserveReactionsCount provides a mock function with given fields: action, source, isDirectMessage
