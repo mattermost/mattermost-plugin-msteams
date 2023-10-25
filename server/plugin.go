@@ -31,13 +31,14 @@ import (
 )
 
 const (
-	botUsername           = "msteams"
-	botDisplayName        = "MS Teams"
-	pluginID              = "com.mattermost.msteams-sync"
-	clusterMutexKey       = "subscriptions_cluster_mutex"
-	lastReceivedChangeKey = "last_received_change"
-	msteamsUserTypeGuest  = "Guest"
-	syncUsersJobName      = "sync_users"
+	botUsername                  = "msteams"
+	botDisplayName               = "MS Teams"
+	pluginID                     = "com.mattermost.msteams-sync"
+	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
+	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	lastReceivedChangeKey        = "last_received_change"
+	msteamsUserTypeGuest         = "Guest"
+	syncUsersJobName             = "sync_users"
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
@@ -63,10 +64,11 @@ type Plugin struct {
 	userID    string
 	apiClient *pluginapi.Client
 
-	store        store.Store
-	clusterMutex *cluster.Mutex
-	monitor      *monitor.Monitor
-	syncUserJob  *cluster.Job
+	store                     store.Store
+	subscriptionsClusterMutex *cluster.Mutex
+	whitelistClusterMutex     *cluster.Mutex
+	monitor                   *monitor.Monitor
+	syncUserJob               *cluster.Job
 
 	activityHandler *handlers.ActivityHandler
 
@@ -307,10 +309,18 @@ func (p *Plugin) OnActivate() error {
 
 	p.activityHandler = handlers.New(p)
 
-	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
+	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
 		return err
 	}
+	p.subscriptionsClusterMutex = subscriptionsClusterMutex
+
+	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	if err != nil {
+		return err
+	}
+	p.whitelistClusterMutex = whitelistClusterMutex
+
 	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
@@ -320,7 +330,6 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
-	p.clusterMutex = clusterMutex
 
 	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
 		return err

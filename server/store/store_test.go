@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"testing"
@@ -145,7 +144,6 @@ func TestStore(t *testing.T) {
 		"testListConnectedUsers":                                     testListConnectedUsers,
 		"testStoreUserAndIsUserPresentAndGetSizeOfWhitelist":         testStoreUserAndIsUserPresentAndGetSizeOfWhitelist,
 		"testPrefillWhitelist":                                       testPrefillWhitelist,
-		"testLockAndUnlockWhitelist":                                 testLockAndUnlockWhitelist,
 	}
 	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
 		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
@@ -1302,38 +1300,4 @@ func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 
 	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
 	assert.Nil(delErr)
-}
-
-func testLockAndUnlockWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	assert := assert.New(t)
-
-	err := store.LockWhitelist(nil)
-	assert.EqualError(err, "cannot lock the whitelist without a transaction")
-
-	currentTime := time.Now()
-	ch := make(chan int, 1)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tx, txErr := store.BeginTx()
-		assert.Nil(txErr)
-
-		txErr = store.LockWhitelist(tx)
-		assert.Nil(txErr)
-
-		ch <- 1
-		time.Sleep(1 * time.Second)
-		txErr = store.UnlockWhitelist(tx)
-		assert.Nil(txErr)
-
-		txErr = store.CommitTx(tx)
-		assert.Nil(txErr)
-	}()
-
-	<-ch
-	_, err = store.GetSizeOfWhitelist(nil)
-	assert.Nil(err)
-	assert.Greater(time.Since(currentTime), 1*time.Second)
-	wg.Wait()
 }

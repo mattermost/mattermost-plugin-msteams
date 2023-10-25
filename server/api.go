@@ -399,32 +399,9 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := a.p.store.BeginTx()
-	if err != nil {
-		a.p.API.LogError("Unable to begin transaction", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	defer func() {
-		if err = a.p.store.CommitTx(tx); err != nil {
-			a.p.API.LogError("Unable to commit transaction", "error", err.Error())
-		}
-	}()
-
-	if err = a.p.store.LockWhitelist(tx); err != nil {
-		a.p.API.LogError("Unable to lock whitelist", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	defer func() {
-		if err = a.p.store.UnlockWhitelist(tx); err != nil {
-			a.p.API.LogError("Unable to unlock whitelist", "error", err.Error())
-		}
-	}()
-
-	whitelistSize, err := a.p.store.GetSizeOfWhitelist(tx)
+	a.p.whitelistClusterMutex.Lock()
+	defer a.p.whitelistClusterMutex.Unlock()
+	whitelistSize, err := a.p.store.GetSizeOfWhitelist(nil)
 	if err != nil {
 		a.p.API.LogError("Unable to get whitelist size", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -439,7 +416,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(tx, mmUserID); err != nil {
+	if err := a.p.store.StoreUserInWhitelist(nil, mmUserID); err != nil {
 		if !(strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value")) {
 			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {

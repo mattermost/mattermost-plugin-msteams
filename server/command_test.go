@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mockStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
@@ -812,6 +813,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 func TestExecuteConnectCommand(t *testing.T) {
 	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
+	mutex, _ := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	p.whitelistClusterMutex = mutex
 
 	for _, testCase := range []struct {
 		description string
@@ -836,6 +839,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Error in trying to connect the account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
@@ -851,6 +856,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Error in trying to connect the account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
@@ -866,6 +873,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
@@ -878,6 +887,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -890,6 +901,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -907,6 +920,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 						SiteURL: model.NewString("/"),
 					},
 				}, nil).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -931,6 +946,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 func TestExecuteConnectBotCommand(t *testing.T) {
 	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
+	mutex, _ := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	p.whitelistClusterMutex = mutex
 
 	for _, testCase := range []struct {
 		description string
@@ -965,6 +982,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Error in trying to connect the bot account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
@@ -981,6 +1000,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "Error in trying to connect the bot account, please try again.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
@@ -997,6 +1018,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, nil).Once()
@@ -1010,6 +1033,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
@@ -1023,6 +1048,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
@@ -1041,6 +1068,8 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 						SiteURL: model.NewString("/"),
 					},
 				}, nil).Once()
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()

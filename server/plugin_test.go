@@ -478,8 +478,10 @@ func TestStart(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			mutex, _ := cluster.NewMutex(p.API, clusterMutexKey)
-			p.clusterMutex = mutex
+			subscriptionsMutex, _ := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
+			whitelistMutex, _ := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+			p.subscriptionsClusterMutex = subscriptionsMutex
+			p.whitelistClusterMutex = whitelistMutex
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			test.SetupStore(p.store.(*storemocks.Store))

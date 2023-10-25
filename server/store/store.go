@@ -98,8 +98,6 @@ type Store interface {
 	BeginTx() (*sql.Tx, error)
 	RollbackTx(tx *sql.Tx) error
 	CommitTx(tx *sql.Tx) error
-	LockWhitelist(tx *sql.Tx) error
-	UnlockWhitelist(tx *sql.Tx) error
 }
 
 type SQLStore struct {
@@ -1201,38 +1199,6 @@ func (s *SQLStore) RollbackTx(tx *sql.Tx) error {
 
 func (s *SQLStore) CommitTx(tx *sql.Tx) error {
 	return tx.Commit()
-}
-
-func (s *SQLStore) LockWhitelist(tx *sql.Tx) error {
-	switch {
-	case tx == nil:
-		return errors.New("cannot lock the whitelist without a transaction")
-	case s.driverName == model.DatabaseDriverPostgres:
-		if _, err := tx.Exec(fmt.Sprintf("LOCK TABLE %s", whitelistedUsersTableName)); err != nil {
-			return err
-		}
-	case s.driverName == model.DatabaseDriverMysql:
-		if _, err := tx.Exec(fmt.Sprintf("LOCK TABLES %s write", whitelistedUsersTableName)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *SQLStore) UnlockWhitelist(tx *sql.Tx) error {
-	switch {
-	case tx == nil:
-		return errors.New("cannot unlock the whitelist without a transaction")
-	case s.driverName == model.DatabaseDriverPostgres:
-		return nil
-	case s.driverName == model.DatabaseDriverMysql:
-		if _, err := tx.Exec("UNLOCK TABLES"); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func hashKey(prefix, hashableKey string) string {
