@@ -1,6 +1,9 @@
+//go:generate mockery --name=Metrics
 package metrics
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
@@ -12,31 +15,49 @@ const (
 	MetricsSubsystemHTTP   = "http"
 	MetricsSubsystemAPI    = "api"
 	MetricsSubsystemEvents = "events"
+	MetricsSubsystemDB     = "db"
 
 	MetricsCloudInstallationLabel = "installationId"
+
+	ActionSourceMSTeams     = "msteams"
+	ActionSourceMattermost  = "mattermost"
+	ActionCreated           = "created"
+	ActionUpdated           = "updated"
+	ActionDeleted           = "deleted"
+	ReactionSetAction       = "set"
+	ReactionUnsetAction     = "unset"
+	SubscriptionRefreshed   = "refreshed"
+	SubscriptionConnected   = "connected"
+	SubscriptionReconnected = "reconnected"
 )
 
 type Metrics interface {
 	ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
-	ObserveMessageSyncDuration(source string, elapsed float64)
-	ObserveConnectedUsersTotal(count int64)
+
+	IncrementHTTPRequests()
+	IncrementHTTPErrors()
+
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
-	ObserveMessagesCount(action, source, isDirect string)
-	ObserveReactionsCount(action, source, isDirect string)
-	ObserveFilesCount(action, source, isDirect, discardedReason string, count int)
-	ObserveSyntheticUsersTotal(count int64)
-	ObserveLinkedChannelsTotal(count int64)
-	ObserveUpstreamUsersTotal(count int64)
-	ObserveMessagesConfirmedCount(source, isDirect string)
+	ObserveMessagesCount(action, source string, isDirectMessage bool)
+	ObserveReactionsCount(action, source string, isDirectMessage bool)
+	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
+	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
+	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
 	ObserveSubscriptionsCount(action string)
-	IncrementHTTPRequests()
-	IncrementHTTPErrors()
-	GetRegistry() *prometheus.Registry
+
+	ObserveConnectedUsers(count int64)
+	ObserveSyntheticUsers(count int64)
+	ObserveLinkedChannels(count int64)
+	ObserveUpstreamUsers(count int64)
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
+
+	ObserveStoreMethodDuration(method, success string, elapsed float64)
+
+	GetRegistry() *prometheus.Registry
 }
 
 type InstanceInfo struct {
@@ -49,8 +70,7 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime         *prometheus.HistogramVec
-	messageSyncTime *prometheus.HistogramVec
+	apiTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
@@ -64,13 +84,15 @@ type metrics struct {
 	messagesConfirmedCount    *prometheus.CounterVec
 	subscriptionsCount        *prometheus.CounterVec
 
-	connectedUsersTotal prometheus.Gauge
-	syntheticUsersTotal prometheus.Gauge
-	linkedChannelsTotal prometheus.Gauge
-	upstreamUsersTotal  prometheus.Gauge
+	connectedUsers prometheus.Gauge
+	syntheticUsers prometheus.Gauge
+	linkedChannels prometheus.Gauge
+	upstreamUsers  prometheus.Gauge
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
+
+	storeTimesHistograms *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -110,18 +132,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		[]string{"handler", "method", "status_code"},
 	)
 	m.registry.MustRegister(m.apiTime)
-
-	m.messageSyncTime = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubsystemApp,
-			Name:        "message_sync_time",
-			Help:        "Time to sync the messages",
-			ConstLabels: additionalLabels,
-		},
-		[]string{"source"},
-	)
-	m.registry.MustRegister(m.messageSyncTime)
 
 	m.httpRequestsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -198,8 +208,8 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.messagesConfirmedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
-		Name:        "messages_confirmed",
-		Help:        "The total number of messages confirmed to sent from Mattermost to MS Teams.",
+		Name:        "messages_confirmed_total",
+		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
 		ConstLabels: additionalLabels,
 	}, []string{"source", "is_direct"})
 	m.registry.MustRegister(m.messagesConfirmedCount)
@@ -208,46 +218,46 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "subscriptions_count",
-		Help:        "The total number of subscriptions connected, reconnected and refreshed.",
+		Help:        "The total number of connected, reconnected and refreshed subscriptions.",
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsCount)
 
-	m.connectedUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "connected_users_total",
 		Help:        "The total number of Mattermost users connected to MS Teams users.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.connectedUsersTotal)
+	m.registry.MustRegister(m.connectedUsers)
 
-	m.syntheticUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "synthetic_users_total",
 		Help:        "The total number of synthetic users.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.syntheticUsersTotal)
+	m.registry.MustRegister(m.syntheticUsers)
 
-	m.linkedChannelsTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.linkedChannels = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "linked_channels_total",
 		Help:        "The total number of linked channels to MS Teams.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.linkedChannelsTotal)
+	m.registry.MustRegister(m.linkedChannels)
 
-	m.upstreamUsersTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users_total",
+		Name:        "upstream_users",
 		Help:        "The total number of upstream users.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.upstreamUsersTotal)
+	m.registry.MustRegister(m.upstreamUsers)
 
 	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -267,6 +277,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
+	m.storeTimesHistograms = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemDB,
+		Name:        "store_time",
+		Help:        "Time to execute the store method",
+		ConstLabels: additionalLabels,
+	}, []string{"method", "success"})
+	m.registry.MustRegister(m.storeTimesHistograms)
+
 	return m
 }
 
@@ -280,15 +299,9 @@ func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string,
 	}
 }
 
-func (m *metrics) ObserveMessageSyncDuration(source string, elapsed float64) {
+func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
-		m.messageSyncTime.With(prometheus.Labels{"source": source}).Observe(elapsed)
-	}
-}
-
-func (m *metrics) ObserveConnectedUsersTotal(count int64) {
-	if m != nil {
-		m.connectedUsersTotal.Set(float64(count))
+		m.connectedUsers.Set(float64(count))
 	}
 }
 
@@ -310,27 +323,33 @@ func (m *metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	}
 }
 
-func (m *metrics) ObserveMessagesCount(action, source, isDirect string) {
+func (m *metrics) ObserveMessagesCount(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect}).Inc()
+		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveReactionsCount(action, source, isDirect string) {
+func (m *metrics) ObserveReactionsCount(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect}).Inc()
+		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFilesCount(action, source, isDirect, discardedReason string, count int) {
+func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64) {
 	if m != nil {
-		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": isDirect, "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
-func (m *metrics) ObserveMessagesConfirmedCount(source, isDirect string) {
+func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
-		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": isDirect}).Inc()
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+	}
+}
+
+func (m *metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
+	if m != nil {
+		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
@@ -340,20 +359,20 @@ func (m *metrics) ObserveSubscriptionsCount(action string) {
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveSyntheticUsers(count int64) {
 	if m != nil {
-		m.syntheticUsersTotal.Set(float64(count))
+		m.syntheticUsers.Set(float64(count))
 	}
 }
 
-func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
-		m.linkedChannelsTotal.Set(float64(count))
+		m.linkedChannels.Set(float64(count))
 	}
 }
-func (m *metrics) ObserveUpstreamUsersTotal(count int64) {
+func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
-		m.upstreamUsersTotal.Set(float64(count))
+		m.upstreamUsers.Set(float64(count))
 	}
 }
 
@@ -384,5 +403,11 @@ func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
+	}
+}
+
+func (m *metrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
+	if m != nil {
+		m.storeTimesHistograms.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
 }
