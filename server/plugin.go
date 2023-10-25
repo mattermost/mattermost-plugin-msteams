@@ -421,7 +421,9 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
+	if p.metricsService != nil {
+		p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
+	}
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -621,9 +623,11 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
-		p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
-		p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
+		if p.metricsService != nil {
+			p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
+			p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
+			p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
+		}
 	}
 
 	metricsUpdater()

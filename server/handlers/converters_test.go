@@ -7,6 +7,7 @@ import (
 	"time"
 
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
+	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
@@ -33,7 +34,7 @@ func TestMsgToPost(t *testing.T) {
 		senderID    string
 		message     *clientmodels.Message
 		post        *model.Post
-		setupPlugin func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client)
+		setupPlugin func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics)
 		setupAPI    func(*plugintest.API)
 	}{
 		{
@@ -47,10 +48,11 @@ func TestMsgToPost(t *testing.T) {
 				UserID:          testutils.GetUserID(),
 				CreateAt:        msteamsCreateAtTime,
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client) {
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetURL").Return("https://example.com/")
 				p.On("GetClientForApp").Return(client)
+				p.On("GetMetrics").Return(mockmetrics).Times(1)
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
@@ -75,8 +77,9 @@ func TestMsgToPost(t *testing.T) {
 			ah := ActivityHandler{}
 			client := mocksClient.NewClient(t)
 			mockAPI := &plugintest.API{}
+			mockMetrics := mocksMetrics.NewMetrics(t)
 			testCase.setupAPI(mockAPI)
-			testCase.setupPlugin(p, mockAPI, client)
+			testCase.setupPlugin(p, mockAPI, client, mockMetrics)
 
 			ah.plugin = p
 

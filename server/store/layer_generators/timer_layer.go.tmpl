@@ -35,7 +35,9 @@ func (s *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$ele
         if {{$element.Results | errorToBoolean}} {
                 success = "true"
         }
-        s.metrics.ObserveStoreMethodDuration("Store.{{$index}}", success, elapsed)
+		if s.metrics != nil {
+			s.metrics.ObserveStoreMethodDuration("Store.{{$index}}", success, elapsed)
+		}
 	{{ with (genResultsVars $element.Results false ) -}}
 	return {{ . }}
 	{{- else -}}
