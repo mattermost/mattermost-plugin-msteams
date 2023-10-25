@@ -35,7 +35,9 @@ func (c *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$ele
         if {{$element.Results | errorToBoolean}} {
                 success = "true"
         }
-        c.metrics.ObserveMSGraphClientMethodDuration("Client.{{$index}}", success, elapsed)
+		if c.metrics != nil {
+        	c.metrics.ObserveMSGraphClientMethodDuration("Client.{{$index}}", success, elapsed)
+		}
 	{{ with (genResultsVars $element.Results false ) -}}
 	return {{ . }}
 	{{- end }}
