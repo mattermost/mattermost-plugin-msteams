@@ -21,7 +21,6 @@ import (
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -64,15 +63,14 @@ func (a *ConcurrentGraphRequestAdapter) GetSerializationWriterFactory() serializ
 var clientMutex sync.Mutex
 
 type ClientImpl struct {
-	client         *msgraphsdk.GraphServiceClient
-	ctx            context.Context
-	tenantID       string
-	clientID       string
-	clientSecret   string
-	clientType     string // can be "app" or "token"
-	token          *oauth2.Token
-	logService     *pluginapi.LogService
-	metricsService metrics.Metrics
+	client       *msgraphsdk.GraphServiceClient
+	ctx          context.Context
+	tenantID     string
+	clientID     string
+	clientSecret string
+	clientType   string // can be "app" or "token"
+	token        *oauth2.Token
+	logService   *pluginapi.LogService
 }
 
 type Activity struct {
@@ -156,27 +154,25 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService, metricsService metrics.Metrics) Client {
+func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
-		ctx:            context.Background(),
-		clientType:     "app",
-		tenantID:       tenantID,
-		clientID:       clientID,
-		clientSecret:   clientSecret,
-		logService:     logService,
-		metricsService: metricsService,
+		ctx:          context.Background(),
+		clientType:   "app",
+		tenantID:     tenantID,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		logService:   logService,
 	}
 }
 
-func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService, metricsService metrics.Metrics) Client {
+func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
-		ctx:            context.Background(),
-		clientType:     "token",
-		tenantID:       tenantID,
-		clientID:       clientID,
-		token:          token,
-		logService:     logService,
-		metricsService: metricsService,
+		ctx:        context.Background(),
+		clientType: "token",
+		tenantID:   tenantID,
+		clientID:   clientID,
+		token:      token,
+		logService: logService,
 	}
 
 	conf := &oauth2.Config{

@@ -352,7 +352,7 @@ func TestProcessActivity(t *testing.T) {
 
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
@@ -494,7 +494,7 @@ func TestProcessLifecycle(t *testing.T) {
 
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
@@ -599,7 +599,7 @@ func TestAutocompleteTeams(t *testing.T) {
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "",
-				"", nil, nil, nil).(*clientmocks.Client))
+				"", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/teams", nil)
@@ -710,7 +710,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			plugin := newTestPlugin(t)
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)

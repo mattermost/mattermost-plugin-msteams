@@ -170,7 +170,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.ReactionHasBeenAdded(&plugin.Context{}, testutils.GetReaction())
 		})
@@ -353,7 +353,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.ReactionHasBeenRemoved(&plugin.Context{}, testutils.GetReaction())
 		})
@@ -584,7 +584,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			p.configuration.SyncDirectMessages = true
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.MessageHasBeenUpdated(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 		})
@@ -837,7 +837,7 @@ func TestSetChatReaction(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			resp := p.SetChatReaction("mockTeamsMessageID", testutils.GetID(), testutils.GetChannelID(), "mockEmojiName", test.UpdateRequired)
 			if test.ExpectedMessage != "" {
@@ -1007,7 +1007,7 @@ func TestSetReaction(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1238,7 +1238,7 @@ func TestUnsetChatReaction(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			resp := p.UnsetChatReaction("mockTeamsMessageID", testutils.GetID(), testutils.GetChannelID(), "mockEmojiName")
 			if test.ExpectedMessage != "" {
@@ -1402,7 +1402,7 @@ func TestUnsetReaction(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1757,7 +1757,7 @@ func TestSendChat(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
@@ -1951,7 +1951,7 @@ func TestSend(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
@@ -2058,7 +2058,7 @@ func TestDelete(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			err := p.Delete("mockTeamsTeamID", testutils.GetChannelID(), testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 			if test.ExpectedError != "" {
@@ -2162,7 +2162,7 @@ func TestDeleteChat(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 			if test.ExpectedError != "" {
@@ -2409,7 +2409,7 @@ func TestUpdate(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
@@ -2665,7 +2665,7 @@ func TestUpdateChat(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client))
+			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
@@ -2777,7 +2777,7 @@ func TestGetChatIDForChannel(t *testing.T) {
 			p := newTestPlugin(t)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
-			client := p.clientBuilderWithToken("", "", "", "", nil, nil, nil).(*clientmocks.Client)
+			client := p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client)
 			test.SetupClient(client)
 			resp, err := p.GetChatIDForChannel(client, testutils.GetChannelID())
 			if test.ExpectedError != "" {
