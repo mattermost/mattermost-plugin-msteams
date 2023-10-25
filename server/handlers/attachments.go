@@ -97,7 +97,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	attachments := []string{}
 	newText := text
 	parentID := ""
-	countAttachments := 0
+	countNonFileAttachments := 0
 	countFileAttachments := 0
 	var client msteams.Client
 	if chat == nil {
@@ -129,14 +129,14 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
 			newText = ah.handleCodeSnippet(client, a, newText)
-			countAttachments++
+			countNonFileAttachments++
 			continue
 		}
 
 		// handle a message reference (reply)
 		if a.ContentType == "messageReference" {
 			parentID, newText = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
-			countAttachments++
+			countNonFileAttachments++
 			continue
 		}
 
@@ -153,14 +153,14 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
 			if err != nil {
 				ah.plugin.GetAPI().LogError("failed to download the file", "filename", a.Name, "error", err.Error())
-				ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage, int64(IncreaseFileCountByOne))
+				ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage)
 				continue
 			}
 		} else {
 			fileSize, downloadURL, err = client.GetFileSizeAndDownloadURL(a.ContentURL)
 			if err != nil {
 				ah.plugin.GetAPI().LogError("failed to get file size and download URL", "error", err.Error())
-				ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage, int64(IncreaseFileCountByOne))
+				ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage)
 				continue
 			}
 
@@ -168,7 +168,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if fileSize > fileSizeAllowed {
 				ah.plugin.GetAPI().LogError("skipping file download from MS Teams because the file size is greater than the allowed size")
 				errorFound = true
-				ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonMaxFileSizeExceeded, isDirectMessage, int64(IncreaseFileCountByOne))
+				ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonMaxFileSizeExceeded, isDirectMessage)
 				continue
 			}
 
@@ -177,7 +177,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {
 					ah.plugin.GetAPI().LogError("failed to get file content", "error", err.Error())
-					ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage, int64(IncreaseFileCountByOne))
+					ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonUnableToGetTeamsData, isDirectMessage)
 					continue
 				}
 			}
@@ -198,15 +198,15 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 
 		if fileInfoID == "" {
-			ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonEmptyFileID, isDirectMessage, int64(IncreaseFileCountByOne))
+			ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonEmptyFileID, isDirectMessage)
 			continue
 		}
 		attachments = append(attachments, fileInfoID)
-		ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectMessage, int64(IncreaseFileCountByOne))
+		ah.plugin.GetMetrics().ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectMessage)
 		countFileAttachments++
 		if countFileAttachments == maxFileAttachmentsSupported {
 			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
-			ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonFileLimitReached, isDirectMessage, int64(len(msg.Attachments)-countAttachments-countFileAttachments))
+			ah.plugin.GetMetrics().ObserveFilesCount(metrics.ActionCreated, metrics.ActionSourceMSTeams, discardedReasonFileLimitReached, isDirectMessage, int64(len(msg.Attachments)-countNonFileAttachments-countFileAttachments))
 			break
 		}
 	}

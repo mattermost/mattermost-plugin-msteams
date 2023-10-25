@@ -63,9 +63,14 @@ func (_m *Metrics) ObserveChangeEventTotal(changeType string) {
 	_m.Called(changeType)
 }
 
-// ObserveConnectedUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveConnectedUsersTotal(count int64) {
+// ObserveConnectedUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
+}
+
+// ObserveFileCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage
+func (_m *Metrics) ObserveFileCount(action string, source string, discardedReason string, isDirectMessage bool) {
+	_m.Called(action, source, discardedReason, isDirectMessage)
 }
 
 // ObserveFilesCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage, count
@@ -78,14 +83,9 @@ func (_m *Metrics) ObserveLifecycleEventTotal(lifecycleEventType string) {
 	_m.Called(lifecycleEventType)
 }
 
-// ObserveLinkedChannelsTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveLinkedChannelsTotal(count int64) {
+// ObserveLinkedChannels provides a mock function with given fields: count
+func (_m *Metrics) ObserveLinkedChannels(count int64) {
 	_m.Called(count)
-}
-
-// ObserveMSGraphAPIEndpointDuration provides a mock function with given fields: handler, method, statusCode, elapsed
-func (_m *Metrics) ObserveMSGraphAPIEndpointDuration(handler string, method string, statusCode string, elapsed float64) {
-	_m.Called(handler, method, statusCode, elapsed)
 }
 
 // ObserveMSGraphClientMethodDuration provides a mock function with given fields: method, success, elapsed
@@ -113,18 +113,23 @@ func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirectM
 	_m.Called(action, source, isDirectMessage)
 }
 
+// ObserveStoreMethodDuration provides a mock function with given fields: method, success, elapsed
+func (_m *Metrics) ObserveStoreMethodDuration(method string, success string, elapsed float64) {
+	_m.Called(method, success, elapsed)
+}
+
 // ObserveSubscriptionsCount provides a mock function with given fields: action
 func (_m *Metrics) ObserveSubscriptionsCount(action string) {
 	_m.Called(action)
 }
 
-// ObserveSyntheticUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveSyntheticUsersTotal(count int64) {
+// ObserveSyntheticUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveSyntheticUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveUpstreamUsersTotal provides a mock function with given fields: count
-func (_m *Metrics) ObserveUpstreamUsersTotal(count int64) {
+// ObserveUpstreamUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 	_m.Called(count)
 }
 

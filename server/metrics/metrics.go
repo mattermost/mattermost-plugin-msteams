@@ -14,8 +14,9 @@ const (
 	MetricsSubsystemApp     = "app"
 	MetricsSubsystemHTTP    = "http"
 	MetricsSubsystemAPI     = "api"
-	MetricsSubsystemMSGraph = "msgraph"
 	MetricsSubsystemEvents  = "events"
+	MetricsSubsystemDB      = "db"
+	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
 
@@ -43,19 +44,21 @@ type Metrics interface {
 	ObserveMessagesCount(action, source string, isDirectMessage bool)
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
+	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
 	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
 	ObserveSubscriptionsCount(action string)
 
-	ObserveConnectedUsersTotal(count int64)
-	ObserveSyntheticUsersTotal(count int64)
-	ObserveLinkedChannelsTotal(count int64)
-	ObserveUpstreamUsersTotal(count int64)
+	ObserveConnectedUsers(count int64)
+	ObserveSyntheticUsers(count int64)
+	ObserveLinkedChannels(count int64)
+	ObserveUpstreamUsers(count int64)
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
-	ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64)
 	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
+
+	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
 }
@@ -71,7 +74,6 @@ type metrics struct {
 	pluginStartTime prometheus.Gauge
 
 	apiTime           *prometheus.HistogramVec
-	msGraphAPITime    *prometheus.HistogramVec
 	msGraphClientTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
@@ -93,6 +95,8 @@ type metrics struct {
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
+
+	storeTimesHistograms *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -132,18 +136,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		[]string{"handler", "method", "status_code"},
 	)
 	m.registry.MustRegister(m.apiTime)
-
-	m.msGraphAPITime = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubsystemMSGraph,
-			Name:        "api_time",
-			Help:        "Time taken by the MS Graph API endpoint",
-			ConstLabels: additionalLabels,
-		},
-		[]string{"handler", "method", "status_code"},
-	)
-	m.registry.MustRegister(m.msGraphAPITime)
 
 	m.httpRequestsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -221,7 +213,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "messages_confirmed_total",
-		Help:        "The total number of messages confirmed to sent from Mattermost to MS Teams.",
+		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
 		ConstLabels: additionalLabels,
 	}, []string{"source", "is_direct"})
 	m.registry.MustRegister(m.messagesConfirmedCount)
@@ -265,7 +257,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users_total",
+		Name:        "upstream_users",
 		Help:        "The total number of upstream users.",
 		ConstLabels: additionalLabels,
 	})
@@ -301,6 +293,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	)
 	m.registry.MustRegister(m.msGraphClientTime)
 
+	m.storeTimesHistograms = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemDB,
+		Name:        "store_time",
+		Help:        "Time to execute the store method",
+		ConstLabels: additionalLabels,
+	}, []string{"method", "success"})
+	m.registry.MustRegister(m.storeTimesHistograms)
+
 	return m
 }
 
@@ -314,13 +315,7 @@ func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string,
 	}
 }
 
-func (m *metrics) ObserveMSGraphAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
-	if m != nil {
-		m.msGraphAPITime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
-	}
-}
-
-func (m *metrics) ObserveConnectedUsersTotal(count int64) {
+func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
 		m.connectedUsers.Set(float64(count))
 	}
@@ -362,6 +357,12 @@ func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDi
 	}
 }
 
+func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
+	if m != nil {
+		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+	}
+}
+
 func (m *metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
 	if m != nil {
 		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
@@ -374,18 +375,18 @@ func (m *metrics) ObserveSubscriptionsCount(action string) {
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsersTotal(count int64) {
+func (m *metrics) ObserveSyntheticUsers(count int64) {
 	if m != nil {
 		m.syntheticUsers.Set(float64(count))
 	}
 }
 
-func (m *metrics) ObserveLinkedChannelsTotal(count int64) {
+func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
 	}
 }
-func (m *metrics) ObserveUpstreamUsersTotal(count int64) {
+func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
 	}
@@ -424,5 +425,11 @@ func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
 	if m != nil {
 		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
+	if m != nil {
+		m.storeTimesHistograms.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -1510,7 +1509,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
@@ -1548,7 +1547,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1590,7 +1589,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1624,7 +1623,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1657,7 +1656,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1704,7 +1703,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1743,7 +1742,7 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1816,7 +1815,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1843,7 +1842,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1870,7 +1869,7 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
@@ -1905,7 +1904,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
@@ -1939,7 +1938,7 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFilesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false, int64(handlers.IncreaseFileCountByOne)).Times(1)
+				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
