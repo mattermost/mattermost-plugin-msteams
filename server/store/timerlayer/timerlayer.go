@@ -294,10 +294,10 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 	return result, err
 }
 
-func (s *TimerLayer) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
+func (s *TimerLayer) GetSizeOfWhitelist() (int, error) {
 	start := time.Now()
 
-	result, err := s.Store.GetSizeOfWhitelist(tx)
+	result, err := s.Store.GetSizeOfWhitelist()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -790,10 +790,10 @@ func (s *TimerLayer) StoreOAuth2State(state string) error {
 	return err
 }
 
-func (s *TimerLayer) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
+func (s *TimerLayer) StoreUserInWhitelist(userID string) error {
 	start := time.Now()
 
-	err := s.Store.StoreUserInWhitelist(tx, userID)
+	err := s.Store.StoreUserInWhitelist(userID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

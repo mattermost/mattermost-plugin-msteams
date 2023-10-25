@@ -397,20 +397,20 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
-// GetSizeOfWhitelist provides a mock function with given fields: tx
-func (_m *Store) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
-	ret := _m.Called(tx)
+// GetSizeOfWhitelist provides a mock function with given fields:
+func (_m *Store) GetSizeOfWhitelist() (int, error) {
+	ret := _m.Called()
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(*sql.Tx) int); ok {
-		r0 = rf(tx)
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*sql.Tx) error); ok {
-		r1 = rf(tx)
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -963,13 +963,13 @@ func (_m *Store) StoreOAuth2State(state string) error {
 	return r0
 }
 
-// StoreUserInWhitelist provides a mock function with given fields: tx, userID
-func (_m *Store) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
-	ret := _m.Called(tx, userID)
+// StoreUserInWhitelist provides a mock function with given fields: userID
+func (_m *Store) StoreUserInWhitelist(userID string) error {
+	ret := _m.Called(userID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*sql.Tx, string) error); ok {
-		r0 = rf(tx, userID)
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(userID)
 	} else {
 		r0 = ret.Error(0)
 	}

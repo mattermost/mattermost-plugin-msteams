@@ -404,7 +404,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.p.whitelistClusterMutex.Lock()
 	defer a.p.whitelistClusterMutex.Unlock()
-	whitelistSize, err := a.p.store.GetSizeOfWhitelist(nil)
+	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
 	if err != nil {
 		a.p.API.LogError("Unable to get whitelist size", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -419,7 +419,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(nil, mmUserID); err != nil {
+	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
 		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())

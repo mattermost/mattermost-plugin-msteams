@@ -4,15 +4,17 @@ import (
 	"crypto/sha512"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
@@ -33,6 +35,8 @@ const (
 	postsTableName               = "msteamssync_posts"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
+	PGUniqueViolationErrorCode   = "23505"      // See https://github.com/lib/pq/blob/master/error.go#L178
+	MySQLDuplicateEntryErrorCode = uint16(1062) // see https://dev.mysql.com/doc/mysql-errors/5.7/en/server-error-reference.html#error_er_dup_entry
 )
 
 type SQLStore struct {
@@ -971,7 +975,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 				continue
 			}
 
-			if err := s.StoreUserInWhitelist(nil, connectedUserID); err != nil {
+			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
 				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
 			}
 		}
@@ -987,16 +991,9 @@ func (s *SQLStore) PrefillWhitelist() error {
 	return nil
 }
 
-func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
+func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(whitelistedUsersTableName)
-	var rows *sql.Rows
-	var err error
-	if tx == nil {
-		rows, err = query.Query()
-	} else {
-		rows, err = query.RunWith(tx).Query()
-	}
-
+	rows, err := query.Query()
 	if err != nil {
 		return 0, err
 	}
@@ -1012,17 +1009,10 @@ func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 	return result, nil
 }
 
-func (s *SQLStore) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
+func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
-	var err error
-	if tx == nil {
-		_, err = query.Exec()
-	} else {
-		_, err = query.RunWith(tx).Exec()
-	}
-	if err != nil {
-		// We are checking two different strings here as the error is different for MySQL and Postgres
-		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value") {
+	if _, err := query.Exec(); err != nil {
+		if isDuplicate(err) {
 			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
 			return nil
 		}
@@ -1089,4 +1079,23 @@ func hashKey(prefix, hashableKey string) string {
 	h := sha512.New()
 	_, _ = h.Write([]byte(hashableKey))
 	return fmt.Sprintf("%s%x", prefix, h.Sum(nil))
+}
+
+// isDuplicate checks whether an error is a duplicate key error, which comes when processes are competing on creating the same
+// tables in the database.
+func isDuplicate(err error) bool {
+	var pqErr *pq.Error
+	var mysqlErr *mysql.MySQLError
+	switch {
+	case errors.As(errors.Cause(err), &pqErr):
+		if pqErr.Code == PGUniqueViolationErrorCode {
+			return true
+		}
+	case errors.As(errors.Cause(err), &mysqlErr):
+		if mysqlErr.Number == MySQLDuplicateEntryErrorCode {
+			return true
+		}
+	}
+
+	return false
 }

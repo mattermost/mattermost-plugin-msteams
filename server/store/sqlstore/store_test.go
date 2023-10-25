@@ -1231,14 +1231,14 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert := assert.New(t)
 
-	count, getErr := store.GetSizeOfWhitelist(nil)
+	count, getErr := store.GetSizeOfWhitelist()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
-	storeErr := store.StoreUserInWhitelist(nil, testutils.GetUserID())
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist(nil)
+	count, getErr = store.GetSizeOfWhitelist()
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 
@@ -1250,10 +1250,10 @@ func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQL
 	assert.Equal(false, present)
 	assert.Nil(presentErr)
 
-	storeErr = store.StoreUserInWhitelist(nil, testutils.GetTeamsUserID())
+	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist(nil)
+	count, getErr = store.GetSizeOfWhitelist()
 	assert.Equal(2, count)
 	assert.Nil(getErr)
 
@@ -1282,14 +1282,14 @@ func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	count, getErr := store.GetSizeOfWhitelist(nil)
+	count, getErr := store.GetSizeOfWhitelist()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
 	prefillErr := store.PrefillWhitelist()
 	assert.Nil(prefillErr)
 
-	count, getErr = store.GetSizeOfWhitelist(nil)
+	count, getErr = store.GetSizeOfWhitelist()
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 

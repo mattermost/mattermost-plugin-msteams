@@ -58,8 +58,8 @@ type Store interface {
 	GetStats() (*storemodels.Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error
-	GetSizeOfWhitelist(tx *sql.Tx) (int, error)
-	StoreUserInWhitelist(tx *sql.Tx, userID string) error
+	GetSizeOfWhitelist() (int, error)
+	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
 	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
 	LockPostByMMPostID(tx *sql.Tx, messageID string) error

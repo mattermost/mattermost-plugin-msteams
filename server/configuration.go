@@ -72,7 +72,7 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	}
 
 	if p.store != nil {
-		whitelistSize, err := p.store.GetSizeOfWhitelist(nil)
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
 			return errors.New("failed to get the size of whitelist from the DB")
 		}
