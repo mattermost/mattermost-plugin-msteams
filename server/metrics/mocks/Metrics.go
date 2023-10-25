@@ -88,6 +88,11 @@ func (_m *Metrics) ObserveLinkedChannels(count int64) {
 	_m.Called(count)
 }
 
+// ObserveMessagesConfirmedCount provides a mock function with given fields: source, isDirectMessage
+func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
+	_m.Called(source, isDirectMessage)
+}
+
 // ObserveMessagesCount provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveMessagesCount(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)

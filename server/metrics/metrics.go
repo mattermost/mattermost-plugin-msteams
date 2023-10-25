@@ -18,6 +18,14 @@ const (
 	MetricsSubsystemDB     = "db"
 
 	MetricsCloudInstallationLabel = "installationId"
+
+	ActionSourceMSTeams    = "msteams"
+	ActionSourceMattermost = "mattermost"
+	ActionCreated          = "created"
+	ActionUpdated          = "updated"
+	ActionDeleted          = "deleted"
+	ReactionSetAction      = "set"
+	ReactionUnsetAction    = "unset"
 )
 
 type Metrics interface {
@@ -33,6 +41,7 @@ type Metrics interface {
 	ObserveReactionsCount(action, source string, isDirectMessage bool)
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
+	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
 
 	ObserveConnectedUsers(count int64)
 	ObserveSyntheticUsers(count int64)
@@ -68,6 +77,7 @@ type metrics struct {
 	messagesCount             *prometheus.CounterVec
 	reactionsCount            *prometheus.CounterVec
 	filesCount                *prometheus.CounterVec
+	messagesConfirmedCount    *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -190,6 +200,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesCount)
 
+	m.messagesConfirmedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "messages_confirmed_total",
+		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
+		ConstLabels: additionalLabels,
+	}, []string{"source", "is_direct"})
+	m.registry.MustRegister(m.messagesConfirmedCount)
+
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -311,6 +330,12 @@ func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDi
 func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
 		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+	}
+}
+
+func (m *metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
+	if m != nil {
+		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 

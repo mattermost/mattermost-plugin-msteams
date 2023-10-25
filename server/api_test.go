@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
@@ -90,7 +90,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", handlers.ActionCreated).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
 			"",
@@ -109,7 +109,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", handlers.ActionCreated).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
 			"",
@@ -128,7 +128,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", handlers.ActionCreated).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
 			"",
@@ -147,7 +147,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", handlers.ActionCreated).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
 			"",
@@ -181,7 +181,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			if tc.ExpectedBody != "" {
 				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
 			} else {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", handlers.ActionCreated).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", metrics.ActionCreated).Times(1)
 			}
 
 			w := httptest.NewRecorder()

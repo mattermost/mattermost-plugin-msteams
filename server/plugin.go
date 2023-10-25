@@ -46,8 +46,6 @@ const (
 
 	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
 	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
-
-	actionSourceMattermost = "mattermost"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
