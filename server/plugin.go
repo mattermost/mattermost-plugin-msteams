@@ -22,6 +22,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -136,7 +137,8 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.metricsService), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -145,7 +147,8 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.metricsService), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -153,12 +156,14 @@ func (p *Plugin) connectTeamsAppClient() error {
 	defer p.msteamsAppClientMutex.Unlock()
 
 	if p.msteamsAppClient == nil {
-		p.msteamsAppClient = msteams.NewApp(
+		msteamsAppClient := msteams.NewApp(
 			p.getConfiguration().TenantID,
 			p.getConfiguration().ClientID,
 			p.getConfiguration().ClientSecret,
 			&p.apiClient.Log,
 		)
+
+		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.metricsService)
 	}
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
@@ -422,7 +427,9 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
+	if p.metricsService != nil {
+		p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
+	}
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -622,9 +629,11 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
-		p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
-		p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
+		if p.metricsService != nil {
+			p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
+			p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
+			p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
+		}
 	}
 
 	metricsUpdater()

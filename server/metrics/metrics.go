@@ -9,13 +9,14 @@ import (
 )
 
 const (
-	MetricsNamespace       = "msteams_connect"
-	MetricsSubsystemSystem = "system"
-	MetricsSubsystemApp    = "app"
-	MetricsSubsystemHTTP   = "http"
-	MetricsSubsystemAPI    = "api"
-	MetricsSubsystemEvents = "events"
-	MetricsSubsystemDB     = "db"
+	MetricsNamespace        = "msteams_connect"
+	MetricsSubsystemSystem  = "system"
+	MetricsSubsystemApp     = "app"
+	MetricsSubsystemHTTP    = "http"
+	MetricsSubsystemAPI     = "api"
+	MetricsSubsystemEvents  = "events"
+	MetricsSubsystemDB      = "db"
+	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
 
@@ -55,6 +56,8 @@ type Metrics interface {
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
+	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
+
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -70,7 +73,8 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime *prometheus.HistogramVec
+	apiTime           *prometheus.HistogramVec
+	msGraphClientTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
@@ -277,6 +281,18 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
+	m.msGraphClientTime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace:   MetricsNamespace,
+			Subsystem:   MetricsSubsystemMSGraph,
+			Name:        "client_time",
+			Help:        "Time to execute the client methods",
+			ConstLabels: additionalLabels,
+		},
+		[]string{"method", "success"},
+	)
+	m.registry.MustRegister(m.msGraphClientTime)
+
 	m.storeTimesHistograms = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemDB,
@@ -403,6 +419,12 @@ func (m *metrics) IncrementChangeEventQueueLength(changeType string) {
 func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	if m != nil {
 		m.changeEventQueueLength.With(prometheus.Labels{"change_type": changeType}).Dec()
+	}
+}
+
+func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
+	if m != nil {
+		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
 }
 

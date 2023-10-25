@@ -32,7 +32,9 @@ func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
 	if true {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.CheckEnabledTeamByTeamID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.CheckEnabledTeamByTeamID", success, elapsed)
+	}
 	return result
 }
 
@@ -46,7 +48,9 @@ func (s *TimerLayer) CompareAndSetJobStatus(jobName string, oldStatus bool, newS
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.CompareAndSetJobStatus", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.CompareAndSetJobStatus", success, elapsed)
+	}
 	return result, err
 }
 
@@ -60,7 +64,9 @@ func (s *TimerLayer) DeleteDMAndGMChannelPromptTime(userID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteDMAndGMChannelPromptTime", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.DeleteDMAndGMChannelPromptTime", success, elapsed)
+	}
 	return err
 }
 
@@ -74,7 +80,9 @@ func (s *TimerLayer) DeleteLinkByChannelID(channelID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteLinkByChannelID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.DeleteLinkByChannelID", success, elapsed)
+	}
 	return err
 }
 
@@ -88,7 +96,9 @@ func (s *TimerLayer) DeleteSubscription(subscriptionID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.DeleteSubscription", success, elapsed)
+	}
 	return err
 }
 
@@ -102,7 +112,9 @@ func (s *TimerLayer) DeleteUserInfo(mmUserID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInfo", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInfo", success, elapsed)
+	}
 	return err
 }
 
@@ -116,7 +128,9 @@ func (s *TimerLayer) GetAvatarCache(userID string) ([]byte, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetAvatarCache", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetAvatarCache", success, elapsed)
+	}
 	return result, err
 }
 
@@ -130,7 +144,9 @@ func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetChannelSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetChannelSubscription", success, elapsed)
+	}
 	return result, err
 }
 
@@ -144,7 +160,9 @@ func (s *TimerLayer) GetChannelSubscriptionByTeamsChannelID(teamsChannelID strin
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetChannelSubscriptionByTeamsChannelID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetChannelSubscriptionByTeamsChannelID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -158,7 +176,9 @@ func (s *TimerLayer) GetChatSubscription(subscriptionID string) (*storemodels.Ch
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetChatSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetChatSubscription", success, elapsed)
+	}
 	return result, err
 }
 
@@ -172,7 +192,9 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsers", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsers", success, elapsed)
+	}
 	return result, err
 }
 
@@ -186,7 +208,9 @@ func (s *TimerLayer) GetDMAndGMChannelPromptTime(channelID string, userID string
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetDMAndGMChannelPromptTime", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetDMAndGMChannelPromptTime", success, elapsed)
+	}
 	return result, err
 }
 
@@ -200,7 +224,9 @@ func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetGlobalSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetGlobalSubscription", success, elapsed)
+	}
 	return result, err
 }
 
@@ -214,7 +240,9 @@ func (s *TimerLayer) GetLinkByChannelID(channelID string) (*storemodels.ChannelL
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetLinkByChannelID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetLinkByChannelID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -228,7 +256,9 @@ func (s *TimerLayer) GetLinkByMSTeamsChannelID(teamID string, channelID string) 
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetLinkByMSTeamsChannelID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetLinkByMSTeamsChannelID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -242,7 +272,9 @@ func (s *TimerLayer) GetPostInfoByMSTeamsID(chatID string, postID string) (*stor
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMSTeamsID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMSTeamsID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -256,7 +288,9 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMattermostID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMattermostID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -270,7 +304,9 @@ func (s *TimerLayer) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfWhitelist", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfWhitelist", success, elapsed)
+	}
 	return result, err
 }
 
@@ -284,7 +320,9 @@ func (s *TimerLayer) GetStats() (*storemodels.Stats, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetStats", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetStats", success, elapsed)
+	}
 	return result, err
 }
 
@@ -298,7 +336,9 @@ func (s *TimerLayer) GetSubscriptionType(subscriptionID string) (string, error) 
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSubscriptionType", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetSubscriptionType", success, elapsed)
+	}
 	return result, err
 }
 
@@ -312,7 +352,9 @@ func (s *TimerLayer) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetTokenForMSTeamsUser", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetTokenForMSTeamsUser", success, elapsed)
+	}
 	return result, err
 }
 
@@ -326,7 +368,9 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetTokenForMattermostUser", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.GetTokenForMattermostUser", success, elapsed)
+	}
 	return result, err
 }
 
@@ -340,7 +384,9 @@ func (s *TimerLayer) Init() error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.Init", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.Init", success, elapsed)
+	}
 	return err
 }
 
@@ -354,7 +400,9 @@ func (s *TimerLayer) IsUserPresentInWhitelist(userID string) (bool, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.IsUserPresentInWhitelist", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.IsUserPresentInWhitelist", success, elapsed)
+	}
 	return result, err
 }
 
@@ -368,7 +416,9 @@ func (s *TimerLayer) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error 
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.LinkPosts", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.LinkPosts", success, elapsed)
+	}
 	return err
 }
 
@@ -382,7 +432,9 @@ func (s *TimerLayer) ListChannelLinks() ([]storemodels.ChannelLink, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListChannelLinks", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListChannelLinks", success, elapsed)
+	}
 	return result, err
 }
 
@@ -396,7 +448,9 @@ func (s *TimerLayer) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, er
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListChannelLinksWithNames", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListChannelLinksWithNames", success, elapsed)
+	}
 	return result, err
 }
 
@@ -410,7 +464,9 @@ func (s *TimerLayer) ListChannelSubscriptions() ([]*storemodels.ChannelSubscript
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListChannelSubscriptions", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListChannelSubscriptions", success, elapsed)
+	}
 	return result, err
 }
 
@@ -424,7 +480,9 @@ func (s *TimerLayer) ListChannelSubscriptionsToRefresh() ([]*storemodels.Channel
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListChannelSubscriptionsToRefresh", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListChannelSubscriptionsToRefresh", success, elapsed)
+	}
 	return result, err
 }
 
@@ -438,7 +496,9 @@ func (s *TimerLayer) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscript
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListChatSubscriptionsToCheck", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListChatSubscriptionsToCheck", success, elapsed)
+	}
 	return result, err
 }
 
@@ -452,7 +512,9 @@ func (s *TimerLayer) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscriptio
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListGlobalSubscriptions", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListGlobalSubscriptions", success, elapsed)
+	}
 	return result, err
 }
 
@@ -466,7 +528,9 @@ func (s *TimerLayer) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSu
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListGlobalSubscriptionsToRefresh", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.ListGlobalSubscriptionsToRefresh", success, elapsed)
+	}
 	return result, err
 }
 
@@ -480,7 +544,9 @@ func (s *TimerLayer) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.LockPostByMMPostID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.LockPostByMMPostID", success, elapsed)
+	}
 	return err
 }
 
@@ -494,7 +560,9 @@ func (s *TimerLayer) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.LockPostByMSTeamsPostID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.LockPostByMSTeamsPostID", success, elapsed)
+	}
 	return err
 }
 
@@ -508,7 +576,9 @@ func (s *TimerLayer) MattermostToTeamsUserID(userID string) (string, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.MattermostToTeamsUserID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.MattermostToTeamsUserID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -522,7 +592,9 @@ func (s *TimerLayer) PrefillWhitelist() error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.PrefillWhitelist", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.PrefillWhitelist", success, elapsed)
+	}
 	return err
 }
 
@@ -536,7 +608,9 @@ func (s *TimerLayer) RecoverPost(postID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.RecoverPost", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.RecoverPost", success, elapsed)
+	}
 	return err
 }
 
@@ -550,7 +624,9 @@ func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, subscription storemodel
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SaveChannelSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SaveChannelSubscription", success, elapsed)
+	}
 	return err
 }
 
@@ -564,7 +640,9 @@ func (s *TimerLayer) SaveChatSubscription(subscription storemodels.ChatSubscript
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SaveChatSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SaveChatSubscription", success, elapsed)
+	}
 	return err
 }
 
@@ -578,7 +656,9 @@ func (s *TimerLayer) SaveGlobalSubscription(subscription storemodels.GlobalSubsc
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SaveGlobalSubscription", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SaveGlobalSubscription", success, elapsed)
+	}
 	return err
 }
 
@@ -592,7 +672,9 @@ func (s *TimerLayer) SetAvatarCache(userID string, photo []byte) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetAvatarCache", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SetAvatarCache", success, elapsed)
+	}
 	return err
 }
 
@@ -606,7 +688,9 @@ func (s *TimerLayer) SetJobStatus(jobName string, status bool) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetJobStatus", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SetJobStatus", success, elapsed)
+	}
 	return err
 }
 
@@ -620,7 +704,9 @@ func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, l
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetPostLastUpdateAtByMSTeamsID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SetPostLastUpdateAtByMSTeamsID", success, elapsed)
+	}
 	return err
 }
 
@@ -634,7 +720,9 @@ func (s *TimerLayer) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetPostLastUpdateAtByMattermostID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SetPostLastUpdateAtByMattermostID", success, elapsed)
+	}
 	return err
 }
 
@@ -648,7 +736,9 @@ func (s *TimerLayer) SetUserInfo(userID string, msTeamsUserID string, token *oau
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetUserInfo", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.SetUserInfo", success, elapsed)
+	}
 	return err
 }
 
@@ -662,7 +752,9 @@ func (s *TimerLayer) StoreChannelLink(link *storemodels.ChannelLink) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreChannelLink", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.StoreChannelLink", success, elapsed)
+	}
 	return err
 }
 
@@ -676,7 +768,9 @@ func (s *TimerLayer) StoreDMAndGMChannelPromptTime(channelID string, userID stri
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreDMAndGMChannelPromptTime", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.StoreDMAndGMChannelPromptTime", success, elapsed)
+	}
 	return err
 }
 
@@ -690,7 +784,9 @@ func (s *TimerLayer) StoreOAuth2State(state string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreOAuth2State", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.StoreOAuth2State", success, elapsed)
+	}
 	return err
 }
 
@@ -704,7 +800,9 @@ func (s *TimerLayer) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreUserInWhitelist", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.StoreUserInWhitelist", success, elapsed)
+	}
 	return err
 }
 
@@ -718,7 +816,9 @@ func (s *TimerLayer) TeamsToMattermostUserID(userID string) (string, error) {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.TeamsToMattermostUserID", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.TeamsToMattermostUserID", success, elapsed)
+	}
 	return result, err
 }
 
@@ -732,7 +832,9 @@ func (s *TimerLayer) UpdateSubscriptionExpiresOn(subscriptionID string, expiresO
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionExpiresOn", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionExpiresOn", success, elapsed)
+	}
 	return err
 }
 
@@ -746,7 +848,9 @@ func (s *TimerLayer) VerifyOAuth2State(state string) error {
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.VerifyOAuth2State", success, elapsed)
+	if s.metrics != nil {
+		s.metrics.ObserveStoreMethodDuration("Store.VerifyOAuth2State", success, elapsed)
+	}
 	return err
 }
 

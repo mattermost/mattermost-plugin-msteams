@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestConvertToMessage(t *testing.T) {
 	for _, test := range []struct {
 		Name           string
 		ChatMessage    models.ChatMessageable
-		ExpectedResult Message
+		ExpectedResult clientmodels.Message
 	}{
 		{
 			Name: "ConvertToMessage: With data filled",
@@ -83,7 +84,7 @@ func TestConvertToMessage(t *testing.T) {
 				message.SetMentions([]models.ChatMessageMentionable{mention})
 				return message
 			}(),
-			ExpectedResult: Message{
+			ExpectedResult: clientmodels.Message{
 				UserID:          teamsUserID,
 				UserDisplayName: teamsUserDisplayName,
 				ReplyToID:       teamsReplyID,
@@ -91,7 +92,7 @@ func TestConvertToMessage(t *testing.T) {
 				Subject:         subject,
 				CreateAt:        time.Time{},
 				LastUpdateAt:    time.Time{},
-				Attachments: []Attachment{
+				Attachments: []clientmodels.Attachment{
 					{
 						ContentType: attachmentContentType,
 						Content:     attachmentContent,
@@ -99,14 +100,14 @@ func TestConvertToMessage(t *testing.T) {
 						ContentURL:  attachmentURL,
 					},
 				},
-				Mentions: []Mention{
+				Mentions: []clientmodels.Mention{
 					{
 						ID:            int32(mentionID),
 						UserID:        teamsUserID,
 						MentionedText: teamsUserDisplayName,
 					},
 				},
-				Reactions: []Reaction{
+				Reactions: []clientmodels.Reaction{
 					{
 						Reaction: reactionType,
 						UserID:   teamsUserID,
@@ -125,10 +126,10 @@ func TestConvertToMessage(t *testing.T) {
 				message.SetLastModifiedDateTime(&time.Time{})
 				return message
 			}(),
-			ExpectedResult: Message{
-				Attachments:  []Attachment{},
-				Reactions:    []Reaction{},
-				Mentions:     []Mention{},
+			ExpectedResult: clientmodels.Message{
+				Attachments:  []clientmodels.Attachment{},
+				Reactions:    []clientmodels.Reaction{},
+				Mentions:     []clientmodels.Mention{},
 				CreateAt:     time.Time{},
 				LastUpdateAt: time.Time{},
 				ChannelID:    testutils.GetChannelID(),
@@ -150,12 +151,12 @@ func TestGetResourceIds(t *testing.T) {
 	for _, test := range []struct {
 		Name           string
 		Resource       string
-		ExpectedResult ActivityIds
+		ExpectedResult clientmodels.ActivityIds
 	}{
 		{
 			Name:     "GetResourceIds: With prefix chats(",
 			Resource: "chats('19:8ea0e38b-efb3-4757-924a-5f94061cf8c2_97f62344-57dc-409c-88ad-c4af14158ff5@unq.gbl.spaces')/messages('1612289765949')",
-			ExpectedResult: ActivityIds{
+			ExpectedResult: clientmodels.ActivityIds{
 				ChatID:    "19:8ea0e38b-efb3-4757-924a-5f94061cf8c2_97f62344-57dc-409c-88ad-c4af14158ff5@unq.gbl.spaces",
 				MessageID: "1612289765949",
 			},
@@ -163,7 +164,7 @@ func TestGetResourceIds(t *testing.T) {
 		{
 			Name:     "GetResourceIds: Without prefix chats(",
 			Resource: "teams('fbe2bf47-16c8-47cf-b4a5-4b9b187c508b')/channels('19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2')/messages('1612293113399')/replies('19:zOtXfpDMWANo7-9CHuzHdM7WPSamQejH0Vydj0U-Yho1')",
-			ExpectedResult: ActivityIds{
+			ExpectedResult: clientmodels.ActivityIds{
 				TeamID:    "fbe2bf47-16c8-47cf-b4a5-4b9b187c508b",
 				ChannelID: "19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2",
 				MessageID: "1612293113399",
@@ -173,21 +174,21 @@ func TestGetResourceIds(t *testing.T) {
 		{
 			Name:           "GetResourceIds: Resource with multiple '/'",
 			Resource:       "/////19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2///",
-			ExpectedResult: ActivityIds{},
+			ExpectedResult: clientmodels.ActivityIds{},
 		},
 		{
 			Name:           "GetResourceIds: Empty resource",
-			ExpectedResult: ActivityIds{},
+			ExpectedResult: clientmodels.ActivityIds{},
 		},
 		{
 			Name:           "GetResourceIds: Resource with small length",
 			Resource:       "ID",
-			ExpectedResult: ActivityIds{},
+			ExpectedResult: clientmodels.ActivityIds{},
 		},
 		{
 			Name:           "GetResourceIds: Resource with large length",
 			Resource:       "very-long-teams-ID-with-very-long-chat-ID",
-			ExpectedResult: ActivityIds{},
+			ExpectedResult: clientmodels.ActivityIds{},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {

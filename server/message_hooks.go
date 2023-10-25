@@ -12,6 +12,7 @@ import (
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -182,7 +183,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}
-		var chat *msteams.Chat
+		var chat *clientmodels.Chat
 		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			p.API.LogError("Unable to create or get chat for users", "error", err.Error())
@@ -221,7 +222,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		return err
 	}
 
-	var teamsMessage *msteams.Message
+	var teamsMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -252,7 +253,9 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 			return txErr
 		}
 
-		p.metricsService.ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMattermost, true)
+		if p.metricsService != nil {
+			p.metricsService.ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMattermost, true)
+		}
 	} else {
 		teamsMessage, txErr = client.GetChatMessage(chatID, teamsMessageID)
 		if txErr != nil {
@@ -293,7 +296,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		return err
 	}
 
-	var teamsMessage *msteams.Message
+	var teamsMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -325,7 +328,9 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 			return txErr
 		}
 
-		p.metricsService.ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMattermost, false)
+		if p.metricsService != nil {
+			p.metricsService.ObserveReactionsCount(metrics.ReactionSetAction, metrics.ActionSourceMattermost, false)
+		}
 	} else {
 		teamsMessage, txErr = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
 		if txErr != nil {
@@ -390,7 +395,9 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return txErr
 	}
 
-	p.metricsService.ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true)
+	if p.metricsService != nil {
+		p.metricsService.ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true)
+	}
 	if txErr = p.store.SetPostLastUpdateAtByMSTeamsID(tx, teamsMessageID, teamsMessage.LastUpdateAt); txErr != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
@@ -453,7 +460,9 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 		return txErr
 	}
 
-	p.metricsService.ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false)
+	if p.metricsService != nil {
+		p.metricsService.ObserveReactionsCount(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false)
+	}
 	if txErr = p.store.SetPostLastUpdateAtByMattermostID(tx, postInfo.MattermostID, teamsMessage.LastUpdateAt); txErr != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", txErr.Error())
 	}
@@ -504,31 +513,39 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	var attachments []*msteams.Attachment
+	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true)
+			}
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true)
+			}
 			continue
 		}
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-		var attachment *msteams.Attachment
+		var attachment *clientmodels.Attachment
 		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true)
+			}
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
+		if p.metricsService != nil {
+			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
+		}
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -536,7 +553,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	content, mentions := p.getMentionsData(content, "", "", chat.ID, client)
 
-	var parentMessage *msteams.Message
+	var parentMessage *clientmodels.Message
 	if parentID != "" {
 		parentMessage, err = client.GetChatMessage(chat.ID, parentID)
 		if err != nil {
@@ -550,7 +567,9 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		return "", err
 	}
 
-	p.metricsService.ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMattermost, true)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMattermost, true)
+	}
 	if post.Id != "" {
 		if err := p.store.LinkPosts(nil, storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
@@ -600,31 +619,39 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		text = user.Username + ":\n\n" + post.Message
 	}
 
-	var attachments []*msteams.Attachment
+	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false)
+			}
 			continue
 		}
 		fileData, appErr := p.API.GetFile(fileInfo.Id)
 		if appErr != nil {
 			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false)
+			}
 			continue
 		}
 
 		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-		var attachment *msteams.Attachment
+		var attachment *clientmodels.Attachment
 		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
 		if err != nil {
 			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, false)
+			if p.metricsService != nil {
+				p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, false)
+			}
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
+		if p.metricsService != nil {
+			p.metricsService.ObserveFileCount(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
+		}
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -638,7 +665,9 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		return "", err
 	}
 
-	p.metricsService.ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMattermost, false)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessagesCount(metrics.ActionCreated, metrics.ActionSourceMattermost, false)
+	}
 	if post.Id != "" {
 		if err := p.store.LinkPosts(nil, storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
@@ -682,7 +711,9 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 		return err
 	}
 
-	p.metricsService.ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMattermost, false)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMattermost, false)
+	}
 	return nil
 }
 
@@ -711,7 +742,9 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 		return err
 	}
 
-	p.metricsService.ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMattermost, true)
+	if p.metricsService != nil {
+		p.metricsService.ObserveMessagesCount(metrics.ActionDeleted, metrics.ActionSourceMattermost, true)
+	}
 	return nil
 }
 
@@ -747,7 +780,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	var updatedMessage *msteams.Message
+	var updatedMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -787,7 +820,9 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 			}
 		}
 
-		p.metricsService.ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMattermost, false)
+		if p.metricsService != nil {
+			p.metricsService.ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMattermost, false)
+		}
 	} else {
 		updatedMessage, txErr = getUpdatedMessage(teamID, channelID, parentID, postInfo.MSTeamsID, client)
 		if txErr != nil {
@@ -824,7 +859,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		return err
 	}
 
-	var updatedMessage *msteams.Message
+	var updatedMessage *clientmodels.Message
 	tx, err := p.store.BeginTx()
 	if err != nil {
 		return err
@@ -862,7 +897,9 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 			}
 		}
 
-		p.metricsService.ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMattermost, true)
+		if p.metricsService != nil {
+			p.metricsService.ObserveMessagesCount(metrics.ActionUpdated, metrics.ActionSourceMattermost, true)
+		}
 	} else {
 		updatedMessage, txErr = client.GetChatMessage(chatID, postInfo.MSTeamsID)
 		if txErr != nil {
@@ -1014,7 +1051,7 @@ func getFileNameAndExtension(path string) (string, string) {
 	return fileName, fileExtension
 }
 
-func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*msteams.Message, error) {
+func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client msteams.Client) (*clientmodels.Message, error) {
 	if parentID != "" {
 		return client.GetReply(teamID, channelID, parentID, msteamsID)
 	}
