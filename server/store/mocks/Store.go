@@ -809,13 +809,13 @@ func (_m *Store) RollbackTx(tx *sql.Tx) error {
 	return r0
 }
 
-// SaveChannelSubscription provides a mock function with given fields: _a0, _a1
-func (_m *Store) SaveChannelSubscription(_a0 *sql.Tx, _a1 storemodels.ChannelSubscription) error {
-	ret := _m.Called(_a0, _a1)
+// SaveChannelSubscription provides a mock function with given fields: tx, subscription
+func (_m *Store) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
+	ret := _m.Called(tx, subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*sql.Tx, storemodels.ChannelSubscription) error); ok {
-		r0 = rf(_a0, _a1)
+		r0 = rf(tx, subscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -823,13 +823,13 @@ func (_m *Store) SaveChannelSubscription(_a0 *sql.Tx, _a1 storemodels.ChannelSub
 	return r0
 }
 
-// SaveChatSubscription provides a mock function with given fields: _a0
-func (_m *Store) SaveChatSubscription(_a0 storemodels.ChatSubscription) error {
-	ret := _m.Called(_a0)
+// SaveChatSubscription provides a mock function with given fields: subscription
+func (_m *Store) SaveChatSubscription(subscription storemodels.ChatSubscription) error {
+	ret := _m.Called(subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.ChatSubscription) error); ok {
-		r0 = rf(_a0)
+		r0 = rf(subscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -837,13 +837,13 @@ func (_m *Store) SaveChatSubscription(_a0 storemodels.ChatSubscription) error {
 	return r0
 }
 
-// SaveGlobalSubscription provides a mock function with given fields: _a0
-func (_m *Store) SaveGlobalSubscription(_a0 storemodels.GlobalSubscription) error {
-	ret := _m.Called(_a0)
+// SaveGlobalSubscription provides a mock function with given fields: subscription
+func (_m *Store) SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error {
+	ret := _m.Called(subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.GlobalSubscription) error); ok {
-		r0 = rf(_a0)
+		r0 = rf(subscription)
 	} else {
 		r0 = ret.Error(0)
 	}

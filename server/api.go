@@ -261,7 +261,7 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 			if a.p.getConfiguration().EnabledTeams == "" {
 				response["needsConnect"] = true
 			} else {
-				enabledTeams := strings.Fields(a.p.getConfiguration().EnabledTeams)
+				enabledTeams := strings.Split(a.p.getConfiguration().EnabledTeams, ",")
 
 				teams, _ := a.p.API.GetTeamsForUser(userID)
 				for _, enabledTeam := range enabledTeams {
@@ -402,16 +402,31 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
-		if !strings.Contains(err.Error(), "Duplicate entry") {
-			a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
-			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-				a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
-			}
+	a.p.whitelistClusterMutex.Lock()
+	defer a.p.whitelistClusterMutex.Unlock()
+	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
+	if err != nil {
+		a.p.API.LogError("Unable to get whitelist size", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
-			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
-			return
+	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
+		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
 		}
+		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
+		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
+		}
+
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Add("Content-Type", "text/html")

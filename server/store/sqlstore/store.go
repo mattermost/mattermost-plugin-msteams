@@ -4,15 +4,17 @@ import (
 	"crypto/sha512"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
@@ -33,6 +35,8 @@ const (
 	postsTableName               = "msteamssync_posts"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
+	PGUniqueViolationErrorCode   = "23505"      // See https://github.com/lib/pq/blob/master/error.go#L178
+	MySQLDuplicateEntryErrorCode = uint16(1062) // see https://dev.mysql.com/doc/mysql-errors/5.7/en/server-error-reference.html#error_er_dup_entry
 )
 
 type SQLStore struct {
@@ -56,7 +60,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
 	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
-			SELECT DISTINCT index_name FROM information_schema.statistics
+			SELECT DISTINCT index_name FROM information_schema.statistics 
 			WHERE table_schema = DATABASE()
 			AND table_name = 'tableName' AND index_name = 'indexName'
 		)`
@@ -367,7 +371,6 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storem
 	if err := row.Scan(&postInfo.MattermostID, &lastUpdateAt); err != nil {
 		return nil, err
 	}
-
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
 	return &postInfo, nil
 }
@@ -709,7 +712,6 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); err != nil {
 		return nil, err
 	}
-
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
 }
@@ -974,7 +976,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 			}
 
 			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "Error", err.Error())
+				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
 			}
 		}
 
@@ -1009,8 +1011,12 @@ func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
 
 func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
-	_, err := query.Exec()
-	if err != nil {
+	if _, err := query.Exec(); err != nil {
+		if isDuplicate(err) {
+			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
+			return nil
+		}
+
 		return err
 	}
 
@@ -1073,4 +1079,23 @@ func hashKey(prefix, hashableKey string) string {
 	h := sha512.New()
 	_, _ = h.Write([]byte(hashableKey))
 	return fmt.Sprintf("%s%x", prefix, h.Sum(nil))
+}
+
+// isDuplicate checks whether an error is a duplicate key error, which comes when processes are competing on creating the same
+// tables in the database.
+func isDuplicate(err error) bool {
+	var pqErr *pq.Error
+	var mysqlErr *mysql.MySQLError
+	switch {
+	case errors.As(errors.Cause(err), &pqErr):
+		if pqErr.Code == PGUniqueViolationErrorCode {
+			return true
+		}
+	case errors.As(errors.Cause(err), &mysqlErr):
+		if mysqlErr.Number == MySQLDuplicateEntryErrorCode {
+			return true
+		}
+	}
+
+	return false
 }
