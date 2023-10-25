@@ -135,7 +135,9 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
+	if m.metrics != nil {
+		m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
+	}
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
 			m.api.LogError("Unable to delete the old all chats subscription", "error", err.Error())
@@ -174,7 +176,9 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	if m.metrics != nil {
+		m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	}
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 			m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
@@ -217,7 +221,9 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	if m.metrics != nil {
+		m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	}
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 	}
@@ -230,7 +236,9 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
+	if m.metrics != nil {
+		m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
+	}
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }
 

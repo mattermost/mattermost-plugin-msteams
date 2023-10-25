@@ -114,7 +114,9 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
-		a.p.metricsService.ObserveChangeEventTotal(activity.ChangeType)
+		if a.p.metricsService != nil {
+			a.p.metricsService.ObserveChangeEventTotal(activity.ChangeType)
+		}
 		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
@@ -153,7 +155,9 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
 			continue
 		}
-		a.p.metricsService.ObserveLifecycleEventTotal(event.LifecycleEvent)
+		if a.p.metricsService != nil {
+			a.p.metricsService.ObserveLifecycleEventTotal(event.LifecycleEvent)
+		}
 		a.p.activityHandler.HandleLifecycleEvent(event)
 	}
 

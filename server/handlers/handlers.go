@@ -180,7 +180,9 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 
 	if activityIds.ChatID == "" {
 		if !ah.checkSubscription(activity.SubscriptionID) {
-			metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReasonExpiredSubscription)
+			if metrics != nil {
+				metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReasonExpiredSubscription)
+			}
 			return
 		}
 	}
@@ -198,7 +200,9 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
 	}
 
-	metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
+	if metrics != nil {
+		metrics.ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
+	}
 }
 
 func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) string {
