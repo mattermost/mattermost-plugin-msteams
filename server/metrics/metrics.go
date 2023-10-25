@@ -19,13 +19,16 @@ const (
 
 	MetricsCloudInstallationLabel = "installationId"
 
-	ActionSourceMSTeams    = "msteams"
-	ActionSourceMattermost = "mattermost"
-	ActionCreated          = "created"
-	ActionUpdated          = "updated"
-	ActionDeleted          = "deleted"
-	ReactionSetAction      = "set"
-	ReactionUnsetAction    = "unset"
+	ActionSourceMSTeams     = "msteams"
+	ActionSourceMattermost  = "mattermost"
+	ActionCreated           = "created"
+	ActionUpdated           = "updated"
+	ActionDeleted           = "deleted"
+	ReactionSetAction       = "set"
+	ReactionUnsetAction     = "unset"
+	SubscriptionRefreshed   = "refreshed"
+	SubscriptionConnected   = "connected"
+	SubscriptionReconnected = "reconnected"
 )
 
 type Metrics interface {
@@ -42,6 +45,7 @@ type Metrics interface {
 	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
 	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
+	ObserveSubscriptionsCount(action string)
 
 	ObserveConnectedUsers(count int64)
 	ObserveSyntheticUsers(count int64)
@@ -78,6 +82,7 @@ type metrics struct {
 	reactionsCount            *prometheus.CounterVec
 	filesCount                *prometheus.CounterVec
 	messagesConfirmedCount    *prometheus.CounterVec
+	subscriptionsCount        *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -209,6 +214,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"source", "is_direct"})
 	m.registry.MustRegister(m.messagesConfirmedCount)
 
+	m.subscriptionsCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "subscriptions_count",
+		Help:        "The total number of connected, reconnected and refreshed subscriptions.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.subscriptionsCount)
+
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -336,6 +350,12 @@ func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDir
 func (m *metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
 	if m != nil {
 		m.messagesConfirmedCount.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+	}
+}
+
+func (m *metrics) ObserveSubscriptionsCount(action string) {
+	if m != nil {
+		m.subscriptionsCount.With(prometheus.Labels{"action": action}).Inc()
 	}
 }
 

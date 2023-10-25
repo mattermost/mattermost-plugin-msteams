@@ -113,6 +113,11 @@ func (_m *Metrics) ObserveStoreMethodDuration(method string, success string, ela
 	_m.Called(method, success, elapsed)
 }
 
+// ObserveSubscriptionsCount provides a mock function with given fields: action
+func (_m *Metrics) ObserveSubscriptionsCount(action string) {
+	_m.Called(action)
+}
+
 // ObserveSyntheticUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveSyntheticUsers(count int64) {
 	_m.Called(count)

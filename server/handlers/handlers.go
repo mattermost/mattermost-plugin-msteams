@@ -137,6 +137,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
+			ah.plugin.GetMetrics().ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}

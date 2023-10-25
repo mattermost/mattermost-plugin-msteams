@@ -381,6 +381,7 @@ func TestProcessLifecycle(t *testing.T) {
 		SetupAPI           func(*plugintest.API)
 		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
 		SetupStore         func(*storemocks.Store)
+		SetupMetrics       func(mockmetrics *metricsmocks.Metrics)
 		RequestBody        string
 		ExpectedStatusCode int
 		ExpectedResult     string
@@ -390,6 +391,7 @@ func TestProcessLifecycle(t *testing.T) {
 			SetupAPI:        func(api *plugintest.API) {},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:      func(store *storemocks.Store) {},
+			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
 			ValidationToken: "mockValidationToken",
 			RequestBody: `{
 				"Value": [{
@@ -406,6 +408,7 @@ func TestProcessLifecycle(t *testing.T) {
 			SetupAPI:           func(api *plugintest.API) {},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:         func(store *storemocks.Store) {},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			RequestBody:        `{`,
 			ExpectedStatusCode: http.StatusBadRequest,
 			ExpectedResult:     "unable to get the lifecycle events from the message\n",
@@ -415,8 +418,10 @@ func TestProcessLifecycle(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Invalid webhook secret received in lifecycle event").Times(1)
 			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
+			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:   func(store *storemocks.Store) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+
 			RequestBody: `{
 				"Value": [{
 				"Resource": "mockResource",
@@ -437,6 +442,7 @@ func TestProcessLifecycle(t *testing.T) {
 				}, nil).Once()
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
 			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
 			RequestBody: `{
 				"Value": [{
 				"SubscriptionID": "mockID",
@@ -460,6 +466,9 @@ func TestProcessLifecycle(t *testing.T) {
 				}, nil).Once()
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
 				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
 			},
 			RequestBody: `{
 				"Value": [{
@@ -485,6 +494,7 @@ func TestProcessLifecycle(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
 			if test.ValidationToken != "" {
