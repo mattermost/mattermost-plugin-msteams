@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExecuteUnlinkCommand(t *testing.T) {
@@ -833,7 +834,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 func TestExecuteConnectCommand(t *testing.T) {
 	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
-	mutex, _ := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	mutex, err := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	require.Nil(t, err)
 	p.whitelistClusterMutex = mutex
 
 	for _, testCase := range []struct {
@@ -966,7 +968,8 @@ func TestExecuteConnectCommand(t *testing.T) {
 func TestExecuteConnectBotCommand(t *testing.T) {
 	p := newTestPlugin(t)
 	mockAPI := &plugintest.API{}
-	mutex, _ := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	mutex, err := cluster.NewMutex(mockAPI, whitelistClusterMutexKey)
+	require.Nil(t, err)
 	p.whitelistClusterMutex = mutex
 
 	for _, testCase := range []struct {

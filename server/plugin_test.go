@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -499,8 +500,10 @@ func TestStart(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
 			p.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventQueueCapacity", int64(5000)).Times(1)
-			subscriptionsMutex, _ := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
-			whitelistMutex, _ := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+			subscriptionsMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
+			require.Nil(t, err)
+			whitelistMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+			require.Nil(t, err)
 			p.subscriptionsClusterMutex = subscriptionsMutex
 			p.whitelistClusterMutex = whitelistMutex
 			test.SetupAPI(p.API.(*plugintest.API))

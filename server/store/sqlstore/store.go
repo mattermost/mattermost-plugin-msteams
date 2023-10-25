@@ -356,26 +356,7 @@ func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
 }
 
 func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
-	tx, err := s.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := s.RollbackTx(tx); err != nil {
-				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
-			}
-			return
-		}
-
-		if err := s.CommitTx(tx); err != nil {
-			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
-		}
-	}()
-
-	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE")
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -383,42 +364,23 @@ func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storem
 		MSTeamsChannel: chatID,
 	}
 
-	if txErr = row.Scan(&postInfo.MattermostID, &lastUpdateAt); txErr != nil {
-		return nil, txErr
+	if err := row.Scan(&postInfo.MattermostID, &lastUpdateAt); err != nil {
+		return nil, err
 	}
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
 	return &postInfo, nil
 }
 
 func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error) {
-	tx, err := s.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := s.RollbackTx(tx); err != nil {
-				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
-			}
-			return
-		}
-
-		if err := s.CommitTx(tx); err != nil {
-			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
-		}
-	}()
-
-	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE").RunWith(tx)
+	query := s.getQueryBuilder().Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE")
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
 		MattermostID: postID,
 	}
 
-	if txErr = row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt); txErr != nil {
-		return nil, txErr
+	if err := row.Scan(&postInfo.MSTeamsID, &postInfo.MSTeamsChannel, &lastUpdateAt); err != nil {
+		return nil, err
 	}
 
 	postInfo.MSTeamsLastUpdateAt = time.UnixMicro(lastUpdateAt)
@@ -740,30 +702,11 @@ func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
 }
 
 func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	tx, err := s.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := s.RollbackTx(tx); err != nil {
-				s.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
-			}
-			return
-		}
-
-		if err := s.CommitTx(tx); err != nil {
-			s.api.LogWarn("Unable to commit database transaction", "error", err.Error())
-		}
-	}()
-
 	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
-	if txErr = row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); txErr != nil {
-		return nil, txErr
+	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn); err != nil {
+		return nil, err
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
@@ -1029,9 +972,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 			}
 
 			if err := s.StoreUserInWhitelist(nil, connectedUserID); err != nil {
-				if !(strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value")) {
-					s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
-				}
+				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
 			}
 		}
 
@@ -1073,14 +1014,20 @@ func (s *SQLStore) GetSizeOfWhitelist(tx *sql.Tx) (int, error) {
 
 func (s *SQLStore) StoreUserInWhitelist(tx *sql.Tx, userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
+	var err error
 	if tx == nil {
-		if _, err := query.Exec(); err != nil {
-			return err
-		}
+		_, err = query.Exec()
 	} else {
-		if _, err := query.RunWith(tx).Exec(); err != nil {
-			return err
+		_, err = query.RunWith(tx).Exec()
+	}
+	if err != nil {
+		// We are checking two different strings here as the error is different for MySQL and Postgres
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key value") {
+			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
+			return nil
 		}
+
+		return err
 	}
 
 	return nil
