@@ -358,6 +358,8 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	go func() {
+		p.whitelistClusterMutex.Lock()
+		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
 			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
 		}

@@ -1077,8 +1077,6 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 func (s *SQLStore) PrefillWhitelist() error {
 	page := 0
 	perPage := 100
-
-	// TODO: Explore whether we need to lock the whitelist here and how to do it
 	for {
 		query := s.getQueryBuilder().Select("mmuserid").From(usersTableName).Where(sq.NotEq{"token": ""}).Offset(uint64(page * perPage)).Limit(uint64(perPage))
 		rows, err := query.Query()
