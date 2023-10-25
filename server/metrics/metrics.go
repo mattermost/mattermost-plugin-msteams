@@ -38,7 +38,6 @@ type Metrics interface {
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 
-	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
 	ObserveLifecycleEventTotal(lifecycleEventType string)
 	ObserveMessagesCount(action, source string, isDirectMessage bool)
@@ -79,7 +78,6 @@ type metrics struct {
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
 
-	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
 	processedChangeEventTotal *prometheus.CounterVec
 	messagesCount             *prometheus.CounterVec
@@ -162,15 +160,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
-
-	m.changeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemEvents,
-		Name:        "change_event_total",
-		Help:        "The total number of MS Teams change events received.",
-		ConstLabels: additionalLabels,
-	}, []string{"change_type"})
-	m.registry.MustRegister(m.changeEventTotal)
 
 	m.processedChangeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -326,12 +315,6 @@ func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string,
 func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
 		m.connectedUsers.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveChangeEventTotal(changeType string) {
-	if m != nil {
-		m.changeEventTotal.With(prometheus.Labels{"change_type": changeType}).Inc()
 	}
 }
 

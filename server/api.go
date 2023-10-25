@@ -114,7 +114,6 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
-		a.p.GetMetrics().ObserveChangeEventTotal(activity.ChangeType)
 		if err := a.p.activityHandler.Handle(activity); err != nil {
 			a.p.API.LogError("Unable to process created activity", "activity", activity, "error", err.Error())
 			errors += err.Error() + "\n"
