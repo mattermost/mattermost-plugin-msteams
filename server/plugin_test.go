@@ -11,6 +11,8 @@ import (
 
 	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
+	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
@@ -46,6 +48,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
+		metricsService: &metricsmocks.Metrics{},
 	}
 	plugin.store.(*storemocks.Store).Test(t)
 
@@ -81,6 +84,10 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
+	// TODO: Add separate mocks for each test later.
+	plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPRequests")
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveAPIEndpointDuration", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("float64"))
+
 	plugin.API.(*plugintest.API).Test(t)
 	_ = plugin.OnActivate()
 	plugin.userID = "bot-user-id"
@@ -123,14 +130,15 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
+	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
-	}, (*sql.Tx)(nil)).Return(nil).Times(1)
+	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*msteams.Attachment(nil), []models.ChatMessageMentionable{}).Return(&msteams.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 
 	plugin.MessageHasBeenPosted(nil, &post)
 }
@@ -304,10 +312,11 @@ func TestGetClientForTeamsUser(t *testing.T) {
 
 func TestSyncUsers(t *testing.T) {
 	for _, test := range []struct {
-		Name        string
-		SetupAPI    func(*plugintest.API)
-		SetupStore  func(*storemocks.Store)
-		SetupClient func(*mocks.Client)
+		Name         string
+		SetupAPI     func(*plugintest.API)
+		SetupStore   func(*storemocks.Store)
+		SetupClient  func(*mocks.Client)
+		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
 			Name: "SyncUsers: Unable to get the MS Teams user list",
@@ -318,6 +327,7 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return(nil, errors.New("unable to get the user list")).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
 		},
 		{
 			Name: "SyncUsers: Unable to get the MM users",
@@ -336,6 +346,9 @@ func TestSyncUsers(t *testing.T) {
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -358,6 +371,9 @@ func TestSyncUsers(t *testing.T) {
 						DisplayName: "mockDisplayName",
 					},
 				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
 		{
@@ -385,6 +401,9 @@ func TestSyncUsers(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
+			},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -392,6 +411,7 @@ func TestSyncUsers(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
+			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.syncUsers()
 		})
 	}
@@ -478,6 +498,7 @@ func TestStart(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
+			p.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventQueueCapacity", int64(5000)).Times(1)
 			subscriptionsMutex, _ := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 			whitelistMutex, _ := cluster.NewMutex(p.API, whitelistClusterMutexKey)
 			p.subscriptionsClusterMutex = subscriptionsMutex
