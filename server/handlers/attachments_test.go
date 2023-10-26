@@ -274,7 +274,7 @@ func TestHandleAttachments(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Times(1)
 				p.On("GetAPI").Return(mockAPI).Times(2)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
-				p.On("GetMetrics").Return(mockmetrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -324,7 +324,7 @@ func TestHandleAttachments(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetAPI").Return(mockAPI).Times(3)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
-				p.On("GetMetrics").Return(mockmetrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -355,7 +355,7 @@ func TestHandleAttachments(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetAPI").Return(mockAPI)
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(10)
-				p.On("GetMetrics").Return(mockmetrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -384,7 +384,7 @@ func TestHandleAttachments(t *testing.T) {
 			description: "Attachment type code snippet",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client)
-				p.On("GetMetrics").Return(mockmetrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("GetConfig").Return(&model.Config{
@@ -410,7 +410,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Attachment type message reference",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetMetrics").Return(mockmetrics).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("GetClientForApp").Return(client)
 				p.On("GetStore").Return(store, nil)
 				p.On("GetAPI").Return(mockAPI)

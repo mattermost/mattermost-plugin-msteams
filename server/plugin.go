@@ -302,6 +302,10 @@ func (p *Plugin) OnActivate() error {
 
 		// run metrics server to expose data
 		p.runMetricsServer()
+	} else {
+		// Give metricsService a concrete, but nil value, making the interface itself
+		// not-nil and safe to use without `metrics != nil` checks everywhere.
+		p.metricsService = metrics.NilMetrics()
 	}
 
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
