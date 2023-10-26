@@ -58,8 +58,8 @@ func (_m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
 	_m.Called(count)
 }
 
-// ObserveChangeEventRejectedTotal provides a mock function with given fields:
-func (_m *Metrics) ObserveChangeEventRejectedTotal() {
+// ObserveChangeEventQueueRejectedTotal provides a mock function with given fields:
+func (_m *Metrics) ObserveChangeEventQueueRejectedTotal() {
 	_m.Called()
 }
 

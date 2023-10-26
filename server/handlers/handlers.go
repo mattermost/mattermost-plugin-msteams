@@ -129,16 +129,16 @@ func (ah *ActivityHandler) Stop() {
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	metrics := ah.plugin.GetMetrics()
-	if len(ah.queue) >= activityQueueSize {
+	select {
+	case ah.queue <- activity:
 		if metrics != nil {
-			metrics.ObserveChangeEventRejectedTotal()
+			metrics.IncrementChangeEventQueueLength(activity.ChangeType)
+		}
+	default:
+		if metrics != nil {
+			metrics.ObserveChangeEventQueueRejectedTotal()
 		}
 		return errors.New("activity queue size full")
-	}
-
-	ah.queue <- activity
-	if metrics != nil {
-		metrics.IncrementChangeEventQueueLength(activity.ChangeType)
 	}
 
 	return nil

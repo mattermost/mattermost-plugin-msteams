@@ -37,7 +37,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
-	ObserveChangeEventRejectedTotal()
+	ObserveChangeEventQueueRejectedTotal()
 
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
@@ -77,9 +77,9 @@ type metrics struct {
 	msGraphClientTime    *prometheus.HistogramVec
 	storeTimesHistograms *prometheus.HistogramVec
 
-	httpRequestsTotal        prometheus.Counter
-	httpErrorsTotal          prometheus.Counter
-	changeEventRejectedTotal prometheus.Counter
+	httpRequestsTotal             prometheus.Counter
+	httpErrorsTotal               prometheus.Counter
+	changeEventQueueRejectedTotal prometheus.Counter
 
 	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
@@ -155,14 +155,14 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
 
-	m.changeEventRejectedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+	m.changeEventQueueRejectedTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
-		Name:        "change_event_rejected_total",
+		Name:        "change_event_queue_rejected_total",
 		Help:        "The total number of change events rejected due to the activity queue size being full.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.changeEventRejectedTotal)
+	m.registry.MustRegister(m.changeEventQueueRejectedTotal)
 
 	m.changeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -413,9 +413,9 @@ func (m *metrics) IncrementHTTPErrors() {
 	}
 }
 
-func (m *metrics) ObserveChangeEventRejectedTotal() {
+func (m *metrics) ObserveChangeEventQueueRejectedTotal() {
 	if m != nil {
-		m.changeEventRejectedTotal.Inc()
+		m.changeEventQueueRejectedTotal.Inc()
 	}
 }
 
