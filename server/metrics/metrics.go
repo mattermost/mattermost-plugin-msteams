@@ -30,6 +30,26 @@ const (
 	SubscriptionRefreshed   = "refreshed"
 	SubscriptionConnected   = "connected"
 	SubscriptionReconnected = "reconnected"
+
+	DiscardedReasonNone                      = ""
+	DiscardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
+	DiscardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
+	DiscardedReasonInvalidChangeType         = "invalid_change_type"
+	DiscardedReasonIsBotUser                 = "is_bot_user"
+	DiscardedReasonUnableToGetTeamsData      = "unable_to_get_teams_data"
+	DiscardedReasonNotUserEvent              = "no_user_event"
+	DiscardedReasonOther                     = "other"
+	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
+	DiscardedReasonInactiveUser              = "inactive_user"
+	DiscardedReasonDuplicatedPost            = "duplicated_post"
+	DiscardedReasonAlreadyAppliedChange      = "already_applied_change"
+	DiscardedReasonFileLimitReached          = "file_limit_reached"
+	DiscardedReasonEmptyFileID               = "empty_file_id"
+	DiscardedReasonMaxFileSizeExceeded       = "max_file_size_exceeded"
+	DiscardedReasonExpiredSubscription       = "expired_subscription"
+	DiscardedReasonInvalidWebhookSecret      = "invalid_webhook_secret"
+	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
+	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
 )
 
 type Metrics interface {
