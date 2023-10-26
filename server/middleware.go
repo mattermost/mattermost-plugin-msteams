@@ -20,8 +20,8 @@ func (r *StatusRecorder) WriteHeader(status int) {
 
 func (a *API) metricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a.p.metricsService != nil {
-			a.p.metricsService.IncrementHTTPRequests()
+		if a.p.GetMetrics() != nil {
+			a.p.GetMetrics().IncrementHTTPRequests()
 			recorder := &StatusRecorder{
 				ResponseWriter: w,
 				Status:         http.StatusOK,
@@ -32,7 +32,7 @@ func (a *API) metricsMiddleware(next http.Handler) http.Handler {
 			elapsed := float64(time.Since(now)) / float64(time.Second)
 
 			if recorder.Status < 200 || recorder.Status > 299 {
-				a.p.metricsService.IncrementHTTPErrors()
+				a.p.GetMetrics().IncrementHTTPErrors()
 			}
 
 			var routeMatch mux.RouteMatch
@@ -45,7 +45,7 @@ func (a *API) metricsMiddleware(next http.Handler) http.Handler {
 					endpoint = "unknown"
 				}
 			}
-			a.p.metricsService.ObserveAPIEndpointDuration(endpoint, r.Method, strconv.Itoa(recorder.Status), elapsed)
+			a.p.GetMetrics().ObserveAPIEndpointDuration(endpoint, r.Method, strconv.Itoa(recorder.Status), elapsed)
 		} else {
 			next.ServeHTTP(w, r)
 		}
