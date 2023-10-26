@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -35,6 +36,53 @@ type configuration struct {
 	BufferSizeForFileStreaming int    `json:"bufferSizeForFileStreaming"`
 	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
 	ConnectedUsersAllowed      int    `json:"connectedUsersAllowed"`
+}
+
+func (c *configuration) ProcessConfiguration() {
+	c.TenantID = strings.TrimSpace(c.TenantID)
+	c.ClientID = strings.TrimSpace(c.ClientID)
+	c.ClientSecret = strings.TrimSpace(c.ClientSecret)
+	c.EncryptionKey = strings.TrimSpace(c.EncryptionKey)
+	c.WebhookSecret = strings.TrimSpace(c.WebhookSecret)
+	c.EnabledTeams = strings.TrimSpace(c.EnabledTeams)
+}
+
+func (p *Plugin) validateConfiguration(configuration *configuration) error {
+	configuration.ProcessConfiguration()
+	if configuration.TenantID == "" {
+		return errors.New("tenant ID should not be empty")
+	}
+	if configuration.ClientID == "" {
+		return errors.New("client ID should not be empty")
+	}
+	if configuration.ClientSecret == "" {
+		return errors.New("client secret should not be empty")
+	}
+	if configuration.EncryptionKey == "" {
+		return errors.New("encryption key should not be empty")
+	}
+	if configuration.WebhookSecret == "" {
+		return errors.New("webhook secret should not be empty")
+	}
+	if configuration.MaxSizeForCompleteDownload < 0 {
+		return errors.New("max size for complete single download should not be negative")
+	}
+	if configuration.BufferSizeForFileStreaming <= 0 {
+		return errors.New("buffer size for file streaming should be greater than zero")
+	}
+
+	if p.store != nil {
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		if err != nil {
+			return errors.New("failed to get the size of whitelist from the DB")
+		}
+
+		if configuration.ConnectedUsersAllowed < whitelistSize {
+			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist")
+		}
+	}
+
+	return nil
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if
@@ -108,15 +156,8 @@ func (p *Plugin) OnConfigurationChange() error {
 		return errors.Wrap(err, "failed to load plugin configuration")
 	}
 
-	if p.store != nil {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
-		if err != nil {
-			return errors.New("failed to get the size of whitelist from the DB")
-		}
-
-		if configuration.ConnectedUsersAllowed < whitelistSize {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than the current size of the whitelist")
-		}
+	if err := p.validateConfiguration(configuration); err != nil {
+		return err
 	}
 
 	p.setConfiguration(configuration)

@@ -809,13 +809,13 @@ func (_m *Store) RollbackTx(tx *sql.Tx) error {
 	return r0
 }
 
-// SaveChannelSubscription provides a mock function with given fields: tx, channelSubscription
-func (_m *Store) SaveChannelSubscription(tx *sql.Tx, channelSubscription storemodels.ChannelSubscription) error {
-	ret := _m.Called(tx, channelSubscription)
+// SaveChannelSubscription provides a mock function with given fields: tx, subscription
+func (_m *Store) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
+	ret := _m.Called(tx, subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*sql.Tx, storemodels.ChannelSubscription) error); ok {
-		r0 = rf(tx, channelSubscription)
+		r0 = rf(tx, subscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -823,13 +823,13 @@ func (_m *Store) SaveChannelSubscription(tx *sql.Tx, channelSubscription storemo
 	return r0
 }
 
-// SaveChatSubscription provides a mock function with given fields: chatsubscription
-func (_m *Store) SaveChatSubscription(chatsubscription storemodels.ChatSubscription) error {
-	ret := _m.Called(chatsubscription)
+// SaveChatSubscription provides a mock function with given fields: subscription
+func (_m *Store) SaveChatSubscription(subscription storemodels.ChatSubscription) error {
+	ret := _m.Called(subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.ChatSubscription) error); ok {
-		r0 = rf(chatsubscription)
+		r0 = rf(subscription)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -837,13 +837,13 @@ func (_m *Store) SaveChatSubscription(chatsubscription storemodels.ChatSubscript
 	return r0
 }
 
-// SaveGlobalSubscription provides a mock function with given fields: globalSubscription
-func (_m *Store) SaveGlobalSubscription(globalSubscription storemodels.GlobalSubscription) error {
-	ret := _m.Called(globalSubscription)
+// SaveGlobalSubscription provides a mock function with given fields: subscription
+func (_m *Store) SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error {
+	ret := _m.Called(subscription)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(storemodels.GlobalSubscription) error); ok {
-		r0 = rf(globalSubscription)
+		r0 = rf(subscription)
 	} else {
 		r0 = ret.Error(0)
 	}

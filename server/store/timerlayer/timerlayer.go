@@ -614,10 +614,10 @@ func (s *TimerLayer) RecoverPost(postID string) error {
 	return err
 }
 
-func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, channelSubscription storemodels.ChannelSubscription) error {
+func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
 	start := time.Now()
 
-	err := s.Store.SaveChannelSubscription(tx, channelSubscription)
+	err := s.Store.SaveChannelSubscription(tx, subscription)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -630,10 +630,10 @@ func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, channelSubscription sto
 	return err
 }
 
-func (s *TimerLayer) SaveChatSubscription(chatsubscription storemodels.ChatSubscription) error {
+func (s *TimerLayer) SaveChatSubscription(subscription storemodels.ChatSubscription) error {
 	start := time.Now()
 
-	err := s.Store.SaveChatSubscription(chatsubscription)
+	err := s.Store.SaveChatSubscription(subscription)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -646,10 +646,10 @@ func (s *TimerLayer) SaveChatSubscription(chatsubscription storemodels.ChatSubsc
 	return err
 }
 
-func (s *TimerLayer) SaveGlobalSubscription(globalSubscription storemodels.GlobalSubscription) error {
+func (s *TimerLayer) SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error {
 	start := time.Now()
 
-	err := s.Store.SaveGlobalSubscription(globalSubscription)
+	err := s.Store.SaveGlobalSubscription(subscription)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

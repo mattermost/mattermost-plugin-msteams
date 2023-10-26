@@ -37,9 +37,9 @@ type Store interface {
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
 	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
-	SaveGlobalSubscription(globalSubscription storemodels.GlobalSubscription) error
-	SaveChatSubscription(chatsubscription storemodels.ChatSubscription) error
-	SaveChannelSubscription(tx *sql.Tx, channelSubscription storemodels.ChannelSubscription) error
+	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
+	SaveChatSubscription(subscription storemodels.ChatSubscription) error
+	SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
