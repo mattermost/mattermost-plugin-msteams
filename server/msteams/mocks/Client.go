@@ -5,10 +5,11 @@ package mocks
 import (
 	io "io"
 
-	models "github.com/microsoftgraph/msgraph-sdk-go/models"
+	clientmodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+
 	mock "github.com/stretchr/testify/mock"
 
-	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	models "github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	time "time"
 )
@@ -33,15 +34,15 @@ func (_m *Client) Connect() error {
 }
 
 // CreateOrGetChatForUsers provides a mock function with given fields: usersIDs
-func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (*msteams.Chat, error) {
+func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (*clientmodels.Chat, error) {
 	ret := _m.Called(usersIDs)
 
-	var r0 *msteams.Chat
-	if rf, ok := ret.Get(0).(func([]string) *msteams.Chat); ok {
+	var r0 *clientmodels.Chat
+	if rf, ok := ret.Get(0).(func([]string) *clientmodels.Chat); ok {
 		r0 = rf(usersIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Chat)
+			r0 = ret.Get(0).(*clientmodels.Chat)
 		}
 	}
 
@@ -98,15 +99,15 @@ func (_m *Client) DeleteSubscription(subscriptionID string) error {
 }
 
 // GetChannelInTeam provides a mock function with given fields: teamID, channelID
-func (_m *Client) GetChannelInTeam(teamID string, channelID string) (*msteams.Channel, error) {
+func (_m *Client) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {
 	ret := _m.Called(teamID, channelID)
 
-	var r0 *msteams.Channel
-	if rf, ok := ret.Get(0).(func(string, string) *msteams.Channel); ok {
+	var r0 *clientmodels.Channel
+	if rf, ok := ret.Get(0).(func(string, string) *clientmodels.Channel); ok {
 		r0 = rf(teamID, channelID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Channel)
+			r0 = ret.Get(0).(*clientmodels.Channel)
 		}
 	}
 
@@ -121,15 +122,15 @@ func (_m *Client) GetChannelInTeam(teamID string, channelID string) (*msteams.Ch
 }
 
 // GetChannelsInTeam provides a mock function with given fields: teamID, filterQuery
-func (_m *Client) GetChannelsInTeam(teamID string, filterQuery string) ([]*msteams.Channel, error) {
+func (_m *Client) GetChannelsInTeam(teamID string, filterQuery string) ([]*clientmodels.Channel, error) {
 	ret := _m.Called(teamID, filterQuery)
 
-	var r0 []*msteams.Channel
-	if rf, ok := ret.Get(0).(func(string, string) []*msteams.Channel); ok {
+	var r0 []*clientmodels.Channel
+	if rf, ok := ret.Get(0).(func(string, string) []*clientmodels.Channel); ok {
 		r0 = rf(teamID, filterQuery)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*msteams.Channel)
+			r0 = ret.Get(0).([]*clientmodels.Channel)
 		}
 	}
 
@@ -144,15 +145,15 @@ func (_m *Client) GetChannelsInTeam(teamID string, filterQuery string) ([]*mstea
 }
 
 // GetChat provides a mock function with given fields: chatID
-func (_m *Client) GetChat(chatID string) (*msteams.Chat, error) {
+func (_m *Client) GetChat(chatID string) (*clientmodels.Chat, error) {
 	ret := _m.Called(chatID)
 
-	var r0 *msteams.Chat
-	if rf, ok := ret.Get(0).(func(string) *msteams.Chat); ok {
+	var r0 *clientmodels.Chat
+	if rf, ok := ret.Get(0).(func(string) *clientmodels.Chat); ok {
 		r0 = rf(chatID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Chat)
+			r0 = ret.Get(0).(*clientmodels.Chat)
 		}
 	}
 
@@ -167,15 +168,15 @@ func (_m *Client) GetChat(chatID string) (*msteams.Chat, error) {
 }
 
 // GetChatMessage provides a mock function with given fields: chatID, messageID
-func (_m *Client) GetChatMessage(chatID string, messageID string) (*msteams.Message, error) {
+func (_m *Client) GetChatMessage(chatID string, messageID string) (*clientmodels.Message, error) {
 	ret := _m.Called(chatID, messageID)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string) *clientmodels.Message); ok {
 		r0 = rf(chatID, messageID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -267,11 +268,11 @@ func (_m *Client) GetFileSizeAndDownloadURL(weburl string) (int64, string, error
 }
 
 // GetHostedFileContent provides a mock function with given fields: activityIDs
-func (_m *Client) GetHostedFileContent(activityIDs *msteams.ActivityIds) ([]byte, error) {
+func (_m *Client) GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error) {
 	ret := _m.Called(activityIDs)
 
 	var r0 []byte
-	if rf, ok := ret.Get(0).(func(*msteams.ActivityIds) []byte); ok {
+	if rf, ok := ret.Get(0).(func(*clientmodels.ActivityIds) []byte); ok {
 		r0 = rf(activityIDs)
 	} else {
 		if ret.Get(0) != nil {
@@ -280,7 +281,7 @@ func (_m *Client) GetHostedFileContent(activityIDs *msteams.ActivityIds) ([]byte
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*msteams.ActivityIds) error); ok {
+	if rf, ok := ret.Get(1).(func(*clientmodels.ActivityIds) error); ok {
 		r1 = rf(activityIDs)
 	} else {
 		r1 = ret.Error(1)
@@ -290,15 +291,15 @@ func (_m *Client) GetHostedFileContent(activityIDs *msteams.ActivityIds) ([]byte
 }
 
 // GetMe provides a mock function with given fields:
-func (_m *Client) GetMe() (*msteams.User, error) {
+func (_m *Client) GetMe() (*clientmodels.User, error) {
 	ret := _m.Called()
 
-	var r0 *msteams.User
-	if rf, ok := ret.Get(0).(func() *msteams.User); ok {
+	var r0 *clientmodels.User
+	if rf, ok := ret.Get(0).(func() *clientmodels.User); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.User)
+			r0 = ret.Get(0).(*clientmodels.User)
 		}
 	}
 
@@ -313,15 +314,15 @@ func (_m *Client) GetMe() (*msteams.User, error) {
 }
 
 // GetMessage provides a mock function with given fields: teamID, channelID, messageID
-func (_m *Client) GetMessage(teamID string, channelID string, messageID string) (*msteams.Message, error) {
+func (_m *Client) GetMessage(teamID string, channelID string, messageID string) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, messageID)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, messageID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -357,15 +358,15 @@ func (_m *Client) GetMyID() (string, error) {
 }
 
 // GetReply provides a mock function with given fields: teamID, channelID, messageID, replyID
-func (_m *Client) GetReply(teamID string, channelID string, messageID string, replyID string) (*msteams.Message, error) {
+func (_m *Client) GetReply(teamID string, channelID string, messageID string, replyID string) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, messageID, replyID)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, messageID, replyID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -380,15 +381,15 @@ func (_m *Client) GetReply(teamID string, channelID string, messageID string, re
 }
 
 // GetTeam provides a mock function with given fields: teamID
-func (_m *Client) GetTeam(teamID string) (*msteams.Team, error) {
+func (_m *Client) GetTeam(teamID string) (*clientmodels.Team, error) {
 	ret := _m.Called(teamID)
 
-	var r0 *msteams.Team
-	if rf, ok := ret.Get(0).(func(string) *msteams.Team); ok {
+	var r0 *clientmodels.Team
+	if rf, ok := ret.Get(0).(func(string) *clientmodels.Team); ok {
 		r0 = rf(teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Team)
+			r0 = ret.Get(0).(*clientmodels.Team)
 		}
 	}
 
@@ -403,15 +404,15 @@ func (_m *Client) GetTeam(teamID string) (*msteams.Team, error) {
 }
 
 // GetTeams provides a mock function with given fields: filterQuery
-func (_m *Client) GetTeams(filterQuery string) ([]*msteams.Team, error) {
+func (_m *Client) GetTeams(filterQuery string) ([]*clientmodels.Team, error) {
 	ret := _m.Called(filterQuery)
 
-	var r0 []*msteams.Team
-	if rf, ok := ret.Get(0).(func(string) []*msteams.Team); ok {
+	var r0 []*clientmodels.Team
+	if rf, ok := ret.Get(0).(func(string) []*clientmodels.Team); ok {
 		r0 = rf(filterQuery)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*msteams.Team)
+			r0 = ret.Get(0).([]*clientmodels.Team)
 		}
 	}
 
@@ -426,15 +427,15 @@ func (_m *Client) GetTeams(filterQuery string) ([]*msteams.Team, error) {
 }
 
 // GetUser provides a mock function with given fields: userID
-func (_m *Client) GetUser(userID string) (*msteams.User, error) {
+func (_m *Client) GetUser(userID string) (*clientmodels.User, error) {
 	ret := _m.Called(userID)
 
-	var r0 *msteams.User
-	if rf, ok := ret.Get(0).(func(string) *msteams.User); ok {
+	var r0 *clientmodels.User
+	if rf, ok := ret.Get(0).(func(string) *clientmodels.User); ok {
 		r0 = rf(userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.User)
+			r0 = ret.Get(0).(*clientmodels.User)
 		}
 	}
 
@@ -472,15 +473,15 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 }
 
 // ListChannels provides a mock function with given fields: teamID
-func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
+func (_m *Client) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	ret := _m.Called(teamID)
 
-	var r0 []msteams.Channel
-	if rf, ok := ret.Get(0).(func(string) []msteams.Channel); ok {
+	var r0 []clientmodels.Channel
+	if rf, ok := ret.Get(0).(func(string) []clientmodels.Channel); ok {
 		r0 = rf(teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.Channel)
+			r0 = ret.Get(0).([]clientmodels.Channel)
 		}
 	}
 
@@ -495,15 +496,15 @@ func (_m *Client) ListChannels(teamID string) ([]msteams.Channel, error) {
 }
 
 // ListSubscriptions provides a mock function with given fields:
-func (_m *Client) ListSubscriptions() ([]*msteams.Subscription, error) {
+func (_m *Client) ListSubscriptions() ([]*clientmodels.Subscription, error) {
 	ret := _m.Called()
 
-	var r0 []*msteams.Subscription
-	if rf, ok := ret.Get(0).(func() []*msteams.Subscription); ok {
+	var r0 []*clientmodels.Subscription
+	if rf, ok := ret.Get(0).(func() []*clientmodels.Subscription); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*msteams.Subscription)
+			r0 = ret.Get(0).([]*clientmodels.Subscription)
 		}
 	}
 
@@ -518,15 +519,15 @@ func (_m *Client) ListSubscriptions() ([]*msteams.Subscription, error) {
 }
 
 // ListTeams provides a mock function with given fields:
-func (_m *Client) ListTeams() ([]msteams.Team, error) {
+func (_m *Client) ListTeams() ([]clientmodels.Team, error) {
 	ret := _m.Called()
 
-	var r0 []msteams.Team
-	if rf, ok := ret.Get(0).(func() []msteams.Team); ok {
+	var r0 []clientmodels.Team
+	if rf, ok := ret.Get(0).(func() []clientmodels.Team); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.Team)
+			r0 = ret.Get(0).([]clientmodels.Team)
 		}
 	}
 
@@ -541,15 +542,15 @@ func (_m *Client) ListTeams() ([]msteams.Team, error) {
 }
 
 // ListUsers provides a mock function with given fields:
-func (_m *Client) ListUsers() ([]msteams.User, error) {
+func (_m *Client) ListUsers() ([]clientmodels.User, error) {
 	ret := _m.Called()
 
-	var r0 []msteams.User
-	if rf, ok := ret.Get(0).(func() []msteams.User); ok {
+	var r0 []clientmodels.User
+	if rf, ok := ret.Get(0).(func() []clientmodels.User); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]msteams.User)
+			r0 = ret.Get(0).([]clientmodels.User)
 		}
 	}
 
@@ -587,20 +588,20 @@ func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error)
 }
 
 // SendChat provides a mock function with given fields: chatID, message, parentMessage, attachments, mentions
-func (_m *Client) SendChat(chatID string, message string, parentMessage *msteams.Message, attachments []*msteams.Attachment, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+func (_m *Client) SendChat(chatID string, message string, parentMessage *clientmodels.Message, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	ret := _m.Called(chatID, message, parentMessage, attachments, mentions)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, *msteams.Message, []*msteams.Attachment, []models.ChatMessageMentionable) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, *clientmodels.Message, []*clientmodels.Attachment, []models.ChatMessageMentionable) *clientmodels.Message); ok {
 		r0 = rf(chatID, message, parentMessage, attachments, mentions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, *msteams.Message, []*msteams.Attachment, []models.ChatMessageMentionable) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, *clientmodels.Message, []*clientmodels.Attachment, []models.ChatMessageMentionable) error); ok {
 		r1 = rf(chatID, message, parentMessage, attachments, mentions)
 	} else {
 		r1 = ret.Error(1)
@@ -610,15 +611,15 @@ func (_m *Client) SendChat(chatID string, message string, parentMessage *msteams
 }
 
 // SendMessage provides a mock function with given fields: teamID, channelID, parentID, message
-func (_m *Client) SendMessage(teamID string, channelID string, parentID string, message string) (*msteams.Message, error) {
+func (_m *Client) SendMessage(teamID string, channelID string, parentID string, message string) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, message)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, parentID, message)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -633,20 +634,20 @@ func (_m *Client) SendMessage(teamID string, channelID string, parentID string, 
 }
 
 // SendMessageWithAttachments provides a mock function with given fields: teamID, channelID, parentID, message, attachments, mentions
-func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []*msteams.Attachment, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, message, attachments, mentions)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string, []*msteams.Attachment, []models.ChatMessageMentionable) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, []*clientmodels.Attachment, []models.ChatMessageMentionable) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, parentID, message, attachments, mentions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, string, []*msteams.Attachment, []models.ChatMessageMentionable) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, string, string, []*clientmodels.Attachment, []models.ChatMessageMentionable) error); ok {
 		r1 = rf(teamID, channelID, parentID, message, attachments, mentions)
 	} else {
 		r1 = ret.Error(1)
@@ -656,15 +657,15 @@ func (_m *Client) SendMessageWithAttachments(teamID string, channelID string, pa
 }
 
 // SetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
-func (_m *Client) SetChatReaction(chatID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
+func (_m *Client) SetChatReaction(chatID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
 	ret := _m.Called(chatID, messageID, userID, emoji)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(chatID, messageID, userID, emoji)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -679,15 +680,15 @@ func (_m *Client) SetChatReaction(chatID string, messageID string, userID string
 }
 
 // SetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
-func (_m *Client) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
+func (_m *Client) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -702,15 +703,15 @@ func (_m *Client) SetReaction(teamID string, channelID string, parentID string, 
 }
 
 // SubscribeToChannel provides a mock function with given fields: teamID, channelID, baseURL, webhookSecret, certificate
-func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string, certificate string) (*msteams.Subscription, error) {
+func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string, certificate string) (*clientmodels.Subscription, error) {
 	ret := _m.Called(teamID, channelID, baseURL, webhookSecret, certificate)
 
-	var r0 *msteams.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string) *msteams.Subscription); ok {
+	var r0 *clientmodels.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string) *clientmodels.Subscription); ok {
 		r0 = rf(teamID, channelID, baseURL, webhookSecret, certificate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Subscription)
+			r0 = ret.Get(0).(*clientmodels.Subscription)
 		}
 	}
 
@@ -725,15 +726,15 @@ func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL st
 }
 
 // SubscribeToChannels provides a mock function with given fields: baseURL, webhookSecret, pay, certificate
-func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool, certificate string) (*msteams.Subscription, error) {
+func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	ret := _m.Called(baseURL, webhookSecret, pay, certificate)
 
-	var r0 *msteams.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, bool, string) *msteams.Subscription); ok {
+	var r0 *clientmodels.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, bool, string) *clientmodels.Subscription); ok {
 		r0 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Subscription)
+			r0 = ret.Get(0).(*clientmodels.Subscription)
 		}
 	}
 
@@ -748,15 +749,15 @@ func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay 
 }
 
 // SubscribeToChats provides a mock function with given fields: baseURL, webhookSecret, pay, certificate
-func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool, certificate string) (*msteams.Subscription, error) {
+func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	ret := _m.Called(baseURL, webhookSecret, pay, certificate)
 
-	var r0 *msteams.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, bool, string) *msteams.Subscription); ok {
+	var r0 *clientmodels.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, bool, string) *clientmodels.Subscription); ok {
 		r0 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Subscription)
+			r0 = ret.Get(0).(*clientmodels.Subscription)
 		}
 	}
 
@@ -771,15 +772,15 @@ func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay boo
 }
 
 // SubscribeToUserChats provides a mock function with given fields: user, baseURL, webhookSecret, pay, certificate
-func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool, certificate string) (*msteams.Subscription, error) {
+func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	ret := _m.Called(user, baseURL, webhookSecret, pay, certificate)
 
-	var r0 *msteams.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, string, bool, string) *msteams.Subscription); ok {
+	var r0 *clientmodels.Subscription
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string) *clientmodels.Subscription); ok {
 		r0 = rf(user, baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Subscription)
+			r0 = ret.Get(0).(*clientmodels.Subscription)
 		}
 	}
 
@@ -794,15 +795,15 @@ func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecre
 }
 
 // UnsetChatReaction provides a mock function with given fields: chatID, messageID, userID, emoji
-func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
+func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
 	ret := _m.Called(chatID, messageID, userID, emoji)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(chatID, messageID, userID, emoji)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -817,15 +818,15 @@ func (_m *Client) UnsetChatReaction(chatID string, messageID string, userID stri
 }
 
 // UnsetReaction provides a mock function with given fields: teamID, channelID, parentID, messageID, userID, emoji
-func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*msteams.Message, error) {
+func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, messageID, userID, emoji)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, string) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, parentID, messageID, userID, emoji)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -840,15 +841,15 @@ func (_m *Client) UnsetReaction(teamID string, channelID string, parentID string
 }
 
 // UpdateChatMessage provides a mock function with given fields: chatID, msgID, message, mentions
-func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	ret := _m.Called(chatID, msgID, message, mentions)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, []models.ChatMessageMentionable) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, []models.ChatMessageMentionable) *clientmodels.Message); ok {
 		r0 = rf(chatID, msgID, message, mentions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -863,15 +864,15 @@ func (_m *Client) UpdateChatMessage(chatID string, msgID string, message string,
 }
 
 // UpdateMessage provides a mock function with given fields: teamID, channelID, parentID, msgID, message, mentions
-func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*msteams.Message, error) {
+func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	ret := _m.Called(teamID, channelID, parentID, msgID, message, mentions)
 
-	var r0 *msteams.Message
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string, []models.ChatMessageMentionable) *msteams.Message); ok {
+	var r0 *clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string, []models.ChatMessageMentionable) *clientmodels.Message); ok {
 		r0 = rf(teamID, channelID, parentID, msgID, message, mentions)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Message)
+			r0 = ret.Get(0).(*clientmodels.Message)
 		}
 	}
 
@@ -886,20 +887,20 @@ func (_m *Client) UpdateMessage(teamID string, channelID string, parentID string
 }
 
 // UploadFile provides a mock function with given fields: teamID, channelID, filename, filesize, mimeType, data, chat
-func (_m *Client) UploadFile(teamID string, channelID string, filename string, filesize int, mimeType string, data io.Reader, chat *msteams.Chat) (*msteams.Attachment, error) {
+func (_m *Client) UploadFile(teamID string, channelID string, filename string, filesize int, mimeType string, data io.Reader, chat *clientmodels.Chat) (*clientmodels.Attachment, error) {
 	ret := _m.Called(teamID, channelID, filename, filesize, mimeType, data, chat)
 
-	var r0 *msteams.Attachment
-	if rf, ok := ret.Get(0).(func(string, string, string, int, string, io.Reader, *msteams.Chat) *msteams.Attachment); ok {
+	var r0 *clientmodels.Attachment
+	if rf, ok := ret.Get(0).(func(string, string, string, int, string, io.Reader, *clientmodels.Chat) *clientmodels.Attachment); ok {
 		r0 = rf(teamID, channelID, filename, filesize, mimeType, data, chat)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*msteams.Attachment)
+			r0 = ret.Get(0).(*clientmodels.Attachment)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, int, string, io.Reader, *msteams.Chat) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, string, int, string, io.Reader, *clientmodels.Chat) error); ok {
 		r1 = rf(teamID, channelID, filename, filesize, mimeType, data, chat)
 	} else {
 		r1 = ret.Error(1)

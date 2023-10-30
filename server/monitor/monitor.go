@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/plugin"
@@ -16,6 +17,7 @@ type Monitor struct {
 	client           msteams.Client
 	store            store.Store
 	api              plugin.API
+	metrics          metrics.Metrics
 	job              *cluster.Job
 	baseURL          string
 	webhookSecret    string
@@ -23,11 +25,12 @@ type Monitor struct {
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
 		api:              api,
+		metrics:          metrics,
 		baseURL:          baseURL,
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,

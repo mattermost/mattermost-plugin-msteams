@@ -25,7 +25,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
+	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -34,16 +37,20 @@ import (
 )
 
 const (
-	botUsername           = "msteams"
-	botDisplayName        = "MS Teams"
-	pluginID              = "com.mattermost.msteams-sync"
-	clusterMutexKey       = "subscriptions_cluster_mutex"
-	lastReceivedChangeKey = "last_received_change"
-	msteamsUserTypeGuest  = "Guest"
-	syncUsersJobName      = "sync_users"
+	botUsername                  = "msteams"
+	botDisplayName               = "MS Teams"
+	pluginID                     = "com.mattermost.msteams-sync"
+	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
+	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	lastReceivedChangeKey        = "last_received_change"
+	msteamsUserTypeGuest         = "Guest"
+	syncUsersJobName             = "sync_users"
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
+
+	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
+	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -66,15 +73,16 @@ type Plugin struct {
 	userID    string
 	apiClient *pluginapi.Client
 
-	store        store.Store
-	clusterMutex *cluster.Mutex
-	monitor      *monitor.Monitor
-	syncUserJob  *cluster.Job
+	store                     store.Store
+	subscriptionsClusterMutex *cluster.Mutex
+	whitelistClusterMutex     *cluster.Mutex
+	monitor                   *monitor.Monitor
+	syncUserJob               *cluster.Job
 
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
-	metricsService         *metrics.Metrics
+	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
 }
 
@@ -87,7 +95,7 @@ func (p *Plugin) GetAPI() plugin.API {
 	return p.API
 }
 
-func (p *Plugin) GetMetrics() *metrics.Metrics {
+func (p *Plugin) GetMetrics() metrics.Metrics {
 	return p.metricsService
 }
 
@@ -132,7 +140,8 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.metricsService), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -141,7 +150,8 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.metricsService), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -149,12 +159,14 @@ func (p *Plugin) connectTeamsAppClient() error {
 	defer p.msteamsAppClientMutex.Unlock()
 
 	if p.msteamsAppClient == nil {
-		p.msteamsAppClient = msteams.NewApp(
+		msteamsAppClient := msteams.NewApp(
 			p.getConfiguration().TenantID,
 			p.getConfiguration().ClientID,
 			p.getConfiguration().ClientSecret,
 			&p.apiClient.Log,
 		)
+
+		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.metricsService)
 	}
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
@@ -168,12 +180,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
-		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
-			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
-		})
-
-		// run metrics server to expose data
-		p.runMetricsServer()
 		// run metrics updater recurring task
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
 	}
@@ -185,7 +191,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.metricsService, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -327,6 +333,17 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
+	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
+
+	if enableMetrics != nil && *enableMetrics {
+		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
+			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		})
+
+		// run metrics server to expose data
+		p.runMetricsServer()
+	}
+
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
 	if appErr != nil {
 		return appErr
@@ -347,10 +364,18 @@ func (p *Plugin) OnActivate() error {
 
 	p.activityHandler = handlers.New(p)
 
-	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
+	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
 		return err
 	}
+	p.subscriptionsClusterMutex = subscriptionsClusterMutex
+
+	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	if err != nil {
+		return err
+	}
+	p.whitelistClusterMutex = whitelistClusterMutex
+
 	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
@@ -360,30 +385,41 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
-	p.clusterMutex = clusterMutex
 
-	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if err != nil {
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
 		return err
 	}
 
 	if p.store == nil {
-		db, err := p.apiClient.Store.GetMasterDB()
-		if err != nil {
-			return err
+		db, dbErr := p.apiClient.Store.GetMasterDB()
+		if dbErr != nil {
+			return dbErr
 		}
 
-		p.store = store.New(
+		store := sqlstore.New(
 			db,
 			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
-		if err := p.store.Init(); err != nil {
+		p.store = timerlayer.New(store, p.metricsService)
+		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
+
+	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
+		return err
+	}
+
+	go func() {
+		p.whitelistClusterMutex.Lock()
+		defer p.whitelistClusterMutex.Unlock()
+		if err := p.store.PrefillWhitelist(); err != nil {
+			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
+		}
+	}()
 
 	go p.start(lastRecivedChange)
 	return nil
@@ -431,14 +467,15 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
+	if p.metricsService != nil {
+		p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
+	}
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
-	p.API.LogDebug("Count of MM users", "count", len(mmUsers))
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
 	for _, u := range mmUsers {
 		mmUsersMap[u.Email] = u
@@ -450,8 +487,6 @@ func (p *Plugin) syncUsers() {
 		if msUser.Mail == "" {
 			continue
 		}
-
-		p.API.LogDebug("Running sync user job for user", "TeamsUserID", msUser.ID)
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
@@ -494,9 +529,6 @@ func (p *Plugin) syncUsers() {
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 					}
-				} else {
-					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 				}
 
 				continue
@@ -637,9 +669,11 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
-		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
-		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
+		if p.metricsService != nil {
+			p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
+			p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
+			p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
+		}
 	}
 
 	metricsUpdater()

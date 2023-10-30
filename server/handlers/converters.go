@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"golang.org/x/net/html"
 )
@@ -33,10 +33,10 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat, isUpdatedActivity bool) (*model.Post, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
-	var embeddedImages []msteams.Attachment
+	var embeddedImages []clientmodels.Attachment
 	text, embeddedImages = ah.handleImages(text)
 	msg.Attachments = append(msg.Attachments, embeddedImages...)
 	text = markdown.ConvertToMD(text)
@@ -74,7 +74,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 	return post, errorFound
 }
 
-func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
+func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 	userIDVsNames := make(map[string]string)
 	if msg.ChatID != "" {
 		for _, mention := range msg.Mentions {
@@ -157,11 +157,11 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	return text
 }
 
-func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachment) {
+func (ah *ActivityHandler) handleImages(text string) (string, []clientmodels.Attachment) {
 	imageURLs := getImageTagsFromHTML(text)
-	var attachments []msteams.Attachment
+	var attachments []clientmodels.Attachment
 	for _, imageURL := range imageURLs {
-		attachments = append(attachments, msteams.Attachment{
+		attachments = append(attachments, clientmodels.Attachment{
 			ContentURL: imageURL,
 		})
 	}
