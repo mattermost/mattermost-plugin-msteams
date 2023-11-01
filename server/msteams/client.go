@@ -1184,6 +1184,7 @@ func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*clientm
 		Body      struct {
 			Content string
 		}
+		CreatedDateTime      time.Time
 		LastModifiedDateTime time.Time
 		Attachments          []clientmodels.Attachment
 		Mentions             []struct {
@@ -1208,16 +1209,6 @@ func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*clientm
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return nil, err
 	}
-	userID := msg.From.User.ID
-	userDisplayName := msg.From.User.DisplayName
-	replyTo := msg.ReplyToID
-
-	text := msg.Body.Content
-	msgID := msg.ID
-	subject := msg.Subject
-	lastUpdateAt := msg.LastModifiedDateTime
-
-	attachments := msg.Attachments
 
 	mentions := []clientmodels.Mention{}
 	for _, m := range msg.Mentions {
@@ -1239,19 +1230,20 @@ func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*clientm
 	}
 
 	return &clientmodels.Message{
-		ID:              msgID,
-		UserID:          userID,
-		UserDisplayName: userDisplayName,
-		Text:            text,
-		ReplyToID:       replyTo,
-		Subject:         subject,
-		Attachments:     attachments,
+		ID:              msg.ID,
+		UserID:          msg.From.User.ID,
+		UserDisplayName: msg.From.User.DisplayName,
+		Text:            msg.Body.Content,
+		ReplyToID:       msg.ReplyToID,
+		Subject:         msg.Subject,
+		Attachments:     msg.Attachments,
 		Mentions:        mentions,
 		TeamID:          teamID,
 		ChannelID:       channelID,
 		ChatID:          chatID,
 		Reactions:       reactions,
-		LastUpdateAt:    lastUpdateAt,
+		LastUpdateAt:    msg.LastModifiedDateTime,
+		CreateAt:        msg.CreatedDateTime,
 	}, nil
 }
 
