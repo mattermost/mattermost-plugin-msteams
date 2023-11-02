@@ -3,6 +3,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -107,8 +108,13 @@ func (ah *ActivityHandler) Stop() {
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
-	ah.queue <- activity
-	ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
+	select {
+	case ah.queue <- activity:
+		ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
+	default:
+		ah.plugin.GetMetrics().ObserveChangeEventQueueRejectedTotal()
+		return errors.New("activity queue size full")
+	}
 
 	return nil
 }

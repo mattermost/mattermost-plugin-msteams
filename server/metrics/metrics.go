@@ -57,6 +57,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
+	ObserveChangeEventQueueRejectedTotal()
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType string)
@@ -76,7 +77,6 @@ type Metrics interface {
 	DecrementChangeEventQueueLength(changeType string)
 
 	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
-
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -92,7 +92,8 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime           *prometheus.HistogramVec
+	apiTime *prometheus.HistogramVec
+
 	msGraphClientTime *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
@@ -111,18 +112,11 @@ type metrics struct {
 	linkedChannels prometheus.Gauge
 	upstreamUsers  prometheus.Gauge
 
-	changeEventQueueCapacity prometheus.Gauge
-	changeEventQueueLength   *prometheus.GaugeVec
+	changeEventQueueCapacity      prometheus.Gauge
+	changeEventQueueLength        *prometheus.GaugeVec
+	changeEventQueueRejectedTotal prometheus.Counter
 
 	storeTime *prometheus.HistogramVec
-}
-
-// NilMetrics returns the Metrics interface with a concrete, but nil value. Since all methods on
-// the metrics type are safe to call with a nil receiver, this gives the caller a "no-op" version
-// of the metrics interface to use when metrics are disabled.
-func NilMetrics() Metrics {
-	var m *metrics
-	return m
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -299,6 +293,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"change_type"})
 	m.registry.MustRegister(m.changeEventQueueLength)
 
+	m.changeEventQueueRejectedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "change_event_queue_rejected_total",
+		Help:        "The total number of change events rejected due to the activity queue size being full.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.changeEventQueueRejectedTotal)
+
 	m.msGraphClientTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace:   MetricsNamespace,
@@ -413,6 +416,12 @@ func (m *metrics) IncrementHTTPRequests() {
 func (m *metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
+	}
+}
+
+func (m *metrics) ObserveChangeEventQueueRejectedTotal() {
+	if m != nil {
+		m.changeEventQueueRejectedTotal.Inc()
 	}
 }
 
