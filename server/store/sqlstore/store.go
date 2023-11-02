@@ -225,6 +225,10 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
+	if err := s.addColumn(subscriptionsTableName, "certificate", "TEXT DEFAULT ''"); err != nil {
+		return err
+	}
+
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
 }
 
@@ -661,7 +665,7 @@ func (s *SQLStore) SaveGlobalSubscription(subscription storemodels.GlobalSubscri
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.Type, subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, type, secret, expiresOn, certificate").Values(subscription.SubscriptionID, subscription.Type, subscription.Secret, subscription.ExpiresOn.UnixMicro(), subscription.Certificate).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -672,7 +676,7 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsUserID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.UserID, subscriptionTypeUser, subscription.Secret, subscription.ExpiresOn.UnixMicro()).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsUserID, type, secret, expiresOn, certificate").Values(subscription.SubscriptionID, subscription.UserID, subscriptionTypeUser, subscription.Secret, subscription.ExpiresOn.UnixMicro(), subscription.Certificate).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -683,7 +687,7 @@ func (s *SQLStore) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro()).RunWith(tx).Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn, certificate").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro(), subscription.Certificate).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 	return nil
