@@ -3,6 +3,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -127,10 +128,17 @@ func (ah *ActivityHandler) Stop() {
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
-	ah.queue <- activity
 	metrics := ah.plugin.GetMetrics()
-	if metrics != nil {
-		metrics.IncrementChangeEventQueueLength(activity.ChangeType)
+	select {
+	case ah.queue <- activity:
+		if metrics != nil {
+			metrics.IncrementChangeEventQueueLength(activity.ChangeType)
+		}
+	default:
+		if metrics != nil {
+			metrics.ObserveChangeEventQueueRejectedTotal()
+		}
+		return errors.New("activity queue size full")
 	}
 
 	return nil
@@ -240,7 +248,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	}
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
-
 	metrics := ah.plugin.GetMetrics()
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)

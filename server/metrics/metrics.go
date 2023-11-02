@@ -37,6 +37,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
+	ObserveChangeEventQueueRejectedTotal()
 
 	ObserveChangeEventTotal(changeType string)
 	ObserveProcessedChangeEventTotal(changeType string, discardedReason string)
@@ -57,7 +58,6 @@ type Metrics interface {
 	DecrementChangeEventQueueLength(changeType string)
 
 	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
-
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -73,11 +73,16 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime           *prometheus.HistogramVec
+	apiTime *prometheus.HistogramVec
+
 	msGraphClientTime *prometheus.HistogramVec
+
+	storeTimesHistograms *prometheus.HistogramVec
 
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
+
+	changeEventQueueRejectedTotal prometheus.Counter
 
 	changeEventTotal          *prometheus.CounterVec
 	lifecycleEventTotal       *prometheus.CounterVec
@@ -95,8 +100,6 @@ type metrics struct {
 
 	changeEventQueueCapacity prometheus.Gauge
 	changeEventQueueLength   *prometheus.GaugeVec
-
-	storeTimesHistograms *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -154,6 +157,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
+
+	m.changeEventQueueRejectedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "change_event_queue_rejected_total",
+		Help:        "The total number of change events rejected due to the activity queue size being full.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.changeEventQueueRejectedTotal)
 
 	m.changeEventTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -401,6 +413,12 @@ func (m *metrics) IncrementHTTPRequests() {
 func (m *metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
+	}
+}
+
+func (m *metrics) ObserveChangeEventQueueRejectedTotal() {
+	if m != nil {
+		m.changeEventQueueRejectedTotal.Inc()
 	}
 }
 

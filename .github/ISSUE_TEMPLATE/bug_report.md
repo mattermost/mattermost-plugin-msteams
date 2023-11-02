@@ -34,8 +34,9 @@ If applicable, add screenshots or a screen recording to elaborate on the problem
 ## Additional context
 
 Add any other context about the problem here, and any notes about the severity:
-- Timestamp during which the issue occurred.
+- Timestamp during which the issue occurred
 - Mattermost username or user ID
+- Mattermost post ID
 - MS Teams username or user ID
 - Platform from where the message originated
 - Sev 1: Affects critical functionality without a workaround
