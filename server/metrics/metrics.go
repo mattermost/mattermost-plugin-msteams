@@ -73,12 +73,15 @@ type metrics struct {
 
 	pluginStartTime prometheus.Gauge
 
-	apiTime              *prometheus.HistogramVec
-	msGraphClientTime    *prometheus.HistogramVec
+	apiTime *prometheus.HistogramVec
+
+	msGraphClientTime *prometheus.HistogramVec
+
 	storeTimesHistograms *prometheus.HistogramVec
 
-	httpRequestsTotal             prometheus.Counter
-	httpErrorsTotal               prometheus.Counter
+	httpRequestsTotal prometheus.Counter
+	httpErrorsTotal   prometheus.Counter
+
 	changeEventQueueRejectedTotal prometheus.Counter
 
 	changeEventTotal          *prometheus.CounterVec
