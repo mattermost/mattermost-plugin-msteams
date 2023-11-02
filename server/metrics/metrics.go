@@ -102,14 +102,6 @@ type metrics struct {
 	changeEventQueueLength   *prometheus.GaugeVec
 }
 
-// NilMetrics returns the Metrics interface with a concrete, but nil value. Since all methods on
-// the metrics type are safe to call with a nil receiver, this gives the caller a "no-op" version
-// of the metrics interface to use when metrics are disabled.
-func NilMetrics() Metrics {
-	var m *metrics
-	return m
-}
-
 // NewMetrics Factory method to create a new metrics collector.
 func NewMetrics(info InstanceInfo) Metrics {
 	m := &metrics{}
