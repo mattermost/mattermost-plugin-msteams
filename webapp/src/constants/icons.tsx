@@ -7,6 +7,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='28'
             height='28'
+            className='custom-svg-icon'
             viewBox='0 0 28 28'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'
@@ -78,6 +79,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='12'
             height='17'
+            className='custom-svg-icon'
             viewBox='0 0 12 17'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'
@@ -92,6 +94,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='17'
             height='17'
+            className='custom-svg-icon'
             viewBox='0 0 17 17'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'
@@ -126,6 +129,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='18'
             height='13'
+            className='custom-svg-icon'
             viewBox='0 0 18 13'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'
@@ -150,6 +154,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='93'
             height='93'
+            className='custom-svg-icon'
             viewBox='0 0 93 93'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'
@@ -184,6 +189,7 @@ export const SVGIcons: Record<SvgIconNames, JSX.Element> = {
         <svg
             width='22'
             height='21'
+            className='custom-svg-icon'
             viewBox='0 0 22 21'
             fill='none'
             xmlns='http://www.w3.org/2000/svg'

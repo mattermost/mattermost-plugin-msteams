@@ -1,7 +1,117 @@
-.link-channels-modal{
-    opacity: 1;
+.wizard {
+    &__primary-panel {
+        transition: all 300ms ease;
 
-    .modal-dialog{
-        transform: none;
+        &--fade-out {
+            position: absolute;
+            top: 61px;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            opacity: 0;
+            height: 0;
+            transition: all 50ms ease;
+            visibility: hidden;
+        }
+    }
+
+    &__secondary-panel {
+        position: absolute;
+        top: 61px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transition: all 300ms ease;
+        transform: translateX(-101%);
+        
+        &--slide-in {
+            transform: translateX(0);
+        }
+        
+        &--fade-out {
+            height: 0;
+            transition: all 50ms ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+    }
+
+    .summary-panel {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .link-icon {
+            .custom-svg-icon {
+                height: 42px;
+                width: 42px;
+            }
+        }
+
+        .box {
+            height: 200px;
+            width: 200px;
+            text-align: center;
+            border: 1px solid #3D3C4029;
+            border-radius: 12px;
+            padding: 42px 26px;
+
+            &-icon {
+                height: 46px;
+                margin-bottom: 10px;
+            }
+
+            .team_container {
+                font-weight: 600;
+                margin-bottom: 10px;
+            }
+            
+            .channel_container {
+                display: flex;
+                justify-content: center;
+                background: #F8F8F8;
+                height: 32px;
+                padding: 8px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 12px;
+
+                .icon {
+                    .custom-svg-icon {
+                        height: 16px;
+                        width: 16px;
+                    }
+                    width: 16px;
+                    height: 16px;
+                    margin-right: 5px;
+                }
+
+                .text {
+                    margin-top: 1px;
+                    line-height: 14.4px;
+                }
+            }
+        }
+    }
+
+    .result-panel {
+        display: flex;
+
+        &__icon {
+            margin-right: 12px;
+            height: 20px;
+        }
+
+        &__body {
+            line-height: 20px;
+
+            .title {
+                font-weight: 600;
+            }
+            
+            .message {
+                font-weight: 400;
+            }
+        }
     }
 }

@@ -12,8 +12,6 @@ const LinkChannels = () => {
     const dispatch = useDispatch();
     const {state: pluginState} = usePluginApi();
 
-    console.log('14', pluginState);
-
     return (
         <LinkChannelsModal
             open={isLinkChannelsModalOpen(pluginState)}

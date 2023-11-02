@@ -8,10 +8,11 @@ import {General as MMConstants} from 'mattermost-redux/constants';
 
 import {setConnected} from 'src/reducers/connectedState';
 import {refetch, resetRefetch} from 'src/reducers/refetchState';
+import {setGlobalModalState} from 'src/reducers/globalModal';
 import useApiRequestCompletionState from 'src/hooks/useApiRequestCompletionState';
 import usePluginApi from 'src/hooks/usePluginApi';
 
-import Constants from 'src/constants';
+import Constants, {ModalIds} from 'src/constants';
 import {SVGIcons} from 'src/constants/icons';
 
 import './rhs.scss';
@@ -57,7 +58,7 @@ const Rhs = (): JSX.Element => {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.unlinkChannel.apiServiceName, {channelId: unlinkChannelParams?.channelId ?? ''});
     };
 
-    const handleSearchLinkedChannelsTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSearchLinkedChannelsTextChange = (e: any) => {
         setSearchLinkedChannelsText(e.target.value);
         setTimeout(() => {
             resetStates();
@@ -304,10 +305,7 @@ const Rhs = (): JSX.Element => {
                     <div className='rhs-footer__link-btn'>
                         <button
                             className='btn btn-primary'
-
-                            // TODO: Update later
-                            // eslint-disable-next-line no-alert
-                            onClick={() => alert('open modal!!!!!!!!!')}
+                            onClick={() => dispatch(setGlobalModalState({modalId: ModalIds.LINK_CHANNELS}))}
                         >
                             {'Link Channel'}
                         </button>
@@ -317,7 +315,7 @@ const Rhs = (): JSX.Element => {
             <Dialog
                 destructive={showDestructiveDialog}
                 show={showDialog}
-                primaryButtonText={showDestructiveDialog && primaryActionText}
+                primaryButtonText={showDestructiveDialog ? primaryActionText : ''}
                 onCloseHandler={() => {
                     setShowDialog(false);
                     setTimeout(() => {

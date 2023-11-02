@@ -26,3 +26,8 @@ type ChannelLinkData = {
     mattermostChannelType: string,
     msTeamsChannelType: string,
 }
+
+type DropdownOptionType = {
+    label?: string;
+    value: string;
+}
