@@ -61,12 +61,12 @@ type Metrics interface {
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType string)
-	ObserveMessagesCount(action, source string, isDirectMessage bool)
-	ObserveReactionsCount(action, source string, isDirectMessage bool)
-	ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64)
-	ObserveFileCount(action, source, discardedReason string, isDirectMessage bool)
-	ObserveMessagesConfirmedCount(source string, isDirectMessage bool)
-	ObserveSubscriptionsCount(action string)
+	ObserveMessage(action, source string, isDirectMessage bool)
+	ObserveReaction(action, source string, isDirectMessage bool)
+	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
+	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
+	ObserveConfirmedMessage(source string, isDirectMessage bool)
+	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
 	ObserveSyntheticUsers(count int64)
@@ -99,13 +99,13 @@ type metrics struct {
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
 
-	lifecycleEventsTotal *prometheus.CounterVec
-	changeEventsTotal    *prometheus.CounterVec
-	messagesCount        *prometheus.CounterVec
-	reactionsCount       *prometheus.CounterVec
-	filesCount           *prometheus.CounterVec
-	messagesConfirmed    *prometheus.CounterVec
-	subscriptions        *prometheus.CounterVec
+	lifecycleEventsTotal   *prometheus.CounterVec
+	changeEventsTotal      *prometheus.CounterVec
+	messagesTotal          *prometheus.CounterVec
+	reactionsTotal         *prometheus.CounterVec
+	filesTotal             *prometheus.CounterVec
+	messagesConfirmedTotal *prometheus.CounterVec
+	subscriptionsTotal     *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -193,51 +193,51 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"event_type"})
 	m.registry.MustRegister(m.lifecycleEventsTotal)
 
-	m.messagesCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.messagesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "messages_total",
 		Help:        "The total number of messages for different actions and sources",
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct"})
-	m.registry.MustRegister(m.messagesCount)
+	m.registry.MustRegister(m.messagesTotal)
 
-	m.reactionsCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.reactionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "reactions_total",
 		Help:        "The total number of reactions for different actions and sources",
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct"})
-	m.registry.MustRegister(m.reactionsCount)
+	m.registry.MustRegister(m.reactionsTotal)
 
-	m.filesCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.filesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "files_total",
 		Help:        "The total number of files for different actions and sources",
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
-	m.registry.MustRegister(m.filesCount)
+	m.registry.MustRegister(m.filesTotal)
 
 	// TODO: Why?
-	m.messagesConfirmed = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.messagesConfirmedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "messages_confirmed_total",
 		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
 		ConstLabels: additionalLabels,
 	}, []string{"source", "is_direct"})
-	m.registry.MustRegister(m.messagesConfirmed)
+	m.registry.MustRegister(m.messagesConfirmedTotal)
 
-	m.subscriptions = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.subscriptionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
 		Name:        "subscriptions_total",
 		Help:        "The total number of connected, reconnected and refreshed subscriptions.",
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
-	m.registry.MustRegister(m.subscriptions)
+	m.registry.MustRegister(m.subscriptionsTotal)
 
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -354,39 +354,39 @@ func (m *metrics) ObserveLifecycleEvent(lifecycleEventType string) {
 	}
 }
 
-func (m *metrics) ObserveMessagesCount(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.messagesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveReactionsCount(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveReaction(action, source string, isDirectMessage bool) {
 	if m != nil {
-		m.reactionsCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFilesCount(action, source, discardedReason string, isDirectMessage bool, count int64) {
+func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64) {
 	if m != nil {
-		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
-func (m *metrics) ObserveFileCount(action, source, discardedReason string, isDirectMessage bool) {
+func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
-		m.filesCount.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
 	}
 }
 
-func (m *metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
+func (m *metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
 	if m != nil {
-		m.messagesConfirmed.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.messagesConfirmedTotal.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveSubscriptionsCount(action string) {
+func (m *metrics) ObserveSubscription(action string) {
 	if m != nil {
-		m.subscriptions.With(prometheus.Labels{"action": action}).Inc()
+		m.subscriptionsTotal.With(prometheus.Labels{"action": action}).Inc()
 	}
 }
 

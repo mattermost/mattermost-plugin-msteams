@@ -68,18 +68,23 @@ func (_m *Metrics) ObserveChangeEventQueueRejectedTotal() {
 	_m.Called()
 }
 
+// ObserveConfirmedMessage provides a mock function with given fields: source, isDirectMessage
+func (_m *Metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
+	_m.Called(source, isDirectMessage)
+}
+
 // ObserveConnectedUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveFileCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage
-func (_m *Metrics) ObserveFileCount(action string, source string, discardedReason string, isDirectMessage bool) {
+// ObserveFile provides a mock function with given fields: action, source, discardedReason, isDirectMessage
+func (_m *Metrics) ObserveFile(action string, source string, discardedReason string, isDirectMessage bool) {
 	_m.Called(action, source, discardedReason, isDirectMessage)
 }
 
-// ObserveFilesCount provides a mock function with given fields: action, source, discardedReason, isDirectMessage, count
-func (_m *Metrics) ObserveFilesCount(action string, source string, discardedReason string, isDirectMessage bool, count int64) {
+// ObserveFiles provides a mock function with given fields: action, source, discardedReason, isDirectMessage, count
+func (_m *Metrics) ObserveFiles(action string, source string, discardedReason string, isDirectMessage bool, count int64) {
 	_m.Called(action, source, discardedReason, isDirectMessage, count)
 }
 
@@ -98,18 +103,13 @@ func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success str
 	_m.Called(method, success, elapsed)
 }
 
-// ObserveMessagesConfirmedCount provides a mock function with given fields: source, isDirectMessage
-func (_m *Metrics) ObserveMessagesConfirmedCount(source string, isDirectMessage bool) {
-	_m.Called(source, isDirectMessage)
-}
-
-// ObserveMessagesCount provides a mock function with given fields: action, source, isDirectMessage
-func (_m *Metrics) ObserveMessagesCount(action string, source string, isDirectMessage bool) {
+// ObserveMessage provides a mock function with given fields: action, source, isDirectMessage
+func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
 }
 
-// ObserveReactionsCount provides a mock function with given fields: action, source, isDirectMessage
-func (_m *Metrics) ObserveReactionsCount(action string, source string, isDirectMessage bool) {
+// ObserveReaction provides a mock function with given fields: action, source, isDirectMessage
+func (_m *Metrics) ObserveReaction(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
 }
 
@@ -118,8 +118,8 @@ func (_m *Metrics) ObserveStoreMethodDuration(method string, success string, ela
 	_m.Called(method, success, elapsed)
 }
 
-// ObserveSubscriptionsCount provides a mock function with given fields: action
-func (_m *Metrics) ObserveSubscriptionsCount(action string) {
+// ObserveSubscription provides a mock function with given fields: action
+func (_m *Metrics) ObserveSubscription(action string) {
 	_m.Called(action)
 }
 

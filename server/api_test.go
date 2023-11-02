@@ -469,7 +469,7 @@ func TestProcessLifecycle(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 			RequestBody: `{
 				"Value": [{
