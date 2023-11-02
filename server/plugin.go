@@ -177,6 +177,8 @@ func (p *Plugin) start(syncSince *time.Time) {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
+		// run metrics server to expose data
+		p.runMetricsServer()
 		// run metrics updater recurring task
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
 	}
@@ -299,9 +301,6 @@ func (p *Plugin) OnActivate() error {
 		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 		})
-
-		// run metrics server to expose data
-		p.runMetricsServer()
 	} else {
 		// Give metricsService a concrete, but nil value, making the interface itself
 		// not-nil and safe to use without `metrics != nil` checks everywhere.
