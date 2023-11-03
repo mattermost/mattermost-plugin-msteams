@@ -225,7 +225,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	if err := s.addColumn(subscriptionsTableName, "certificate", "TEXT DEFAULT ''"); err != nil {
+	if err := s.addColumn(subscriptionsTableName, "certificate", "TEXT"); err != nil {
 		return err
 	}
 
