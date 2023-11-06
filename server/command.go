@@ -161,6 +161,24 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
+	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
+		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
+	}
+
+	link, err := p.store.GetLinkByChannelID(args.ChannelId)
+	if err == nil && link != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
+	}
+
+	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
+	if err == nil && link != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
+	}
+
+	if _, err := p.GetClientForUser(args.UserId); err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "You need to connect your Mattermost account to your MS Teams account in order to link channels.")
+	}
+
 	p.API.PublishWebSocketEvent(
 		wsEventOpenLinkChannelsModal,
 		nil,
