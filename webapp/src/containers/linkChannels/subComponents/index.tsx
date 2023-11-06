@@ -87,7 +87,7 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
     // Opened panel state
     const [currentPanel, setCurrentPanel] = useState(PanelStates.MM_TEAM_PANEL);
 
-    const [apiError, setAPIError] = useState<string | null>(`We couldn't link the channels.`);
+    const [apiError, setAPIError] = useState<string | null>(null);
 
     // Reset field states
     const resetFieldStates = useCallback(() => {
@@ -158,15 +158,15 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
         case PanelStates.MS_TEAM_PANEL:
             setCurrentPanel(PanelStates.MS_CHANNEL_PANEL);
             break;
-        case PanelStates.MS_CHANNEL_PANEL:setCurrentPanel(PanelStates.RESULT_PANEL)
+        case PanelStates.MS_CHANNEL_PANEL:setCurrentPanel(PanelStates.RESULT_PANEL);
             setCurrentPanel(PanelStates.SUMMARY_PANEL);
             break;
         case PanelStates.SUMMARY_PANEL:
-            setCurrentPanel(PanelStates.RESULT_PANEL)
+            setCurrentPanel(PanelStates.RESULT_PANEL);
             break;
         case PanelStates.RESULT_PANEL:
-            if(apiError) {
-                setCurrentPanel(PanelStates.MM_TEAM_PANEL)
+            if (apiError) {
+                setCurrentPanel(PanelStates.MM_TEAM_PANEL);
             } else {
                 handleClose();
             }
@@ -200,25 +200,25 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
 
     const getPrimaryButtonText = () => {
         switch (currentPanel) {
-            case PanelStates.SUMMARY_PANEL:
-                return 'Link Channels';
-            case PanelStates.RESULT_PANEL:
-                return apiError ? 'Try Again' : 'Close';
-            default:
-                return 'Next';
+        case PanelStates.SUMMARY_PANEL:
+            return 'Link Channels';
+        case PanelStates.RESULT_PANEL:
+            return apiError ? 'Try Again' : 'Close';
+        default:
+            return 'Next';
         }
-    }
+    };
 
     const getSecondaryButtonText = () => {
         switch (currentPanel) {
-            case PanelStates.MM_TEAM_PANEL:
-                return '';
-            case PanelStates.RESULT_PANEL:
-                return '';
-            default:
-                return 'Back';
+        case PanelStates.MM_TEAM_PANEL:
+            return '';
+        case PanelStates.RESULT_PANEL:
+            return '';
+        default:
+            return 'Back';
         }
-    }
+    };
 
     const showLoader = false;
     return (

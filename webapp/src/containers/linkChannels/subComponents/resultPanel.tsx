@@ -1,4 +1,5 @@
 import React from 'react';
+
 import Constants from 'src/constants';
 
 type ResultPanelProps = {
@@ -8,7 +9,7 @@ type ResultPanelProps = {
 
 const ResultPanel = ({
     className = '',
-    errorMessage
+    errorMessage,
 }: ResultPanelProps): JSX.Element => {
     return (
         <div className={`result-panel ${className}`}>
@@ -28,7 +29,7 @@ const ResultPanel = ({
                 </p>
             </div>
         </div>
-    )
-}
+    );
+};
 
 export default ResultPanel;

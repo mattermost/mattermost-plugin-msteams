@@ -1,4 +1,5 @@
 import React from 'react';
+
 import Constants from 'src/constants';
 import {SVGIcons} from 'src/constants/icons';
 
@@ -15,7 +16,7 @@ const SummaryPanel = ({
     mmTeam,
     mmChannel,
     msTeam,
-    msChannel
+    msChannel,
 }: SummaryPanelProps): JSX.Element => {
     return (
         <div
@@ -23,7 +24,10 @@ const SummaryPanel = ({
         >
             <div className='summary-panel__mattermost_box box'>
                 <div>
-                    <img className='box-icon' src={Constants.mattermostHollowIconUrl}/>
+                    <img
+                        className='box-icon'
+                        src={Constants.mattermostHollowIconUrl}
+                    />
                 </div>
                 <div className='team_container'>
                     <span>{mmTeam}</span>
@@ -40,13 +44,19 @@ const SummaryPanel = ({
             </div>
             <div className='summary-panel__msteams_box box'>
                 <div>
-                    <img className='box-icon' src={Constants.msteamsIconUrl}/>
+                    <img
+                        className='box-icon'
+                        src={Constants.msteamsIconUrl}
+                    />
                 </div>
                 <div className='team_container'>
                     <span>{msTeam}</span>
                 </div>
                 <div className='channel_container'>
-                    <img className='icon' src={Constants.iconUrl}/>
+                    <img
+                        className='icon'
+                        src={Constants.iconUrl}
+                    />
                     <span className='text'>{msChannel}</span>
                 </div>
             </div>
