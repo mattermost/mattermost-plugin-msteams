@@ -74,16 +74,16 @@ enum PanelStates {
 const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
     const [mmTeam, setMMTeam] = useState<string | null>(null);
     const [mmTeamOptions, setMMTeamOptions] = useState<DropdownOptionType[]>(teamItems);
-
+    
     const [mmChannel, setMMChannel] = useState<string | null>(null);
     const [mmChannelOptions, setMMChannelOptions] = useState<DropdownOptionType[]>(channelItems);
-
+    
     const [msTeam, setMSTeam] = useState<string | null>(null);
     const [msTeamOptions, setMSTeamOptions] = useState<DropdownOptionType[]>(teamItems);
-
+    
     const [msChannel, setMSChannel] = useState<string | null>(null);
     const [msChannelOptions, setMSChannelOptions] = useState<DropdownOptionType[]>(channelItems);
-
+    
     // Opened panel state
     const [currentPanel, setCurrentPanel] = useState(PanelStates.MM_TEAM_PANEL);
 
@@ -122,7 +122,7 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
         case PanelStates.SUMMARY_PANEL:
             return 'Channel Link Summary';
         case PanelStates.RESULT_PANEL:
-            return '';
+            return apiError ? 'Error' : 'Success'
         default:
             return '';
         }
@@ -241,8 +241,6 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${currentPanel !== PanelStates.MM_TEAM_PANEL && 'wizard__primary-panel--fade-out'}
                     `}
                     teamOptions={mmTeamOptions}
-                    setTeamOptions={setMMTeamOptions}
-                    team={mmTeam}
                     setTeam={setMMTeam}
                     placeholder='Search Teams'
                 />
@@ -252,8 +250,6 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${(currentPanel !== PanelStates.MM_CHANNEL_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
                     channelOptions={mmChannelOptions}
-                    setChannelOptions={setMMChannelOptions}
-                    channel={mmChannel}
                     setChannel={setMMChannel}
                     placeholder='Search Channels'
                 />
@@ -263,8 +259,6 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${(currentPanel !== PanelStates.MS_TEAM_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
                     teamOptions={msTeamOptions}
-                    setTeamOptions={setMSTeamOptions}
-                    team={msTeam}
                     setTeam={setMSTeam}
                     placeholder='Search Teams'
                 />
@@ -274,8 +268,6 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${(currentPanel !== PanelStates.MS_CHANNEL_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
                     channelOptions={msChannelOptions}
-                    setChannelOptions={setMSChannelOptions}
-                    channel={msChannel}
                     setChannel={setMSChannel}
                     placeholder='Search Channels'
                 />

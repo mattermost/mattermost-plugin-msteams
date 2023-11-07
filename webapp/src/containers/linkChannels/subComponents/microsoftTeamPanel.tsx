@@ -1,29 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-import {AutoComplete, ListItemType} from '@brightscout/mattermost-ui-library';
+import {MMSearch, ListItemType} from '@brightscout/mattermost-ui-library';
 
 import {TeamPanelProps} from './mattermostTeamPanel';
 
 const MicrosoftTeamPanel = ({
     className = '',
     teamOptions,
-    setTeamOptions,
-    team,
+    optionsLoading = false,
     setTeam,
     placeholder,
 }: TeamPanelProps): JSX.Element => {
+    const [searchTerm, setSearchTerm] = useState<string>('');
+
     const handleTeamSelect = (_: any, option: ListItemType) => {
         setTeam(option.value);
+        setSearchTerm(option.value);
     };
+
+    const handleClearInput = () => {
+        setSearchTerm('');
+        setTeam(null);
+    }
 
     return (
         <div className={className}>
-            <AutoComplete
-                fullWidth={true}
-                items={teamOptions}
+            <MMSearch
                 label={placeholder}
+                autoFocus={true}
+                fullWidth={true}
+                className={className}
+                items={teamOptions}
                 onSelect={handleTeamSelect}
-                value={team as string}
+                searchValue={searchTerm}
+                setSearchValue={setSearchTerm}
+                optionsLoading={optionsLoading}
+                onClearInput={handleClearInput}
             />
         </div>
     );
