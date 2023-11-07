@@ -50,7 +50,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
-		metricsService: &metricsmocks.Metrics{},
 	}
 	plugin.store.(*storemocks.Store).Test(t)
 
@@ -87,11 +86,13 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
 	// TODO: Add separate mocks for each test later.
-	plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPRequests")
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveAPIEndpointDuration", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("float64"))
+	mockMetricsService := &metricsmocks.Metrics{}
+	mockMetricsService.On("IncrementHTTPRequests")
+	mockMetricsService.On("ObserveAPIEndpointDuration", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("float64"))
 
 	plugin.API.(*plugintest.API).Test(t)
 	_ = plugin.OnActivate()
+	plugin.metricsService = mockMetricsService
 	plugin.userID = "bot-user-id"
 	return plugin
 }

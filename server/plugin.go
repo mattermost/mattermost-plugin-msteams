@@ -138,7 +138,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 		return nil, errors.New("not connected user")
 	}
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	return client_timerlayer.New(client, p.metricsService), nil
+	return client_timerlayer.New(client, p.GetMetrics()), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -148,7 +148,7 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 	}
 
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	return client_timerlayer.New(client, p.metricsService), nil
+	return client_timerlayer.New(client, p.GetMetrics()), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -163,7 +163,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 			&p.apiClient.Log,
 		)
 
-		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.metricsService)
+		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	}
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
@@ -190,7 +190,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.metricsService, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -295,13 +295,9 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
-
-	if enableMetrics != nil && *enableMetrics {
-		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
-			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
-		})
-	}
+	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
+		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+	})
 
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
 	if appErr != nil {
@@ -362,7 +358,7 @@ func (p *Plugin) OnActivate() error {
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
-		p.store = timerlayer.New(store, p.metricsService)
+		p.store = timerlayer.New(store, p.GetMetrics())
 		if err = p.store.Init(); err != nil {
 			return err
 		}
@@ -426,9 +422,7 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	if p.metricsService != nil {
-		p.metricsService.ObserveUpstreamUsers(int64(len(msUsers)))
-	}
+	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -611,7 +605,7 @@ func isRemoteUser(user *model.User) bool {
 func (p *Plugin) runMetricsServer() {
 	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
 
-	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.metricsService)
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
 	go func() {
@@ -628,11 +622,9 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		if p.metricsService != nil {
-			p.metricsService.ObserveConnectedUsers(stats.ConnectedUsers)
-			p.metricsService.ObserveSyntheticUsers(stats.SyntheticUsers)
-			p.metricsService.ObserveLinkedChannels(stats.LinkedChannels)
-		}
+		p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
+		p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
+		p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 	}
 
 	metricsUpdater()
