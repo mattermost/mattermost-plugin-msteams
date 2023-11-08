@@ -190,7 +190,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 				plugin.API.(*plugintest.API).On("LogError", "Invalid encrypted content", "error", "invalid certificate key").Return(nil)
 			},
-			400,
+			http.StatusBadRequest,
 			"invalid certificate key\n\n",
 		},
 		{
@@ -209,7 +209,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				plugin.configuration.CertificateKey = "test"
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
 			},
-			400,
+			http.StatusBadRequest,
 			"Not encrypted content for encrypted subscription\n",
 		},
 	}
