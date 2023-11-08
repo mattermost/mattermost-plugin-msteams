@@ -32,9 +32,7 @@ func (c *ClientTimerLayer) Connect() error {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.Connect", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.Connect", success, elapsed)
 	return err
 }
 
@@ -48,9 +46,7 @@ func (c *ClientTimerLayer) CreateOrGetChatForUsers(usersIDs []string) (*clientmo
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.CreateOrGetChatForUsers", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.CreateOrGetChatForUsers", success, elapsed)
 	return result, err
 }
 
@@ -64,9 +60,7 @@ func (c *ClientTimerLayer) DeleteChatMessage(chatID string, msgID string) error 
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteChatMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteChatMessage", success, elapsed)
 	return err
 }
 
@@ -80,9 +74,7 @@ func (c *ClientTimerLayer) DeleteMessage(teamID string, channelID string, parent
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteMessage", success, elapsed)
 	return err
 }
 
@@ -96,9 +88,7 @@ func (c *ClientTimerLayer) DeleteSubscription(subscriptionID string) error {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteSubscription", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteSubscription", success, elapsed)
 	return err
 }
 
@@ -112,9 +102,7 @@ func (c *ClientTimerLayer) GetChannelInTeam(teamID string, channelID string) (*c
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelInTeam", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelInTeam", success, elapsed)
 	return result, err
 }
 
@@ -128,9 +116,7 @@ func (c *ClientTimerLayer) GetChannelsInTeam(teamID string, filterQuery string) 
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelsInTeam", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelsInTeam", success, elapsed)
 	return result, err
 }
 
@@ -144,9 +130,7 @@ func (c *ClientTimerLayer) GetChat(chatID string) (*clientmodels.Chat, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChat", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChat", success, elapsed)
 	return result, err
 }
 
@@ -160,9 +144,7 @@ func (c *ClientTimerLayer) GetChatMessage(chatID string, messageID string) (*cli
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChatMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChatMessage", success, elapsed)
 	return result, err
 }
 
@@ -176,9 +158,7 @@ func (c *ClientTimerLayer) GetCodeSnippet(url string) (string, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetCodeSnippet", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetCodeSnippet", success, elapsed)
 	return result, err
 }
 
@@ -192,9 +172,7 @@ func (c *ClientTimerLayer) GetFileContent(downloadURL string) ([]byte, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContent", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContent", success, elapsed)
 	return result, err
 }
 
@@ -208,9 +186,7 @@ func (c *ClientTimerLayer) GetFileContentStream(downloadURL string, writer *io.P
 	if true {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContentStream", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContentStream", success, elapsed)
 
 }
 
@@ -224,9 +200,7 @@ func (c *ClientTimerLayer) GetFileSizeAndDownloadURL(weburl string) (int64, stri
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileSizeAndDownloadURL", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileSizeAndDownloadURL", success, elapsed)
 	return result, resultVar1, err
 }
 
@@ -240,9 +214,7 @@ func (c *ClientTimerLayer) GetHostedFileContent(activityIDs *clientmodels.Activi
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetHostedFileContent", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetHostedFileContent", success, elapsed)
 	return result, err
 }
 
@@ -256,9 +228,7 @@ func (c *ClientTimerLayer) GetMe() (*clientmodels.User, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMe", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMe", success, elapsed)
 	return result, err
 }
 
@@ -272,9 +242,7 @@ func (c *ClientTimerLayer) GetMessage(teamID string, channelID string, messageID
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMessage", success, elapsed)
 	return result, err
 }
 
@@ -288,9 +256,7 @@ func (c *ClientTimerLayer) GetMyID() (string, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMyID", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMyID", success, elapsed)
 	return result, err
 }
 
@@ -304,9 +270,7 @@ func (c *ClientTimerLayer) GetReply(teamID string, channelID string, messageID s
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetReply", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetReply", success, elapsed)
 	return result, err
 }
 
@@ -320,9 +284,7 @@ func (c *ClientTimerLayer) GetTeam(teamID string) (*clientmodels.Team, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeam", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeam", success, elapsed)
 	return result, err
 }
 
@@ -336,9 +298,7 @@ func (c *ClientTimerLayer) GetTeams(filterQuery string) ([]*clientmodels.Team, e
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeams", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeams", success, elapsed)
 	return result, err
 }
 
@@ -352,9 +312,7 @@ func (c *ClientTimerLayer) GetUser(userID string) (*clientmodels.User, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUser", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUser", success, elapsed)
 	return result, err
 }
 
@@ -368,9 +326,7 @@ func (c *ClientTimerLayer) GetUserAvatar(userID string) ([]byte, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUserAvatar", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUserAvatar", success, elapsed)
 	return result, err
 }
 
@@ -384,9 +340,7 @@ func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, 
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannels", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannels", success, elapsed)
 	return result, err
 }
 
@@ -400,9 +354,7 @@ func (c *ClientTimerLayer) ListSubscriptions() ([]*clientmodels.Subscription, er
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.ListSubscriptions", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListSubscriptions", success, elapsed)
 	return result, err
 }
 
@@ -416,9 +368,7 @@ func (c *ClientTimerLayer) ListTeams() ([]clientmodels.Team, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.ListTeams", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListTeams", success, elapsed)
 	return result, err
 }
 
@@ -432,9 +382,7 @@ func (c *ClientTimerLayer) ListUsers() ([]clientmodels.User, error) {
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.ListUsers", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListUsers", success, elapsed)
 	return result, err
 }
 
@@ -448,9 +396,7 @@ func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Tim
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshSubscription", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshSubscription", success, elapsed)
 	return result, err
 }
 
@@ -464,9 +410,7 @@ func (c *ClientTimerLayer) SendChat(chatID string, message string, parentMessage
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SendChat", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendChat", success, elapsed)
 	return result, err
 }
 
@@ -480,9 +424,7 @@ func (c *ClientTimerLayer) SendMessage(teamID string, channelID string, parentID
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessage", success, elapsed)
 	return result, err
 }
 
@@ -496,9 +438,7 @@ func (c *ClientTimerLayer) SendMessageWithAttachments(teamID string, channelID s
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessageWithAttachments", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessageWithAttachments", success, elapsed)
 	return result, err
 }
 
@@ -512,9 +452,7 @@ func (c *ClientTimerLayer) SetChatReaction(chatID string, messageID string, user
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SetChatReaction", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetChatReaction", success, elapsed)
 	return result, err
 }
 
@@ -528,9 +466,7 @@ func (c *ClientTimerLayer) SetReaction(teamID string, channelID string, parentID
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SetReaction", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetReaction", success, elapsed)
 	return result, err
 }
 
@@ -544,9 +480,7 @@ func (c *ClientTimerLayer) SubscribeToChannel(teamID string, channelID string, b
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannel", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannel", success, elapsed)
 	return result, err
 }
 
@@ -560,9 +494,7 @@ func (c *ClientTimerLayer) SubscribeToChannels(baseURL string, webhookSecret str
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannels", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannels", success, elapsed)
 	return result, err
 }
 
@@ -576,9 +508,7 @@ func (c *ClientTimerLayer) SubscribeToChats(baseURL string, webhookSecret string
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChats", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChats", success, elapsed)
 	return result, err
 }
 
@@ -592,9 +522,7 @@ func (c *ClientTimerLayer) SubscribeToUserChats(user string, baseURL string, web
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToUserChats", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToUserChats", success, elapsed)
 	return result, err
 }
 
@@ -608,9 +536,7 @@ func (c *ClientTimerLayer) UnsetChatReaction(chatID string, messageID string, us
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetChatReaction", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetChatReaction", success, elapsed)
 	return result, err
 }
 
@@ -624,9 +550,7 @@ func (c *ClientTimerLayer) UnsetReaction(teamID string, channelID string, parent
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetReaction", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetReaction", success, elapsed)
 	return result, err
 }
 
@@ -640,9 +564,7 @@ func (c *ClientTimerLayer) UpdateChatMessage(chatID string, msgID string, messag
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateChatMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateChatMessage", success, elapsed)
 	return result, err
 }
 
@@ -656,9 +578,7 @@ func (c *ClientTimerLayer) UpdateMessage(teamID string, channelID string, parent
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateMessage", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateMessage", success, elapsed)
 	return result, err
 }
 
@@ -672,9 +592,7 @@ func (c *ClientTimerLayer) UploadFile(teamID string, channelID string, filename 
 	if err == nil {
 		success = "true"
 	}
-	if c.metrics != nil {
-		c.metrics.ObserveMSGraphClientMethodDuration("Client.UploadFile", success, elapsed)
-	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UploadFile", success, elapsed)
 	return result, err
 }
 
