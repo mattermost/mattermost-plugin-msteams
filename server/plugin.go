@@ -226,21 +226,16 @@ func (p *Plugin) start(syncSince *time.Time) {
 	}
 }
 
-func (p *Plugin) syncSince(syncSince time.Time) {
-	linkedChannels, err := p.store.ListChannelLinks()
+func (p *Plugin) syncChannelSince(teamID, channelID string, syncSince time.Time) {
+	messages, err := p.msteamsAppClient.GetChannelMessagesSince(teamID, channelID, syncSince)
 	if err != nil {
-		p.API.LogError("Unable to get the connected channels: sync failed", "since", syncSince)
-	} else {
-		for _, link := range linkedChannels {
-			messages, err := p.msteamsAppClient.GetChannelMessagesSince(link.MSTeamsTeam, link.MsteamsChannel, syncSince)
-			if err != nil {
-				p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
-			}
-			for _, message := range messages {
-			}
-		}
+		p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
 	}
+	for _, message := range messages {
+	}
+}
 
+func (p *Plugin) syncChatsSince(syncSince time.Time) {
 	connectedUsers, err := p.store.GetConnectedUsers()
 	if err != nil {
 		p.API.LogError("Unable to get the connected users: sync failed", "since", syncSince)
