@@ -288,10 +288,7 @@ const Rhs = (): JSX.Element => {
                             {connected && (
                                 <button
                                     className='btn btn-primary'
-
-                                    // TODO: Update later
-                                    // eslint-disable-next-line no-alert
-                                    onClick={() => alert('open modal!!!!!!!!!')}
+                                    onClick={() => dispatch(setGlobalModalState({modalId: ModalIds.LINK_CHANNELS}))}
                                 >
                                     {'Link New Channel'}
                                 </button>
