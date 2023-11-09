@@ -154,6 +154,10 @@
                   {
                       "display_name": "mail",
                       "value": "Mail"
+                  },
+                  {
+                      "display_name": "userPrincipalName",
+                      "value": "UserPrincipalName"
                   }
               ]         
         },{

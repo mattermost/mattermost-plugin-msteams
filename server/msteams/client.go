@@ -1712,6 +1712,9 @@ func (tc *ClientImpl) ListUsers() ([]clientmodels.User, error) {
 	users := []clientmodels.User{}
 	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
 		user := clientmodels.User{}
+		if u.GetUserPrincipalName() != nil {
+			user.UserPrincipalName = strings.ToLower(*u.GetUserPrincipalName())
+		}
 		if u.GetDisplayName() != nil {
 			user.DisplayName = *u.GetDisplayName()
 		}
