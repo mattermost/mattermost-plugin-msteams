@@ -21,6 +21,21 @@ import (
 	"gitlab.com/golang-commonmark/markdown"
 )
 
+func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
+	p.API.LogDebug("Promoting synthetic user", "UserID", user.Id)
+	if user.RemoteId != nil && *user.RemoteId != "" {
+		user.RemoteId = nil
+		if _, appErr := p.API.UpdateUser(user); appErr != nil {
+			p.API.LogError("Unable to promote synthetic user", "UserID", user.Id)
+			return "Unable to promote synthetic user"
+		}
+
+		p.API.LogDebug("Promoted synthetic user", "UserID", user.Id)
+	}
+
+	return ""
+}
+
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {

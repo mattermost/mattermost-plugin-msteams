@@ -20,22 +20,25 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantID                   string `json:"tenantid"`
-	ClientID                   string `json:"clientid"`
-	ClientSecret               string `json:"clientsecret"`
-	EncryptionKey              string `json:"encryptionkey"`
-	EvaluationAPI              bool   `json:"evaluationapi"`
-	WebhookSecret              string `json:"webhooksecret"`
-	EnabledTeams               string `json:"enabledteams"`
-	SyncDirectMessages         bool   `json:"syncdirectmessages"`
-	SyncUsers                  int    `json:"syncusers"`
-	SyncGuestUsers             bool   `json:"syncGuestUsers"`
-	EnforceConnectedUsers      bool   `json:"enforceconnectedusers"`
-	AllowSkipConnectUsers      bool   `json:"allowskipconnectusers"`
-	MaxSizeForCompleteDownload int    `json:"maxSizeForCompleteDownload"`
-	BufferSizeForFileStreaming int    `json:"bufferSizeForFileStreaming"`
-	PromptIntervalForDMsAndGMs int    `json:"promptIntervalForDMsAndGMs"`
-	ConnectedUsersAllowed      int    `json:"connectedUsersAllowed"`
+	TenantID                           string `json:"tenantid"`
+	ClientID                           string `json:"clientid"`
+	ClientSecret                       string `json:"clientsecret"`
+	EncryptionKey                      string `json:"encryptionkey"`
+	EvaluationAPI                      bool   `json:"evaluationapi"`
+	WebhookSecret                      string `json:"webhooksecret"`
+	EnabledTeams                       string `json:"enabledteams"`
+	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
+	SyncUsers                          int    `json:"syncusers"`
+	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
+	EnforceConnectedUsers              bool   `json:"enforceconnectedusers"`
+	AllowSkipConnectUsers              bool   `json:"allowskipconnectusers"`
+	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
+	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
+	PromptIntervalForDMsAndGMs         int    `json:"promptIntervalForDMsAndGMs"`
+	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
+	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
+	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
+	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
 }
 
 func (c *configuration) ProcessConfiguration() {

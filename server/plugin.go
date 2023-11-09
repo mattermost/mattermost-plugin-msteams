@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -434,7 +435,8 @@ func (p *Plugin) syncUsers() {
 		mmUsersMap[u.Email] = u
 	}
 
-	syncGuestUsers := p.getConfiguration().SyncGuestUsers
+	configuration := p.getConfiguration()
+	syncGuestUsers := configuration.SyncGuestUsers
 	for _, msUser := range msUsers {
 		userSuffixID := 1
 		if msUser.Mail == "" {
@@ -489,18 +491,29 @@ func (p *Plugin) syncUsers() {
 		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
+		authData := ""
+		if configuration.AutomaticallyPromoteSyntheticUsers {
+			authData = reflect.ValueOf(msUser).FieldByName(configuration.SyntheticUserAuthData).String()
+		}
 		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  p.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+
+			if configuration.AutomaticallyPromoteSyntheticUsers && configuration.SyntheticUserAuthService != model.UserAuthServiceEmail {
+				newMMUser.AuthService = configuration.SyntheticUserAuthService
+				newMMUser.AuthData = &authData
+			} else {
+				newMMUser.Password = p.GenerateRandomPassword()
+			}
+
 			newMMUser.SetDefaultNotifications()
 			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
@@ -538,9 +551,21 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogError("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
-		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
+		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName || (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || mmUser.AuthData != &configuration.SyntheticUserAuthData))) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
+			if configuration.AutomaticallyPromoteSyntheticUsers {
+				if configuration.SyntheticUserAuthService == model.UserAuthServiceEmail {
+					mmUser.AuthService = ""
+					mmUser.AuthData = nil
+					mmUser.Password = p.GenerateRandomPassword()
+				} else {
+					mmUser.AuthService = configuration.SyntheticUserAuthService
+					mmUser.AuthData = &authData
+					mmUser.Password = ""
+				}
+			}
+
 			for {
 				_, err := p.API.UpdateUser(mmUser)
 				if err != nil {
