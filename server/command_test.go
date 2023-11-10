@@ -589,7 +589,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -627,7 +627,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -667,7 +667,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
 			},
 			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
