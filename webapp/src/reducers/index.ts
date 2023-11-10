@@ -1,8 +1,8 @@
 import {combineReducers} from 'redux';
 
-import {msTeamsPluginApi} from '../services';
+import {msTeamsPluginApi} from 'services';
 
-import apiRequestCompletionSlice from './apiRequest';
+import apiRequestCompletionSlice from 'reducers/apiRequest';
 
 export default combineReducers({
     apiRequestCompletionSlice,

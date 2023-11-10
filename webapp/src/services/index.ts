@@ -1,9 +1,11 @@
 import {createApi, fetchBaseQuery} from '@reduxjs/toolkit/query/react';
 
+// eslint-disable-next-line import/no-unresolved
 import Cookies from 'js-cookie';
 
-import Constants from '../constants';
-import utils from '../utils';
+import Constants from 'constants/index';
+
+import utils from 'utils';
 
 // Service to make plugin API requests
 export const msTeamsPluginApi = createApi({

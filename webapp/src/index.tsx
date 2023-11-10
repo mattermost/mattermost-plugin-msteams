@@ -3,14 +3,15 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import Rhs from './containers/Rhs';
-import Constants from './constants';
-import reducer from './reducers';
+import Constants from 'constants/index';
+
+import Rhs from 'containers/Rhs';
+import reducer from 'reducers';
+
+import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModal';
+import MSTeamsAppManifestSetting from 'components/appManifestSetting';
 
 import manifest from './manifest';
-
-import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
-import MSTeamsAppManifestSetting from './components/appManifestSetting';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
