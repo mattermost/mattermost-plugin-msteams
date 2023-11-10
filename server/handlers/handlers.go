@@ -121,6 +121,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if !ah.checkSubscription(event.SubscriptionID) {
+		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedSubscriptionCheck)
 		return
 	}
 
@@ -128,13 +129,17 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
-		} else {
-			ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
-			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
-				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
-			}
+			ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedToRefresh)
+			return
+		}
+
+		ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
+		if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
+			ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 		}
 	}
+
+	ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonNone)
 }
 
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
