@@ -25,4 +25,19 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         method: 'DELETE',
         apiServiceName: 'unlinkChannel',
     },
+    searchMSTeams: {
+        path: '/msteams/teams',
+        method: 'GET',
+        apiServiceName: 'searchMSTeams'
+    },
+    searchMSChannels: {
+        path: '/msteams/teams/{team_id}/channels',
+        method: 'GET',
+        apiServiceName: 'searchMSChannels'
+    },
+    linkChannels: {
+        path: '/link-channels',
+        method: 'POST',
+        apiServiceName: 'linkChannels'
+    },
 };

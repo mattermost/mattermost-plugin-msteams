@@ -81,10 +81,10 @@ type Subscription struct {
 }
 
 type Channel struct {
-	ID          string
-	DisplayName string
-	Description string
-	Type        models.ChannelMembershipType
+	ID          string                       `json:"id"`
+	DisplayName string                       `json:"display_name"`
+	Description string                       `json:"description"`
+	Type        models.ChannelMembershipType `json:"type"`
 }
 
 type Chat struct {
@@ -108,9 +108,9 @@ type ChatMember struct {
 }
 
 type Team struct {
-	ID          string
-	DisplayName string
-	Description string
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
 }
 
 type Attachment struct {

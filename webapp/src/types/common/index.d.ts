@@ -27,6 +27,13 @@ type ChannelLinkData = {
     msTeamsChannelType: string,
 }
 
+type MSTeamsSearchResponse = MSTeamOrChannel[];
+
+type MSTeamOrChannel = {
+    id: string,
+    display_name: string,
+}
+
 type DropdownOptionType = {
     label?: string;
     value: string;

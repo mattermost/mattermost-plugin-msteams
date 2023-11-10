@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 
 import {Modal} from '@brightscout/mattermost-ui-library';
 
@@ -8,6 +8,9 @@ import MicrosoftTeamPanel from './microsoftTeamPanel';
 import MicrosoftChannelPanel from './microsoftChannelPanel';
 import SummaryPanel from './summaryPanel';
 import ResultPanel from './resultPanel';
+import useApiRequestCompletionState from 'src/hooks/useApiRequestCompletionState';
+import usePluginApi from 'src/hooks/usePluginApi';
+import Constants from 'src/constants';
 
 import './styles.scss';
 
@@ -15,52 +18,6 @@ type LinkChannelsProps = {
     open: boolean;
     close: () => void;
 }
-
-const teamItems = [
-    {
-        label: 'Team 1',
-        value: 'Team 1',
-    },
-    {
-        label: 'Team 2',
-        value: 'Team 2',
-    },
-    {
-        label: 'Team 3',
-        value: 'Team 3',
-    },
-    {
-        label: 'Team 4',
-        value: 'Team 4',
-    },
-    {
-        label: 'Team 5',
-        value: 'Team 5',
-    },
-];
-
-const channelItems = [
-    {
-        label: 'Channel 1',
-        value: 'Channel 1',
-    },
-    {
-        label: 'Channel 2',
-        value: 'Channel 2',
-    },
-    {
-        label: 'Channel 3',
-        value: 'Channel 3',
-    },
-    {
-        label: 'Channel 4',
-        value: 'Channel 4',
-    },
-    {
-        label: 'Channel 5',
-        value: 'Channel 5',
-    },
-];
 
 enum PanelStates {
     MM_TEAM_PANEL = 'mm_team',
@@ -71,19 +28,23 @@ enum PanelStates {
     RESULT_PANEL = 'result'
 }
 
+export type Team = {
+    id: string,
+    displayName: string,
+}
+
+export type Channel = Team & {
+    type?: 'public' | 'private';
+}
+
 const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
-    const [mmTeam, setMMTeam] = useState<string | null>(null);
-    const [mmTeamOptions, setMMTeamOptions] = useState<DropdownOptionType[]>(teamItems);
-    
-    const [mmChannel, setMMChannel] = useState<string | null>(null);
-    const [mmChannelOptions, setMMChannelOptions] = useState<DropdownOptionType[]>(channelItems);
-    
-    const [msTeam, setMSTeam] = useState<string | null>(null);
-    const [msTeamOptions, setMSTeamOptions] = useState<DropdownOptionType[]>(teamItems);
-    
-    const [msChannel, setMSChannel] = useState<string | null>(null);
-    const [msChannelOptions, setMSChannelOptions] = useState<DropdownOptionType[]>(channelItems);
-    
+    const [mmTeam, setMMTeam] = useState<Team | null>(null);
+    const [mmChannel, setMMChannel] = useState<Channel | null>(null);
+    const [msTeam, setMSTeam] = useState<Team | null>(null);
+    const [msChannel, setMSChannel] = useState<Channel | null>(null);
+    const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
+    const [linkChannelsPayload, setLinkChannelsPayload] = useState<LinkChannelsPayload | null>(null);
+
     // Opened panel state
     const [currentPanel, setCurrentPanel] = useState(PanelStates.MM_TEAM_PANEL);
 
@@ -158,11 +119,11 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
         case PanelStates.MS_TEAM_PANEL:
             setCurrentPanel(PanelStates.MS_CHANNEL_PANEL);
             break;
-        case PanelStates.MS_CHANNEL_PANEL:setCurrentPanel(PanelStates.RESULT_PANEL);
+        case PanelStates.MS_CHANNEL_PANEL:
             setCurrentPanel(PanelStates.SUMMARY_PANEL);
             break;
         case PanelStates.SUMMARY_PANEL:
-            setCurrentPanel(PanelStates.RESULT_PANEL);
+            linkChannels();
             break;
         case PanelStates.RESULT_PANEL:
             if (apiError) {
@@ -220,7 +181,32 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
         }
     };
 
-    const showLoader = false;
+    const linkChannels = () => {
+        const payload: LinkChannelsPayload = {
+            mattermostTeamID: mmTeam?.id || '',
+            mattermostChannelID: mmChannel?.id || '',
+            msTeamsTeamID: msTeam?.id || '',
+            msTeamsChannelID: msChannel?.id || '',
+        }
+        setLinkChannelsPayload(payload);
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.linkChannels.apiServiceName, payload);
+    }
+
+    const {isLoading: linkChannelsLoading} = getApiState(Constants.pluginApiServiceConfigs.linkChannels.apiServiceName, linkChannelsPayload as LinkChannelsPayload);
+    useApiRequestCompletionState({
+        serviceName: Constants.pluginApiServiceConfigs.linkChannels.apiServiceName,
+        payload: linkChannelsPayload as LinkChannelsPayload,
+        handleSuccess: () => {
+            setAPIError(null);
+            setCurrentPanel(PanelStates.RESULT_PANEL);
+        },
+        handleError: (error) => {
+            setAPIError(error.data);
+        }
+    });
+
+
+    const showLoader = linkChannelsLoading;
     return (
         <Modal
             show={open}
@@ -240,7 +226,6 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         modal__body mm-team-panel wizard__primary-panel
                         ${currentPanel !== PanelStates.MM_TEAM_PANEL && 'wizard__primary-panel--fade-out'}
                     `}
-                    teamOptions={mmTeamOptions}
                     setTeam={setMMTeam}
                     placeholder='Search Teams'
                 />
@@ -249,16 +234,15 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${currentPanel === PanelStates.MM_CHANNEL_PANEL && 'wizard__secondary-panel--slide-in'}
                         ${(currentPanel !== PanelStates.MM_CHANNEL_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
-                    channelOptions={mmChannelOptions}
                     setChannel={setMMChannel}
                     placeholder='Search Channels'
+                    teamId={mmTeam && mmTeam.id}
                 />
                 <MicrosoftTeamPanel
                     className={`
                         ${currentPanel === PanelStates.MS_TEAM_PANEL && 'wizard__secondary-panel--slide-in'}
                         ${(currentPanel !== PanelStates.MS_TEAM_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
-                    teamOptions={msTeamOptions}
                     setTeam={setMSTeam}
                     placeholder='Search Teams'
                 />
@@ -267,15 +251,15 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
                         ${currentPanel === PanelStates.MS_CHANNEL_PANEL && 'wizard__secondary-panel--slide-in'}
                         ${(currentPanel !== PanelStates.MS_CHANNEL_PANEL) && 'wizard__secondary-panel--fade-out'}
                     `}
-                    channelOptions={msChannelOptions}
                     setChannel={setMSChannel}
                     placeholder='Search Channels'
+                    teamId={msTeam && msTeam.id}
                 />
                 <SummaryPanel
-                    mmTeam={mmTeam as string}
-                    mmChannel={mmChannel as string}
-                    msTeam={msTeam as string}
-                    msChannel={msChannel as string}
+                    mmTeam={mmTeam?.displayName as string}
+                    mmChannel={mmChannel?.displayName as string}
+                    msTeam={msTeam?.displayName as string}
+                    msChannel={msChannel?.displayName as string}
                     className={`
                         ${currentPanel === PanelStates.SUMMARY_PANEL && 'wizard__secondary-panel--slide-in'}
                         ${(currentPanel !== PanelStates.SUMMARY_PANEL) && 'wizard__secondary-panel--fade-out'}

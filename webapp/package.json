@@ -51,8 +51,9 @@
     "webpack": "5.76.1",
     "webpack-cli": "5.0.1"
   },
+  "//": ["TODO: Update MM UI lib version after creating a release for it"],
   "dependencies": {
-    "@brightscout/mattermost-ui-library": "2.0.9",
+    "@brightscout/mattermost-ui-library": "file:../../mm-ui-library",
     "@reduxjs/toolkit": "1.8.2",
     "core-js": "3.29.1",
     "js-cookie": "3.0.1",

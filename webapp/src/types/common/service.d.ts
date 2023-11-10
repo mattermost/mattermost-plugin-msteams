@@ -5,7 +5,10 @@ type PluginApiServiceName =
     'connect' |
     'getLinkedChannels' |
     'disconnectUser' |
-    'unlinkChannel';
+    'unlinkChannel' |
+    'searchMSTeams' |
+    'searchMSChannels'|
+    'linkChannels';
 
 type PluginApiService = {
     path: string,
@@ -18,4 +21,4 @@ type APIError = {
     data: string,
 }
 
-type APIRequestPayload = PaginationQueryParams | UnlinkChannelParams | SearchLinkedChannelParams | void;
+type APIRequestPayload = PaginationQueryParams | UnlinkChannelParams | SearchParams | LinkChannelsPayload | void;

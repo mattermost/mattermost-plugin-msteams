@@ -66,7 +66,7 @@ const Rhs = (): JSX.Element => {
     };
 
     useEffect(() => {
-        const linkedChannelsParams: SearchLinkedChannelParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
+        const linkedChannelsParams: SearchParams = {search: searchLinkedChannelsText, page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
         setGetLinkedChannelsParams(linkedChannelsParams);
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
     }, [paginationQueryParams]);

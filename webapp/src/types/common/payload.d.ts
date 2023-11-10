@@ -7,6 +7,17 @@ type UnlinkChannelParams = {
     channelId: string;
 }
 
-interface SearchLinkedChannelParams extends PaginationQueryParams {
+interface SearchParams extends PaginationQueryParams {
     search?: string;
+}
+
+interface SearchMSChannelsParams extends SearchParams {
+    teamId: string;
+}
+
+type LinkChannelsPayload = {
+    mattermostTeamID: string,
+    mattermostChannelID: string,
+    msTeamsTeamID: string,
+    msTeamsChannelID: string,
 }

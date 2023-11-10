@@ -50,5 +50,27 @@ export const msTeamsPluginApi = createApi({
                 responseHandler: (res) => res.text(),
             }),
         }),
+        [Constants.pluginApiServiceConfigs.searchMSTeams.apiServiceName]: builder.query<MSTeamsSearchResponse, SearchParams>({
+            query: (params) => ({
+                url: Constants.pluginApiServiceConfigs.searchMSTeams.path,
+                method: Constants.pluginApiServiceConfigs.searchMSTeams.method,
+                params: {...params},
+            }),
+        }),
+        [Constants.pluginApiServiceConfigs.searchMSChannels.apiServiceName]: builder.query<MSTeamsSearchResponse, SearchMSChannelsParams>({
+            query: ({teamId, ...params}) => ({
+                url: Constants.pluginApiServiceConfigs.searchMSChannels.path.replace('{team_id}', teamId),
+                method: Constants.pluginApiServiceConfigs.searchMSChannels.method,
+                params: {...params},
+            }),
+        }),
+        [Constants.pluginApiServiceConfigs.linkChannels.apiServiceName]: builder.query<string, LinkChannelsPayload>({
+            query: (payload) => ({
+                url: Constants.pluginApiServiceConfigs.linkChannels.path,
+                method: Constants.pluginApiServiceConfigs.linkChannels.method,
+                body: payload,
+                responseHandler: (res) => res.text(),
+            }),
+        }),
     }),
 });
