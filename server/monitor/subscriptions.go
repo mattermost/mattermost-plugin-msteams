@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
-func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription) {
+func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription) {
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
@@ -89,7 +90,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	}
 // }
 
-func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription) {
+func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
@@ -134,6 +135,8 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 		return
 	}
 
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
+
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
 			m.api.LogError("Unable to delete the old all chats subscription", "error", err.Error())
@@ -172,14 +175,36 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 			m.api.LogDebug("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 		}
 	}
 
-	if err := m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
+	tx, err := m.store.BeginTx()
+	if err != nil {
+		m.api.LogWarn("Unable to begin database transaction", "error", err.Error())
+		return
+	}
+
+	var txErr error
+	defer func() {
+		if txErr != nil {
+			if err := m.store.RollbackTx(tx); err != nil {
+				m.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
+			}
+			return
+		}
+
+		if err := m.store.CommitTx(tx); err != nil {
+			m.api.LogWarn("Unable to commit database transaction", "error", err.Error())
+		}
+	}()
+
+	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); txErr != nil {
+		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
 		return
 	}
 }
@@ -194,6 +219,8 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		return err
 	}
 
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 	}
@@ -205,17 +232,20 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 	if err != nil {
 		return err
 	}
+
+	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
+
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }
 
-func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*msteams.Subscription, allChatsSubscription *msteams.Subscription, err error) {
+func (m *Monitor) GetMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription, err error) {
 	msteamsSubscriptions, err := m.client.ListSubscriptions()
 	if err != nil {
 		m.api.LogError("Unable to list MS Teams subscriptions", "error", err.Error())
 		return nil, nil, err
 	}
 
-	msteamsSubscriptionsMap = make(map[string]*msteams.Subscription)
+	msteamsSubscriptionsMap = make(map[string]*clientmodels.Subscription)
 	for _, msteamsSubscription := range msteamsSubscriptions {
 		if strings.HasPrefix(msteamsSubscription.NotificationURL, m.baseURL) {
 			msteamsSubscriptionsMap[msteamsSubscription.ID] = msteamsSubscription

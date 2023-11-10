@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"golang.org/x/net/html"
 )
@@ -32,10 +33,10 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	return defaultAvatarURL
 }
 
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Message, chat *msteams.Chat) (*model.Post, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
-	var embeddedImages []msteams.Attachment
+	var embeddedImages []clientmodels.Attachment
 	text, embeddedImages = ah.handleImages(text)
 	msg.Attachments = append(msg.Attachments, embeddedImages...)
 	text = markdown.ConvertToMD(text)
@@ -49,7 +50,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		}
 	}
 
-	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat)
+	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -59,7 +60,10 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, FileIds: attachments}
+	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, CreateAt: msg.CreateAt.UnixNano() / int64(time.Millisecond)}
+	if !isUpdatedActivity {
+		post.FileIds = attachments
+	}
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
 
 	if senderID == ah.plugin.GetBotUserID() {
@@ -70,7 +74,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *msteams.Me
 	return post, errorFound
 }
 
-func (ah *ActivityHandler) handleMentions(msg *msteams.Message) string {
+func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 	userIDVsNames := make(map[string]string)
 	if msg.ChatID != "" {
 		for _, mention := range msg.Mentions {
@@ -153,11 +157,11 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 	return text
 }
 
-func (ah *ActivityHandler) handleImages(text string) (string, []msteams.Attachment) {
+func (ah *ActivityHandler) handleImages(text string) (string, []clientmodels.Attachment) {
 	imageURLs := getImageTagsFromHTML(text)
-	var attachments []msteams.Attachment
+	var attachments []clientmodels.Attachment
 	for _, imageURL := range imageURLs {
-		attachments = append(attachments, msteams.Attachment{
+		attachments = append(attachments, clientmodels.Attachment{
 			ContentURL: imageURL,
 		})
 	}

@@ -10,6 +10,7 @@ import reducer from 'reducers';
 
 import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from 'components/appManifestSetting';
+import ListConnectedUsers from 'components/getConnectedUsersSetting';
 
 import manifest from './manifest';
 
@@ -26,6 +27,7 @@ export default class Plugin {
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
+        registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
         const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, Constants.pluginTitle);
 
         // TODO: update icons later
