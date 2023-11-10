@@ -57,7 +57,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
-	ObserveChangeEventQueueRejectedTotal()
+	ObserveChangeEventQueueRejected()
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType string)
@@ -419,7 +419,7 @@ func (m *metrics) IncrementHTTPErrors() {
 	}
 }
 
-func (m *metrics) ObserveChangeEventQueueRejectedTotal() {
+func (m *metrics) ObserveChangeEventQueueRejected() {
 	if m != nil {
 		m.changeEventQueueRejectedTotal.Inc()
 	}

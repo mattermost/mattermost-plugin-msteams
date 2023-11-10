@@ -112,7 +112,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 	case ah.queue <- activity:
 		ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
 	default:
-		ah.plugin.GetMetrics().ObserveChangeEventQueueRejectedTotal()
+		ah.plugin.GetMetrics().ObserveChangeEventQueueRejected()
 		return errors.New("activity queue size full")
 	}
 
