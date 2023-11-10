@@ -158,7 +158,7 @@ const LinkChannelsModal = ({open, close}: LinkChannelsProps) => {
         case PanelStates.MS_TEAM_PANEL:
             setCurrentPanel(PanelStates.MS_CHANNEL_PANEL);
             break;
-        case PanelStates.MS_CHANNEL_PANEL:setCurrentPanel(PanelStates.RESULT_PANEL);
+        case PanelStates.MS_CHANNEL_PANEL:
             setCurrentPanel(PanelStates.SUMMARY_PANEL);
             break;
         case PanelStates.SUMMARY_PANEL:
