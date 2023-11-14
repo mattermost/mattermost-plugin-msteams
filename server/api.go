@@ -411,7 +411,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	
+
 	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
@@ -425,11 +425,11 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
 		}
-		
+
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
-	
+
 	a.p.API.PublishWebSocketEvent(
 		"connect",
 		nil,
