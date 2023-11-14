@@ -509,7 +509,7 @@ func TestProcessLifecycle(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 			RequestBody: `{
 				"Value": [{
@@ -529,7 +529,7 @@ func TestProcessLifecycle(t *testing.T) {
 			}
 
 			if test.ExpectedStatusCode == http.StatusOK {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveLifecycleEventTotal", mock.AnythingOfType("string")).Times(1)
+				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveLifecycleEvent", mock.AnythingOfType("string")).Times(1)
 			}
 
 			test.SetupStore(plugin.store.(*storemocks.Store))

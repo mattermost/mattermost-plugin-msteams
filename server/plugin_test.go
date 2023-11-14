@@ -143,7 +143,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 
 	plugin.MessageHasBeenPosted(nil, &post)
