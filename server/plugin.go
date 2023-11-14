@@ -507,7 +507,7 @@ func (p *Plugin) syncUsers() {
 				Username:  username,
 			}
 
-			if configuration.AutomaticallyPromoteSyntheticUsers && configuration.SyntheticUserAuthService != model.UserAuthServiceEmail {
+			if configuration.AutomaticallyPromoteSyntheticUsers {
 				newMMUser.AuthService = configuration.SyntheticUserAuthService
 				newMMUser.AuthData = &authData
 			} else {
