@@ -3,17 +3,19 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import {handleConnect, handleDisconnect} from './websocket';
+import {handleConnect, handleDisconnect} from 'websocket';
 
-import Rhs from './containers/Rhs';
-import Constants from './constants';
-import reducer from './reducers';
+import Constants from 'constants/index';
 
-import manifest from './manifest';
+import Rhs from 'containers/Rhs';
+import reducer from 'reducers';
 
-import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
-import MSTeamsAppManifestSetting from './components/appManifestSetting';
+import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModal';
+import MSTeamsAppManifestSetting from 'components/appManifestSetting';
+import ListConnectedUsers from 'components/getConnectedUsersSetting';
+
 import App from './app';
+import manifest from './manifest';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -29,6 +31,7 @@ export default class Plugin {
         registry.registerRootComponent(App);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
+        registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
         const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, Constants.pluginTitle);
 
         // TODO: update icons later
