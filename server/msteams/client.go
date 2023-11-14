@@ -165,6 +165,38 @@ func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogSe
 	}
 }
 
+func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService) Client {
+	c := &ClientImpl{
+		ctx:        context.Background(),
+		clientType: "token",
+		tenantID:   tenantID,
+		clientID:   clientID,
+		logService: logService,
+		client:     nil,
+	}
+
+	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
+		TenantID: tenantID,
+		ClientID: clientID,
+		UserPrompt: func(ctx context.Context, message azidentity.DeviceCodeMessage) error {
+			fmt.Println(message.Message)
+			return nil
+		},
+	})
+	if err != nil {
+		fmt.Printf("Error creating credentials: %v\n", err)
+		return nil
+	}
+
+	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	if err != nil {
+		fmt.Printf("Error creating client: %v\n", err)
+		return nil
+	}
+	c.client = client
+	return c
+}
+
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
 		ctx:        context.Background(),
