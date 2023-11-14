@@ -1,13 +1,20 @@
+//go:generate mockery --name=PluginIface
+
 package handlers
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
+	m "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
@@ -21,15 +28,32 @@ var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
-	lastReceivedChangeKey = "last_received_change"
-	numberOfWorkers       = 20
-	activityQueueSize     = 1000
-	msteamsUserTypeGuest  = "Guest"
+	lastReceivedChangeKey       = "last_received_change"
+	numberOfWorkers             = 50
+	activityQueueSize           = 5000
+	msteamsUserTypeGuest        = "Guest"
+	maxFileAttachmentsSupported = 10
+
+	discardedReasonNone                   = ""
+	discardedReasonInvalidChangeType      = "invalid_change_type"
+	discardedReasonIsBotUser              = "is_bot_user"
+	discardedReasonUnableToGetTeamsData   = "unable_to_get_teams_data"
+	discardedReasonNotUserEvent           = "no_user_event"
+	discardedReasonOther                  = "other"
+	discardedReasonDirectMessagesDisabled = "direct_messages_disabled"
+	discardedReasonInactiveUser           = "inactive_user"
+	discardedReasonDuplicatedPost         = "duplicated_post"
+	discardedReasonAlreadyAppliedChange   = "already_applied_change"
+	discardedReasonFileLimitReached       = "file_limit_reached"
+	discardedReasonEmptyFileID            = "empty_file_id"
+	discardedReasonMaxFileSizeExceeded    = "max_file_size_exceeded"
+	discardedReasonExpiredSubscription    = "expired_subscription"
 )
 
 type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
+	GetMetrics() m.Metrics
 	GetSyncDirectMessages() bool
 	GetSyncGuestUsers() bool
 	GetMaxSizeForCompleteDownload() int
@@ -43,9 +67,10 @@ type PluginIface interface {
 }
 
 type ActivityHandler struct {
-	plugin PluginIface
-	queue  chan msteams.Activity
-	quit   chan bool
+	plugin               PluginIface
+	queue                chan msteams.Activity
+	quit                 chan bool
+	IgnorePluginHooksMap sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -70,11 +95,15 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
+	// This is constant for now, but report it as a metric to future proof dashboards.
+	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
+
 	for i := 0; i < numberOfWorkers; i++ {
 		go func() {
 			for {
 				select {
 				case activity := <-ah.queue:
+					ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
 					ah.handleActivity(activity)
 				case <-ah.quit:
 					// we have received a signal to stop
@@ -94,7 +123,14 @@ func (ah *ActivityHandler) Stop() {
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
-	ah.queue <- activity
+	select {
+	case ah.queue <- activity:
+		ah.plugin.GetMetrics().IncrementChangeEventQueueLength(activity.ChangeType)
+	default:
+		ah.plugin.GetMetrics().ObserveChangeEventQueueRejectedTotal()
+		return errors.New("activity queue size full")
+	}
+
 	return nil
 }
 
@@ -108,6 +144,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
 		} else {
+			ah.plugin.GetMetrics().ObserveSubscriptionsCount(m.SubscriptionRefreshed)
 			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 			}
@@ -137,54 +174,66 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 
 	if activityIds.ChatID == "" {
 		if !ah.checkSubscription(activity.SubscriptionID) {
-			ah.plugin.GetAPI().LogDebug("The subscription is no longer active", "subscriptionID", activity.SubscriptionID)
+			ah.plugin.GetMetrics().ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReasonExpiredSubscription)
 			return
 		}
 	}
 
+	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		ah.plugin.GetAPI().LogDebug("Handling create activity", "activity", activity)
-		ah.handleCreatedActivity(activityIds)
+		discardedReason = ah.handleCreatedActivity(activityIds)
 	case "updated":
-		ah.plugin.GetAPI().LogDebug("Handling update activity", "activity", activity)
-		ah.handleUpdatedActivity(activityIds)
+		discardedReason = ah.handleUpdatedActivity(activityIds)
 	case "deleted":
-		ah.plugin.GetAPI().LogDebug("Handling delete activity", "activity", activity)
-		ah.handleDeletedActivity(activityIds)
+		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
-		ah.plugin.GetAPI().LogWarn("Unhandled activity", "activity", activity, "error", "Not handled activity")
+		discardedReason = discardedReasonInvalidChangeType
+		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
 	}
+
+	ah.plugin.GetMetrics().ObserveProcessedChangeEventTotal(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds) {
+func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
-		return
+		return discardedReasonUnableToGetTeamsData
 	}
 
 	if msg == nil {
 		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
-		return
+		return discardedReasonUnableToGetTeamsData
 	}
 
 	if msg.UserID == "" {
 		ah.plugin.GetAPI().LogDebug("Skipping not user event", "msg", msg)
-		return
+		return discardedReasonNotUserEvent
+	}
+
+	isDirectMessage := IsDirectMessage(activityIds.ChatID)
+
+	// Avoid possible duplication
+	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
+	if postInfo != nil {
+		ah.plugin.GetAPI().LogDebug("duplicate post")
+		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
+		ah.plugin.GetMetrics().ObserveMessagesConfirmedCount(m.ActionSourceMattermost, isDirectMessage)
+		return discardedReasonDuplicatedPost
 	}
 
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
+		return discardedReasonIsBotUser
 	}
 
 	msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(msg.UserID)
 	if clientErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
-		return
+		return discardedReasonUnableToGetTeamsData
 	}
 
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
@@ -194,7 +243,7 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 			}
 		}
 
-		return
+		return discardedReasonOther
 	}
 
 	var senderID string
@@ -202,13 +251,13 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 	if chat != nil {
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
-			return
+			return discardedReasonDirectMessagesDisabled
 		}
 
 		channelID, err = ah.getChatChannelID(chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
-			return
+			return discardedReasonOther
 		}
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
@@ -225,31 +274,24 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
-		return
+		return discardedReasonInactiveUser
 	}
 
 	if channelID == "" {
 		ah.plugin.GetAPI().LogDebug("Channel not set")
-		return
+		return discardedReasonOther
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat)
+	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 	ah.plugin.GetAPI().LogDebug("Post generated")
 
-	// Avoid possible duplication
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
-	}
-
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
-		return
+		return discardedReasonOther
 	}
+
+	ah.plugin.GetMetrics().ObserveMessagesCount(m.ActionCreated, m.ActionSourceMSTeams, isDirectMessage)
 
 	ah.plugin.GetAPI().LogDebug("Post created")
 	if errorFound {
@@ -262,46 +304,46 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds msteams.ActivityIds
 
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		err = ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: msg.ChatID + msg.ChannelID, MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt})
-		if err != nil {
+		if err := ah.plugin.GetStore().LinkPosts(nil, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
+	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds) {
+func (ah *ActivityHandler) handleUpdatedActivity(activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
-		return
+		return discardedReasonUnableToGetTeamsData
 	}
 
 	if msg == nil {
 		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
-		return
+		return discardedReasonUnableToGetTeamsData
 	}
 
 	if msg.UserID == "" {
 		ah.plugin.GetAPI().LogDebug("Skipping not user event", "msg", msg)
-		return
+		return discardedReasonNotUserEvent
 	}
 
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
+		return discardedReasonIsBotUser
 	}
 
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
 		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-		return
+		return discardedReasonOther
 	}
 
 	// Ignore if the change is already applied in the database
 	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
-		return
+		return discardedReasonAlreadyAppliedChange
 	}
 
 	channelID := ""
@@ -310,25 +352,29 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 		channelLink, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
 			ah.plugin.GetAPI().LogError("Unable to find the subscription")
-			return
+			return discardedReasonOther
 		}
 		channelID = channelLink.MattermostChannelID
 	} else {
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
-			return
+			return discardedReasonDirectMessagesDisabled
 		}
 		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 		if postErr != nil {
 			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
 					ah.plugin.GetAPI().LogError("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
-					return
+					return discardedReasonOther
 				}
-				post, _ = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
+				if postErr != nil {
+					ah.plugin.GetAPI().LogError("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
+					return discardedReasonOther
+				}
 			} else {
 				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
-				return
+				return discardedReasonOther
 			}
 		}
 		channelID = post.ChannelId
@@ -341,29 +387,34 @@ func (ah *ActivityHandler) handleUpdatedActivity(activityIds msteams.ActivityIds
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
-		return
+		return discardedReasonInactiveUser
 	}
 
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat)
+	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
 				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
-				return
+				return discardedReasonOther
 			}
 		} else {
 			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
-			return
+			return discardedReasonOther
 		}
 	}
 
+	isDirectMessage := IsDirectMessage(activityIds.ChatID)
+	ah.plugin.GetMetrics().ObserveMessagesCount(m.ActionUpdated, m.ActionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
-	ah.handleReactions(postInfo.MattermostID, channelID, msg.Reactions)
+	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
+	return discardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions []msteams.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []clientmodels.Reaction) {
 	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
 
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
@@ -401,6 +452,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
 			}
+			ah.plugin.GetMetrics().ObserveReactionsCount(m.ReactionUnsetAction, m.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 
@@ -417,6 +469,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
+			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
 			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,
@@ -424,29 +477,35 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, reactions [
 				EmojiName: emojiName,
 			})
 			if appErr != nil {
+				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
 				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
+			ah.plugin.GetMetrics().ObserveReactionsCount(m.ReactionSetAction, m.ActionSourceMSTeams, isDirectMessage)
 		}
 	}
 }
 
-func (ah *ActivityHandler) handleDeletedActivity(activityIds msteams.ActivityIds) {
+func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID
 	}
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, messageID)
 	if postInfo == nil {
-		return
+		return discardedReasonOther
 	}
 
 	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
 	if appErr != nil {
 		ah.plugin.GetAPI().LogError("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
-		return
+		return discardedReasonOther
 	}
+
+	ah.plugin.GetMetrics().ObserveMessagesCount(m.ActionDeleted, m.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+
+	return discardedReasonNone
 }
 
 func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
@@ -478,4 +537,8 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	}
 
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+}
+
+func IsDirectMessage(chatID string) bool {
+	return chatID != ""
 }

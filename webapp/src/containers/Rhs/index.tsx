@@ -4,11 +4,11 @@ import {Tooltip} from '@brightscout/mattermost-ui-library';
 
 import {General as MMConstants} from 'mattermost-redux/constants';
 
-import useApiRequestCompletionState from '../../hooks/useApiRequestCompletionState';
-import usePluginApi from '../../hooks/usePluginApi';
+import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
+import usePluginApi from 'hooks/usePluginApi';
 
-import Constants from '../../constants';
-import {SVGIcons} from '../../constants/icons';
+import Constants from 'constants/index';
+import {SVGIcons} from 'constants/icons';
 
 import './rhs.scss';
 
