@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1088,6 +1089,7 @@ func TestDisconnect(t *testing.T) {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
+		SetupMetrics       func(mockmetrics *metricsmocks.Metrics)
 		ExpectedResult     string
 		ExpectedStatusCode int
 	}{
@@ -1101,6 +1103,7 @@ func TestDisconnect(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(nil).Times(1)
 			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			ExpectedResult:     "Your account has been disconnected.",
 			ExpectedStatusCode: http.StatusOK,
 		},
@@ -1114,6 +1117,9 @@ func TestDisconnect(t *testing.T) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return("", errors.New("could not find the Teams user ID")).Times(1)
 			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Unable to get Teams user ID from Mattermost user ID.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
@@ -1125,6 +1131,9 @@ func TestDisconnect(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("could not get the token for MM user")).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
@@ -1140,6 +1149,9 @@ func TestDisconnect(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("SetUserInfo", testutils.GetUserID(), testutils.GetID(), (*oauth2.Token)(nil)).Return(errors.New("error occurred while setting the user info")).Times(1)
 			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Error occurred while disconnecting the user.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
@@ -1154,6 +1166,7 @@ func TestDisconnect(t *testing.T) {
 
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/disconnect", nil)
@@ -1180,6 +1193,7 @@ func TestGetLinkedChannels(t *testing.T) {
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client)
+		SetupMetrics       func(*metricsmocks.Metrics)
 		ExpectedResult     string
 		ExpectedStatusCode int
 	}{
@@ -1208,6 +1222,7 @@ func TestGetLinkedChannels(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			ExpectedResult:     `[{"mattermostTeamID":"pqoeurndhroajdemq4nfmw","mattermostChannelID":"bnqnzipmnir4zkkj95ggba5pde","msTeamsTeamID":"test-teams-team-qplsnwere9nurernidte","msTeamsChannelID":"test-teams-channel","msTeamsTeamName":"mock-name","msTeamsChannelName":"mock-name"}]`,
 			ExpectedStatusCode: http.StatusOK,
 		},
@@ -1219,7 +1234,10 @@ func TestGetLinkedChannels(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("ListChannelLinksWithNames").Return(nil, errors.New("error occurred while getting the linked channels")).Times(1)
 			},
-			SetupClient:        func(c *clientmocks.Client) {},
+			SetupClient: func(c *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Error occurred while getting the linked channels\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
@@ -1237,6 +1255,9 @@ func TestGetLinkedChannels(t *testing.T) {
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("GetChannelsInTeam", testutils.GetTeamsTeamID(), fmt.Sprintf("id in ('%s')", testutils.GetTeamsChannelID())).Return([]*clientmodels.Channel{}, nil).Times(1)
 				c.On("GetTeams", fmt.Sprintf("id in ('%s')", testutils.GetTeamsTeamID())).Return(nil, errors.New("error occurred while getting the MS Teams teams details")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
 			},
 			ExpectedResult:     "Unable to get the MS Teams teams details\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
@@ -1269,6 +1290,9 @@ func TestGetLinkedChannels(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Error occurred while getting the channel details\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
@@ -1284,6 +1308,7 @@ func TestGetLinkedChannels(t *testing.T) {
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/linked-channels", nil)
@@ -1315,6 +1340,7 @@ func TestGetMSTeamsTeamList(t *testing.T) {
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client)
+		SetupMetrics       func(*metricsmocks.Metrics)
 		ExpectedResult     string
 		ExpectedStatusCode int
 	}{
@@ -1338,6 +1364,7 @@ func TestGetMSTeamsTeamList(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			ExpectedResult:     `[{"ID":"mockTeamsTeamID-1","DisplayName":"mockDisplayName-1","Description":"mockDescription-1"},{"ID":"mockTeamsTeamID-2","DisplayName":"mockDisplayName-2","Description":"mockDescription-2"}]`,
 			ExpectedStatusCode: http.StatusOK,
 		},
@@ -1351,6 +1378,9 @@ func TestGetMSTeamsTeamList(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListTeams").Return(nil, errors.New("error occurred while getting MS Teams teams")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
 			},
 			ExpectedResult:     "Error occurred while fetching the MS Teams teams.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
@@ -1369,6 +1399,7 @@ func TestGetMSTeamsTeamList(t *testing.T) {
 			test.SetupPlugin(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/msteams/teams", nil)
@@ -1400,6 +1431,7 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client)
+		SetupMetrics       func(*metricsmocks.Metrics)
 		QueryParamTeamID   string
 		ExpectedResult     string
 		ExpectedStatusCode int
@@ -1426,6 +1458,7 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 					},
 				}, nil).Times(1)
 			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			QueryParamTeamID:   testutils.GetTeamsTeamID(),
 			ExpectedResult:     `[{"ID":"mockTeamsChannelID-1","DisplayName":"mockDisplayName-1","Description":"mockDescription-1"},{"ID":"mockTeamsChannelID-2","DisplayName":"mockDisplayName-2","Description":"mockDescription-2"}]`,
 			ExpectedStatusCode: http.StatusOK,
@@ -1441,6 +1474,9 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("ListChannels", testutils.GetTeamsTeamID()).Return(nil, errors.New("error occurred while getting MS Teams team channels")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
 			},
 			QueryParamTeamID:   testutils.GetTeamsTeamID(),
 			ExpectedResult:     "Error occurred while fetching the MS Teams team channels.\n",
@@ -1458,6 +1494,7 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/msteams/teams/%s/channels", testutils.GetTeamsTeamID()), nil)
@@ -1489,6 +1526,7 @@ func TestLinkChannels(t *testing.T) {
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client)
+		SetupMetrics       func(*metricsmocks.Metrics)
 		ExpectedResult     string
 		ExpectedStatusCode int
 		Body               string
@@ -1508,10 +1546,15 @@ func TestLinkChannels(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(nil, nil).Times(1)
 				store.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
-				store.On("SaveChannelSubscription", mock.Anything).Return(nil).Times(1)
+				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
+				store.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
+				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("GetChannelInTeam", testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()).Return(&clientmodels.Channel{}, nil)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 			},
 			ExpectedResult:     "Channels linked successfully",
 			ExpectedStatusCode: http.StatusCreated,
@@ -1526,7 +1569,10 @@ func TestLinkChannels(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
-			SetupClient:        func(c *clientmocks.Client) {},
+			SetupClient: func(c *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Error occurred while unmarshaling link channels payload.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
 			Body: `{
@@ -1542,7 +1588,10 @@ func TestLinkChannels(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
-			SetupClient:        func(c *clientmocks.Client) {},
+			SetupClient: func(c *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Invalid channel link payload.\n",
 			ExpectedStatusCode: http.StatusBadRequest,
 			Body:               testutils.GetLinkChannelsPayload("", testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
@@ -1557,7 +1606,10 @@ func TestLinkChannels(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
-			SetupClient:        func(c *clientmocks.Client) {},
+			SetupClient: func(c *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Unable to get the current channel details.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 			Body:               testutils.GetLinkChannelsPayload(testutils.GetTeamID(), testutils.GetChannelID(), testutils.GetTeamsTeamID(), testutils.GetTeamsChannelID()),
@@ -1574,6 +1626,7 @@ func TestLinkChannels(t *testing.T) {
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/channels/link", bytes.NewBufferString(test.Body))
@@ -1600,6 +1653,7 @@ func TestUnlinkChannels(t *testing.T) {
 		SetupPlugin        func(*plugintest.API)
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client)
+		SetupMetrics       func(*metricsmocks.Metrics)
 		ExpectedResult     string
 		ExpectedStatusCode int
 	}{
@@ -1621,6 +1675,7 @@ func TestUnlinkChannels(t *testing.T) {
 			SetupClient: func(c *clientmocks.Client) {
 				c.On("DeleteSubscription", testutils.GetID()).Return(nil).Times(1)
 			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
 			ExpectedResult:     "Channel unlinked successfully",
 			ExpectedStatusCode: http.StatusOK,
 		},
@@ -1633,7 +1688,10 @@ func TestUnlinkChannels(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
 			},
-			SetupClient:        func(c *clientmocks.Client) {},
+			SetupClient: func(c *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			ExpectedResult:     "Unable to get the current channel details.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
@@ -1649,6 +1707,7 @@ func TestUnlinkChannels(t *testing.T) {
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/channels/%s/unlink", testutils.GetChannelID()), nil)
