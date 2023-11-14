@@ -563,8 +563,14 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 	for rows.Next() {
 		var subscription storemodels.ChatSubscription
 		var expiresOn int64
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+		var certificate *string
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
+		}
+		if certificate == nil {
+			subscription.Certificate = ""
+		} else {
+			subscription.Certificate = *certificate
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
 		result = append(result, subscription)
@@ -584,8 +590,14 @@ func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscriptio
 	for rows.Next() {
 		var subscription storemodels.ChannelSubscription
 		var expiresOn int64
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+		var certificate *string
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
+		}
+		if certificate == nil {
+			subscription.Certificate = ""
+		} else {
+			subscription.Certificate = *certificate
 		}
 
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -611,8 +623,14 @@ func (s *SQLStore) ListChannelSubscriptionsToRefresh(certificate string) ([]*sto
 	for rows.Next() {
 		var subscription storemodels.ChannelSubscription
 		var expiresOn int64
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+		var cert *string
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &cert); scanErr != nil {
 			return nil, scanErr
+		}
+		if cert == nil {
+			subscription.Certificate = ""
+		} else {
+			subscription.Certificate = *cert
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
 		result = append(result, &subscription)
@@ -632,8 +650,14 @@ func (s *SQLStore) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription,
 	for rows.Next() {
 		var subscription storemodels.GlobalSubscription
 		var expiresOn int64
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+		var certificate *string
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
+		}
+		if certificate == nil {
+			subscription.Certificate = ""
+		} else {
+			subscription.Certificate = *certificate
 		}
 
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -659,8 +683,14 @@ func (s *SQLStore) ListGlobalSubscriptionsToRefresh(certificate string) ([]*stor
 	for rows.Next() {
 		var subscription storemodels.GlobalSubscription
 		var expiresOn int64
-		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+		var certificate *string
+		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
+		}
+		if certificate == nil {
+			subscription.Certificate = ""
+		} else {
+			subscription.Certificate = *certificate
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
 		result = append(result, &subscription)
@@ -721,8 +751,14 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
-	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &subscription.Certificate); err != nil {
+	var certificate *string
+	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &certificate); err != nil {
 		return nil, err
+	}
+	if certificate == nil {
+		subscription.Certificate = ""
+	} else {
+		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
@@ -741,8 +777,14 @@ func (s *SQLStore) GetChatSubscription(subscriptionID string) (*storemodels.Chat
 	row := s.getQueryBuilder().Select("subscriptionID, msTeamsUserID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeUser}).QueryRow()
 	var subscription storemodels.ChatSubscription
 	var expiresOn int64
-	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+	var certificate *string
+	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 		return nil, scanErr
+	}
+	if certificate == nil {
+		subscription.Certificate = ""
+	} else {
+		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
@@ -752,8 +794,14 @@ func (s *SQLStore) GetGlobalSubscription(subscriptionID string) (*storemodels.Gl
 	row := s.getQueryBuilder().Select("subscriptionID, type, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeAllChats}).QueryRow()
 	var subscription storemodels.GlobalSubscription
 	var expiresOn int64
-	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &subscription.Certificate); scanErr != nil {
+	var certificate *string
+	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 		return nil, scanErr
+	}
+	if certificate == nil {
+		subscription.Certificate = ""
+	} else {
+		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
 	return &subscription, nil
