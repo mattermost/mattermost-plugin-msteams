@@ -123,13 +123,9 @@
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",
-              "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'Email'.",
-              "default": "email",
+              "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'SAML'.",
+              "default": "saml",
               "options": [
-                  {
-                      "display_name": "Email",
-                      "value": "email"
-                  },
                   {
                       "display_name": "SAML",
                       "value": "saml"

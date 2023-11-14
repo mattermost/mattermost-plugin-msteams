@@ -8,7 +8,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/net/html"
 )
 

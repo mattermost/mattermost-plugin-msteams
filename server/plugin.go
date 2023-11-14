@@ -17,8 +17,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	pluginapi "github.com/mattermost/mattermost-plugin-api"
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
@@ -27,8 +25,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -551,21 +551,9 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogError("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
-		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName || (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || mmUser.AuthData != &configuration.SyntheticUserAuthData))) && mmUser.RemoteId != nil {
+		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
 			mmUser.FirstName = msUser.DisplayName
-			if configuration.AutomaticallyPromoteSyntheticUsers {
-				if configuration.SyntheticUserAuthService == model.UserAuthServiceEmail {
-					mmUser.AuthService = ""
-					mmUser.AuthData = nil
-					mmUser.Password = p.GenerateRandomPassword()
-				} else {
-					mmUser.AuthService = configuration.SyntheticUserAuthService
-					mmUser.AuthData = &authData
-					mmUser.Password = ""
-				}
-			}
-
 			for {
 				_, err := p.API.UpdateUser(mmUser)
 				if err != nil {
@@ -580,6 +568,15 @@ func (p *Plugin) syncUsers() {
 				}
 
 				break
+			}
+		}
+
+		if (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || mmUser.AuthData != &configuration.SyntheticUserAuthData)) && mmUser.RemoteId != nil {
+			if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+				AuthService: configuration.SyntheticUserAuthService,
+				AuthData:    &authData,
+			}); err != nil {
+				p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		}
 	}
