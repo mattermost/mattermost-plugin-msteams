@@ -473,15 +473,15 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 }
 
 // ListChannels provides a mock function with given fields: teamID
-func (_m *Client) ListChannels(teamID string) ([]clientmodels.Channel, error) {
+func (_m *Client) ListChannels(teamID string) ([]*clientmodels.Channel, error) {
 	ret := _m.Called(teamID)
 
-	var r0 []clientmodels.Channel
-	if rf, ok := ret.Get(0).(func(string) []clientmodels.Channel); ok {
+	var r0 []*clientmodels.Channel
+	if rf, ok := ret.Get(0).(func(string) []*clientmodels.Channel); ok {
 		r0 = rf(teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]clientmodels.Channel)
+			r0 = ret.Get(0).([]*clientmodels.Channel)
 		}
 	}
 
@@ -519,15 +519,15 @@ func (_m *Client) ListSubscriptions() ([]*clientmodels.Subscription, error) {
 }
 
 // ListTeams provides a mock function with given fields:
-func (_m *Client) ListTeams() ([]clientmodels.Team, error) {
+func (_m *Client) ListTeams() ([]*clientmodels.Team, error) {
 	ret := _m.Called()
 
-	var r0 []clientmodels.Team
-	if rf, ok := ret.Get(0).(func() []clientmodels.Team); ok {
+	var r0 []*clientmodels.Team
+	if rf, ok := ret.Get(0).(func() []*clientmodels.Team); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]clientmodels.Team)
+			r0 = ret.Get(0).([]*clientmodels.Team)
 		}
 	}
 

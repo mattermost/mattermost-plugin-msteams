@@ -125,8 +125,8 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	link := storemodels.ChannelLink{
 		MattermostTeamID:    "team-id",
 		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsTeamID:       "ms-team-id",
+		MSTeamsChannelID:    "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
@@ -136,12 +136,12 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsChannelID:    "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 
 	plugin.MessageHasBeenPosted(nil, &post)
@@ -187,8 +187,8 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	link := storemodels.ChannelLink{
 		MattermostTeamID:    "team-id",
 		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsTeamID:       "ms-team-id",
+		MSTeamsChannelID:    "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)

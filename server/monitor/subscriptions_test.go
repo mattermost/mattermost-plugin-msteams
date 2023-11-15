@@ -70,7 +70,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 			},
 		},
 		{
@@ -87,7 +87,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionConnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
 			},
 		},
 		{
@@ -110,7 +110,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -129,7 +129,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 		},
 	} {
@@ -155,8 +155,8 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 	newExpiresOn := time.Now().Add(100 * time.Minute)
 	channelLink := storemodels.ChannelLink{
-		MSTeamsTeam:         "team-id",
-		MSTeamsChannel:      "channel-id",
+		MSTeamsTeamID:       "team-id",
+		MSTeamsChannelID:    "channel-id",
 		MattermostTeamID:    "mm-team-id",
 		MattermostChannelID: "mm-channel-id",
 	}
@@ -228,7 +228,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -247,7 +247,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -273,7 +273,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -293,7 +293,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "test", newExpiresOn).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 		},
 	} {
@@ -466,7 +466,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "new-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(errors.New("test"))
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -483,7 +483,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 				store.On("SaveGlobalSubscription", storemodels.GlobalSubscription{SubscriptionID: "new-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: newExpiresOn}).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 	} {
@@ -580,7 +580,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, errors.New("unable to begin database transaction")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -605,7 +605,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -631,7 +631,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				store.On("RollbackTx", &sql.Tx{}).Return(errors.New("unable to rollback database transaction")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -655,7 +655,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 		{
@@ -677,7 +677,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionReconnected).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
 			},
 		},
 	} {
@@ -829,7 +829,7 @@ func TestMonitorRefreshSubscription(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(errors.New("test"))
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 		},
 		{
@@ -844,7 +844,7 @@ func TestMonitorRefreshSubscription(t *testing.T) {
 				store.On("UpdateSubscriptionExpiresOn", "test-id", newExpiresOn).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscriptionsCount", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
 			},
 		},
 	} {
