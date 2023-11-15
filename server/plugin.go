@@ -22,7 +22,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
+	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/pborman/uuid"
@@ -31,13 +34,14 @@ import (
 )
 
 const (
-	botUsername           = "msteams"
-	botDisplayName        = "MS Teams"
-	pluginID              = "com.mattermost.msteams-sync"
-	clusterMutexKey       = "subscriptions_cluster_mutex"
-	lastReceivedChangeKey = "last_received_change"
-	msteamsUserTypeGuest  = "Guest"
-	syncUsersJobName      = "sync_users"
+	botUsername                  = "msteams"
+	botDisplayName               = "MS Teams"
+	pluginID                     = "com.mattermost.msteams-sync"
+	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
+	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	lastReceivedChangeKey        = "last_received_change"
+	msteamsUserTypeGuest         = "Guest"
+	syncUsersJobName             = "sync_users"
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
@@ -60,17 +64,19 @@ type Plugin struct {
 	stopSubscriptions func()
 	stopContext       context.Context
 
-	userID string
+	userID    string
+	apiClient *pluginapi.Client
 
-	store        store.Store
-	clusterMutex *cluster.Mutex
-	monitor      *monitor.Monitor
-	syncUserJob  *cluster.Job
+	store                     store.Store
+	subscriptionsClusterMutex *cluster.Mutex
+	whitelistClusterMutex     *cluster.Mutex
+	monitor                   *monitor.Monitor
+	syncUserJob               *cluster.Job
 
 	activityHandler *handlers.ActivityHandler
 
-	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, func(string, ...any)) msteams.Client
-	metricsService         *metrics.Metrics
+	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
+	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
 }
 
@@ -81,6 +87,10 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Req
 
 func (p *Plugin) GetAPI() plugin.API {
 	return p.API
+}
+
+func (p *Plugin) GetMetrics() metrics.Metrics {
+	return p.metricsService
 }
 
 func (p *Plugin) GetStore() store.Store {
@@ -124,7 +134,8 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.GetMetrics()), nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -133,7 +144,8 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 		return nil, errors.New("not connected user")
 	}
 
-	return p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, p.API.LogError), nil
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	return client_timerlayer.New(client, p.GetMetrics()), nil
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -141,12 +153,14 @@ func (p *Plugin) connectTeamsAppClient() error {
 	defer p.msteamsAppClientMutex.Unlock()
 
 	if p.msteamsAppClient == nil {
-		p.msteamsAppClient = msteams.NewApp(
+		msteamsAppClient := msteams.NewApp(
 			p.getConfiguration().TenantID,
 			p.getConfiguration().ClientID,
 			p.getConfiguration().ClientSecret,
-			p.API.LogError,
+			&p.apiClient.Log,
 		)
+
+		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	}
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
@@ -160,10 +174,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
-		p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
-			InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
-		})
-
 		// run metrics server to expose data
 		p.runMetricsServer()
 		// run metrics updater recurring task
@@ -177,7 +187,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -282,6 +292,10 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
+	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
+		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+	})
+
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
 	if appErr != nil {
 		return appErr
@@ -298,15 +312,23 @@ func (p *Plugin) OnActivate() error {
 		lastRecivedChange = &parsedTime
 	}
 
-	client := pluginapi.NewClient(p.API, p.Driver)
+	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
 	p.activityHandler = handlers.New(p)
 
-	clusterMutex, err := cluster.NewMutex(p.API, clusterMutexKey)
+	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
 		return err
 	}
-	botID, err := client.Bot.EnsureBot(&model.Bot{
+	p.subscriptionsClusterMutex = subscriptionsClusterMutex
+
+	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	if err != nil {
+		return err
+	}
+	p.whitelistClusterMutex = whitelistClusterMutex
+
+	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -315,30 +337,41 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
-	p.clusterMutex = clusterMutex
 
-	err = p.API.RegisterCommand(p.createMsteamsSyncCommand())
-	if err != nil {
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
 		return err
 	}
 
 	if p.store == nil {
-		db, err := client.Store.GetMasterDB()
-		if err != nil {
-			return err
+		db, dbErr := p.apiClient.Store.GetMasterDB()
+		if dbErr != nil {
+			return dbErr
 		}
 
-		p.store = store.New(
+		store := sqlstore.New(
 			db,
-			client.Store.DriverName(),
+			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
-		if err := p.store.Init(); err != nil {
+		p.store = timerlayer.New(store, p.GetMetrics())
+		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
+
+	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
+		return err
+	}
+
+	go func() {
+		p.whitelistClusterMutex.Lock()
+		defer p.whitelistClusterMutex.Unlock()
+		if err := p.store.PrefillWhitelist(); err != nil {
+			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
+		}
+	}()
 
 	go p.start(lastRecivedChange)
 	return nil
@@ -386,14 +419,13 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.API.LogDebug("Count of MS Teams users", "count", len(msUsers))
+	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
-	p.API.LogDebug("Count of MM users", "count", len(mmUsers))
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
 	for _, u := range mmUsers {
 		mmUsersMap[u.Email] = u
@@ -406,29 +438,35 @@ func (p *Plugin) syncUsers() {
 			continue
 		}
 
-		p.API.LogDebug("Running sync user job for user with email", "email", msUser.Mail)
-
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
-		if isUserPresent && isRemoteUser(mmUser) {
-			if msUser.IsAccountEnabled {
-				// Activate the deactived Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt != 0 {
-					p.API.LogDebug("Activating the inactive user", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-						p.API.LogError("Unable to activate the user", "Email", msUser.Mail, "Error", err.Error())
-					}
+		if isUserPresent {
+			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
+				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
+					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 				}
-			} else {
-				// Deactivate the active Mattermost user corresponding to MS Teams user.
-				if mmUser.DeleteAt == 0 {
-					p.API.LogDebug("Deactivating the Mattermost user account", "Email", msUser.Mail)
-					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the Mattermost user account", "Email", mmUser.Email, "Error", err.Error())
-					}
-				}
+			}
 
-				continue
+			if isRemoteUser(mmUser) {
+				if msUser.IsAccountEnabled {
+					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
+					if mmUser.DeleteAt != 0 {
+						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
+						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
+							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+						}
+					}
+				} else {
+					// Deactivate the active Mattermost user corresponding to the MS Teams user.
+					if mmUser.DeleteAt == 0 {
+						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
+						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+						}
+					}
+
+					continue
+				}
 			}
 		}
 
@@ -437,13 +475,10 @@ func (p *Plugin) syncUsers() {
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogDebug("Deactivating the guest user account", "Email", msUser.Mail)
+					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the guest user account", "Email", mmUser.Email, "Error", err.Error())
+						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
 					}
-				} else {
-					// Skip syncing of MS Teams guest user.
-					p.API.LogDebug("Skipping syncing of the guest user", "Email", msUser.Mail)
 				}
 
 				continue
@@ -476,7 +511,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to create new MM user during sync job", "email", msUser.Mail, "error", appErr.Error())
+					p.API.LogError("Unable to create new MM user during sync job", "TeamsUserID", msUser.ID, "error", appErr.Error())
 					break
 				}
 
@@ -494,11 +529,11 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "error", prefErr.Error())
+				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
-				p.API.LogError("Unable to set user info during sync user job", "email", msUser.Mail, "error", err.Error())
+				p.API.LogError("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -512,7 +547,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to update user during sync user job", "email", mmUser.Email, "error", err.Error())
+					p.API.LogError("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					break
 				}
 
@@ -567,7 +602,7 @@ func isRemoteUser(user *model.User) bool {
 func (p *Plugin) runMetricsServer() {
 	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
 
-	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.metricsService)
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
 	go func() {
@@ -584,9 +619,9 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 		if err != nil {
 			p.API.LogError("failed to update computed metrics", "error", err)
 		}
-		p.metricsService.ObserveConnectedUsersTotal(stats.ConnectedUsers)
-		p.metricsService.ObserveSyntheticUsersTotal(stats.SyntheticUsers)
-		p.metricsService.ObserveLinkedChannelsTotal(stats.LinkedChannels)
+		p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
+		p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
+		p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 	}
 
 	metricsUpdater()

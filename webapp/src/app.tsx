@@ -1,12 +1,12 @@
 import React, {useEffect} from 'react';
 import {useDispatch} from 'react-redux';
 
-import usePluginApi from './hooks/usePluginApi';
-import useApiRequestCompletionState from './hooks/useApiRequestCompletionState';
+import usePluginApi from 'hooks/usePluginApi';
+import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
-import Constants from './constants';
+import Constants from 'constants/index';
 
-import {setConnected} from './reducers/connectedState';
+import {setConnected} from 'reducers/connectedState';
 
 const App = (): JSX.Element => {
     const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();

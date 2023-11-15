@@ -1,9 +1,9 @@
 import React, {useCallback, useState, useEffect} from 'react';
 
-import usePluginApi from '../hooks/usePluginApi';
-import useApiRequestCompletionState from '../hooks/useApiRequestCompletionState';
+import Constants from 'constants/index';
 
-import Constants from '../constants';
+import usePluginApi from 'hooks/usePluginApi';
+import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
 import './enforceConnectedAccountModal.css';
 

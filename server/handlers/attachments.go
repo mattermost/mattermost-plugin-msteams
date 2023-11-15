@@ -11,12 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-server/v6/app/imaging"
 	"github.com/mattermost/mattermost-server/v6/model"
 )
 
-func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
+func GetResourceIDsFromURL(weburl string) (*clientmodels.ActivityIds, error) {
 	parsedURL, err := url.Parse(weburl)
 	if err != nil {
 		return nil, err
@@ -25,7 +27,7 @@ func GetResourceIDsFromURL(weburl string) (*msteams.ActivityIds, error) {
 	path := strings.TrimPrefix(parsedURL.Path, "/beta/")
 	path = strings.TrimPrefix(path, "/v1.0/")
 	urlParts := strings.Split(path, "/")
-	activityIDs := &msteams.ActivityIds{}
+	activityIDs := &clientmodels.ActivityIds{}
 	if urlParts[0] == "chats" && len(urlParts) >= 6 {
 		activityIDs.ChatID = urlParts[1]
 		activityIDs.MessageID = urlParts[3]
@@ -91,11 +93,12 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *msteams.Message, chat *msteams.Chat) (string, model.StringArray, string, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
-	countAttachments := 0
+	countNonFileAttachments := 0
+	countFileAttachments := 0
 	var client msteams.Client
 	if chat == nil {
 		client = ah.plugin.GetClientForApp()
@@ -114,6 +117,11 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		return "", nil, "", errorFound
 	}
 
+	isDirectMessage := false
+	if chat != nil {
+		isDirectMessage = true
+	}
+
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -121,12 +129,18 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		// handle a code snippet (code block)
 		if a.ContentType == "application/vnd.microsoft.card.codesnippet" {
 			newText = ah.handleCodeSnippet(client, a, newText)
+			countNonFileAttachments++
 			continue
 		}
 
 		// handle a message reference (reply)
 		if a.ContentType == "messageReference" {
 			parentID, newText = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
+			countNonFileAttachments++
+			continue
+		}
+
+		if isUpdatedActivity {
 			continue
 		}
 
@@ -139,12 +153,14 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
 			if err != nil {
 				ah.plugin.GetAPI().LogError("failed to download the file", "filename", a.Name, "error", err.Error())
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
 				continue
 			}
 		} else {
 			fileSize, downloadURL, err = client.GetFileSizeAndDownloadURL(a.ContentURL)
 			if err != nil {
 				ah.plugin.GetAPI().LogError("failed to get file size and download URL", "error", err.Error())
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
 				continue
 			}
 
@@ -152,6 +168,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if fileSize > fileSizeAllowed {
 				ah.plugin.GetAPI().LogError("skipping file download from MS Teams because the file size is greater than the allowed size")
 				errorFound = true
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonMaxFileSizeExceeded, isDirectMessage)
 				continue
 			}
 
@@ -160,6 +177,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {
 					ah.plugin.GetAPI().LogError("failed to get file content", "error", err.Error())
+					ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
 					continue
 				}
 			}
@@ -180,12 +198,18 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 
 		if fileInfoID == "" {
+			ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonEmptyFileID, isDirectMessage)
 			continue
 		}
 		attachments = append(attachments, fileInfoID)
-		countAttachments++
-		if countAttachments == 10 {
+		ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectMessage)
+		countFileAttachments++
+		if countFileAttachments == maxFileAttachmentsSupported {
 			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
+
+			// Calculate the count of file attachments discarded by subtracting handled file attachments and other attachments from total message attachments.
+			fileAttachmentsDiscarded := len(msg.Attachments) - countNonFileAttachments - countFileAttachments
+			ah.plugin.GetMetrics().ObserveFiles(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, isDirectMessage, int64(fileAttachmentsDiscarded))
 			break
 		}
 	}
@@ -211,7 +235,7 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 	return fileInfo.Id
 }
 
-func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach msteams.Attachment, text string) string {
+func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach clientmodels.Attachment, text string) string {
 	var content struct {
 		Language       string `json:"language"`
 		CodeSnippetURL string `json:"codeSnippetUrl"`
@@ -241,7 +265,7 @@ func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach mstea
 	return newText
 }
 
-func (ah *ActivityHandler) handleMessageReference(attach msteams.Attachment, chatOrChannelID string, text string) (string, string) {
+func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment, chatOrChannelID string, text string) (string, string) {
 	var content struct {
 		MessageID string `json:"messageId"`
 	}

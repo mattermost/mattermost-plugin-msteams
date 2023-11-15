@@ -1,7 +1,9 @@
 package testutils
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -50,6 +52,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}
@@ -63,12 +66,13 @@ func GetMSTeamsChannelID() string {
 	return "qplsnwere9nurernidteoqw"
 }
 
-func GetPost(channelID, userID string) *model.Post {
+func GetPost(channelID, userID string, createAt int64) *model.Post {
 	return &model.Post{
 		Id:        GetID(),
 		FileIds:   model.StringArray{GetID()},
 		ChannelId: channelID,
 		UserId:    userID,
+		CreateAt:  createAt,
 	}
 }
 
@@ -110,7 +114,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "test-teams-team"
+	return "test-teams-team-qplsnwere9nurernidte"
 }
 
 func GetTeamsChannelID() string {
@@ -133,6 +137,18 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 	return links
 }
 
+func GetConnectedUsers(count int) []*storemodels.ConnectedUser {
+	var connectedUsers []*storemodels.ConnectedUser
+	for i := 0; i < count; i++ {
+		connectedUsers = append(connectedUsers, &storemodels.ConnectedUser{
+			MattermostUserID: GetUserID(),
+			TeamsUserID:      GetTeamsUserID(),
+		})
+	}
+
+	return connectedUsers
+}
+
 func GetFileInfo() *model.FileInfo {
 	return &model.FileInfo{
 		Id:       GetID(),
@@ -142,11 +158,12 @@ func GetFileInfo() *model.FileInfo {
 	}
 }
 
-func GetPostFromTeamsMessage() *model.Post {
+func GetPostFromTeamsMessage(createAt int64) *model.Post {
 	return &model.Post{
 		UserId:    GetUserID(),
 		ChannelId: GetChannelID(),
 		Message:   "mockText",
+		CreateAt:  createAt,
 		Props: model.StringInterface{
 			"msteams_sync_mock-BotUserID": true,
 		},
@@ -158,11 +175,61 @@ func GetChannelLink() *storemodels.ChannelLink {
 	return &storemodels.ChannelLink{
 		MattermostTeamID:    GetTeamID(),
 		MattermostChannelID: GetChannelID(),
-		MSTeamsTeamID:       GetTeamID(),
-		MSTeamsChannelID:    GetChannelID(),
+		MSTeamsTeamID:       GetTeamsTeamID(),
+		MSTeamsChannelID:    GetTeamsChannelID(),
 	}
+}
+
+func GetLinkChannelsPayload(teamID, channelID, msTeamsTeamID, msTeamsChannelID string) string {
+	return fmt.Sprintf(`{
+		"mattermostTeamID":"%s",
+		"mattermostChannelID":"%s",
+		"msTeamsTeamID":"%s",
+		"msTeamsChannelID":"%s"
+	}`, teamID, channelID, msTeamsTeamID, msTeamsChannelID)
 }
 
 func GetTestEmail() string {
 	return "unknown-user@msteamssync"
+}
+
+func GetMockTime() time.Time {
+	mockTime, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jan 2, 2023 at 4:00pm (MST)")
+	return mockTime
+}
+
+func GetEphemeralPost(userID, channelID, message string) *model.Post {
+	return &model.Post{
+		UserId:    userID,
+		ChannelId: channelID,
+		Message:   message,
+	}
+}
+
+func GetGlobalSubscription(subscriptionID string, expiresOn time.Time) storemodels.GlobalSubscription {
+	return storemodels.GlobalSubscription{
+		SubscriptionID: subscriptionID,
+		Type:           "allChats",
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
+}
+
+func GetChannelSubscription(subscriptionID, teamID, channelID string, expiresOn time.Time) storemodels.ChannelSubscription {
+	return storemodels.ChannelSubscription{
+		SubscriptionID: subscriptionID,
+		TeamID:         teamID,
+		ChannelID:      channelID,
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
+}
+
+func GetChatSubscription(subscriptionID, userID string, expiresOn time.Time) storemodels.ChatSubscription {
+	return storemodels.ChatSubscription{
+		SubscriptionID: subscriptionID,
+		UserID:         userID,
+		Secret:         "secret",
+		ExpiresOn:      expiresOn,
+	}
 }

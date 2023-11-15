@@ -146,75 +146,19 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	channel, appErr := p.API.GetChannel(args.ChannelId)
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
-	}
-
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
-	}
-
-	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
-	}
-
 	if len(parameters) < 2 {
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
-	}
-
-	link, err := p.store.GetLinkByChannelID(args.ChannelId)
-	if err == nil && link != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
-	}
-
-	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
-	if err == nil && link != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
-	}
-
 	client, err := p.GetClientForUser(args.UserId)
 	if err != nil {
+		p.API.LogError("Unable to get the client for user", "MMUserID", args.UserId, "Error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
-	if _, err = client.GetChannelInTeam(parameters[0], parameters[1]); err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
-	}
-
-	channelLink := storemodels.ChannelLink{
-		MattermostTeamID:    channel.TeamId,
-		MattermostChannelID: channel.Id,
-		MSTeamsTeamID:       parameters[0],
-		MSTeamsChannelID:    parameters[1],
-		Creator:             args.UserId,
-	}
-
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeamID, channelLink.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
-	if err != nil {
-		p.API.LogDebug("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
-	}
-
-	if err = p.store.StoreChannelLink(&channelLink); err != nil {
-		p.API.LogDebug("Unable to create the new link", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
-	}
-
-	err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
-		SubscriptionID: channelsSubscription.ID,
-		TeamID:         channelLink.MSTeamsTeamID,
-		ChannelID:      channelLink.MSTeamsChannelID,
-		ExpiresOn:      channelsSubscription.ExpiresOn,
-		Secret:         p.getConfiguration().WebhookSecret,
-	})
-	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to save the subscription in the monitoring system: "+err.Error())
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
+	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1], client); errMsg != "" {
+		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
@@ -222,47 +166,11 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 }
 
 func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	channel, appErr := p.API.GetChannel(args.ChannelId)
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
-	}
-
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
-		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
-	}
-
-	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
-	if !canLinkChannel {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
-	}
-
-	link, err := p.store.GetLinkByChannelID(channel.Id)
-	if err != nil {
-		p.API.LogDebug("Unable to get the link by channel ID", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "This Mattermost channel is not linked to any MS Teams channel.")
-	}
-
-	if err = p.store.DeleteLinkByChannelID(channel.Id); err != nil {
-		p.API.LogDebug("Unable to delete the link by channel ID", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
+	if errMsg, _ := p.UnlinkChannels(args.UserId, args.ChannelId); errMsg != "" {
+		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
-
-	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannelID)
-	if err != nil {
-		p.API.LogDebug("Unable to get the subscription by MS Teams channel ID", "error", err.Error())
-		return &model.CommandResponse{}, nil
-	}
-
-	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
-		return &model.CommandResponse{}, nil
-	}
-
-	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
-	}
 
 	return &model.CommandResponse{}, nil
 }
@@ -275,20 +183,18 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 
 	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeamID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team details.")
 	}
 
 	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeamID, link.MSTeamsChannelID)
 	if err != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel details.")
 	}
 
 	text := fmt.Sprintf(
-		"This channel is linked to the MS Teams Channel \"%s\" (with id: %s) in the Team \"%s\" (with the id: %s).",
+		"This channel is linked to the MS Teams Channel \"%s\" in the Team \"%s\".",
 		msteamsChannel.DisplayName,
-		msteamsChannel.ID,
 		msteamsTeam.DisplayName,
-		msteamsTeam.ID,
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
@@ -336,23 +242,46 @@ func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemo
 	}
 
 	if errorsFound {
-		sb.WriteString("\nThere were some errors while fetching information. Please check the server logs.")
+		sb.WriteString("\nThere were some errors while fetching details. Please check the server logs.")
 	}
 
 	p.sendBotEphemeralPost(userID, channelID, sb.String())
 }
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if storedToken, _ := p.store.GetTokenForMattermostUser(args.UserId); storedToken != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
+	}
+
+	genericErrorMessage := "Error in trying to connect the account, please try again."
+	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
+	if err != nil {
+		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "Error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
+	}
+
+	if !presentInWhitelist {
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		if err != nil {
+			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
+		}
+
+		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
+			return p.cmdError(args.UserId, args.ChannelId, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
+		}
+	}
+
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
 	if err := p.store.StoreOAuth2State(state); err != nil {
 		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
 		p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
@@ -365,16 +294,39 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
+	if storedToken, _ := p.store.GetTokenForMattermostUser(p.userID); storedToken != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
+	}
+
+	genericErrorMessage := "Error in trying to connect the bot account, please try again."
+	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
+	if err != nil {
+		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", err.Error())
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
+	}
+
+	if !presentInWhitelist {
+		whitelistSize, err := p.store.GetSizeOfWhitelist()
+		if err != nil {
+			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
+		}
+
+		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
+			return p.cmdError(args.UserId, args.ChannelId, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
+		}
+	}
+
 	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
 	if err := p.store.StoreOAuth2State(state); err != nil {
 		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	codeVerifier := model.NewId()
 	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
 	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Error trying to connect the bot account, please try again.")
+		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
