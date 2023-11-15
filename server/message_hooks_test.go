@@ -1804,8 +1804,10 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-				})
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: testutils.GetChannelID(),
+				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{

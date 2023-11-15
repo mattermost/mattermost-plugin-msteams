@@ -873,10 +873,13 @@ func TestConnect(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
+
 			plugin.SetAPI(mockAPI)
 			defer mockAPI.AssertExpectations(t)
+
 			test.SetupPlugin(mockAPI)
 			test.SetupStore(plugin.store.(*storemocks.Store))
+
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
@@ -1067,10 +1070,13 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/connected-users/download", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
+
 			result := w.Result()
 			defer result.Body.Close()
+
 			assert.NotNil(t, result)
 			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+
 			bodyBytes, err := io.ReadAll(result.Body)
 			assert.Nil(err)
 			if test.ExpectedResult != "" {
@@ -1079,6 +1085,7 @@ func TestGetConnectedUsersFile(t *testing.T) {
 		})
 	}
 }
+
 func TestDisconnect(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
