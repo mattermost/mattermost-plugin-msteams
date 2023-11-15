@@ -3,6 +3,7 @@ tenant_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 client_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 connected_channel_team_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 connected_channel_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+chat_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [mattermost]
 url="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -11,3 +12,4 @@ user_password="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 admin_username="xxxxxxx"
 admin_password="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 connected_channel_id="xxxxxxxxxxxxxxxxxxxxxxxxxx"
+dm_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

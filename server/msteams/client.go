@@ -1896,6 +1896,36 @@ func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since
 	return messages, nil
 }
 
+func (tc *ClientImpl) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
+	requestParameters := &chats.ItemMessagesRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+	}
+	configuration := &chats.ItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	res, err := tc.client.Chats().ByChatId(chatID).Messages().Get(context.Background(), configuration)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](res, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	messages := []*clientmodels.Message{}
+	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
+		message := convertToMessage(m, "", "", chatID)
+		messages = append(messages, message)
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	return messages, nil
+}
+
 func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.BatchRequest, getMessageRequestItem msgraphcore.BatchItem) (*clientmodels.Message, error) {
 	batchResponse, err := batchRequest.Send(tc.ctx, tc.client.GetAdapter())
 	if err != nil {
