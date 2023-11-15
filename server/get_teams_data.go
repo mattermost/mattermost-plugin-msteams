@@ -269,7 +269,7 @@ func (p *Plugin) GetOffsetAndLimit(query url.Values) (offset, limit int) {
 	switch {
 	case err != nil || val < 0:
 		p.API.LogError("Invalid pagination query param", "Error", err.Error())
-		limit = DefaultPerPageLimit
+		limit = DefaultPerPage
 	case val > MaxPerPageLimit:
 		p.API.LogInfo("Max per page limit reached")
 		limit = MaxPerPageLimit

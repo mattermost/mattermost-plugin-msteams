@@ -1314,7 +1314,7 @@ func TestGetLinkedChannels(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/linked-channels", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPage)},
 				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 			}
 
@@ -1405,7 +1405,7 @@ func TestGetMSTeamsTeamList(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/msteams/teams", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPage)},
 				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 			}
 
@@ -1500,7 +1500,7 @@ func TestGetMSTeamsTeamChannels(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/msteams/teams/%s/channels", testutils.GetTeamsTeamID()), nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			queryParams := url.Values{
-				QueryParamPerPage: {fmt.Sprint(DefaultPerPageLimit)},
+				QueryParamPerPage: {fmt.Sprint(DefaultPerPage)},
 				QueryParamPage:    {fmt.Sprint(DefaultPage)},
 			}
 

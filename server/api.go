@@ -51,9 +51,9 @@ type Activities struct {
 
 const (
 	// Pagination
-	DefaultPage         = 0
-	DefaultPerPageLimit = 10
-	MaxPerPageLimit     = 100
+	DefaultPage     = 0
+	DefaultPerPage  = 10
+	MaxPerPageLimit = 100
 
 	// Query params
 	QueryParamPage    = "page"
