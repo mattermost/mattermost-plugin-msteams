@@ -1849,6 +1849,53 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 	return channels, nil
 }
 
+func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
+	requestParameters := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+	}
+	configuration := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	requestInfo, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().Delta().ToGetRequestInformation(context.Background(), configuration)
+	if err != nil {
+		return nil, err
+	}
+	requestURI, err := requestInfo.GetUri()
+	requestURI.RawQuery += "&%24expand=replies"
+	requestInfo.SetUri(*requestURI)
+	requestURI, err = requestInfo.GetUri()
+
+	errorMapping := abstractions.ErrorMappings{
+		"4XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
+		"5XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
+	}
+	res, err := tc.client.GetAdapter().Send(context.Background(), requestInfo, teams.CreateItemChannelsItemMessagesDeltaGetResponseFromDiscriminatorValue, errorMapping)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](res, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	messages := []*clientmodels.Message{}
+	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
+		message := convertToMessage(m, teamID, channelID, "")
+		messages = append(messages, message)
+		for _, r := range m.GetReplies() {
+			message := convertToMessage(r, teamID, channelID, "")
+			messages = append(messages, message)
+		}
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	return messages, nil
+}
+
 func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.BatchRequest, getMessageRequestItem msgraphcore.BatchItem) (*clientmodels.Message, error) {
 	batchResponse, err := batchRequest.Send(tc.ctx, tc.client.GetAdapter())
 	if err != nil {

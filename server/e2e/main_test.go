@@ -3,46 +3,137 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 )
 
-var msClient msteams.Client
-var mmClient *model.Client4
-var msConnectedTeamId string
-var msConnectedChannelId string
-var mmConnectedChannelId string
-
-func setup(t *testing.T) {
-	if msClient == nil {
-		msClient = msteams.NewManualClient(os.Getenv("MSTEAMS_TEST_TENANT_ID"), os.Getenv("MSTEAMS_TEST_CLIENT_ID"), nil)
-	}
-	if mmClient == nil {
-		mmClient = model.NewAPIv4Client(os.Getenv("MATTERMOST_TEST_URL"))
-		mmClient.Login(context.Background(), os.Getenv("MATTERMOST_TEST_USERNAME"), os.Getenv("MATTERMOST_TEST_PASSWORD"))
-	}
-	msConnectedTeamId = os.Getenv("MSTEAMS_TEST_CONNECTED_CHANNEL_TEAM_ID")
-	msConnectedChannelId = os.Getenv("MSTEAMS_TEST_CONNECTED_CHANNEL_CHANNEL_ID")
-	mmConnectedChannelId = os.Getenv("MATTERMOST_TEST_CONNECTED_CHANNEL_CHANNEL_ID")
+type TestConfig struct {
+	MSTeams struct {
+		TenantId               string `toml:"tenant_id"`
+		ClientId               string `toml:"client_id"`
+		ConnectedChannelTeamId string `toml:"connected_channel_team_id"`
+		ConnectedChannelId     string `toml:"connected_channel_id"`
+	} `toml:"msteams"`
+	Mattermost struct {
+		URL                string `toml:"url"`
+		UserUsername       string `toml:"user_username"`
+		UserPassword       string `toml:"user_password"`
+		AdminUsername      string `toml:"admin_username"`
+		AdminPassword      string `toml:"admin_password"`
+		ConnectedChannelId string `toml:"connected_channel_id"`
+	} `toml:"mattermost"`
 }
 
-func TestSendMessageToMSTeamsLinkedChannel(t *testing.T) {
-	setup(t)
-	generatedMessage := uuid.New().String()
-	_, err := msClient.SendMessage(msConnectedTeamId, msConnectedChannelId, "", generatedMessage)
-	require.NoError(t, err)
-	time.Sleep(3 * time.Second)
-	posts, _, err := mmClient.GetPostsForChannel(context.Background(), mmConnectedChannelId, 0, 10, "", false, false)
-	require.NoError(t, err)
-	for _, post := range posts.Posts {
-		if post.Message == generatedMessage {
-			return
+var msClient msteams.Client
+var mmClient *model.Client4
+var mmClientAdmin *model.Client4
+var testCfg *TestConfig
+
+func setup(t *testing.T) {
+	if testCfg == nil {
+		data, err := os.ReadFile("testconfig.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		testCfg = &TestConfig{}
+		if err := toml.Unmarshal(data, testCfg); err != nil {
+			t.Fatal(err)
 		}
 	}
-	t.Fatal("Message sent to MSTeams is not propagated")
+
+	if msClient == nil {
+		msClient = msteams.NewManualClient(testCfg.MSTeams.TenantId, testCfg.MSTeams.ClientId, nil)
+	}
+	if mmClient == nil {
+		mmClient = model.NewAPIv4Client(testCfg.Mattermost.URL)
+		mmClient.Login(context.Background(), testCfg.Mattermost.UserUsername, testCfg.Mattermost.UserPassword)
+	}
+	if mmClientAdmin == nil {
+		mmClientAdmin = model.NewAPIv4Client(testCfg.Mattermost.URL)
+		mmClientAdmin.Login(context.Background(), testCfg.Mattermost.AdminUsername, testCfg.Mattermost.AdminPassword)
+	}
+}
+
+func TestSendMessageAndReplyToMSTeamsLinkedChannel(t *testing.T) {
+	setup(t)
+	generatedMessage := uuid.New().String()
+	generatedReply := uuid.New().String()
+	newMessage, err := msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, "", generatedMessage)
+	require.NoError(t, err)
+
+	_, err = msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, newMessage.ID, generatedReply)
+	require.NoError(t, err)
+
+	time.Sleep(3 * time.Second)
+	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelId, 0, 10, "", false, false)
+	require.NoError(t, err)
+
+	var mattermostNewMessage *model.Post
+	var mattermostNewReply *model.Post
+	for _, post := range posts.Posts {
+		if post.Message == generatedMessage {
+			mattermostNewMessage = post
+		}
+		if post.Message == generatedReply {
+			mattermostNewReply = post
+		}
+	}
+	require.NotNil(t, mattermostNewMessage)
+	require.NotNil(t, mattermostNewReply)
+	require.Equal(t, mattermostNewReply.RootId, mattermostNewMessage.Id)
+}
+
+func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
+	setup(t)
+	startTime := time.Now()
+	generatedMessage := uuid.New().String()
+	me, _, err := mmClient.GetMe(context.Background(), "")
+	require.NoError(t, err)
+	post := &model.Post{
+		Message:   generatedMessage,
+		ChannelId: testCfg.Mattermost.ConnectedChannelId,
+		UserId:    me.Id,
+	}
+	newPost, _, err := mmClient.CreatePost(context.Background(), post)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	generatedReply := uuid.New().String()
+	replyPost := &model.Post{
+		Message:   generatedReply,
+		ChannelId: testCfg.Mattermost.ConnectedChannelId,
+		UserId:    me.Id,
+		RootId:    newPost.Id,
+	}
+	_, _, err = mmClient.CreatePost(context.Background(), replyPost)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	msTeamsMessages, err := msClient.ListChannelMessages(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, startTime)
+	require.NoError(t, err)
+
+	var msteamsNewMessage *clientmodels.Message
+	var msteamsNewReply *clientmodels.Message
+	for _, msg := range msTeamsMessages {
+		if strings.Contains(msg.Text, generatedMessage) {
+			msteamsNewMessage = msg
+		}
+		if strings.Contains(msg.Text, generatedReply) {
+			msteamsNewReply = msg
+		}
+	}
+
+	require.NotNil(t, msteamsNewMessage)
+	require.NotNil(t, msteamsNewReply)
+	require.Equal(t, msteamsNewReply.ReplyToID, msteamsNewMessage.ID)
 }

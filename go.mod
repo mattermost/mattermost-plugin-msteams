@@ -8,6 +8,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/enescakir/emoji v1.0.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gosimple/slug v1.13.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -20,6 +21,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v1.20.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pborman/uuid v1.2.1
+	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.9.3
@@ -59,7 +61,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/uuid v1.3.1 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect

@@ -1,0 +1,13 @@
+[msteams]
+tenant_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+client_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+connected_channel_team_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+connected_channel_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+[mattermost]
+url="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+user_username="xxxxxxx"
+user_password="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+admin_username="xxxxxxx"
+admin_password="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+connected_channel_id="xxxxxxxxxxxxxxxxxxxxxxxxxx"
