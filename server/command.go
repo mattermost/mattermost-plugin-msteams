@@ -53,9 +53,7 @@ func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
 func getAutocompleteData() *model.AutocompleteData {
 	cmd := model.NewAutocompleteData(msteamsCommand, "[command]", "Manage MS Teams linked channels")
 
-	link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
-	link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
-	link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
+	link := model.NewAutocompleteData("link", "", "Link current channel to a MS Teams channel")
 	cmd.AddCommand(link)
 
 	unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
@@ -166,11 +164,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
-	if err == nil && link != nil {
-		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
-	}
-
-	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
 	if err == nil && link != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
