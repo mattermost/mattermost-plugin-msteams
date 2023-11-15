@@ -98,8 +98,8 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("LogWarn", "Unable to handle message reaction set", "error", "unable to set the reaction")
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannelID: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeamID: "ms-teams-team-id", MSTeamsChannelID: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
@@ -122,8 +122,8 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", "unable to set post lastUpdateAt value")
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannelID: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeamID: "ms-teams-team-id", MSTeamsChannelID: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
@@ -135,7 +135,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -147,8 +147,8 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannelID: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeamID: "ms-teams-team-id", MSTeamsChannelID: "ms-teams-channel-id"}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
@@ -160,7 +160,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -264,8 +264,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MattermostTeamID:    "mockMattermostTeam",
 					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
+					MSTeamsTeamID:       "mockTeamsTeamID",
+					MSTeamsChannelID:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
@@ -296,8 +296,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MattermostTeamID:    "mockMattermostTeam",
 					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
+					MSTeamsTeamID:       "mockTeamsTeamID",
+					MSTeamsChannelID:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
@@ -310,7 +310,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -329,8 +329,8 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MattermostTeamID:    "mockMattermostTeam",
 					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
+					MSTeamsTeamID:       "mockTeamsTeamID",
+					MSTeamsChannelID:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
@@ -343,7 +343,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -406,9 +406,9 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMsgID",
-					MSTeamsChannel: testutils.GetChatID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMsgID",
+					MSTeamsChannelID: testutils.GetChatID(),
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -417,7 +417,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateChatMessage", testutils.GetChatID(), "mockMsgID", "", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -517,8 +517,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MattermostTeamID:    "mockMattermostTeam",
 					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
+					MSTeamsTeamID:       "mockTeamsTeamID",
+					MSTeamsChannelID:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -527,9 +527,9 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: "mockTeamsChannelID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -537,7 +537,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -555,8 +555,8 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MattermostTeamID:    "mockMattermostTeamID",
 					MattermostChannelID: "mockMattermostChannelID",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
+					MSTeamsTeamID:       "mockTeamsTeamID",
+					MSTeamsChannelID:    "mockTeamsChannelID",
 				}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -564,9 +564,9 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockTeamsTeamID",
-					MSTeamsChannel: "mockTeamsChannelID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockTeamsTeamID",
+					MSTeamsChannelID: "mockTeamsChannelID",
 				}).Return(nil).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -574,7 +574,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -772,7 +772,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -799,7 +799,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -825,7 +825,7 @@ func TestSetChatReaction(t *testing.T) {
 				uclient.On("SetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -975,7 +975,7 @@ func TestSetReaction(t *testing.T) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -997,7 +997,7 @@ func TestSetReaction(t *testing.T) {
 				uclient.On("SetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -1176,7 +1176,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1202,7 +1202,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1227,7 +1227,7 @@ func TestUnsetChatReaction(t *testing.T) {
 				uclient.On("UnsetChatReaction", testutils.GetChatID(), "mockTeamsMessageID", testutils.GetID(), ":mockEmojiName:").Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetChatReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1299,7 +1299,7 @@ func TestUnsetReaction(t *testing.T) {
 		{
 			Name: "UnsetReaction: Unable to begin database transaction",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error in removing the reaction", "emojiName", "mockName", "error", ": , unable to unset the reaction")
+				api.On("LogError", "Error in removing the reaction", "emojiName", "mockName", "error", "unable to unset the reaction")
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
@@ -1372,7 +1372,7 @@ func TestUnsetReaction(t *testing.T) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -1392,7 +1392,7 @@ func TestUnsetReaction(t *testing.T) {
 				uclient.On("UnsetReaction", "mockTeamsTeamID", "mockTeamsChannelID", "", "", testutils.GetID(), ":mockName:").Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -1509,7 +1509,7 @@ func TestSendChat(t *testing.T) {
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
@@ -1529,9 +1529,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(testutils.GetInternalServerAppError("unable to store the post")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1547,8 +1547,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1570,9 +1570,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Once()
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1589,8 +1589,8 @@ func TestSendChat(t *testing.T) {
 				uclient.On("GetChatMessage", testutils.GetChatID(), "mockParentMessageID").Return(nil, errors.New("error in getting parent chat message")).Once()
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1610,9 +1610,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1623,8 +1623,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1643,9 +1643,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1656,8 +1656,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1678,9 +1678,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Once()
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1703,8 +1703,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToUploadFileOnTeams, true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "false", mock.AnythingOfType("float64")).Once()
@@ -1724,9 +1724,9 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChatID(),
+					MSTeamsID:        "mockMessageID",
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1742,8 +1742,8 @@ func TestSendChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
@@ -1804,9 +1804,9 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1815,8 +1815,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1831,9 +1831,9 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1842,8 +1842,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, discardedReasonUnableToGetMMData, false).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1869,8 +1869,8 @@ func TestSend(t *testing.T) {
 				}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send message with attachments")).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
 			},
@@ -1886,9 +1886,9 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(errors.New("unable to store posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1904,8 +1904,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1920,9 +1920,9 @@ func TestSend(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        "mockMessageID",
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
@@ -1938,8 +1938,8 @@ func TestSend(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveFileCount", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -2048,7 +2048,7 @@ func TestDelete(t *testing.T) {
 				uclient.On("DeleteMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID").Return(nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionDeleted, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -2152,7 +2152,7 @@ func TestDeleteChat(t *testing.T) {
 				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionDeleted, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 		},
@@ -2305,9 +2305,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2332,9 +2332,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2342,7 +2342,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,
@@ -2361,9 +2361,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
@@ -2371,7 +2371,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,
@@ -2388,9 +2388,9 @@ func TestUpdate(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChannelID(),
-					MSTeamsID:      "mockMSTeamsID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
+					MSTeamsID:        "mockMSTeamsID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2398,7 +2398,7 @@ func TestUpdate(t *testing.T) {
 				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,
@@ -2558,9 +2558,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: "mockChatID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2585,9 +2585,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: "mockChatID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 				store.On("RollbackTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2595,7 +2595,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,
@@ -2615,9 +2615,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: "mockChatID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(errors.New("unable to commit database transaction")).Times(1)
 			},
@@ -2625,7 +2625,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,
@@ -2644,9 +2644,9 @@ func TestUpdateChat(t *testing.T) {
 				store.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				store.On("LockPostByMMPostID", &sql.Tx{}, testutils.GetID()).Return(nil).Times(1)
 				store.On("LinkPosts", &sql.Tx{}, storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: "mockChatID",
-					MSTeamsID:      "mockTeamsTeamID",
+					MattermostID:     testutils.GetID(),
+					MSTeamsChannelID: "mockChatID",
+					MSTeamsID:        "mockTeamsTeamID",
 				}).Return(nil).Times(1)
 				store.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
 			},
@@ -2654,7 +2654,7 @@ func TestUpdateChat(t *testing.T) {
 				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
 			UpdateRequired: true,

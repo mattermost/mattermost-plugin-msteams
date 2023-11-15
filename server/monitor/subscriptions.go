@@ -37,7 +37,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		wg.Add(1)
 		go func(link storemodels.ChannelLink) {
 			defer wg.Done()
-			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
+			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeamID+link.MSTeamsChannelID]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
 				// Check if channel subscription is not present on MS Teams
@@ -54,7 +54,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 				}
 			} else {
 				// Create channel subscription for the linked channel
-				m.recreateChannelSubscription("", link.MSTeamsTeam, link.MSTeamsChannel, m.webhookSecret, false)
+				m.recreateChannelSubscription("", link.MSTeamsTeamID, link.MSTeamsChannelID, m.webhookSecret, false)
 				<-ws
 				return
 			}
@@ -135,7 +135,7 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionConnected)
+	m.metrics.ObserveSubscription(metrics.SubscriptionConnected)
 
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
@@ -175,7 +175,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		return
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
 
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
@@ -219,7 +219,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionReconnected)
+	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
 
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
@@ -233,7 +233,7 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 		return err
 	}
 
-	m.metrics.ObserveSubscriptionsCount(metrics.SubscriptionRefreshed)
+	m.metrics.ObserveSubscription(metrics.SubscriptionRefreshed)
 
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
 }

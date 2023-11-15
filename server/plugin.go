@@ -45,9 +45,6 @@ const (
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
-
-	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
-	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.

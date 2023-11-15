@@ -147,7 +147,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesConfirmedCount", metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveConfirmedMessage", metrics.ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{
@@ -391,13 +391,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetMSTeamsChannelID(),
 				}).Return(errors.New("unable to update the post")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -451,13 +451,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetMSTeamsChannelID(),
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -502,13 +502,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:     testutils.GetID(),
+					MSTeamsID:        testutils.GetMessageID(),
+					MSTeamsChannelID: testutils.GetChannelID(),
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionCreated, metrics.ActionSourceMSTeams, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
@@ -736,7 +736,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 			},
@@ -785,7 +785,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 				store.On("RecoverPost", "mockMattermostID").Return(errors.New("unable to recover"))
@@ -838,13 +838,13 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
+					MSTeamsChannelID:    "mockMSTeamsChannelID",
 					MSTeamsLastUpdateAt: time.Now(),
 				}, nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -894,7 +894,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionUpdated, metrics.ActionSourceMSTeams, false).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
@@ -950,7 +950,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveMessagesCount", metrics.ActionDeleted, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMSTeams, true).Times(1)
 			},
 		},
 		{
@@ -1083,7 +1083,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
 			},
 		},
 		{
@@ -1123,7 +1123,7 @@ func TestHandleReactions(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetID(), nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveReactionsCount", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
+				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
 			},
 		},
 	} {
