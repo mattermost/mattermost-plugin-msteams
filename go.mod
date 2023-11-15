@@ -12,7 +12,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.0.10-0.20231111015533-48bf4e9bd879
+	github.com/mattermost/mattermost/server/public v0.0.10
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20231111015533-48bf4e9bd879
 	github.com/mattn/godown v0.0.1
 	github.com/microsoft/kiota-abstractions-go v1.2.2
