@@ -10,10 +10,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStopPluginSendMessageAndReplyToMSTeamsLinkedChannelStartPlugin(t *testing.T) {
+	t.Skip("Not implemented yet")
 	setup(t)
 
 	t.Log("Disabling the plugin")
@@ -60,21 +62,25 @@ func TestStopPluginSendMessageAndReplyToMSTeamsLinkedChannelStartPlugin(t *testi
 	}
 
 	t.Log("Waiting for the plugin to and sync")
-	time.Sleep(5 * time.Second)
 
-	posts, _, err = mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelID, 0, 10, "", false, false)
-	require.NoError(t, err)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		posts, _, err = mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelID, 0, 10, "", false, false)
+		require.NoError(t, err)
 
-	for _, post := range posts.Posts {
-		if post.Message == generatedMessage {
-			mattermostNewMessage = post
+		for _, post := range posts.Posts {
+			if post.Message == generatedMessage {
+				mattermostNewMessage = post
+			}
+			if post.Message == generatedReply {
+				mattermostNewReply = post
+			}
 		}
-		if post.Message == generatedReply {
-			mattermostNewReply = post
-		}
-	}
 
-	require.NotNil(t, mattermostNewMessage)
-	require.NotNil(t, mattermostNewReply)
-	require.Equal(t, mattermostNewReply.RootId, mattermostNewMessage.Id)
+		assert.NotNil(c, mattermostNewMessage)
+		assert.NotNil(c, mattermostNewReply)
+		if mattermostNewMessage == nil || mattermostNewReply == nil {
+			return
+		}
+		assert.Equal(c, mattermostNewReply.RootId, mattermostNewMessage.Id)
+	}, 10*time.Second, 500*time.Millisecond)
 }

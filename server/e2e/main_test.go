@@ -42,7 +42,7 @@ func setup(t *testing.T) {
 	if testCfg == nil {
 		data, err := os.ReadFile("testconfig.toml")
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("testconfig.toml file not found")
 		}
 		testCfg = &TestConfig{}
 		if err := toml.Unmarshal(data, testCfg); err != nil {

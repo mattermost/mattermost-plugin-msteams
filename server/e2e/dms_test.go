@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,23 +27,27 @@ func TestSendMessageAndReplyToMSTeamsDirectMessage(t *testing.T) {
 	_, err = msClient.SendChat(testCfg.MSTeams.ChatID, generatedReply, newMessage, nil, nil)
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Second)
-	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.DmID, 0, 10, "", false, false)
-	require.NoError(t, err)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.DmID, 0, 10, "", false, false)
+		require.NoError(t, err)
 
-	var mattermostNewMessage *model.Post
-	var mattermostNewReply *model.Post
-	for _, post := range posts.Posts {
-		if strings.Contains(post.Message, generatedMessage) {
-			mattermostNewMessage = post
+		var mattermostNewMessage *model.Post
+		var mattermostNewReply *model.Post
+		for _, post := range posts.Posts {
+			if strings.Contains(post.Message, generatedMessage) {
+				mattermostNewMessage = post
+			}
+			if strings.Contains(post.Message, generatedReply) {
+				mattermostNewReply = post
+			}
 		}
-		if strings.Contains(post.Message, generatedReply) {
-			mattermostNewReply = post
+		assert.NotNil(c, mattermostNewMessage)
+		assert.NotNil(c, mattermostNewReply)
+		if (mattermostNewMessage == nil) || (mattermostNewReply == nil) {
+			return
 		}
-	}
-	require.NotNil(t, mattermostNewMessage)
-	require.NotNil(t, mattermostNewReply)
-	require.Equal(t, mattermostNewReply.RootId, mattermostNewMessage.Id)
+		assert.Equal(c, mattermostNewReply.RootId, mattermostNewMessage.Id)
+	}, 10*time.Second, 500*time.Millisecond)
 }
 
 func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
@@ -59,7 +64,19 @@ func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
 	newPost, _, err := mmClient.CreatePost(context.Background(), post)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		msTeamsMessages, err := msClient.ListChatMessages(testCfg.MSTeams.ChatID, startTime)
+		require.NoError(t, err)
+
+		var msteamsNewMessage *clientmodels.Message
+		for _, msg := range msTeamsMessages {
+			if strings.Contains(msg.Text, generatedMessage) {
+				msteamsNewMessage = msg
+			}
+		}
+
+		assert.NotNil(c, msteamsNewMessage)
+	}, 10*time.Second, 500*time.Millisecond)
 
 	generatedReply := uuid.New().String()
 	replyPost := &model.Post{
@@ -71,23 +88,26 @@ func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
 	_, _, err = mmClient.CreatePost(context.Background(), replyPost)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		msTeamsMessages, err := msClient.ListChatMessages(testCfg.MSTeams.ChatID, startTime)
+		require.NoError(t, err)
 
-	msTeamsMessages, err := msClient.ListChatMessages(testCfg.MSTeams.ChatID, startTime)
-	require.NoError(t, err)
-
-	var msteamsNewMessage *clientmodels.Message
-	var msteamsNewReply *clientmodels.Message
-	for _, msg := range msTeamsMessages {
-		if strings.Contains(msg.Text, generatedMessage) {
-			msteamsNewMessage = msg
+		var msteamsNewMessage *clientmodels.Message
+		var msteamsNewReply *clientmodels.Message
+		for _, msg := range msTeamsMessages {
+			if strings.Contains(msg.Text, generatedMessage) {
+				msteamsNewMessage = msg
+			}
+			if strings.Contains(msg.Text, generatedReply) {
+				msteamsNewReply = msg
+			}
 		}
-		if strings.Contains(msg.Text, generatedReply) {
-			msteamsNewReply = msg
-		}
-	}
 
-	require.NotNil(t, msteamsNewMessage)
-	require.NotNil(t, msteamsNewReply)
-	require.Contains(t, msteamsNewReply.Text, msteamsNewMessage.ID)
+		assert.NotNil(c, msteamsNewMessage)
+		assert.NotNil(c, msteamsNewReply)
+		if (msteamsNewMessage == nil) || (msteamsNewReply == nil) {
+			return
+		}
+		assert.Contains(c, msteamsNewReply.Text, msteamsNewMessage.ID)
+	}, 10*time.Second, 500*time.Millisecond)
 }
