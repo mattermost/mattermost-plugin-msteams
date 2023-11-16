@@ -472,6 +472,29 @@ func (_m *Client) GetUserAvatar(userID string) ([]byte, error) {
 	return r0, r1
 }
 
+// ListChannelMessages provides a mock function with given fields: teamID, channelID, since
+func (_m *Client) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+	ret := _m.Called(teamID, channelID, since)
+
+	var r0 []*clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, string, time.Time) []*clientmodels.Message); ok {
+		r0 = rf(teamID, channelID, since)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*clientmodels.Message)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, time.Time) error); ok {
+		r1 = rf(teamID, channelID, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListChannels provides a mock function with given fields: teamID
 func (_m *Client) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	ret := _m.Called(teamID)
@@ -488,6 +511,29 @@ func (_m *Client) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListChatMessages provides a mock function with given fields: chatID, since
+func (_m *Client) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	ret := _m.Called(chatID, since)
+
+	var r0 []*clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, time.Time) []*clientmodels.Message); ok {
+		r0 = rf(chatID, since)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*clientmodels.Message)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, time.Time) error); ok {
+		r1 = rf(chatID, since)
 	} else {
 		r1 = ret.Error(1)
 	}

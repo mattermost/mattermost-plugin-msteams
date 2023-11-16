@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package main
 
 import (
@@ -24,16 +27,16 @@ func TestStopPluginSendMessageAndReplyToMSTeamsLinkedChannelStartPlugin(t *testi
 	generatedReply := uuid.New().String()
 
 	t.Log("Sending messages to MSTeams")
-	newMessage, err := msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, "", generatedMessage)
+	newMessage, err := msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, "", generatedMessage)
 	require.NoError(t, err)
 
-	_, err = msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, newMessage.ID, generatedReply)
+	_, err = msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, newMessage.ID, generatedReply)
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second)
 
 	t.Log("Verifying that the messages hasn't been synced to Mattermost")
-	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelId, 0, 10, "", false, false)
+	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelID, 0, 10, "", false, false)
 	require.NoError(t, err)
 
 	var mattermostNewMessage *model.Post
@@ -59,7 +62,7 @@ func TestStopPluginSendMessageAndReplyToMSTeamsLinkedChannelStartPlugin(t *testi
 	t.Log("Waiting for the plugin to and sync")
 	time.Sleep(5 * time.Second)
 
-	posts, _, err = mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelId, 0, 10, "", false, false)
+	posts, _, err = mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelID, 0, 10, "", false, false)
 	require.NoError(t, err)
 
 	for _, post := range posts.Posts {

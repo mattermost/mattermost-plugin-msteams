@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package main
 
 import (
@@ -16,14 +19,14 @@ func TestSendMessageAndReplyToMSTeamsLinkedChannel(t *testing.T) {
 	setup(t)
 	generatedMessage := uuid.New().String()
 	generatedReply := uuid.New().String()
-	newMessage, err := msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, "", generatedMessage)
+	newMessage, err := msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, "", generatedMessage)
 	require.NoError(t, err)
 
-	_, err = msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, newMessage.ID, generatedReply)
+	_, err = msClient.SendMessage(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, newMessage.ID, generatedReply)
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second)
-	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelId, 0, 10, "", false, false)
+	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.ConnectedChannelID, 0, 10, "", false, false)
 	require.NoError(t, err)
 
 	var mattermostNewMessage *model.Post
@@ -49,7 +52,7 @@ func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
 	require.NoError(t, err)
 	post := &model.Post{
 		Message:   generatedMessage,
-		ChannelId: testCfg.Mattermost.ConnectedChannelId,
+		ChannelId: testCfg.Mattermost.ConnectedChannelID,
 		UserId:    me.Id,
 	}
 	newPost, _, err := mmClient.CreatePost(context.Background(), post)
@@ -60,7 +63,7 @@ func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
 	generatedReply := uuid.New().String()
 	replyPost := &model.Post{
 		Message:   generatedReply,
-		ChannelId: testCfg.Mattermost.ConnectedChannelId,
+		ChannelId: testCfg.Mattermost.ConnectedChannelID,
 		UserId:    me.Id,
 		RootId:    newPost.Id,
 	}
@@ -69,7 +72,7 @@ func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	msTeamsMessages, err := msClient.ListChannelMessages(testCfg.MSTeams.ConnectedChannelTeamId, testCfg.MSTeams.ConnectedChannelId, startTime)
+	msTeamsMessages, err := msClient.ListChannelMessages(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, startTime)
 	require.NoError(t, err)
 
 	var msteamsNewMessage *clientmodels.Message

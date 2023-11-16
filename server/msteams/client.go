@@ -1952,12 +1952,14 @@ func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since
 	}
 	requestInfo, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().Delta().ToGetRequestInformation(context.Background(), configuration)
 	if err != nil {
-		return nil, err
+		return nil, NormalizeGraphAPIError(err)
 	}
 	requestURI, err := requestInfo.GetUri()
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
 	requestURI.RawQuery += "&%24expand=replies"
 	requestInfo.SetUri(*requestURI)
-	requestURI, err = requestInfo.GetUri()
 
 	errorMapping := abstractions.ErrorMappings{
 		"4XX": odataerrors.CreateODataErrorFromDiscriminatorValue,

@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package main
 
 import (
@@ -17,14 +20,14 @@ func TestSendMessageAndReplyToMSTeamsDirectMessage(t *testing.T) {
 	generatedMessage := uuid.New().String()
 	generatedReply := uuid.New().String()
 
-	newMessage, err := msClient.SendChat(testCfg.MSTeams.ChatId, generatedMessage, nil, nil, nil)
+	newMessage, err := msClient.SendChat(testCfg.MSTeams.ChatID, generatedMessage, nil, nil, nil)
 	require.NoError(t, err)
 
-	_, err = msClient.SendChat(testCfg.MSTeams.ChatId, generatedReply, newMessage, nil, nil)
+	_, err = msClient.SendChat(testCfg.MSTeams.ChatID, generatedReply, newMessage, nil, nil)
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second)
-	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.DmId, 0, 10, "", false, false)
+	posts, _, err := mmClient.GetPostsForChannel(context.Background(), testCfg.Mattermost.DmID, 0, 10, "", false, false)
 	require.NoError(t, err)
 
 	var mattermostNewMessage *model.Post
@@ -50,7 +53,7 @@ func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
 	require.NoError(t, err)
 	post := &model.Post{
 		Message:   generatedMessage,
-		ChannelId: testCfg.Mattermost.DmId,
+		ChannelId: testCfg.Mattermost.DmID,
 		UserId:    me.Id,
 	}
 	newPost, _, err := mmClient.CreatePost(context.Background(), post)
@@ -61,7 +64,7 @@ func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
 	generatedReply := uuid.New().String()
 	replyPost := &model.Post{
 		Message:   generatedReply,
-		ChannelId: testCfg.Mattermost.DmId,
+		ChannelId: testCfg.Mattermost.DmID,
 		UserId:    me.Id,
 		RootId:    newPost.Id,
 	}
@@ -70,7 +73,7 @@ func TestSendMessageAndReplyToMattermostDirectMessage(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	msTeamsMessages, err := msClient.ListChatMessages(testCfg.MSTeams.ChatId, startTime)
+	msTeamsMessages, err := msClient.ListChatMessages(testCfg.MSTeams.ChatID, startTime)
 	require.NoError(t, err)
 
 	var msteamsNewMessage *clientmodels.Message

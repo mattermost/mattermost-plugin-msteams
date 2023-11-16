@@ -217,6 +217,12 @@ ifneq ($(HAS_SERVER),)
 	$(GO) tool cover -html=server/coverage.txt
 endif
 
+.PHONY: e2e
+e2e:
+ifneq ($(HAS_SERVER),)
+	$(GO) test $(GO_TEST_FLAGS) -tags e2e -v ./server/e2e/...
+endif
+
 ## Extract strings for translation from the source code.
 .PHONY: i18n-extract
 i18n-extract:
