@@ -567,9 +567,7 @@ func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscriptio
 		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
 		}
-		if certificate == nil {
-			subscription.Certificate = ""
-		} else {
+		if certificate != nil {
 			subscription.Certificate = *certificate
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -594,9 +592,7 @@ func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscriptio
 		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
 		}
-		if certificate == nil {
-			subscription.Certificate = ""
-		} else {
+		if certificate != nil {
 			subscription.Certificate = *certificate
 		}
 
@@ -627,9 +623,7 @@ func (s *SQLStore) ListChannelSubscriptionsToRefresh(certificate string) ([]*sto
 		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &cert); scanErr != nil {
 			return nil, scanErr
 		}
-		if cert == nil {
-			subscription.Certificate = ""
-		} else {
+		if cert != nil {
 			subscription.Certificate = *cert
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -654,9 +648,7 @@ func (s *SQLStore) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription,
 		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
 		}
-		if certificate == nil {
-			subscription.Certificate = ""
-		} else {
+		if certificate != nil {
 			subscription.Certificate = *certificate
 		}
 
@@ -687,9 +679,7 @@ func (s *SQLStore) ListGlobalSubscriptionsToRefresh(certificate string) ([]*stor
 		if scanErr := rows.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 			return nil, scanErr
 		}
-		if certificate == nil {
-			subscription.Certificate = ""
-		} else {
+		if certificate != nil {
 			subscription.Certificate = *certificate
 		}
 		subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -755,9 +745,7 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &certificate); err != nil {
 		return nil, err
 	}
-	if certificate == nil {
-		subscription.Certificate = ""
-	} else {
+	if certificate != nil {
 		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -781,9 +769,7 @@ func (s *SQLStore) GetChatSubscription(subscriptionID string) (*storemodels.Chat
 	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.UserID, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 		return nil, scanErr
 	}
-	if certificate == nil {
-		subscription.Certificate = ""
-	} else {
+	if certificate != nil {
 		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
@@ -798,9 +784,7 @@ func (s *SQLStore) GetGlobalSubscription(subscriptionID string) (*storemodels.Gl
 	if scanErr := row.Scan(&subscription.SubscriptionID, &subscription.Type, &subscription.Secret, &expiresOn, &certificate); scanErr != nil {
 		return nil, scanErr
 	}
-	if certificate == nil {
-		subscription.Certificate = ""
-	} else {
+	if certificate != nil {
 		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
