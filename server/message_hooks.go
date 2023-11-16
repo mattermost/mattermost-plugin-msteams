@@ -22,7 +22,7 @@ import (
 )
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
-	if user.RemoteId != nil && *user.RemoteId != "" {
+	if user.RemoteId != nil && *user.RemoteId != "" && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
 		p.API.LogDebug("Promoting synthetic user", "UserID", user.Id)
 		user.RemoteId = nil
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
