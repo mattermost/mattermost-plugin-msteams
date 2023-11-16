@@ -30,6 +30,7 @@ type GlobalSubscription struct {
 	Type           string
 	ExpiresOn      time.Time
 	Secret         string
+	Certificate    string
 }
 
 type ChatSubscription struct {
@@ -37,6 +38,7 @@ type ChatSubscription struct {
 	UserID         string
 	ExpiresOn      time.Time
 	Secret         string
+	Certificate    string
 }
 
 type ChannelSubscription struct {
@@ -45,6 +47,7 @@ type ChannelSubscription struct {
 	ChannelID      string
 	ExpiresOn      time.Time
 	Secret         string
+	Certificate    string
 }
 
 type ConnectedUser struct {

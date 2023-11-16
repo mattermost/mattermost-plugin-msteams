@@ -702,13 +702,13 @@ func (_m *Client) SetReaction(teamID string, channelID string, parentID string, 
 	return r0, r1
 }
 
-// SubscribeToChannel provides a mock function with given fields: teamID, channelID, baseURL, webhookSecret
-func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string) (*clientmodels.Subscription, error) {
-	ret := _m.Called(teamID, channelID, baseURL, webhookSecret)
+// SubscribeToChannel provides a mock function with given fields: teamID, channelID, baseURL, webhookSecret, certificate
+func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string, certificate string) (*clientmodels.Subscription, error) {
+	ret := _m.Called(teamID, channelID, baseURL, webhookSecret, certificate)
 
 	var r0 *clientmodels.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, string, string) *clientmodels.Subscription); ok {
-		r0 = rf(teamID, channelID, baseURL, webhookSecret)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string) *clientmodels.Subscription); ok {
+		r0 = rf(teamID, channelID, baseURL, webhookSecret, certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*clientmodels.Subscription)
@@ -716,8 +716,8 @@ func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL st
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
-		r1 = rf(teamID, channelID, baseURL, webhookSecret)
+	if rf, ok := ret.Get(1).(func(string, string, string, string, string) error); ok {
+		r1 = rf(teamID, channelID, baseURL, webhookSecret, certificate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -725,13 +725,13 @@ func (_m *Client) SubscribeToChannel(teamID string, channelID string, baseURL st
 	return r0, r1
 }
 
-// SubscribeToChannels provides a mock function with given fields: baseURL, webhookSecret, pay
-func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
-	ret := _m.Called(baseURL, webhookSecret, pay)
+// SubscribeToChannels provides a mock function with given fields: baseURL, webhookSecret, pay, certificate
+func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	ret := _m.Called(baseURL, webhookSecret, pay, certificate)
 
 	var r0 *clientmodels.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, bool) *clientmodels.Subscription); ok {
-		r0 = rf(baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(0).(func(string, string, bool, string) *clientmodels.Subscription); ok {
+		r0 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*clientmodels.Subscription)
@@ -739,8 +739,8 @@ func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
-		r1 = rf(baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(1).(func(string, string, bool, string) error); ok {
+		r1 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -748,13 +748,13 @@ func (_m *Client) SubscribeToChannels(baseURL string, webhookSecret string, pay 
 	return r0, r1
 }
 
-// SubscribeToChats provides a mock function with given fields: baseURL, webhookSecret, pay
-func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
-	ret := _m.Called(baseURL, webhookSecret, pay)
+// SubscribeToChats provides a mock function with given fields: baseURL, webhookSecret, pay, certificate
+func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	ret := _m.Called(baseURL, webhookSecret, pay, certificate)
 
 	var r0 *clientmodels.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, bool) *clientmodels.Subscription); ok {
-		r0 = rf(baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(0).(func(string, string, bool, string) *clientmodels.Subscription); ok {
+		r0 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*clientmodels.Subscription)
@@ -762,8 +762,8 @@ func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay boo
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
-		r1 = rf(baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(1).(func(string, string, bool, string) error); ok {
+		r1 = rf(baseURL, webhookSecret, pay, certificate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -771,13 +771,13 @@ func (_m *Client) SubscribeToChats(baseURL string, webhookSecret string, pay boo
 	return r0, r1
 }
 
-// SubscribeToUserChats provides a mock function with given fields: user, baseURL, webhookSecret, pay
-func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
-	ret := _m.Called(user, baseURL, webhookSecret, pay)
+// SubscribeToUserChats provides a mock function with given fields: user, baseURL, webhookSecret, pay, certificate
+func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	ret := _m.Called(user, baseURL, webhookSecret, pay, certificate)
 
 	var r0 *clientmodels.Subscription
-	if rf, ok := ret.Get(0).(func(string, string, string, bool) *clientmodels.Subscription); ok {
-		r0 = rf(user, baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string) *clientmodels.Subscription); ok {
+		r0 = rf(user, baseURL, webhookSecret, pay, certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*clientmodels.Subscription)
@@ -785,8 +785,8 @@ func (_m *Client) SubscribeToUserChats(user string, baseURL string, webhookSecre
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
-		r1 = rf(user, baseURL, webhookSecret, pay)
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, string) error); ok {
+		r1 = rf(user, baseURL, webhookSecret, pay, certificate)
 	} else {
 		r1 = ret.Error(1)
 	}

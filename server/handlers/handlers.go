@@ -167,9 +167,25 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		discardedReason = ah.handleCreatedActivity(activityIds)
+		var msg *clientmodels.Message
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+			}
+		}
+		discardedReason = ah.handleCreatedActivity(msg, activityIds)
 	case "updated":
-		discardedReason = ah.handleUpdatedActivity(activityIds)
+		var msg *clientmodels.Message
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+			}
+		}
+		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
 	case "deleted":
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
@@ -180,8 +196,8 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
@@ -296,8 +312,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.Activi
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
