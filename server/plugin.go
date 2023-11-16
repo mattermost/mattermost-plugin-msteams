@@ -82,6 +82,9 @@ type Plugin struct {
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
+
+	// variable to notice the changes made to synthetic user auth data
+	isSyntheticUserAuthDataUpdated bool
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -205,6 +208,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	if p.getConfiguration().SyncUsers > 0 {
 		p.API.LogDebug("Starting the sync users job")
+		p.syncUsers()
 
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
@@ -445,6 +449,10 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
+		authData := ""
+		if configuration.AutomaticallyPromoteSyntheticUsers {
+			authData = reflect.ValueOf(msUser).FieldByName(configuration.SyntheticUserAuthData).String()
+		}
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
@@ -472,6 +480,16 @@ func (p *Plugin) syncUsers() {
 
 					continue
 				}
+
+				if (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated)) && mmUser.RemoteId != nil {
+					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
+					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+						AuthService: configuration.SyntheticUserAuthService,
+						AuthData:    &authData,
+					}); err != nil {
+						p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					}
+				}
 			}
 		}
 
@@ -491,10 +509,6 @@ func (p *Plugin) syncUsers() {
 		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
-		authData := ""
-		if configuration.AutomaticallyPromoteSyntheticUsers {
-			authData = reflect.ValueOf(msUser).FieldByName(configuration.SyntheticUserAuthData).String()
-		}
 		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
@@ -508,9 +522,11 @@ func (p *Plugin) syncUsers() {
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID, "AuthService", configuration.SyntheticUserAuthService)
 				newMMUser.AuthService = configuration.SyntheticUserAuthService
 				newMMUser.AuthData = &authData
 			} else {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID)
 				newMMUser.Password = p.GenerateRandomPassword()
 			}
 
@@ -568,15 +584,6 @@ func (p *Plugin) syncUsers() {
 				}
 
 				break
-			}
-		}
-
-		if (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || mmUser.AuthData != &configuration.SyntheticUserAuthData)) && mmUser.RemoteId != nil {
-			if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
-				AuthService: configuration.SyntheticUserAuthService,
-				AuthData:    &authData,
-			}); err != nil {
-				p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		}
 	}

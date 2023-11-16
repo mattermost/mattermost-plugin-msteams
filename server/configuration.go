@@ -163,7 +163,11 @@ func (p *Plugin) OnConfigurationChange() error {
 		return err
 	}
 
+	oldSyntheticUserAuthData := p.getConfiguration().SyntheticUserAuthData
 	p.setConfiguration(configuration)
+	if p.getConfiguration().AutomaticallyPromoteSyntheticUsers && oldSyntheticUserAuthData != p.getConfiguration().SyntheticUserAuthData {
+		p.isSyntheticUserAuthDataUpdated = true
+	}
 
 	// Only restart the application if the OnActivate is already executed
 	if p.store != nil {
