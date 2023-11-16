@@ -208,10 +208,12 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 	if p.getConfiguration().SyncUsers > 0 {
 		p.API.LogDebug("Starting the sync users job")
-		p.syncUsers()
 
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
+
+		// Start a syncing of users on plugin start. The below job just schedules the job to run at a given interval of time but does not run it while scheduling. To avoid this, we call the function once separately to sync the users.
+		p.syncUsers()
 
 		job, jobErr := cluster.Schedule(
 			p.API,
@@ -481,7 +483,7 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				if (configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated)) && mmUser.RemoteId != nil {
+				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated) {
 					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
