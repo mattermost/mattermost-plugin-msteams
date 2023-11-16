@@ -33,10 +33,10 @@ type Store interface {
 	MattermostToTeamsUserID(userID string) (string, error)
 	CheckEnabledTeamByTeamID(teamID string) bool
 	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
-	ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error)
+	ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
-	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
+	ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
 	SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error

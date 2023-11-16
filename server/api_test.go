@@ -172,6 +172,46 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			http.StatusBadRequest,
 			"Invalid webhook secret\n",
 		},
+		{
+			"Encrypted message on encrypted subscription",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+						EncryptedContent:               &msteams.EncryptedContent{},
+					},
+				},
+			},
+			func() {
+				plugin.configuration.CertificateKey = "test"
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+				plugin.API.(*plugintest.API).On("LogError", "Invalid encrypted content", "error", "invalid certificate key").Return(nil)
+			},
+			http.StatusBadRequest,
+			"invalid certificate key\n\n",
+		},
+		{
+			"Non encrypted message on encrypted subscription",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+					},
+				},
+			},
+			func() {
+				plugin.configuration.CertificateKey = "test"
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+			},
+			http.StatusBadRequest,
+			"Not encrypted content for encrypted subscription\n",
+		},
 	}
 	for _, tc := range ttcases {
 		t.Run(tc.Name, func(t *testing.T) {
