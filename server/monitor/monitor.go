@@ -21,10 +21,11 @@ type Monitor struct {
 	job              *cluster.Job
 	baseURL          string
 	webhookSecret    string
+	certificate      string
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
@@ -33,6 +34,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 		baseURL:          baseURL,
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,
+		certificate:      certificate,
 	}
 }
 

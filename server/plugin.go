@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"math/big"
@@ -46,9 +49,6 @@ const (
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
-
-	discardedReasonUnableToGetMMData         = "unable_to_get_mm_data"
-	discardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -194,7 +194,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -236,6 +236,43 @@ func (p *Plugin) start(syncSince *time.Time) {
 func (p *Plugin) syncSince(syncSince time.Time) {
 	// TODO: Implement the sync mechanism
 	p.API.LogDebug("Syncing since", "date", syncSince)
+}
+
+func (p *Plugin) getBase64Certificate() string {
+	certificate := p.getConfiguration().CertificatePublic
+	if certificate == "" {
+		return ""
+	}
+	block, _ := pem.Decode([]byte(certificate))
+	if block == nil {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(block))
+}
+
+func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
+	keyPemString := p.getConfiguration().CertificateKey
+	if keyPemString == "" {
+		return nil, errors.New("certificate private key not configured")
+	}
+	privPem, _ := pem.Decode([]byte(keyPemString))
+	if privPem == nil {
+		return nil, errors.New("invalid certificate key")
+	}
+	var err error
+	var parsedKey any
+	if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
+		return nil, err
+	}
+
+	var privateKey *rsa.PrivateKey
+	var ok bool
+	privateKey, ok = parsedKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("Not valid key")
+	}
+
+	return privateKey, nil
 }
 
 func (p *Plugin) stop() {
