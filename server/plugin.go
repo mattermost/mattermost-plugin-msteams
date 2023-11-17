@@ -284,6 +284,8 @@ func (p *Plugin) stop() {
 	if p.activityHandler != nil {
 		p.activityHandler.Stop()
 	}
+
+	p.stopSyncUsersJob()
 }
 
 func (p *Plugin) restart() {
