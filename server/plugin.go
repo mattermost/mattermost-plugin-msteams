@@ -227,8 +227,33 @@ func (p *Plugin) start(syncSince *time.Time) {
 }
 
 func (p *Plugin) syncSince(syncSince time.Time) {
-	// TODO: Implement the sync mechanism
-	p.API.LogDebug("Syncing since", "date", syncSince)
+	linkedChannels, err := p.store.ListChannelLinks()
+	if err != nil {
+		p.API.LogError("Unable to get the connected channels: sync failed", "since", syncSince)
+	} else {
+		for _, link := range linkedChannels {
+			messages, err := p.msteamsAppClient.GetChannelMessagesSince(link.MSTeamsTeam, link.MsteamsChannel, syncSince)
+			if err != nil {
+				p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
+			}
+			for _, message := range messages {
+			}
+		}
+	}
+
+	connectedUsers, err := p.store.GetConnectedUsers()
+	if err != nil {
+		p.API.LogError("Unable to get the connected users: sync failed", "since", syncSince)
+	} else {
+		for _, user := range connectedUsers {
+			messages, err := p.msteamsAppClient.GetUserChatMessagesSince(user.TeamsUserID, syncSince, !p.getConfiguration().EvalutionAPI)
+			if err != nil {
+				p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
+			}
+			for _, message := range messages {
+			}
+		}
+	}
 }
 
 func (p *Plugin) getBase64Certificate() string {

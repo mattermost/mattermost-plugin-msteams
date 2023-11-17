@@ -1942,6 +1942,37 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 	return channels, nil
 }
 
+func (tc *ClientImpl) GetUserChatMessagesSince(userID string, since time.Time, pay boolean) ([]clientmodels.Message, error) {
+	requestParameters := &users.ItemChatsGetAllMessagesRequestBuilderGetQueryParameters{
+		Filter: fmt.Sprintf("lastModifiedDateTime ge %s", since.Format(time.RFC3339)),
+	}
+	if pay {
+		requestParameters.Model = 'B'
+	}
+	configuration := &users.ItemChatsGetAllMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	r, err := tc.client.Users().ByUserId(userID).Chats().GetAllMessages().Get(tc.ctx, configuration)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](r, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	chatMessages := []clientmodels.Message{}
+	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
+		chatMessages = append(convertToMessage(m, "", "", chatID))
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	return chatMessages, nil
+}
+
 func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
 	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
 	requestParameters := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{
