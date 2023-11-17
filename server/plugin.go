@@ -212,7 +212,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
 
-		// Start a syncing of users on plugin start. The below job just schedules the job to run at a given interval of time but does not run it while scheduling. To avoid this, we call the function once separately to sync the users.
+		// Start syncing the users on plugin start. The below job just schedules the job to run at a given interval of time but does not run it while scheduling. To avoid this, we call the function once separately to sync the users.
 		p.syncUsers()
 
 		job, jobErr := cluster.Schedule(
