@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -15,6 +17,7 @@ const monitoringSystemJobName = "monitoring_system"
 
 type Monitor struct {
 	client           msteams.Client
+	activityHandler  *handlers.ActivityHandler
 	store            store.Store
 	api              plugin.API
 	metrics          metrics.Metrics
@@ -25,10 +28,11 @@ type Monitor struct {
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
+func New(client msteams.Client, activityHandler *handlers.ActivityHandler, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
+		activityHandler:  activityHandler,
 		api:              api,
 		metrics:          metrics,
 		baseURL:          baseURL,
@@ -99,4 +103,77 @@ func (m *Monitor) check() {
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	}()
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+}
+
+func (m *Monitor) syncChannelSince(teamID, channelID string, syncSince time.Time) {
+	messages, err := m.client.ListChannelMessages(teamID, channelID, syncSince)
+	if err != nil {
+		m.api.LogError("Unable to sync channel messages", "teamID", teamID, "channelID", channelID, "date", syncSince, "error", err)
+	}
+	for _, message := range messages {
+		isCreation := false
+		if message.CreateAt == message.LastUpdateAt {
+			isCreation = true
+		} else {
+			post, err := m.store.GetPostInfoByMSTeamsID("", message.ID)
+			if err != nil || post == nil {
+				isCreation = false
+			}
+		}
+
+		if isCreation {
+			m.activityHandler.HandleCreatedActivity(message, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		} else {
+			m.activityHandler.HandleUpdatedActivity(message, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		}
+	}
+}
+
+func (m *Monitor) syncChatsSince(syncSince time.Time) {
+	connectedUsers, err := m.store.GetConnectedUsers(0, 10000000)
+	if err != nil {
+		m.api.LogError("Unable to get the connected users: sync failed", "since", syncSince)
+	} else {
+		for _, user := range connectedUsers {
+			messages, err := m.client.GetUserChatMessagesSince(user.TeamsUserID, syncSince, m.useEvaluationAPI)
+			if err != nil {
+				m.api.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince, "error", err)
+			}
+			for _, message := range messages {
+				isCreation := false
+				if message.CreateAt == message.LastUpdateAt {
+					isCreation = true
+				} else {
+					post, err := m.store.GetPostInfoByMSTeamsID(message.ChatID, message.ID)
+					if err != nil || post == nil {
+						isCreation = false
+					}
+				}
+
+				if isCreation {
+					m.activityHandler.HandleCreatedActivity(message, clientmodels.ActivityIds{
+						ChatID:    message.ChatID,
+						MessageID: message.ID,
+						ReplyID:   message.ReplyToID,
+					})
+				} else {
+					m.activityHandler.HandleUpdatedActivity(message, clientmodels.ActivityIds{
+						ChatID:    message.ChatID,
+						MessageID: message.ID,
+						ReplyID:   message.ReplyToID,
+					})
+				}
+			}
+		}
+	}
 }

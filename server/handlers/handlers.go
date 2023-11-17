@@ -28,7 +28,7 @@ var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
-	lastReceivedChangeKey       = "last_received_change"
+	LastReceivedChangeKey       = "last_received_change"
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
 	msteamsUserTypeGuest        = "Guest"
@@ -175,7 +175,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleCreatedActivity(msg, activityIds)
+		discardedReason = ah.HandleCreatedActivity(msg, activityIds)
 	case "updated":
 		var msg *clientmodels.Message
 		if len(activity.Content) > 0 {
@@ -185,9 +185,9 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
+		discardedReason = ah.HandleUpdatedActivity(msg, activityIds)
 	case "deleted":
-		discardedReason = ah.handleDeletedActivity(activityIds)
+		discardedReason = ah.HandleDeletedActivity(activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
 		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
@@ -196,7 +196,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) HandleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -312,7 +312,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) HandleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -488,7 +488,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 	}
 }
 
-func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) HandleDeletedActivity(activityIds clientmodels.ActivityIds) string {
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID
@@ -510,7 +510,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 }
 
 func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
-	err := ah.plugin.GetAPI().KVSet(lastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
+	err := ah.plugin.GetAPI().KVSet(LastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to store properly the last received change")
 	}

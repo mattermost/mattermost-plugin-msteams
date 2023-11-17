@@ -1942,12 +1942,14 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 	return channels, nil
 }
 
-func (tc *ClientImpl) GetUserChatMessagesSince(userID string, since time.Time, pay boolean) ([]clientmodels.Message, error) {
+func (tc *ClientImpl) GetUserChatMessagesSince(userID string, since time.Time, pay bool) ([]*clientmodels.Message, error) {
+	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
 	requestParameters := &users.ItemChatsGetAllMessagesRequestBuilderGetQueryParameters{
-		Filter: fmt.Sprintf("lastModifiedDateTime ge %s", since.Format(time.RFC3339)),
+		Filter: &filterQuery,
 	}
 	if pay {
-		requestParameters.Model = 'B'
+		model := "B"
+		requestParameters.Model = &model
 	}
 	configuration := &users.ItemChatsGetAllMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -1962,9 +1964,12 @@ func (tc *ClientImpl) GetUserChatMessagesSince(userID string, since time.Time, p
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	chatMessages := []clientmodels.Message{}
+	chatMessages := []*clientmodels.Message{}
 	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
-		chatMessages = append(convertToMessage(m, "", "", chatID))
+		chatID := m.GetChatId()
+		if chatID != nil {
+			chatMessages = append(chatMessages, convertToMessage(m, "", "", *chatID))
+		}
 		return true
 	})
 	if err != nil {

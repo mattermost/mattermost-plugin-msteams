@@ -15,7 +15,6 @@ import (
 )
 
 func TestStopPluginSendMessageAndReplyToMSTeamsLinkedChannelStartPlugin(t *testing.T) {
-	t.Skip("Not implemented yet")
 	setup(t)
 
 	t.Log("Disabling the plugin")

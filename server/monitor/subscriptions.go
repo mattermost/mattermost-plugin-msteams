@@ -1,10 +1,12 @@
 package monitor
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -177,10 +179,26 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}
 
+	lastActivityBytes, appErr := m.api.KVGet(handlers.LastReceivedChangeKey)
+	if appErr != nil {
+		m.api.LogError("Unable to get lastActivity date")
+	}
+
 	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret, m.certificate)
 	if err != nil {
 		m.api.LogError("Unable to create new subscription for the channel", "channelID", channelID, "error", err.Error())
 		return
+	}
+
+	if len(lastActivityBytes) > 0 {
+		lastActivityUnix, err := strconv.ParseInt(string(lastActivityBytes), 10, 64)
+		if err != nil {
+			m.api.LogError("Unable to parse lastActivity date")
+		} else {
+			lastActivity := time.Unix(lastActivityUnix, 0)
+			// go m.syncChannelSince(teamID, channelID, lastActivity)
+			m.api.LogError("Syncing channels since is not implemented yet", "last-activity", lastActivity)
+		}
 	}
 
 	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
@@ -222,9 +240,25 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 	}
 
+	lastActivityBytes, appErr := m.api.KVGet(handlers.LastReceivedChangeKey)
+	if appErr != nil {
+		m.api.LogError("Unable to get lastActivity date")
+	}
+
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		return err
+	}
+
+	if len(lastActivityBytes) > 0 {
+		lastActivityUnix, err := strconv.ParseInt(string(lastActivityBytes), 10, 64)
+		if err != nil {
+			m.api.LogError("Unable to parse lastActivity date")
+		} else {
+			lastActivity := time.Unix(lastActivityUnix, 0)
+			// go m.syncChatsSince(lastActivity)
+			m.api.LogError("Syncing chats since is not implemented yet", "last-activity", lastActivity)
+		}
 	}
 
 	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)

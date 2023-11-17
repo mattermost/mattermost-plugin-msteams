@@ -190,7 +190,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.msteamsAppClient, p.activityHandler, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -198,9 +198,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-	if syncSince != nil {
-		go p.syncSince(*syncSince)
-	}
 
 	if p.getConfiguration().SyncUsers > 0 {
 		p.API.LogDebug("Starting the sync users job")
@@ -222,31 +219,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 		p.syncUserJob = job
 		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
 			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
-		}
-	}
-}
-
-func (p *Plugin) syncChannelSince(teamID, channelID string, syncSince time.Time) {
-	messages, err := p.msteamsAppClient.GetChannelMessagesSince(teamID, channelID, syncSince)
-	if err != nil {
-		p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
-	}
-	for _, message := range messages {
-	}
-}
-
-func (p *Plugin) syncChatsSince(syncSince time.Time) {
-	connectedUsers, err := p.store.GetConnectedUsers()
-	if err != nil {
-		p.API.LogError("Unable to get the connected users: sync failed", "since", syncSince)
-	} else {
-		for _, user := range connectedUsers {
-			messages, err := p.msteamsAppClient.GetUserChatMessagesSince(user.TeamsUserID, syncSince, !p.getConfiguration().EvalutionAPI)
-			if err != nil {
-				p.API.LogError("Unable to sync user messages", "userID", user.TeamsUserID, "date", syncSince)
-			}
-			for _, message := range messages {
-			}
 		}
 	}
 }
