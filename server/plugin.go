@@ -13,7 +13,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -490,7 +489,14 @@ func (p *Plugin) syncUsers() {
 
 		authData := ""
 		if configuration.AutomaticallyPromoteSyntheticUsers {
-			authData = reflect.ValueOf(msUser).FieldByName(configuration.SyntheticUserAuthData).String()
+			switch configuration.SyntheticUserAuthData {
+			case "ID":
+				authData = msUser.ID
+			case "Mail":
+				authData = msUser.Mail
+			case "UserPrincipalName":
+				authData = msUser.UserPrincipalName
+			}
 		}
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
@@ -520,7 +526,7 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated) {
+				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated) && authData != "" {
 					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
@@ -560,7 +566,7 @@ func (p *Plugin) syncUsers() {
 				Username:  username,
 			}
 
-			if configuration.AutomaticallyPromoteSyntheticUsers {
+			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
 				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID, "AuthService", configuration.SyntheticUserAuthService)
 				newMMUser.AuthService = configuration.SyntheticUserAuthService
 				newMMUser.AuthData = &authData
