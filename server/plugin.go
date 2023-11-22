@@ -81,9 +81,6 @@ type Plugin struct {
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
-
-	// variable to notice the changes made to synthetic user auth data
-	isSyntheticUserAuthDataUpdated bool
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -526,7 +523,13 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || p.isSyntheticUserAuthDataUpdated) && authData != "" {
+				user, err := p.API.GetUser(mmUser.Id)
+				if err != nil {
+					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "Error", err.Error())
+					continue
+				}
+
+				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
 					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
