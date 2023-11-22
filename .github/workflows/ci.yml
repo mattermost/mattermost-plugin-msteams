@@ -30,7 +30,7 @@ jobs:
       - name: Install golangci
         run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Cache go modules
         uses: actions/cache@v3
