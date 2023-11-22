@@ -16,7 +16,7 @@ require (
 	github.com/mattermost/mattermost-server/v6 v6.0.0-20230901142735-ccceee77061a
 	github.com/mattn/godown v0.0.1
 	github.com/microsoft/kiota-abstractions-go v1.5.2
-	github.com/microsoftgraph/msgraph-sdk-go v1.20.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.25.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
