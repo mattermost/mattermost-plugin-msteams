@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -55,6 +56,7 @@ type ActivityHandler struct {
 	plugin               PluginIface
 	queue                chan msteams.Activity
 	quit                 chan bool
+	quitting             atomic.Bool
 	IgnorePluginHooksMap sync.Map
 }
 
@@ -80,26 +82,39 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
+	ah.quitting.Store(false)
+
 	// This is constant for now, but report it as a metric to future proof dashboards.
 	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
 
-	for i := 0; i < numberOfWorkers; i++ {
-		go func() {
-			for {
-				select {
-				case activity := <-ah.queue:
-					ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
-					ah.handleActivity(activity)
-				case <-ah.quit:
-					// we have received a signal to stop
-					return
-				}
+	// doStart is the meat of the activity handler worker
+	doStart := func() {
+		for {
+			select {
+			case activity := <-ah.queue:
+				ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
+				ah.handleActivity(activity)
+			case <-ah.quit:
+				// we have received a signal to stop
+				return
 			}
-		}()
+		}
+	}
+
+	// isQuitting informs the recovery handler if the shutdown is intentional
+	isQuitting := func() bool {
+		return ah.quitting.Load()
+	}
+
+	logError := ah.plugin.GetAPI().LogError
+
+	for i := 0; i < numberOfWorkers; i++ {
+		goWithRecovery("activity handler worker", doStart, isQuitting, logError)
 	}
 }
 
 func (ah *ActivityHandler) Stop() {
+	ah.quitting.Store(true)
 	go func() {
 		for i := 0; i < numberOfWorkers; i++ {
 			ah.quit <- true
