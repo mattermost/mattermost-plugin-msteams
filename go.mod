@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/enescakir/emoji v1.0.0
 	github.com/go-sql-driver/mysql v1.7.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.13.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.7
