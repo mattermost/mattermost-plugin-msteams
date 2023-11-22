@@ -72,7 +72,7 @@ jobs:
           TERM: dumb
 
       - name: Upload the built plugin as an artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.build.outputs.BUNDLE_NAME }}
           path: dist/${{ steps.build.outputs.BUNDLE_NAME }}
