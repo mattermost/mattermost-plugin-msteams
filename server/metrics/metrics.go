@@ -190,7 +190,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Name:        "lifecycle_events_total",
 		Help:        "The total number of MS Teams lifecycle events received.",
 		ConstLabels: additionalLabels,
-	}, []string{"event_type"})
+	}, []string{"event_type", "discarded_reason"})
 	m.registry.MustRegister(m.lifecycleEventsTotal)
 
 	m.messagesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
