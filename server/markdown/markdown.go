@@ -11,6 +11,7 @@ var stringsToCheckForHTML = []string{
 	"<p ",
 	"<p>",
 	"<img ",
+	"<h",
 }
 
 func ConvertToMD(text string) string {
