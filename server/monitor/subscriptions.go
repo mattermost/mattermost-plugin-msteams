@@ -38,7 +38,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		wg.Add(1)
 
 		link := link
-		recovery.Go("check_channel_subscription", m.api.LogError, func() {
+		recovery.Go("check_channel_subscription", m.api.LogError, m.metrics, func() {
 			defer wg.Done()
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost

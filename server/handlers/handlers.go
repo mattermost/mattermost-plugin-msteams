@@ -110,7 +110,7 @@ func (ah *ActivityHandler) Start() {
 	logError := ah.plugin.GetAPI().LogError
 
 	for i := 0; i < numberOfWorkers; i++ {
-		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
+		recovery.GoWorker("activity_handler_worker", doStart, isQuitting, logError, ah.plugin.GetMetrics())
 	}
 }
 

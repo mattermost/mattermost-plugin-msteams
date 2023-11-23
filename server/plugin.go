@@ -408,7 +408,7 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	recovery.Go("prefill_whitelist", p.API.LogError, func() {
+	recovery.Go("prefill_whitelist", p.API.LogError, p.GetMetrics(), func() {
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
@@ -648,7 +648,7 @@ func (p *Plugin) runMetricsServer() {
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
-	recovery.Go("metrics_server", p.API.LogError, func() {
+	recovery.Go("metrics_server", p.API.LogError, p.GetMetrics(), func() {
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
