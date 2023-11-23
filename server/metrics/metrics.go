@@ -60,7 +60,7 @@ type Metrics interface {
 	ObserveChangeEventQueueRejected()
 
 	ObserveChangeEvent(changeType string, discardedReason string)
-	ObserveLifecycleEvent(lifecycleEventType string)
+	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
 	ObserveMessage(action, source string, isDirectMessage bool)
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
@@ -190,7 +190,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Name:        "lifecycle_events_total",
 		Help:        "The total number of MS Teams lifecycle events received.",
 		ConstLabels: additionalLabels,
-	}, []string{"event_type"})
+	}, []string{"event_type", "discarded_reason"})
 	m.registry.MustRegister(m.lifecycleEventsTotal)
 
 	m.messagesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -348,9 +348,9 @@ func (m *metrics) ObserveChangeEvent(changeType string, discardedReason string) 
 	}
 }
 
-func (m *metrics) ObserveLifecycleEvent(lifecycleEventType string) {
+func (m *metrics) ObserveLifecycleEvent(eventType string, discardedReason string) {
 	if m != nil {
-		m.lifecycleEventsTotal.With(prometheus.Labels{"event_type": lifecycleEventType}).Inc()
+		m.lifecycleEventsTotal.With(prometheus.Labels{"event_type": eventType, "discarded_reason": discardedReason}).Inc()
 	}
 }
 
