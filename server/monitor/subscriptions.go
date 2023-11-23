@@ -7,6 +7,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
@@ -35,7 +36,9 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 	for _, link := range links {
 		ws <- struct{}{}
 		wg.Add(1)
-		go func(link storemodels.ChannelLink) {
+
+		link := link
+		recovery.Go("check_channel_subscription", m.api.LogError, func() {
 			defer wg.Done()
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost
@@ -61,7 +64,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 				return
 			}
 			<-ws
-		}(link)
+		})
 	}
 	wg.Wait()
 }
