@@ -76,12 +76,18 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 
 func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 	userIDVsNames := make(map[string]string)
-	if msg.ChatID != "" {
-		for _, mention := range msg.Mentions {
+	for _, mention := range msg.Mentions {
+		if mention.UserID != "" {
 			if userIDVsNames[mention.UserID] == "" {
 				userIDVsNames[mention.UserID] = mention.MentionedText
 			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
 				userIDVsNames[mention.UserID] += " " + mention.MentionedText
+			}
+		} else if mention.ConversationID != "" {
+			if userIDVsNames[mention.ConversationID] == "" {
+				userIDVsNames[mention.ConversationID] = mention.MentionedText
+			} else if userIDVsNames[mention.ConversationID] != mention.MentionedText {
+				userIDVsNames[mention.ConversationID] += " " + mention.MentionedText
 			}
 		}
 	}
@@ -119,9 +125,29 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 		}
 
 		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
-			mention = msg.Mentions[idx]
-			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
-			idx++
+			currentUserID := mention.UserID
+			for idx < len(msg.Mentions) {
+				mention = msg.Mentions[idx]
+				if mention.UserID != currentUserID {
+					break
+				}
+
+				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+				idx++
+			}
+		}
+
+		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.ConversationID])) >= 2 {
+			currentConversationID := mention.ConversationID
+			for idx < len(msg.Mentions) {
+				mention = msg.Mentions[idx]
+				if mention.ConversationID != currentConversationID {
+					break
+				}
+
+				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+				idx++
+			}
 		}
 	}
 

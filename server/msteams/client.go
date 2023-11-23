@@ -1194,6 +1194,9 @@ func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*clientm
 				User struct {
 					ID string
 				}
+				Conversation struct {
+					ID string
+				}
 			}
 		}
 		Reactions []struct {
@@ -1212,16 +1215,12 @@ func GetMessageFromJSON(data []byte, teamID, channelID, chatID string) (*clientm
 
 	mentions := []clientmodels.Mention{}
 	for _, m := range msg.Mentions {
-		mention := clientmodels.Mention{}
-		if m.ID != 0 && m.MentionText != "" {
-			mention.ID = m.ID
-			mention.MentionedText = m.MentionText
-		} else {
-			continue
-		}
-
-		mention.UserID = m.Mentioned.User.ID
-		mentions = append(mentions, mention)
+		mentions = append(mentions, clientmodels.Mention{
+			ID:             m.ID,
+			MentionedText:  m.MentionText,
+			UserID:         m.Mentioned.User.ID,
+			ConversationID: m.Mentioned.Conversation.ID,
+		})
 	}
 
 	reactions := []clientmodels.Reaction{}
