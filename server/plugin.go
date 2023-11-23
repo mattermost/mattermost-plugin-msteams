@@ -648,12 +648,12 @@ func (p *Plugin) runMetricsServer() {
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
-	go func() {
+	recovery.Go("metrics_server", p.API.LogError, func() {
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
 		}
-	}()
+	})
 }
 
 func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {
