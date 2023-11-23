@@ -213,7 +213,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 			p.API,
 			syncUsersJobName,
 			cluster.MakeWaitForRoundedInterval(time.Duration(p.getConfiguration().SyncUsers)*time.Minute),
-			p.syncUsersPeriodically,
+			recovery.Wrap("sync_users_periodically", p.API.LogError, p.GetMetrics(), p.syncUsersPeriodically),
 		)
 		if jobErr != nil {
 			p.API.LogError("error in scheduling the sync users job", "error", jobErr)

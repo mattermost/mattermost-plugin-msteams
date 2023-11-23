@@ -49,7 +49,7 @@ func (m *Monitor) Start() error {
 		m.api,
 		monitoringSystemJobName,
 		cluster.MakeWaitForRoundedInterval(1*time.Minute),
-		m.RunMonitoringSystemJob,
+		recovery.Wrap("monitoring_system_job", m.api.LogError, m.metrics, m.RunMonitoringSystemJob),
 	)
 	if jobErr != nil {
 		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
