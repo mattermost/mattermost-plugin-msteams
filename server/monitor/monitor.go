@@ -96,7 +96,7 @@ func (m *Monitor) check() {
 		return
 	}
 
-	recovery.Go("check_channels_subscriptions", m.api.LogError, func() {
+	recovery.Go("check_channels_subscriptions", m.api.LogError, m.metrics, func() {
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	})
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)

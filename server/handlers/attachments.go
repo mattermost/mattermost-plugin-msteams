@@ -226,7 +226,7 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 		return ""
 	}
 
-	recovery.Go("get_file_content_stream", ah.plugin.GetAPI().LogError, func() {
+	recovery.Go("get_file_content_stream", ah.plugin.GetAPI().LogError, ah.plugin.GetMetrics(), func() {
 		client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
 	})
 	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)

@@ -333,7 +333,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
-	recovery.Go("send_links_with_details", p.API.LogError, func() {
+	recovery.Go("send_links_with_details", p.API.LogError, p.GetMetrics(), func() {
 		p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
 	})
 	return &model.CommandResponse{}, nil

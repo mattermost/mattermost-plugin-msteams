@@ -8,7 +8,7 @@ import (
 // GoWorker runs a goroutine with a recovery handler that both prevents the plugin from crashing
 // in the face of a panic, and also restarts the goroutine powering a worker unless the termination
 // was expected.
-func GoWorker(name string, doStart func(), isQuitting func() bool, logError func(msg string, keyValuePairs ...any)) {
+func GoWorker(name string, doStart func(), isQuitting func() bool, logError func(msg string, keyValuePairs ...any), metrics Metrics) {
 	var doRecoverableStart func()
 
 	// doRecover is a helper function to recover from panics and restart the goroutine.
@@ -17,6 +17,7 @@ func GoWorker(name string, doStart func(), isQuitting func() bool, logError func
 			return
 		}
 
+		metrics.ObserveGoroutineFailure(name)
 		if r := recover(); r != nil {
 			logError(fmt.Sprintf("Recovering from panic in %s", name), "panic", r, "stack", string(debug.Stack()))
 		} else {

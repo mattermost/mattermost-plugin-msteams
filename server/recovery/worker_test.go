@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestGoWorker(t *testing.T) {
 	// makeDoStart simulates a start function with the defined sequence of actions, whether to
 	// do a "normal" run, waiting for the signal to stop, to "panic", immediately crashing,
 	// or to unexpectedly "exit".
-	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(string, ...any)) {
+	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(string, ...any), Metrics) {
 		count := 0
 
 		doStart := func() {
@@ -65,7 +66,24 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		return doStart, logError
+		reportedFailures := 0
+		metrics := &mockMetrics{callback: func(name string) {
+			assert.Equal(t, "job", name)
+			reportedFailures++
+		}}
+
+		t.Cleanup(func() {
+			expectedFailures := 0
+			for _, event := range sequence {
+				switch event {
+				case "panic", "exit":
+					expectedFailures++
+				}
+			}
+			assert.Equal(t, expectedFailures, reportedFailures, "metrics did not capture expected failures")
+		})
+
+		return doStart, logError, metrics
 	}
 
 	t.Run("quitting normally does not recover", func(t *testing.T) {
@@ -73,7 +91,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
+		doStart, logError, metrics := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -83,7 +101,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError, metrics)
 		assertReceive(t, started, "doStart failed to start")
 		close(stopping)
 		assertReceive(t, stopped, "doStart failed to finish")
@@ -94,7 +112,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
+		doStart, logError, metrics := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -104,7 +122,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError, metrics)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		close(stopping)
@@ -116,7 +134,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
+		doStart, logError, metrics := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -126,7 +144,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError, metrics)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		close(stopping)
@@ -138,7 +156,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
+		doStart, logError, metrics := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -148,7 +166,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError, metrics)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		assertReceive(t, started, "doStart failed to start the third time")
