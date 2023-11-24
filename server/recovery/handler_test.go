@@ -10,11 +10,11 @@ import (
 )
 
 type mockMetrics struct {
-	callback func(name string)
+	callback func()
 }
 
-func (m mockMetrics) ObserveGoroutineFailure(name string) {
-	m.callback(name)
+func (m mockMetrics) ObserveGoroutineFailure() {
+	m.callback()
 }
 
 func assertReceive[X any](t *testing.T, c chan X, failureMessage string) {
@@ -23,96 +23,6 @@ func assertReceive[X any](t *testing.T, c chan X, failureMessage string) {
 	case <-time.After(5 * time.Second):
 		require.Fail(t, failureMessage)
 	}
-}
-
-func TestWrap(t *testing.T) {
-	t.Run("quitting normally does not recover", func(t *testing.T) {
-		done := make(chan bool)
-		callback := func() {
-			close(done)
-		}
-		logError := func(msg string, keyValuePairs ...any) {
-			require.Failf(t, "should not log error", "got %v", msg)
-		}
-		metrics := &mockMetrics{callback: func(name string) {
-			require.Failf(t, "should not log metric", "got %v", name)
-		}}
-
-		wrapped := recovery.Wrap("callback", logError, metrics, callback)
-		wrapped()
-		assertReceive(t, done, "callback failed to finish")
-	})
-
-	t.Run("panic recovers, but goroutine terminated", func(t *testing.T) {
-		logged := make(chan bool)
-		reportedMetric := make(chan bool)
-		callback := func() {
-			panic("test")
-		}
-		logError := func(msg string, keyValuePairs ...any) {
-			require.Equal(t, "Recovering from panic in callback", msg)
-			close(logged)
-		}
-		metrics := &mockMetrics{callback: func(name string) {
-			assert.Equal(t, "callback", name)
-			close(reportedMetric)
-		}}
-
-		wrapped := recovery.Wrap("callback", logError, metrics, callback)
-		wrapped()
-		assertReceive(t, logged, "logger failed to log")
-		assertReceive(t, reportedMetric, "metric failed to report")
-	})
-}
-
-func TestGo(t *testing.T) {
-	t.Run("quitting normally does not recover", func(t *testing.T) {
-		running := make(chan bool)
-		stop := make(chan bool)
-		done := make(chan bool)
-		callback := func() {
-			close(running)
-			<-stop
-			close(done)
-		}
-		logError := func(msg string, keyValuePairs ...any) {
-			require.Failf(t, "should not log error", "got %v", msg)
-		}
-		metrics := &mockMetrics{callback: func(name string) {
-			require.Failf(t, "should not log metric", "got %v", name)
-		}}
-
-		recovery.Go("callback", logError, metrics, callback)
-		assertReceive(t, running, "callback failed to start")
-		close(stop)
-		assertReceive(t, done, "callback failed to finish")
-	})
-
-	t.Run("panic recovers, but goroutine terminated", func(t *testing.T) {
-		running := make(chan bool)
-		doPanic := make(chan bool)
-		logged := make(chan bool)
-		reportedMetric := make(chan bool)
-		callback := func() {
-			close(running)
-			<-doPanic
-			panic("test")
-		}
-		logError := func(msg string, keyValuePairs ...any) {
-			require.Equal(t, "Recovering from panic in callback", msg)
-			close(logged)
-		}
-		metrics := &mockMetrics{callback: func(name string) {
-			assert.Equal(t, "callback", name)
-			close(reportedMetric)
-		}}
-
-		recovery.Go("callback", logError, metrics, callback)
-		assertReceive(t, running, "callback failed to start")
-		close(doPanic)
-		assertReceive(t, logged, "logger failed to log")
-		assertReceive(t, reportedMetric, "metric failed to report")
-	})
 }
 
 func TestGoWorker(t *testing.T) {
@@ -157,17 +67,16 @@ func TestGoWorker(t *testing.T) {
 			case "normal":
 				require.Failf(t, "should not log error", "got %v", msg)
 			case "panic":
-				require.Equal(t, "Recovering from panic in job", msg)
+				require.Equal(t, "Recovering from panic", msg)
 			case "exit":
-				require.Equal(t, "Recovering from unexpected exit in job", msg)
+				require.Equal(t, "Recovering from unexpected exit", msg)
 			default:
 				require.Failf(t, "unexpected sequence", "got %s", sequence[actualCount])
 			}
 		}
 
 		reportedFailures := 0
-		metrics := &mockMetrics{callback: func(name string) {
-			assert.Equal(t, "job", name)
+		metrics := &mockMetrics{callback: func() {
 			reportedFailures++
 		}}
 
@@ -200,7 +109,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		recovery.GoWorker("job", logError, metrics, isQuitting, callback)
+		recovery.GoWorker(logError, metrics, isQuitting, callback)
 		assertReceive(t, started, "callback failed to start")
 		close(stopping)
 		assertReceive(t, stopped, "callback failed to finish")
@@ -221,7 +130,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		recovery.GoWorker("job", logError, metrics, isQuitting, callback)
+		recovery.GoWorker(logError, metrics, isQuitting, callback)
 		assertReceive(t, started, "callback failed to start")
 		assertReceive(t, started, "callback failed to start the second time")
 		close(stopping)
@@ -243,7 +152,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		recovery.GoWorker("job", logError, metrics, isQuitting, callback)
+		recovery.GoWorker(logError, metrics, isQuitting, callback)
 		assertReceive(t, started, "callback failed to start")
 		assertReceive(t, started, "callback failed to start the second time")
 		close(stopping)
@@ -265,7 +174,7 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		recovery.GoWorker("job", logError, metrics, isQuitting, callback)
+		recovery.GoWorker(logError, metrics, isQuitting, callback)
 		assertReceive(t, started, "callback failed to start")
 		assertReceive(t, started, "callback failed to start the second time")
 		assertReceive(t, started, "callback failed to start the third time")

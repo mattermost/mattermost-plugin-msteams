@@ -81,7 +81,7 @@ type Metrics interface {
 
 	GetRegistry() *prometheus.Registry
 
-	ObserveGoroutineFailure(name string)
+	ObserveGoroutineFailure()
 }
 
 type InstanceInfo struct {
@@ -93,7 +93,7 @@ type metrics struct {
 	registry *prometheus.Registry
 
 	pluginStartTime        prometheus.Gauge
-	goroutineFailuresTotal *prometheus.CounterVec
+	goroutineFailuresTotal prometheus.Counter
 
 	apiTime *prometheus.HistogramVec
 
@@ -148,13 +148,13 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.pluginStartTime.SetToCurrentTime()
 	m.registry.MustRegister(m.pluginStartTime)
 
-	m.goroutineFailuresTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.goroutineFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemSystem,
 		Name:        "plugin_goroutine_failures_total",
 		Help:        "The total number of times a goroutine has failed.",
 		ConstLabels: additionalLabels,
-	}, []string{"name"})
+	})
 	m.registry.MustRegister(m.goroutineFailuresTotal)
 
 	m.apiTime = prometheus.NewHistogramVec(
@@ -342,9 +342,9 @@ func (m *metrics) GetRegistry() *prometheus.Registry {
 	return m.registry
 }
 
-func (m *metrics) ObserveGoroutineFailure(name string) {
+func (m *metrics) ObserveGoroutineFailure() {
 	if m != nil {
-		m.goroutineFailuresTotal.With(prometheus.Labels{"name": name}).Inc()
+		m.goroutineFailuresTotal.Inc()
 	}
 }
 
