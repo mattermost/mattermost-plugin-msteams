@@ -75,19 +75,20 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 }
 
 func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
-	userIDVsNames := make(map[string]string)
+	// This map is used to store user or conversation IDs vs the first word of the multi-word mention
+	// For eg - if someone mentions a user called "Dummy User", we get two separate mentions in the array
+	// with the MentionedText property being "Dummy" and "User". Both the mentions have same user IDs.
+	// The same case is with mention of the whole channel as in MS Teams, a channel is mentioned with
+	// the channel name that can contain multiple words.
+	userOrConversationIDVsNames := make(map[string]string)
 	for _, mention := range msg.Mentions {
 		if mention.UserID != "" {
-			if userIDVsNames[mention.UserID] == "" {
-				userIDVsNames[mention.UserID] = mention.MentionedText
-			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
-				userIDVsNames[mention.UserID] += " " + mention.MentionedText
+			if userOrConversationIDVsNames[mention.UserID] == "" {
+				userOrConversationIDVsNames[mention.UserID] = mention.MentionedText
 			}
 		} else if mention.ConversationID != "" {
-			if userIDVsNames[mention.ConversationID] == "" {
-				userIDVsNames[mention.ConversationID] = mention.MentionedText
-			} else if userIDVsNames[mention.ConversationID] != mention.MentionedText {
-				userIDVsNames[mention.ConversationID] += " " + mention.MentionedText
+			if userOrConversationIDVsNames[mention.ConversationID] == "" {
+				userOrConversationIDVsNames[mention.ConversationID] = mention.MentionedText
 			}
 		}
 	}
@@ -97,8 +98,12 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 		mmMention := ""
 		mention := msg.Mentions[idx]
 		idx++
-		switch {
-		case mention.UserID != "":
+		if mention.UserID != "" {
+			if userOrConversationIDVsNames[mention.UserID] != mention.MentionedText {
+				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+				continue
+			}
+
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
 				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
@@ -112,42 +117,24 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 			}
 
 			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
-		case mention.MentionedText == "Everyone" && mention.ConversationID == msg.ChatID:
-			mmMention = "@all"
-		case mention.ConversationID == msg.ChannelID:
-			mmMention = "@channel"
+		} else if mention.ConversationID != "" {
+			if userOrConversationIDVsNames[mention.ConversationID] != mention.MentionedText {
+				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
+				continue
+			}
+
+			switch {
+			case mention.ConversationID == msg.ChatID && mention.MentionedText == "Everyone":
+				mmMention = "@all"
+			case mention.ConversationID == msg.ChannelID:
+				mmMention = "@channel"
+			}
 		}
 
 		if mmMention == "" {
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mention.MentionedText, 1)
 		} else {
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
-		}
-
-		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
-			currentUserID := mention.UserID
-			for idx < len(msg.Mentions) {
-				mention = msg.Mentions[idx]
-				if mention.UserID != currentUserID {
-					break
-				}
-
-				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
-				idx++
-			}
-		}
-
-		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.ConversationID])) >= 2 {
-			currentConversationID := mention.ConversationID
-			for idx < len(msg.Mentions) {
-				mention = msg.Mentions[idx]
-				if mention.ConversationID != currentConversationID {
-					break
-				}
-
-				msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
-				idx++
-			}
 		}
 	}
 
