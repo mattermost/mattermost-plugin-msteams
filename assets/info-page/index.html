@@ -6,15 +6,19 @@
       var msteamsPrimaryPlatform = 'msteams'
       var primaryPlatform = mattermostPrimaryPlatform;
 
+      function closeInfoPage() {
+        window.close();
+      }
+
       function applyBorder(primaryPlatform, secondaryPlatform) {
         document.getElementById(primaryPlatform).setAttribute(
           'style',
-          'border: 3px solid #1C58D9;'
+          'outline: 3px solid #1C58D9;'
         )
 
         document.getElementById(secondaryPlatform).setAttribute(
           'style',
-          'border: 1px solid #3F435029;'
+          'outline: 1px solid #3F435029;'
         )
       }
 
@@ -45,11 +49,28 @@
     </script>
     <style>
       .msteams-sync-info-page {
+        max-width: 100%;
+        display: flex;
+        flex-direction: row-reverse;
+        padding: 0 20px;
+      }
+
+      .msteams-sync-close-icon {
+        padding-top: 30px;
+        height: 20px;
+      }
+
+      .msteams-sync-body {
         color: #3F4350;
         display: flex;
         flex-direction: column;
         align-items: center;
         font-family: 'Open Sans';
+        width: 99%;
+
+        .heading-body {
+          margin-bottom: 32px;
+        }
 
         .heading {
           display: flex;
@@ -57,7 +78,6 @@
           align-items: center;
           font-weight: 600;
           font-size: 30px;
-          margin-bottom: 32px;
         }
 
         .connection-icon {
@@ -68,6 +88,7 @@
         .card-holder {
           display: flex;
           width: 1000px;
+          max-width: 95%;
           justify-content: space-between;
           box-sizing: border-box;
         }
@@ -76,6 +97,7 @@
           display: flex;
           flex-direction: column;
           border: 1px solid #3F435029;
+          outline: 3px solid transparent;
           border-radius: 8px;
           box-sizing: border-box;
           width: 49%;
@@ -123,20 +145,35 @@
           font-size: 16px;
         }
 
+        .list {
+          list-style: none;
+          padding: 0;
+        }        
+
         .list-item {
+          display: flex;
+          gap: 5px;
           margin-bottom: 10px;
+        }
+
+        .list-icon {
+          height: 20px;
         }
 
         .list-link {
           text-decoration: none;
+          display: contents;
         }
 
         .selection-button {
           text-align: center;
           margin: 40px 0;
+          cursor: pointer;
         }
 
         .selection-button__text {
+          display: flex;
+          gap: 10px;
           background-color: #1C58D9;
           border-radius: 4px;
           color: white;
@@ -148,78 +185,89 @@
 
         .footer {
           text-align: center;
-          margin-bottom: 10px;
+        }
+
+        .footer-link {
+          text-decoration: none;
         }
       }
     </style>
     <title>Account Successfully Connected</title>
   </head>
-  <body class="msteams-sync-info-page">
-    <div class="connection-icon">
-      <img src="../connection-icon.png" alt="connection-icon"/>
-    </div>
-    <div class="heading">How will you be using the two platforms?</div>
-    <div class="card-holder">
-      <div class="card" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
-        <div class="card__heading">
-          <div class="card__logo-holder">
-            <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
+  <body class="msteams-sync">
+    <div class="msteams-sync-info-page">
+      <img src="../close-icon.png" alt="close-icon" class="msteams-sync-close-icon" onclick="closeInfoPage()"/>
+      <div class="msteams-sync-body">
+        <div class="connection-icon">
+          <img src="../connection-icon.png" alt="connection-icon"/>
+        </div>
+        <div class="heading-body">
+          <div class="heading">Your account in now connected.</div>
+          <div class="heading">How will you be using the two platforms?</div>
+        </div>
+        <div class="card-holder">
+          <div class="card" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
+            <div class="card__heading">
+              <div class="card__logo-holder">
+                <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
+              </div>
+              <div class="card__logo-details">Mattermost will be my primary platform</div>
+              <div class="select-icon">
+                <img src="../select-icon.png" alt="select-icon" id="select-icon__mm"/>
+              </div>
+            </div>
+            <div class="card__body">
+              <div class="card__sub-heading">What this choice means:</div>
+              <ul class="list">
+                <li class="list-item">
+                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
+                </li>
+                <li class="list-item">
+                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">You will get notifications in Mattermost for synced messages and channels.
+                </li>
+                <li class="list-item">
+                  <!-- TODO: Add correct links here -->
+                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">You will need to disable notifications in Microsoft Teams to avoid duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div class="card__logo-details">Mattermost will be my primary platform</div>
-          <div class="select-icon">
-            <img src="../select-icon.png" alt="select-icon" id="select-icon__mm"/>
+          <div class="card" onclick="selectPrimaryPlatform('msteams')" id="msteams">
+            <div class="card__heading">
+              <div class="card__logo-holder">
+                <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
+              </div>
+              <div class="card__logo-details">Microsoft Teams will be my primary platform</div>
+              <div class="select-icon">
+                <img src="../select-icon.png" alt="select-icon" id="select-icon__msteams"/>
+              </div>
+            </div>
+            <div class="card__body">
+              <div class="card__sub-heading">What this choice means:</div>
+              <ul class="list">
+                <li class="list-item">
+                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
+                </li>
+                <li class="list-item">
+                  <!-- TODO: Add correct links here -->
+                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
+                </li>
+                <li class="list-item">
+                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">Unread statuses in linked channels and DMs will not be synced between Mattermost and Microsoft Teams.
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-        <div class="card__body">
-          <div class="card__sub-heading">What this choice means:</div>
-          <ul class="list">
-            <li class="list-item">
-              Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
-            </li>
-            <li class="list-item">
-              You will get notifications in Mattermost for synced messages and channels.
-            </li>
-            <li class="list-item">
-              <!-- TODO: Add correct links here -->
-              You will need to disable notifications in Microsoft Teams to avoid duplicate notifications or emails. <a href="test" class="list-link">Learn more</a>
-            </li>
-          </ul>
+        <div class="selection-button">
+          <!-- TODO: Update logic to select primary platform here -->
+          <a class="selection-button__text">Continue <img src="../trailing-icon.png" alt="trailing-icon"/></a>   
+        </div>
+        <div class="footer">
+          <!-- TODO: Add correct links here -->
+          You can <a href="skip-url" class="footer-link">skip this for now</a> and change it in in your account setting later. For more information <a href="help-url" class="footer-link">visit this help article.</a>
         </div>
       </div>
-      <div class="card" onclick="selectPrimaryPlatform('msteams')" id="msteams">
-        <div class="card__heading">
-          <div class="card__logo-holder">
-            <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
-          </div>
-          <div class="card__logo-details">Microsoft Teams will be my primary platform</div>
-          <div class="select-icon">
-            <img src="../select-icon.png" alt="select-icon" id="select-icon__msteams"/>
-          </div>
-        </div>
-        <div class="card__body">
-          <div class="card__sub-heading">What this choice means:</div>
-          <ul class="list">
-            <li class="list-item">
-              Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
-            </li>
-            <li class="list-item">
-              <!-- TODO: Add correct links here -->
-              Notifications in Mattermost will be disabled for messages coming from Microsoft Teams to prevent duplicates. <a href="test" class="list-link">Learn more</a>
-            </li>
-            <li class="list-item">
-              Unread status in synced channels and direct messages will be disabled in Mattermost.
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    <div class="selection-button">
-      <!-- TODO: Update logic to select primary platform here -->
-      <a class="selection-button__text">Let's go!</a>
-    </div>
-    <div class="footer">
-      <!-- TODO: Add correct links here -->
-      You can change this setting in your account setting later. For more information <a href="url" class="list-link">visit this help article.</a>
     </div>
   </body>
 </html>
