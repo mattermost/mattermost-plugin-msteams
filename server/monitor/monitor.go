@@ -2,12 +2,12 @@ package monitor
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -49,7 +49,7 @@ func (m *Monitor) Start() error {
 		m.api,
 		monitoringSystemJobName,
 		cluster.MakeWaitForRoundedInterval(1*time.Minute),
-		recovery.Wrap("monitoring_system_job", m.api.LogError, m.metrics, m.RunMonitoringSystemJob),
+		m.RunMonitoringSystemJob,
 	)
 	if jobErr != nil {
 		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
@@ -60,6 +60,13 @@ func (m *Monitor) Start() error {
 }
 
 func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
 			m.api.LogDebug("Failed to set monitoring job running status to false.")
@@ -96,8 +103,6 @@ func (m *Monitor) check() {
 		return
 	}
 
-	recovery.Go("check_channels_subscriptions", m.api.LogError, m.metrics, func() {
-		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	})
+	go m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 }
