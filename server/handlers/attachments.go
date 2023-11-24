@@ -14,6 +14,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/v8/channels/app/imaging"
 )
@@ -225,7 +226,9 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 		return ""
 	}
 
-	go client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
+	recovery.Go("get_file_content_stream", ah.plugin.GetAPI().LogError, func() {
+		client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
+	})
 	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "Error", err.Error())

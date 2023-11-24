@@ -24,6 +24,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -287,6 +288,8 @@ func (p *Plugin) stop() {
 	if p.activityHandler != nil {
 		p.activityHandler.Stop()
 	}
+
+	p.stopSyncUsersJob()
 }
 
 func (p *Plugin) restart() {
@@ -408,13 +411,13 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	go func() {
+	recovery.Go("prefill_whitelist", p.API.LogError, func() {
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
 			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
 		}
-	}()
+	})
 
 	go p.start(lastRecivedChange)
 	return nil
@@ -685,12 +688,12 @@ func (p *Plugin) runMetricsServer() {
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
-	go func() {
+	recovery.Go("metrics_server", p.API.LogError, func() {
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
 		}
-	}()
+	})
 }
 
 func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {

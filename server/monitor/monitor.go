@@ -6,6 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
@@ -95,8 +96,8 @@ func (m *Monitor) check() {
 		return
 	}
 
-	go func() {
+	recovery.Go("check_channels_subscriptions", m.api.LogError, func() {
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	}()
+	})
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 }
