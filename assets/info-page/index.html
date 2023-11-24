@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      var mattermostPrimaryPlatform = 'mattermost';
+      var msteamsPrimaryPlatform = 'msteams'
+      var primaryPlatform = mattermostPrimaryPlatform;
+
+      function applyBorder(primaryPlatform, secondaryPlatform) {
+        document.getElementById(primaryPlatform).setAttribute(
+          'style',
+          'border: 3px solid #1C58D9;'
+        )
+
+        document.getElementById(secondaryPlatform).setAttribute(
+          'style',
+          'border: 1px solid #3F435029;'
+        )
+      }
+
+      function showTickIcon(primaryPlatform, secondaryPlatform) {
+        document.getElementById(primaryPlatform).setAttribute(
+          'style',
+          'display: block;'
+        )
+
+        document.getElementById(secondaryPlatform).setAttribute(
+          'style',
+          'display: none;'
+        )
+      }
+
+      function selectPrimaryPlatform(platform) {
+          console.log(platform);
+          primaryPlatform = platform;
+
+          if (platform == mattermostPrimaryPlatform) {
+            applyBorder(mattermostPrimaryPlatform, msteamsPrimaryPlatform);
+            showTickIcon('select-icon__mm', 'select-icon__msteams');
+          } else {
+            applyBorder(msteamsPrimaryPlatform, mattermostPrimaryPlatform);
+            showTickIcon('select-icon__msteams', 'select-icon__mm')
+          }
+      }
+    </script>
+    <style>
+      .msteams-sync-info-page {
+        color: #3F4350;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: 'Open Sans';
+
+        .heading {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-weight: 600;
+          font-size: 30px;
+          margin-bottom: 32px;
+        }
+
+        .connection-icon {
+          display: flex;
+          justify-content: center;
+        }
+
+        .card-holder {
+          display: flex;
+          width: 1000px;
+          justify-content: space-between;
+          box-sizing: border-box;
+        }
+
+        .card {
+          display: flex;
+          flex-direction: column;
+          border: 1px solid #3F435029;
+          border-radius: 8px;
+          box-sizing: border-box;
+          width: 49%;
+        }
+                
+        .card__heading {
+          display: flex;
+          height: 30%;
+          padding: 5%;
+          border-bottom: 1px solid #3F435029;
+          align-items: center;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .card__logo {
+          height: 42px;
+          width: 45px
+        }
+
+        .card__logo-details {
+          font-weight: 600;
+          font-size: 20px;
+          margin-left: 15px;
+          width: 70%;
+        }
+
+        .select-icon {
+          margin-left: auto;
+        }
+        
+        #select-icon__mm, #select-icon__msteams {
+          display: none;
+        }
+
+        .card__body {
+          width: 100%;
+          height: 60%;
+          box-sizing: border-box;
+          padding: 5%;
+        }
+
+        .card__sub-heading {
+          font-weight: 600;
+          font-size: 16px;
+        }
+
+        .list-item {
+          margin-bottom: 10px;
+        }
+
+        .list-link {
+          text-decoration: none;
+        }
+
+        .selection-button {
+          text-align: center;
+          margin: 40px 0;
+        }
+
+        .selection-button__text {
+          background-color: #1C58D9;
+          border-radius: 4px;
+          color: white;
+          padding: 15px 32px;
+          text-align: center;
+          text-decoration: none;
+          font-size: 16px;
+        }
+
+        .footer {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+      }
+    </style>
+    <title>Account Successfully Connected</title>
+  </head>
+  <body class="msteams-sync-info-page">
+    <div class="connection-icon">
+      <img src="../connection-icon.png" alt="connection-icon"/>
+    </div>
+    <div class="heading">How will you be using the two platforms?</div>
+    <div class="card-holder">
+      <div class="card" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
+        <div class="card__heading">
+          <div class="card__logo-holder">
+            <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
+          </div>
+          <div class="card__logo-details">Mattermost will be my primary platform</div>
+          <div class="select-icon">
+            <img src="../select-icon.png" alt="select-icon" id="select-icon__mm"/>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="card__sub-heading">What this choice means:</div>
+          <ul class="list">
+            <li class="list-item">
+              Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
+            </li>
+            <li class="list-item">
+              You will get notifications in Mattermost for synced messages and channels.
+            </li>
+            <li class="list-item">
+              <!-- TODO: Add correct links here -->
+              You will need to disable notifications in Microsoft Teams to avoid duplicate notifications or emails. <a href="test" class="list-link">Learn more</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="card" onclick="selectPrimaryPlatform('msteams')" id="msteams">
+        <div class="card__heading">
+          <div class="card__logo-holder">
+            <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
+          </div>
+          <div class="card__logo-details">Microsoft Teams will be my primary platform</div>
+          <div class="select-icon">
+            <img src="../select-icon.png" alt="select-icon" id="select-icon__msteams"/>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="card__sub-heading">What this choice means:</div>
+          <ul class="list">
+            <li class="list-item">
+              Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
+            </li>
+            <li class="list-item">
+              <!-- TODO: Add correct links here -->
+              Notifications in Mattermost will be disabled for messages coming from Microsoft Teams to prevent duplicates. <a href="test" class="list-link">Learn more</a>
+            </li>
+            <li class="list-item">
+              Unread status in synced channels and direct messages will be disabled in Mattermost.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="selection-button">
+      <!-- TODO: Update logic to select primary platform here -->
+      <a class="selection-button__text">Let's go!</a>
+    </div>
+    <div class="footer">
+      <!-- TODO: Add correct links here -->
+      You can change this setting in your account setting later. For more information <a href="url" class="list-link">visit this help article.</a>
+    </div>
+  </body>
+</html>

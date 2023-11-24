@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,8 @@ const (
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
+	p.handleStaticFiles(router)
+
 	api := &API{p: p, router: router, store: store}
 
 	if p.GetMetrics() != nil {
@@ -425,12 +428,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	connectionMessage := "Your account has been connected"
 	if mmUser.Id == a.p.GetBotUserID() {
-		connectionMessage = "The bot account has been connected"
+		_, _ = w.Write([]byte("<html><body><h1>The bot account has been connected</h1><p>You can close this window.</p></body></html>"))
+		return
 	}
 
-	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+	http.Redirect(w, r, a.p.GetURL()+"/static/info-page/index.html", http.StatusFound)
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
@@ -544,6 +547,18 @@ func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	}
 
 	return connectedUserList, nil
+}
+
+// handleStaticFiles handles the static files under the assets directory.
+func (p *Plugin) handleStaticFiles(r *mux.Router) {
+	bundlePath, err := p.API.GetBundlePath()
+	if err != nil {
+		p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+		return
+	}
+
+	// This will serve static files from the 'assets' directory under '/static/<filename>'
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(bundlePath, "assets")))))
 }
 
 func GetPageAndPerPage(r *http.Request) (page, perPage int) {
