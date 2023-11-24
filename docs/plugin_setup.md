@@ -7,6 +7,8 @@
     - **Client Secret**: Enter the client secret of your registered OAuth app in Azure portal.
     - **At Rest Encryption Key**: Regenerate a new encryption secret. This encryption secret will be used to encrypt and decrypt the OAuth token.
     - **Webhook secret**: Regenerate a new webhook secret.
+    - **Certificate Public**: This configuration is for setting the public part of the certificate for enabling certificate-based subscriptions.  
+    -**Certificate Key**: This configuration is for setting the private key of the certificate for enabling certificate-based subscriptions. **Note**: For enabling certificate-based subscriptions, enter both the public part and private key of the certificate.
     - **Use the evalution API pay model**: Enable this only for testing purposes. You need the pay model to be able to support enough message notifications to work in a real world scenario.
     - **Enforce connected accounts**: Enabling this will enforce all the users to connect their Mattermost accounts to their MS Teams accounts.
     - **Allow to temporarily skip connect user**: Enabling this will allow the users to temporarily skip connecting their accounts.
@@ -18,6 +20,9 @@
     - **Maximum size of attachments to support complete one time download (in MB)**: This setting is for configuring the maximum size of attachments that can be loaded into memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost.
     - **Buffer size for streaming files (in MB)**: This setting is for configuring the buffer size for streaming files from MS Teams to Mattermost.
     - **Max Connected Users**: This setting sets the maximum number of users that may connect to their MS Teams account. Once connected, the user is added to a whitelist and may disconnect and reconnect at any time.
+    - **Automatically Promote Synthetic Users**: This setting is for enabling the auto-promotion of synthetic users when they login for the first time.
+    -**Synthetic User Auth Service**: This setting sets the authentication service to be used when creating or updating synthetic users. This should match the service used for member user access to Mattermost.
+    -**Synthetic User Auth Data**: This setting sets the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID attribute.
 
-    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/78c53c0c-60a1-4fed-85d0-546d3fe3c53e)
+    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/9f0f4f29-f9a2-433b-b90c-444e292ca221)
 
