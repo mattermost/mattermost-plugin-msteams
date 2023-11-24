@@ -172,6 +172,46 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			http.StatusBadRequest,
 			"Invalid webhook secret\n",
 		},
+		{
+			"Encrypted message on encrypted subscription",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+						EncryptedContent:               &msteams.EncryptedContent{},
+					},
+				},
+			},
+			func() {
+				plugin.configuration.CertificateKey = "test"
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+				plugin.API.(*plugintest.API).On("LogError", "Invalid encrypted content", "error", "invalid certificate key").Return(nil)
+			},
+			http.StatusBadRequest,
+			"invalid certificate key\n\n",
+		},
+		{
+			"Non encrypted message on encrypted subscription",
+			Activities{
+				Value: []msteams.Activity{
+					{
+						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+						ChangeType:                     "created",
+						ClientState:                    "webhooksecret",
+						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+					},
+				},
+			},
+			func() {
+				plugin.configuration.CertificateKey = "test"
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+			},
+			http.StatusBadRequest,
+			"Not encrypted content for encrypted subscription\n",
+		},
 	}
 	for _, tc := range ttcases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -388,11 +428,13 @@ func TestProcessLifecycle(t *testing.T) {
 		ExpectedResult     string
 	}{
 		{
-			Name:            "ProcessLifecycle: With validation token present",
-			SetupAPI:        func(api *plugintest.API) {},
-			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:      func(store *storemocks.Store) {},
-			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
+			Name:        "ProcessLifecycle: With validation token present",
+			SetupAPI:    func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", "").Times(1)
+			},
 			ValidationToken: "mockValidationToken",
 			RequestBody: `{
 				"Value": [{
@@ -405,11 +447,13 @@ func TestProcessLifecycle(t *testing.T) {
 			ExpectedResult:     "mockValidationToken",
 		},
 		{
-			Name:               "ProcessLifecycle: Invalid body",
-			SetupAPI:           func(api *plugintest.API) {},
-			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:         func(store *storemocks.Store) {},
-			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			Name:        "ProcessLifecycle: Invalid body",
+			SetupAPI:    func(api *plugintest.API) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
 			RequestBody:        `{`,
 			ExpectedStatusCode: http.StatusBadRequest,
 			ExpectedResult:     "unable to get the lifecycle events from the message\n",
@@ -419,9 +463,12 @@ func TestProcessLifecycle(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Invalid webhook secret received in lifecycle event").Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:   func(store *storemocks.Store) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", mock.AnythingOfType("string")).Times(1)
+			},
 
 			RequestBody: `{
 				"Value": [{
@@ -430,7 +477,8 @@ func TestProcessLifecycle(t *testing.T) {
 				"ChangeType": "mockChangeType",
 				"LifecycleEvent": "mockLifecycleEvent"
 			}]}`,
-			ExpectedStatusCode: http.StatusOK,
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedResult:     "Invalid webhook secret\n",
 		},
 		{
 			Name:        "ProcessLifecycle: Valid body with valid webhook secret and without refresh needed",
@@ -443,7 +491,9 @@ func TestProcessLifecycle(t *testing.T) {
 				}, nil).Once()
 				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
 			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", "").Times(1)
+			},
 			RequestBody: `{
 				"Value": [{
 				"SubscriptionID": "mockID",
@@ -470,6 +520,7 @@ func TestProcessLifecycle(t *testing.T) {
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
+				mockmetrics.On("ObserveLifecycleEvent", "reauthorizationRequired", "").Times(1)
 			},
 			RequestBody: `{
 				"Value": [{
@@ -484,13 +535,6 @@ func TestProcessLifecycle(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
-
-			if test.ExpectedStatusCode == http.StatusOK {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveLifecycleEvent", mock.AnythingOfType("string")).Times(1)
-			}
 
 			test.SetupStore(plugin.store.(*storemocks.Store))
 			test.SetupAPI(plugin.API.(*plugintest.API))

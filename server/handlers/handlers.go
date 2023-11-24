@@ -9,12 +9,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
@@ -55,6 +57,7 @@ type ActivityHandler struct {
 	plugin               PluginIface
 	queue                chan msteams.Activity
 	quit                 chan bool
+	quitting             atomic.Bool
 	IgnorePluginHooksMap sync.Map
 }
 
@@ -80,26 +83,39 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
+	ah.quitting.Store(false)
+
 	// This is constant for now, but report it as a metric to future proof dashboards.
 	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
 
-	for i := 0; i < numberOfWorkers; i++ {
-		go func() {
-			for {
-				select {
-				case activity := <-ah.queue:
-					ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
-					ah.handleActivity(activity)
-				case <-ah.quit:
-					// we have received a signal to stop
-					return
-				}
+	// doStart is the meat of the activity handler worker
+	doStart := func() {
+		for {
+			select {
+			case activity := <-ah.queue:
+				ah.plugin.GetMetrics().DecrementChangeEventQueueLength(activity.ChangeType)
+				ah.handleActivity(activity)
+			case <-ah.quit:
+				// we have received a signal to stop
+				return
 			}
-		}()
+		}
+	}
+
+	// isQuitting informs the recovery handler if the shutdown is intentional
+	isQuitting := func() bool {
+		return ah.quitting.Load()
+	}
+
+	logError := ah.plugin.GetAPI().LogError
+
+	for i := 0; i < numberOfWorkers; i++ {
+		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
 	}
 }
 
 func (ah *ActivityHandler) Stop() {
+	ah.quitting.Store(true)
 	go func() {
 		for i := 0; i < numberOfWorkers; i++ {
 			ah.quit <- true
@@ -121,6 +137,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if !ah.checkSubscription(event.SubscriptionID) {
+		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedSubscriptionCheck)
 		return
 	}
 
@@ -128,13 +145,17 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 		if err != nil {
 			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
-		} else {
-			ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
-			if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
-				ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
-			}
+			ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedToRefresh)
+			return
+		}
+
+		ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
+		if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
+			ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 		}
 	}
+
+	ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonNone)
 }
 
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
@@ -167,9 +188,25 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		discardedReason = ah.handleCreatedActivity(activityIds)
+		var msg *clientmodels.Message
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+			}
+		}
+		discardedReason = ah.handleCreatedActivity(msg, activityIds)
 	case "updated":
-		discardedReason = ah.handleUpdatedActivity(activityIds)
+		var msg *clientmodels.Message
+		if len(activity.Content) > 0 {
+			var err error
+			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
+			if err != nil {
+				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+			}
+		}
+		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
 	case "deleted":
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
@@ -180,8 +217,8 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
@@ -296,8 +333,8 @@ func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.Activi
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
+func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData

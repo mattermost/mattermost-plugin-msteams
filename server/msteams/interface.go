@@ -21,10 +21,10 @@ type Client interface {
 	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
 	DeleteChatMessage(chatID, msgID string) error
-	SubscribeToChannels(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
-	SubscribeToChats(baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
-	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret string) (*clientmodels.Subscription, error)
-	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool) (*clientmodels.Subscription, error)
+	SubscribeToChannels(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
+	SubscribeToChats(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
+	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate string) (*clientmodels.Subscription, error)
+	SubscribeToUserChats(user, baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
 	RefreshSubscription(subscriptionID string) (*time.Time, error)
 	DeleteSubscription(subscriptionID string) error
 	ListSubscriptions() ([]*clientmodels.Subscription, error)

@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"math/big"
@@ -23,6 +26,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -187,7 +191,7 @@ func (p *Plugin) start(syncSince *time.Time) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -228,6 +232,43 @@ func (p *Plugin) syncSince(syncSince time.Time) {
 	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
+func (p *Plugin) getBase64Certificate() string {
+	certificate := p.getConfiguration().CertificatePublic
+	if certificate == "" {
+		return ""
+	}
+	block, _ := pem.Decode([]byte(certificate))
+	if block == nil {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(block))
+}
+
+func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
+	keyPemString := p.getConfiguration().CertificateKey
+	if keyPemString == "" {
+		return nil, errors.New("certificate private key not configured")
+	}
+	privPem, _ := pem.Decode([]byte(keyPemString))
+	if privPem == nil {
+		return nil, errors.New("invalid certificate key")
+	}
+	var err error
+	var parsedKey any
+	if parsedKey, err = x509.ParsePKCS8PrivateKey(privPem.Bytes); err != nil { // note this returns type `interface{}`
+		return nil, err
+	}
+
+	var privateKey *rsa.PrivateKey
+	var ok bool
+	privateKey, ok = parsedKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("Not valid key")
+	}
+
+	return privateKey, nil
+}
+
 func (p *Plugin) stop() {
 	if p.monitor != nil {
 		p.monitor.Stop()
@@ -244,6 +285,8 @@ func (p *Plugin) stop() {
 	if p.activityHandler != nil {
 		p.activityHandler.Stop()
 	}
+
+	p.stopSyncUsersJob()
 }
 
 func (p *Plugin) restart() {
@@ -365,13 +408,13 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	go func() {
+	recovery.Go("prefill_whitelist", p.API.LogError, func() {
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
 			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
 		}
-	}()
+	})
 
 	go p.start(lastRecivedChange)
 	return nil
@@ -605,12 +648,12 @@ func (p *Plugin) runMetricsServer() {
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
-	go func() {
+	recovery.Go("metrics_server", p.API.LogError, func() {
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
 		}
-	}()
+	})
 }
 
 func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {

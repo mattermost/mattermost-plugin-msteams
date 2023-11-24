@@ -7,6 +7,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
@@ -35,7 +36,9 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 	for _, link := range links {
 		ws <- struct{}{}
 		wg.Add(1)
-		go func(link storemodels.ChannelLink) {
+
+		link := link
+		recovery.Go("check_channel_subscription", m.api.LogError, func() {
 			defer wg.Done()
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost
@@ -46,6 +49,8 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
 					<-ws
 					return
+				} else if mmSubscription.Certificate != m.certificate {
+					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
 				} else if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
 					if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
 						m.api.LogDebug("Unable to refresh channel subscription", "error", err.Error())
@@ -59,7 +64,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 				return
 			}
 			<-ws
-		}(link)
+		})
 	}
 	wg.Wait()
 }
@@ -102,7 +107,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 		if allChatsSubscription == nil {
 			m.CreateAndSaveChatSubscription(nil)
 		} else {
-			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret}); err != nil {
+			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret, Certificate: m.certificate}); err != nil {
 				m.api.LogError("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err.Error())
 			}
 		}
@@ -118,6 +123,12 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 		return
 	}
 
+	if mmSubscription.Certificate != m.certificate {
+		if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
+			m.api.LogError("Unable to recreate all chats subscription", "error", err.Error())
+		}
+	}
+
 	if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
 		if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
 			m.api.LogDebug("Unable to refresh all chats subscription", "error", err.Error())
@@ -129,7 +140,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 }
 
 func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) {
-	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
+	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
 		return
@@ -143,7 +154,7 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 		}
 	}
 
-	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: m.webhookSecret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
+	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: m.webhookSecret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); err != nil {
 		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
 		return
 	}
@@ -154,12 +165,12 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 	}
 
-	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI)
+	newSubscription, err := m.client.SubscribeToUserChats(userID, m.baseURL, m.webhookSecret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		return err
 	}
 
-	return m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
+	return m.store.SaveChatSubscription(storemodels.ChatSubscription{SubscriptionID: newSubscription.ID, UserID: userID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate})
 }
 
 func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID, secret string, deleteFromClient bool) {
@@ -169,7 +180,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}
 
-	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret)
+	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret, m.certificate)
 	if err != nil {
 		m.api.LogError("Unable to create new subscription for the channel", "channelID", channelID, "error", err.Error())
 		return
@@ -203,7 +214,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}()
 
-	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn}); txErr != nil {
+	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); txErr != nil {
 		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
 		return
 	}
@@ -214,7 +225,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 		m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 	}
 
-	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI)
+	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		return err
 	}
@@ -224,7 +235,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
 		m.api.LogDebug("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
 	}
-	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
+	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate})
 }
 
 func (m *Monitor) refreshSubscription(subscriptionID string) error {

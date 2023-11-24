@@ -626,13 +626,13 @@ func (_m *Store) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription,
 	return r0, r1
 }
 
-// ListChannelSubscriptionsToRefresh provides a mock function with given fields:
-func (_m *Store) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
-	ret := _m.Called()
+// ListChannelSubscriptionsToRefresh provides a mock function with given fields: certificate
+func (_m *Store) ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error) {
+	ret := _m.Called(certificate)
 
 	var r0 []*storemodels.ChannelSubscription
-	if rf, ok := ret.Get(0).(func() []*storemodels.ChannelSubscription); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) []*storemodels.ChannelSubscription); ok {
+		r0 = rf(certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*storemodels.ChannelSubscription)
@@ -640,8 +640,8 @@ func (_m *Store) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubs
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(certificate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -695,13 +695,13 @@ func (_m *Store) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, e
 	return r0, r1
 }
 
-// ListGlobalSubscriptionsToRefresh provides a mock function with given fields:
-func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
-	ret := _m.Called()
+// ListGlobalSubscriptionsToRefresh provides a mock function with given fields: certificate
+func (_m *Store) ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error) {
+	ret := _m.Called(certificate)
 
 	var r0 []*storemodels.GlobalSubscription
-	if rf, ok := ret.Get(0).(func() []*storemodels.GlobalSubscription); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) []*storemodels.GlobalSubscription); ok {
+		r0 = rf(certificate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*storemodels.GlobalSubscription)
@@ -709,8 +709,8 @@ func (_m *Store) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscr
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(certificate)
 	} else {
 		r1 = ret.Error(1)
 	}
