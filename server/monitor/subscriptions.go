@@ -12,7 +12,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
-func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription) {
+func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, firstTime bool) {
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
@@ -42,8 +42,10 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
-				// Check if channel subscription is not present on MS Teams
-				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
+				if firstTime {
+					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
+					// Check if channel subscription is not present on MS Teams
+				} else if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
 					// Create channel subscription for the linked channel
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
 					<-ws
@@ -94,7 +96,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	}
 // }
 
-func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
+func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription, firstTime bool) {
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
@@ -103,7 +105,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 	}
 
 	if len(subscriptions) == 0 {
-		if allChatsSubscription == nil {
+		if allChatsSubscription == nil || firstTime {
 			m.CreateAndSaveChatSubscription(nil)
 		} else {
 			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret, Certificate: m.certificate}); err != nil {
@@ -139,10 +141,26 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 }
 
 func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) {
+	lastActivityBytes, appErr := m.api.KVGet(handlers.LastReceivedChangeKey)
+	if appErr != nil {
+		m.api.LogError("Unable to get lastActivity date")
+	}
+
 	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI, m.certificate)
 	if err != nil {
 		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
 		return
+	}
+
+	if len(lastActivityBytes) > 0 {
+		lastActivityUnix, err := strconv.ParseInt(string(lastActivityBytes), 10, 64)
+		if err != nil {
+			m.api.LogError("Unable to parse lastActivity date")
+		} else {
+			lastActivity := time.Unix(lastActivityUnix, 0)
+			// go m.syncChatsSince(lastActivity)
+			m.api.LogError("Syncing chats since is not implemented yet", "last-activity", lastActivity)
+		}
 	}
 
 	m.metrics.ObserveSubscription(metrics.SubscriptionConnected)

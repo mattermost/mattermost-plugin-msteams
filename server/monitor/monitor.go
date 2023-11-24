@@ -26,6 +26,7 @@ type Monitor struct {
 	webhookSecret    string
 	certificate      string
 	useEvaluationAPI bool
+	firstTime        bool
 }
 
 func New(client msteams.Client, activityHandler *handlers.ActivityHandler, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
@@ -39,6 +40,7 @@ func New(client msteams.Client, activityHandler *handlers.ActivityHandler, store
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,
 		certificate:      certificate,
+		firstTime:        true,
 	}
 }
 
@@ -99,10 +101,11 @@ func (m *Monitor) check() {
 		return
 	}
 
-	go func() {
-		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	}()
-	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+	go func(firstTime bool) {
+		m.checkChannelsSubscriptions(msteamsSubscriptionsMap, firstTime)
+	}(m.firstTime)
+	go m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription, m.firstTime)
+	m.firstTime = false
 }
 
 func (m *Monitor) syncChannelSince(teamID, channelID string, syncSince time.Time) {
