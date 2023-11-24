@@ -110,20 +110,55 @@ func TestHandleMentions(t *testing.T) {
 			expectedMessage: "mockMessage",
 		},
 		{
-			description: "All mention present",
+			description: "@Everyone mention present",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
 			setupAPI:    func(api *plugintest.API) {},
 			setupStore:  func(store *mocksStore.Store) {},
 			message: &clientmodels.Message{
-				Text: `mockMessage <at id="0">Everyone</at>`,
+				Text:   `mockMessage <at id="0">Everyone</at>`,
+				ChatID: testutils.GetChatID(),
 				Mentions: []clientmodels.Mention{
 					{
-						ID:            0,
-						MentionedText: "Everyone",
+						ID:             0,
+						ConversationID: testutils.GetChatID(),
+						MentionedText:  "Everyone",
 					},
 				},
 			},
 			expectedMessage: "mockMessage @all",
+		},
+		{
+			description: "@channel mention present with multiple words",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
+			setupAPI:    func(api *plugintest.API) {},
+			setupStore:  func(store *mocksStore.Store) {},
+			message: &clientmodels.Message{
+				Text:      `hi <at id="0">Dummy</at>&nbsp;<at id="1">Test</at>&nbsp;<at id="2">channel</at>&nbsp;<at id="3">2</at>`,
+				ChannelID: testutils.GetChannelID(),
+				Mentions: []clientmodels.Mention{
+					{
+						ID:             0,
+						ConversationID: testutils.GetChannelID(),
+						MentionedText:  "Dummy",
+					},
+					{
+						ID:             1,
+						ConversationID: testutils.GetChannelID(),
+						MentionedText:  "Test",
+					},
+					{
+						ID:             2,
+						ConversationID: testutils.GetChannelID(),
+						MentionedText:  "channel",
+					},
+					{
+						ID:             3,
+						ConversationID: testutils.GetChannelID(),
+						MentionedText:  "2",
+					},
+				},
+			},
+			expectedMessage: "hi @channel",
 		},
 		{
 			description: "Unable to get mm user ID for user mentions",
@@ -210,6 +245,115 @@ func TestHandleMentions(t *testing.T) {
 				},
 			},
 			expectedMessage: "hello @mockMMUsername-1  from @mockMMUsername-2 ",
+		},
+		{
+			description: "Successful user mentions with multiple words",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetAPI").Return(mockAPI).Twice()
+				p.On("GetStore").Return(store).Twice()
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
+					Id:       "mockMMUserID-1",
+					Username: "mockMMUsername-1",
+				}, nil).Once()
+				api.On("GetUser", "mockMMUserID-2").Return(&model.User{
+					Id:       "mockMMUserID-2",
+					Username: "mockMMUsername-2",
+				}, nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("mockMMUserID-1", nil).Once()
+				store.On("TeamsToMattermostUserID", "mockMSUserID-2").Return("mockMMUserID-2", nil).Once()
+			},
+			message: &clientmodels.Message{
+				Text: `hello <at id="0">Dummy</at>&nbsp;<at id="1">Test</at>&nbsp;<at id="2">User-1</at>from <at id="3">Dummy</at>&nbsp;<at id="4">User-2</at>`,
+				Mentions: []clientmodels.Mention{
+					{
+						ID:            0,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Dummy",
+					},
+					{
+						ID:            1,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Test",
+					},
+					{
+						ID:            2,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "User-1",
+					},
+					{
+						ID:            3,
+						UserID:        "mockMSUserID-2",
+						MentionedText: "Dummy",
+					},
+					{
+						ID:            4,
+						UserID:        "mockMSUserID-2",
+						MentionedText: "User-2",
+					},
+				},
+			},
+			expectedMessage: "hello @mockMMUsername-1 from @mockMMUsername-2 ",
+		},
+		{
+			description: "Successful repetitive user mentions with multiple words",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
+				p.On("GetAPI").Return(mockAPI).Times(3)
+				p.On("GetStore").Return(store).Times(3)
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
+					Id:       "mockMMUserID-1",
+					Username: "mockMMUsername-1",
+				}, nil).Twice()
+				api.On("GetUser", "mockMMUserID-2").Return(&model.User{
+					Id:       "mockMMUserID-2",
+					Username: "mockMMUsername-2",
+				}, nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("mockMMUserID-1", nil).Twice()
+				store.On("TeamsToMattermostUserID", "mockMSUserID-2").Return("mockMMUserID-2", nil).Once()
+			},
+			message: &clientmodels.Message{
+				Text: `<at id="0">Dummy</at>&nbsp;<at id="1">User-1</at>&nbsp;<at id="2">Dummy</at>&nbsp;<at id="3">User-1</at>&nbsp;hello <at id="4">Test</at>&nbsp;<at id="5">User-2</at>`,
+				Mentions: []clientmodels.Mention{
+					{
+						ID:            0,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Dummy",
+					},
+					{
+						ID:            1,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "User-1",
+					},
+					{
+						ID:            2,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Dummy",
+					},
+					{
+						ID:            3,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "User-1",
+					},
+					{
+						ID:            4,
+						UserID:        "mockMSUserID-2",
+						MentionedText: "Test",
+					},
+					{
+						ID:            5,
+						UserID:        "mockMSUserID-2",
+						MentionedText: "User-2",
+					},
+				},
+			},
+			expectedMessage: "@mockMMUsername-1 &nbsp;@mockMMUsername-1 &nbsp;hello @mockMMUsername-2 ",
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
