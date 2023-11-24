@@ -1,16 +1,16 @@
-package recovery
+package handlers
 
 import (
 	"runtime/debug"
 )
 
-type Metrics interface {
+type workerMetrics interface {
 	ObserveGoroutineFailure()
 }
 
-// GoWorker wraps and invokes the given callback in a goroutine, automatically restarting in a new
-// goroutine on any unrecovered panic or unexpected termination.
-func GoWorker(logError func(msg string, keyValuePairs ...any), metrics Metrics, isQuitting func() bool, callback func()) {
+// startWorker wraps and invokes the given callback in a goroutine, automatically restarting in a
+// new goroutine on any unrecovered panic or unexpected termination.
+func startWorker(logError func(msg string, keyValuePairs ...any), metrics workerMetrics, isQuitting func() bool, callback func()) {
 	var doRecoverableStart func()
 
 	// doRecover is a helper function to recover from panics and restart the goroutine.
