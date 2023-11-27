@@ -34,7 +34,7 @@ export default class Plugin {
                         {
                             text: 'Mattermost will be my primary platform',
                             value: 'mm',
-                            helpText: 'You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](http://google.com)**'
+                            helpText: 'You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](http://google.com)**',
                         },
                         {
                             text: 'Microsoft Teams will be my primary platform',
@@ -47,8 +47,8 @@ export default class Plugin {
                     helpText: 'Note: Unread statuses for linked channels and DMs will not be synced between Mattermost & Microsoft Teams.',
                 }],
                 title: 'Primary platform for communication',
-            }]
-            
+            }],
+
         });
     }
 }
