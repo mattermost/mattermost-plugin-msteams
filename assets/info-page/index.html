@@ -3,8 +3,9 @@
   <head>
     <script>
       var mattermostPrimaryPlatform = 'mattermost';
-      var msteamsPrimaryPlatform = 'msteams'
-      var primaryPlatform = mattermostPrimaryPlatform;
+      var msteamsPrimaryPlatform = 'msteams';
+      var mmSelectIconClass = 'select-icon__mm';
+      var msteamsSelectIconClass = 'select-icon__msteams';
 
       function closeInfoPage() {
         window.close();
@@ -23,27 +24,19 @@
       }
 
       function showTickIcon(primaryPlatform, secondaryPlatform) {
-        document.getElementById(primaryPlatform).setAttribute(
-          'style',
-          'display: block;'
-        )
-
-        document.getElementById(secondaryPlatform).setAttribute(
-          'style',
-          'display: none;'
-        )
+        
+        document.getElementById(secondaryPlatform).classList.toggle('d-none');
       }
 
       function selectPrimaryPlatform(platform) {
-          console.log(platform);
-          primaryPlatform = platform;
-
           if (platform == mattermostPrimaryPlatform) {
             applyBorder(mattermostPrimaryPlatform, msteamsPrimaryPlatform);
-            showTickIcon('select-icon__mm', 'select-icon__msteams');
+            document.getElementById(mmSelectIconClass).classList.remove('d-none');
+            document.getElementById(msteamsSelectIconClass).classList.add('d-none');
           } else {
             applyBorder(msteamsPrimaryPlatform, mattermostPrimaryPlatform);
-            showTickIcon('select-icon__msteams', 'select-icon__mm')
+            document.getElementById(mmSelectIconClass).classList.add('d-none');
+            document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
           }
       }
     </script>
@@ -94,6 +87,10 @@
           box-sizing: border-box;
         }
 
+        .d-none {
+          display: none;
+        }
+
         .card {
           display: flex;
           flex-direction: column;
@@ -128,10 +125,6 @@
 
         .select-icon {
           margin-left: auto;
-        }
-        
-        #select-icon__mm, #select-icon__msteams {
-          display: none;
         }
 
         .card__body {
@@ -214,7 +207,7 @@
               </div>
               <div class="card__logo-details">Mattermost will be my primary platform</div>
               <div class="select-icon">
-                <img src="../select-icon.png" alt="select-icon" id="select-icon__mm"/>
+                <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__mm"/>
               </div>
             </div>
             <div class="card__body">
@@ -240,7 +233,7 @@
               </div>
               <div class="card__logo-details">Microsoft Teams will be my primary platform</div>
               <div class="select-icon">
-                <img src="../select-icon.png" alt="select-icon" id="select-icon__msteams"/>
+                <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__msteams"/>
               </div>
             </div>
             <div class="card__body">
