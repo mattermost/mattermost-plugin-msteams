@@ -11,6 +11,7 @@
     justify-content: center;
     align-items: center;
     padding: 20px;
+    text-align: center;
 }
 
 .EnforceConnectedAccountModal img {
@@ -29,8 +30,4 @@
 
 .EnforceConnectedAccountModal .connectMessage {
     font-size: 18px;
-}
-
-.EnforceConnectedAccountModal .body-text {
-    text-align: center;
 }
