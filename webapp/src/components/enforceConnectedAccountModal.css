@@ -30,3 +30,7 @@
 .EnforceConnectedAccountModal .connectMessage {
     font-size: 18px;
 }
+
+.EnforceConnectedAccountModal .body-text {
+    text-align: center;
+}
