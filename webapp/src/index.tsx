@@ -16,7 +16,8 @@ export default class Plugin {
     enforceConnectedAccountId = '';
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
-        Client.setServerRoute(getServerRoute(store.getState()));
+        const serverRoute = getServerRoute(store.getState());
+        Client.setServerRoute(serverRoute);
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
@@ -24,8 +25,8 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
         registry.registerUserSettings?.({
-            id: 'com.mattermost.msteams-sync',
-            icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg/1200px-Microsoft_Office_Teams_%282018%E2%80%93present%29.svg.png',
+            id: manifest.id,
+            icon: `${serverRoute}/plugins/${manifest.id}/public/msteams-sync-icon.svg`,
             uiName: 'MS Teams Sync',
             sections: [{
                 settings: [{
@@ -48,7 +49,6 @@ export default class Plugin {
                 }],
                 title: 'Primary platform for communication',
             }],
-
         });
     }
 }
