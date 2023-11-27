@@ -1,4 +1,4 @@
-package handlers
+package recovery
 
 import (
 	"testing"
@@ -15,7 +15,7 @@ func assertReceive[X any](t *testing.T, c chan X, failureMessage string) {
 	}
 }
 
-func TestGoWithRecovery(t *testing.T) {
+func TestGoWorker(t *testing.T) {
 	// makeDoStart simulates a start function with the defined sequence of actions, whether to
 	// do a "normal" run, waiting for the signal to stop, to "panic", immediately crashing,
 	// or to unexpectedly "exit".
@@ -83,7 +83,7 @@ func TestGoWithRecovery(t *testing.T) {
 			}
 		}
 
-		goWithRecovery("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError)
 		assertReceive(t, started, "doStart failed to start")
 		close(stopping)
 		assertReceive(t, stopped, "doStart failed to finish")
@@ -104,7 +104,7 @@ func TestGoWithRecovery(t *testing.T) {
 			}
 		}
 
-		goWithRecovery("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		close(stopping)
@@ -126,7 +126,7 @@ func TestGoWithRecovery(t *testing.T) {
 			}
 		}
 
-		goWithRecovery("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		close(stopping)
@@ -148,7 +148,7 @@ func TestGoWithRecovery(t *testing.T) {
 			}
 		}
 
-		goWithRecovery("job", doStart, isQuitting, logError)
+		GoWorker("job", doStart, isQuitting, logError)
 		assertReceive(t, started, "doStart failed to start")
 		assertReceive(t, started, "doStart failed to start the second time")
 		assertReceive(t, started, "doStart failed to start the third time")

@@ -1,11 +1,14 @@
-package handlers
+package recovery
 
 import (
 	"fmt"
 	"runtime/debug"
 )
 
-func goWithRecovery(name string, doStart func(), isQuitting func() bool, logError func(msg string, keyValuePairs ...any)) {
+// GoWorker runs a goroutine with a recovery handler that both prevents the plugin from crashing
+// in the face of a panic, and also restarts the goroutine powering a worker unless the termination
+// was expected.
+func GoWorker(name string, doStart func(), isQuitting func() bool, logError func(msg string, keyValuePairs ...any)) {
 	var doRecoverableStart func()
 
 	// doRecover is a helper function to recover from panics and restart the goroutine.
