@@ -14,7 +14,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/mattermost/mattermost-plugin-api v0.1.4
 	github.com/mattermost/mattermost-server/v6 v6.0.0-20230901142735-ccceee77061a
-	github.com/mattn/godown v0.0.1
+	github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9
 	github.com/microsoft/kiota-abstractions-go v1.5.2
 	github.com/microsoftgraph/msgraph-sdk-go v1.25.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
