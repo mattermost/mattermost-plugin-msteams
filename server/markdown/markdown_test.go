@@ -24,8 +24,8 @@ func TestConvertToMD(t *testing.T) {
 		},
 		{
 			description:    "Text contains paragraph and image tags",
-			text:           "This is text area with <img src=''> and <p class=''>Paragraph</p> tags",
-			expectedOutput: "This is text area with  and \nParagraph\n\n\n tags\n",
+			text:           "This is text area with <img src='test.com'> and <p class=''>Paragraph</p> tags",
+			expectedOutput: "This is text area with ![](test.com) and \nParagraph\n\n\n tags\n",
 		},
 		{
 			description:    "Text contains bold, italics and strike through tags",
