@@ -163,10 +163,10 @@ func (p *Plugin) LinkChannels(userID, mattermostTeamID, mattermostChannelID, msT
 		Creator:             userID,
 	}
 
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeamID, channelLink.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret)
+	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeamID, channelLink.MSTeamsChannelID, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
 		p.API.LogError("Error occurred while subscribing to MS Teams channel", "TeamID", channelLink.MSTeamsTeamID, "ChannelID", channelLink.MSTeamsChannelID, "Error", err.Error())
-		return "Unable to subscribe to the channel: " + err.Error(), http.StatusInternalServerError
+		return "Unable to subscribe to the channel", http.StatusInternalServerError
 	}
 
 	p.GetMetrics().ObserveSubscription(metrics.SubscriptionConnected)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-api/experimental/command"
@@ -222,6 +223,13 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 }
 
 func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 

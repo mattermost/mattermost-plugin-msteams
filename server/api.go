@@ -3,6 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha1" //nolint:gosec
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -13,13 +21,15 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -130,6 +140,83 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
+		return nil, err
+	}
+	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode data signature", "error", err)
+		return nil, err
+	}
+
+	mac := hmac.New(sha256.New, key)
+	mac.Write(ciphertext)
+	expectedMac := mac.Sum(nil)
+	if !hmac.Equal(expectedMac, msDataSignature) {
+		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't match"))
+		return nil, errors.New("The key signature doesn't match")
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ciphertext) < aes.BlockSize {
+		return nil, errors.New("ciphertext too short")
+	}
+	iv := key[:16]
+
+	if len(ciphertext)%block.BlockSize() != 0 {
+		return nil, errors.New("ciphertext is not a multiple of the block size")
+	}
+
+	mode := cipher.NewCBCDecrypter(block, iv)
+	result := make([]byte, len(ciphertext))
+	mode.CryptBlocks(result, ciphertext)
+	resultPadding := int(result[len(result)-1])
+	result = result[:len(result)-resultPadding]
+	return result, nil
+}
+
+func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decode key", "error", err)
+		return nil, err
+	}
+
+	key, err := a.p.getPrivateKey()
+	if err != nil {
+		a.p.API.LogDebug("Unable to get private key", "error", err)
+		return nil, err
+	}
+	hash := sha1.New() //nolint:gosec
+	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
+		return nil, err
+	}
+	return plaintext, nil
+}
+
+func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
+	msKey, err := a.decryptEncryptedContentDataKey(encryptedContent)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt key", "error", err)
+		return nil, err
+	}
+
+	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
+	if err != nil {
+		a.p.API.LogDebug("Unable to decrypt data", "error", err)
+		return nil, err
+	}
+	return data, nil
+}
+
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
@@ -148,8 +235,21 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
+	requireEncryptedContent := a.p.getConfiguration().CertificateKey != ""
 	errors := ""
 	for _, activity := range activities.Value {
+		if activity.EncryptedContent != nil {
+			content, err := a.processEncryptedContent(*activity.EncryptedContent)
+			if err != nil {
+				errors += err.Error() + "\n"
+				continue
+			}
+			activity.Content = content
+		} else if requireEncryptedContent {
+			errors += "Not encrypted content for encrypted subscription"
+			continue
+		}
+
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
@@ -188,13 +288,18 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	a.p.API.LogDebug("Lifecycle activity request", "activities", lifecycleEvents)
 
+	errors := ""
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {
-			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
+			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
+			errors += "Invalid webhook secret"
 			continue
 		}
-		a.p.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent)
 		a.p.activityHandler.HandleLifecycleEvent(event)
+	}
+	if errors != "" {
+		http.Error(w, errors, http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

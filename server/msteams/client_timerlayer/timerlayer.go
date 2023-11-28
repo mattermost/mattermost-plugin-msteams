@@ -470,10 +470,10 @@ func (c *ClientTimerLayer) SetReaction(teamID string, channelID string, parentID
 	return result, err
 }
 
-func (c *ClientTimerLayer) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string) (*clientmodels.Subscription, error) {
+func (c *ClientTimerLayer) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string, certificate string) (*clientmodels.Subscription, error) {
 	start := time.Now()
 
-	result, err := c.Client.SubscribeToChannel(teamID, channelID, baseURL, webhookSecret)
+	result, err := c.Client.SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -484,10 +484,10 @@ func (c *ClientTimerLayer) SubscribeToChannel(teamID string, channelID string, b
 	return result, err
 }
 
-func (c *ClientTimerLayer) SubscribeToChannels(baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
+func (c *ClientTimerLayer) SubscribeToChannels(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	start := time.Now()
 
-	result, err := c.Client.SubscribeToChannels(baseURL, webhookSecret, pay)
+	result, err := c.Client.SubscribeToChannels(baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -498,10 +498,10 @@ func (c *ClientTimerLayer) SubscribeToChannels(baseURL string, webhookSecret str
 	return result, err
 }
 
-func (c *ClientTimerLayer) SubscribeToChats(baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
+func (c *ClientTimerLayer) SubscribeToChats(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	start := time.Now()
 
-	result, err := c.Client.SubscribeToChats(baseURL, webhookSecret, pay)
+	result, err := c.Client.SubscribeToChats(baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -512,10 +512,10 @@ func (c *ClientTimerLayer) SubscribeToChats(baseURL string, webhookSecret string
 	return result, err
 }
 
-func (c *ClientTimerLayer) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool) (*clientmodels.Subscription, error) {
+func (c *ClientTimerLayer) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
 	start := time.Now()
 
-	result, err := c.Client.SubscribeToUserChats(user, baseURL, webhookSecret, pay)
+	result, err := c.Client.SubscribeToUserChats(user, baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -225,7 +226,16 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 		return ""
 	}
 
-	go client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ah.plugin.GetMetrics().ObserveGoroutineFailure()
+				ah.plugin.GetAPI().LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+
+		client.GetFileContentStream(downloadURL, pipeWriter, int64(ah.plugin.GetBufferSizeForStreaming()*1024*1024))
+	}()
 	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "Error", err.Error())

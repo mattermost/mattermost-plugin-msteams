@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-api/cluster"
@@ -21,10 +22,11 @@ type Monitor struct {
 	job              *cluster.Job
 	baseURL          string
 	webhookSecret    string
+	certificate      string
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
@@ -33,6 +35,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 		baseURL:          baseURL,
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,
+		certificate:      certificate,
 	}
 }
 
@@ -57,6 +60,13 @@ func (m *Monitor) Start() error {
 }
 
 func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
 			m.api.LogDebug("Failed to set monitoring job running status to false.")
@@ -93,8 +103,6 @@ func (m *Monitor) check() {
 		return
 	}
 
-	go func() {
-		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	}()
+	go m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 }
