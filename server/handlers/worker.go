@@ -10,12 +10,13 @@ type workerMetrics interface {
 
 // startWorker wraps and invokes the given callback in a goroutine, automatically restarting in a
 // new goroutine on any unrecovered panic or unexpected termination.
-func startWorker(logError func(msg string, keyValuePairs ...any), metrics workerMetrics, isQuitting func() bool, callback func()) {
+func startWorker(logError func(msg string, keyValuePairs ...any), metrics workerMetrics, isQuitting func() bool, doStart, doQuit func()) {
 	var doRecoverableStart func()
 
 	// doRecover is a helper function to recover from panics and restart the goroutine.
 	doRecover := func() {
 		if isQuitting() {
+			doQuit()
 			return
 		}
 
@@ -33,7 +34,7 @@ func startWorker(logError func(msg string, keyValuePairs ...any), metrics worker
 	// launching a fresh goroutine on callback as needed.
 	doRecoverableStart = func() {
 		defer doRecover()
-		callback()
+		doStart()
 	}
 
 	go doRecoverableStart()
