@@ -34,7 +34,6 @@ const (
 	activityQueueSize           = 5000
 	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
-	lastActivityTimeGap         = 30 * time.Second
 )
 
 type PluginIface interface {
