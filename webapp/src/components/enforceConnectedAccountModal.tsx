@@ -1,7 +1,9 @@
 import React, {useCallback, useState, useEffect} from 'react';
 
-import Client from '../client';
-import {id as pluginId} from '../manifest';
+import Constants from 'constants/index';
+
+import usePluginApi from 'hooks/usePluginApi';
+import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
 import './enforceConnectedAccountModal.css';
 
@@ -9,41 +11,63 @@ export default function EnforceConnectedAccountModal() {
     const [open, setOpen] = useState(false);
     const [canSkip, setCanSkip] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    const iconURL = `/plugins/${pluginId}/public/msteams-sync-icon.svg`;
+    const [isInterval, setIsInterval] = useState(false);
+    const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
 
     const skip = useCallback(() => {
         setOpen(false);
     }, []);
 
     const connectAccount = useCallback(() => {
-        Client.connect().then((result) => {
-            setConnecting(true);
-            window.open(result?.connectUrl, '_blank');
-        });
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
 
     useEffect(() => {
-        Client.needsConnect().then((result) => {
-            setOpen(result.needsConnect);
-            setCanSkip(result.canSkip);
-        });
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
     }, []);
 
-    const checkConnected = useCallback(async () => {
-        const result = await Client.needsConnect();
-        if (!result.needsConnect) {
-            setOpen(false);
-            setConnecting(false);
-        }
+    const {data: needsConnectData} = getApiState(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
+    const {data: connectData} = getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName);
+
+    useApiRequestCompletionState({
+        serviceName: Constants.pluginApiServiceConfigs.needsConnect.apiServiceName,
+        handleSuccess: () => {
+            if (needsConnectData) {
+                const data = needsConnectData as NeedsConnectData;
+                if (!isInterval) {
+                    setOpen(data.needsConnect);
+                    setCanSkip(data.canSkip);
+                } else if (!data.needsConnect) {
+                    setOpen(false);
+                    setConnecting(false);
+                }
+            }
+        },
+    });
+
+    useApiRequestCompletionState({
+        serviceName: Constants.pluginApiServiceConfigs.connect.apiServiceName,
+        handleSuccess: () => {
+            if (connectData) {
+                setConnecting(true);
+                window.open((connectData as ConnectData).connectUrl, '_blank');
+            }
+        },
+    });
+
+    const checkConnected = useCallback(() => {
+        makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
     }, []);
 
     useEffect(() => {
         let interval: any = 0;
         if (connecting) {
+            setIsInterval(true);
             interval = setInterval(checkConnected, 1000);
         }
         return () => {
             if (interval) {
+                setIsInterval(false);
                 clearInterval(interval);
             }
         };
@@ -55,7 +79,7 @@ export default function EnforceConnectedAccountModal() {
 
     return (
         <div className='EnforceConnectedAccountModal'>
-            <img src={iconURL}/>
+            <img src={Constants.iconUrl}/>
             <h1>{'Connect your Microsoft Teams Account'}</h1>
             {!connecting && <p>{'This server requires you to connect your Mattermost account with your Microsoft Teams account.'}</p>}
             {!connecting && (

@@ -1,16 +1,3 @@
-import {getConfig} from 'mattermost-redux/selectors/entities/general';
+const getPluginState = (state: ReduxState) => state['plugins-com.mattermost.msteams-sync'];
 
-export const getServerRoute = (state: any) => {
-    const config = getConfig(state);
-
-    let basePath = '';
-    if (config && config.SiteURL) {
-        basePath = new URL(config.SiteURL).pathname;
-
-        if (basePath && basePath[basePath.length - 1] === '/') {
-            basePath = basePath.substr(0, basePath.length - 1);
-        }
-    }
-
-    return basePath;
-};
+export const getApiRequestCompletionState = (state: ReduxState): ApiRequestCompletionState => getPluginState(state).apiRequestCompletionSlice;

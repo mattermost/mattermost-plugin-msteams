@@ -21,7 +21,16 @@
     "jsx": "react",
     "baseUrl": "./src",
     "typeRoots": [ "./src/types", "./node_modules/@types"],
-    "resolveJsonModule": true
+    "paths": {
+      "components": ["./components"], 
+      "constants": ["./constants"],
+      "containers": ["./containers"],
+      "hooks": ["./hooks"],
+      "reducers": ["./reducers"],
+      "selectors": ["./selectors/index.tsx"],
+      "services": ["./services/index.ts"],
+      "utils": ["./utils/index.ts"]
+    }
   },
   "include": [
     "src"

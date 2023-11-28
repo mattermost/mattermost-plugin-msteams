@@ -49,9 +49,9 @@ func TestMsgToPost(t *testing.T) {
 				CreateAt:        msteamsCreateAtTime,
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetBotUserID").Return(testutils.GetSenderID())
-				p.On("GetURL").Return("https://example.com/")
-				p.On("GetClientForApp").Return(client)
+				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
+				p.On("GetURL").Return("https://example.com/").Times(2)
+				p.On("GetClientForApp").Return(client).Once()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
