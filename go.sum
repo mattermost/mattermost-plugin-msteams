@@ -332,8 +332,8 @@ github.com/mattn/go-runewidth v0.0.14 h1:+xnbZSEeDbOIg5/mE6JF0w6n9duR1l3/WmbinWV
 github.com/mattn/go-runewidth v0.0.14/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
 github.com/mattn/go-sqlite3 v1.14.6 h1:dNPt6NO46WmLVt2DLNpwczCmdV5boIZ6g/tlDrlRUbg=
 github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
-github.com/mattn/godown v0.0.1 h1:39uk50ufLVQFs0eapIJVX5fCS74a1Fs2g5f1MVqIHdE=
-github.com/mattn/godown v0.0.1/go.mod h1:/ivCKurgV/bx6yqtP/Jtc2Xmrv3beCYBvlfAUl4X5g4=
+github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9 h1:TKMnkiL33iL74LEddC0OhtnLAsVw848RicGbfvrkVSY=
+github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9/go.mod h1:/ivCKurgV/bx6yqtP/Jtc2Xmrv3beCYBvlfAUl4X5g4=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zkfA9PSy5pEvNWRP0ET0TIVo=
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=

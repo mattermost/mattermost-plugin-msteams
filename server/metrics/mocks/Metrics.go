@@ -88,6 +88,11 @@ func (_m *Metrics) ObserveFiles(action string, source string, discardedReason st
 	_m.Called(action, source, discardedReason, isDirectMessage, count)
 }
 
+// ObserveGoroutineFailure provides a mock function with given fields:
+func (_m *Metrics) ObserveGoroutineFailure() {
+	_m.Called()
+}
+
 // ObserveLifecycleEvent provides a mock function with given fields: lifecycleEventType, discardedReason
 func (_m *Metrics) ObserveLifecycleEvent(lifecycleEventType string, discardedReason string) {
 	_m.Called(lifecycleEventType, discardedReason)
