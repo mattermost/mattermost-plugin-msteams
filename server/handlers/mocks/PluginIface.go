@@ -8,7 +8,7 @@ import (
 
 	msteams "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 
-	plugin "github.com/mattermost/mattermost-server/v6/plugin"
+	plugin "github.com/mattermost/mattermost/server/public/plugin"
 
 	store "github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 )
