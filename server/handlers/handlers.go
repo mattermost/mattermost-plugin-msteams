@@ -35,6 +35,7 @@ const (
 	activityQueueSize           = 5000
 	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
+	lastActivityTimeGap         = 30 * time.Second
 )
 
 type PluginIface interface {
@@ -59,6 +60,7 @@ type ActivityHandler struct {
 	quit                 chan bool
 	quitting             atomic.Bool
 	IgnorePluginHooksMap sync.Map
+	lastUpdateAtMap      sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -102,6 +104,36 @@ func (ah *ActivityHandler) Start() {
 		}
 	}
 
+	// doStart is the meat of the activity handler worker
+	doStartLastActivityAt := func() {
+		for {
+			timer := time.NewTimer(5 * time.Minute)
+			select {
+			case <-timer.C:
+				ah.lastUpdateAtMap.Range(func(subscriptionID, lastUpdateAt any) bool {
+					if lastUpdateAt.(time.Time).Add(5 * time.Minute).After(time.Now()) {
+						if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
+							ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err)
+						}
+					}
+					return true
+				})
+			case <-ah.quit:
+				timer.Stop()
+				// we have received a signal to stop
+				return
+			}
+		}
+	}
+
+	if lastActivityAtMap, err := ah.plugin.GetStore().GetSubscriptionsLastActivityAt(); err != nil {
+		ah.plugin.GetAPI().LogError("Unable to load last activity subscription", "error", err)
+	} else {
+		for subscriptionID, lastActivityAt := range lastActivityAtMap {
+			ah.lastUpdateAtMap.Store(subscriptionID, lastActivityAt)
+		}
+	}
+
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
 		return ah.quitting.Load()
@@ -112,6 +144,7 @@ func (ah *ActivityHandler) Start() {
 	for i := 0; i < numberOfWorkers; i++ {
 		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
 	}
+	recovery.GoWorker("store last activity at worker", doStartLastActivityAt, isQuitting, logError)
 }
 
 func (ah *ActivityHandler) Stop() {
@@ -120,6 +153,8 @@ func (ah *ActivityHandler) Stop() {
 		for i := 0; i < numberOfWorkers; i++ {
 			ah.quit <- true
 		}
+		// Extra quit for the last activity at worker
+		ah.quit <- true
 	}()
 }
 
@@ -196,7 +231,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleCreatedActivity(msg, activityIds)
+		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "updated":
 		var msg *clientmodels.Message
 		if len(activity.Content) > 0 {
@@ -206,9 +241,9 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
+		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
-		discardedReason = ah.handleDeletedActivity(activityIds)
+		discardedReason = ah.handleDeletedActivity(activity.SubscriptionID, activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
 		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
@@ -217,7 +252,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -330,10 +365,12 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -433,6 +470,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
 	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
@@ -509,7 +548,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 	}
 }
 
-func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleDeletedActivity(subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

@@ -17,6 +17,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -137,6 +138,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -180,6 +182,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -223,6 +226,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
@@ -268,6 +272,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
@@ -318,6 +323,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
@@ -370,6 +376,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
@@ -391,9 +398,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:        testutils.GetID(),
+					MSTeamsID:           testutils.GetMessageID(),
+					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
+					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(errors.New("unable to update the post")).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
@@ -431,6 +439,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
@@ -451,9 +460,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetMSTeamsChannelID(),
+					MattermostID:        testutils.GetID(),
+					MSTeamsID:           testutils.GetMessageID(),
+					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
+					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
@@ -483,6 +493,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
 					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
 				}, nil).Times(1)
 				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
 			},
@@ -502,9 +513,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
 				store.On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      testutils.GetMessageID(),
-					MSTeamsChannel: testutils.GetChannelID(),
+					MattermostID:        testutils.GetID(),
+					MSTeamsID:           testutils.GetMessageID(),
+					MSTeamsChannel:      testutils.GetChannelID(),
+					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
@@ -524,15 +536,25 @@ func TestHandleCreatedActivity(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
+			subscriptionID := "test"
 
 			ah.plugin = p
 
-			ah.handleCreatedActivity(nil, testCase.activityIds)
+			discardedReason := ah.handleCreatedActivity(nil, subscriptionID, testCase.activityIds)
+
+			lastSubscriptionActivity, ok := ah.lastUpdateAtMap.Load(subscriptionID)
+			if discardedReason == "" {
+				assert.True(t, ok)
+				assert.Equal(t, lastSubscriptionActivity.(time.Time), msteamsCreateAtTime)
+			} else {
+				assert.False(t, ok)
+			}
 		})
 	}
 }
 
 func TestHandleUpdatedActivity(t *testing.T) {
+	msTeamsLastUpdateAtTime := time.Now()
 	for _, testCase := range []struct {
 		description  string
 		activityIds  clientmodels.ActivityIds
@@ -823,6 +845,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ChatID:          testutils.GetChatID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					LastUpdateAt:    msTeamsLastUpdateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -870,6 +893,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 					ChannelID:       testutils.GetChannelID(),
 					UserDisplayName: "mockUserDisplayName",
 					Text:            "mockText",
+					LastUpdateAt:    msTeamsLastUpdateAtTime,
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -910,9 +934,18 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
+			subscriptionID := "test"
 
 			ah.plugin = p
-			ah.handleUpdatedActivity(nil, testCase.activityIds)
+			discardedReason := ah.handleUpdatedActivity(nil, subscriptionID, testCase.activityIds)
+
+			lastSubscriptionActivity, ok := ah.lastUpdateAtMap.Load(subscriptionID)
+			if discardedReason == "" {
+				assert.True(t, ok)
+				assert.Equal(t, lastSubscriptionActivity, msTeamsLastUpdateAtTime)
+			} else {
+				assert.False(t, ok)
+			}
 		})
 	}
 }
@@ -1004,7 +1037,9 @@ func TestHandleDeletedActivity(t *testing.T) {
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
 
-			ah.handleDeletedActivity(testCase.activityIds)
+			subscriptionID := "test"
+
+			ah.handleDeletedActivity(subscriptionID, testCase.activityIds)
 		})
 	}
 }
