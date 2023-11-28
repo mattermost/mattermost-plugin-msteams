@@ -143,7 +143,7 @@ func (ah *ActivityHandler) Start() {
 	for i := 0; i < numberOfWorkers; i++ {
 		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart)
 	}
-	recovery.GoWorker("store last activity at worker", doStartLastActivityAt, isQuitting, logError)
+	startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStartLastActivityAt)
 }
 
 func (ah *ActivityHandler) Stop() {
