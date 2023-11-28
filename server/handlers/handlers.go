@@ -16,7 +16,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
@@ -110,7 +109,7 @@ func (ah *ActivityHandler) Start() {
 	logError := ah.plugin.GetAPI().LogError
 
 	for i := 0; i < numberOfWorkers; i++ {
-		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
+		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +25,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -411,13 +411,20 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	recovery.Go("prefill_whitelist", p.API.LogError, func() {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.GetMetrics().ObserveGoroutineFailure()
+				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
 			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
 		}
-	})
+	}()
 
 	go p.start(lastRecivedChange)
 	return nil
@@ -429,6 +436,13 @@ func (p *Plugin) OnDeactivate() error {
 }
 
 func (p *Plugin) syncUsersPeriodically() {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
 			p.API.LogDebug("Failed to set sync users job running status to false.")
@@ -688,12 +702,19 @@ func (p *Plugin) runMetricsServer() {
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
-	recovery.Go("metrics_server", p.API.LogError, func() {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.GetMetrics().ObserveGoroutineFailure()
+				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
 		}
-	})
+	}()
 }
 
 func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {

@@ -1,11 +1,20 @@
-package recovery
+package handlers
 
 import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockMetrics struct {
+	callback func()
+}
+
+func (m mockMetrics) ObserveGoroutineFailure() {
+	m.callback()
+}
 
 func assertReceive[X any](t *testing.T, c chan X, failureMessage string) {
 	select {
@@ -15,14 +24,14 @@ func assertReceive[X any](t *testing.T, c chan X, failureMessage string) {
 	}
 }
 
-func TestGoWorker(t *testing.T) {
+func TestStartWorker(t *testing.T) {
 	// makeDoStart simulates a start function with the defined sequence of actions, whether to
 	// do a "normal" run, waiting for the signal to stop, to "panic", immediately crashing,
 	// or to unexpectedly "exit".
-	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(string, ...any)) {
+	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(string, ...any), workerMetrics) {
 		count := 0
 
-		doStart := func() {
+		callback := func() {
 			started <- count
 			defer func() {
 				count++
@@ -37,7 +46,7 @@ func TestGoWorker(t *testing.T) {
 				close(stopped)
 
 			case "panic":
-				panic("doStart panic")
+				panic("callback panic")
 
 			case "exit":
 				return
@@ -57,15 +66,31 @@ func TestGoWorker(t *testing.T) {
 			case "normal":
 				require.Failf(t, "should not log error", "got %v", msg)
 			case "panic":
-				require.Equal(t, "Recovering from panic in job", msg)
+				require.Equal(t, "Recovering from panic", msg)
 			case "exit":
-				require.Equal(t, "Recovering from unexpected exit in job", msg)
+				require.Equal(t, "Recovering from unexpected exit", msg)
 			default:
 				require.Failf(t, "unexpected sequence", "got %s", sequence[actualCount])
 			}
 		}
 
-		return doStart, logError
+		reportedFailures := 0
+		metrics := &mockMetrics{callback: func() {
+			reportedFailures++
+		}}
+
+		t.Cleanup(func() {
+			expectedFailures := 0
+			for _, event := range sequence {
+				switch event {
+				case "panic", "exit":
+					expectedFailures++
+				}
+			}
+			assert.Equal(t, expectedFailures, reportedFailures, "metrics did not capture expected failures")
+		})
+
+		return callback, logError, metrics
 	}
 
 	t.Run("quitting normally does not recover", func(t *testing.T) {
@@ -73,7 +98,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
+		callback, logError, metrics := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -83,10 +108,10 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
-		assertReceive(t, started, "doStart failed to start")
+		startWorker(logError, metrics, isQuitting, callback)
+		assertReceive(t, started, "callback failed to start")
 		close(stopping)
-		assertReceive(t, stopped, "doStart failed to finish")
+		assertReceive(t, stopped, "callback failed to finish")
 	})
 
 	t.Run("single panic recovers", func(t *testing.T) {
@@ -94,7 +119,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
+		callback, logError, metrics := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -104,11 +129,11 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
-		assertReceive(t, started, "doStart failed to start")
-		assertReceive(t, started, "doStart failed to start the second time")
+		startWorker(logError, metrics, isQuitting, callback)
+		assertReceive(t, started, "callback failed to start")
+		assertReceive(t, started, "callback failed to start the second time")
 		close(stopping)
-		assertReceive(t, stopped, "doStart failed to finish")
+		assertReceive(t, stopped, "callback failed to finish")
 	})
 
 	t.Run("unexpected exit recovers", func(t *testing.T) {
@@ -116,7 +141,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
+		callback, logError, metrics := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -126,11 +151,11 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
-		assertReceive(t, started, "doStart failed to start")
-		assertReceive(t, started, "doStart failed to start the second time")
+		startWorker(logError, metrics, isQuitting, callback)
+		assertReceive(t, started, "callback failed to start")
+		assertReceive(t, started, "callback failed to start the second time")
 		close(stopping)
-		assertReceive(t, stopped, "doStart failed to finish")
+		assertReceive(t, stopped, "callback failed to finish")
 	})
 
 	t.Run("multiple panics and unexpected exits recover", func(t *testing.T) {
@@ -138,7 +163,7 @@ func TestGoWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		doStart, logError := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
+		callback, logError, metrics := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -148,12 +173,12 @@ func TestGoWorker(t *testing.T) {
 			}
 		}
 
-		GoWorker("job", doStart, isQuitting, logError)
-		assertReceive(t, started, "doStart failed to start")
-		assertReceive(t, started, "doStart failed to start the second time")
-		assertReceive(t, started, "doStart failed to start the third time")
-		assertReceive(t, started, "doStart failed to start the fourth time")
+		startWorker(logError, metrics, isQuitting, callback)
+		assertReceive(t, started, "callback failed to start")
+		assertReceive(t, started, "callback failed to start the second time")
+		assertReceive(t, started, "callback failed to start the third time")
+		assertReceive(t, started, "callback failed to start the fourth time")
 		close(stopping)
-		assertReceive(t, stopped, "doStart failed to finish")
+		assertReceive(t, stopped, "callback failed to finish")
 	})
 }
