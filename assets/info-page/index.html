@@ -11,27 +11,17 @@
         window.close();
       }
 
-      function applyBorder(primaryPlatform, secondaryPlatform) {
-        document.getElementById(primaryPlatform).setAttribute(
-          'style',
-          'outline: 3px solid #1C58D9;'
-        )
-
-        document.getElementById(secondaryPlatform).setAttribute(
-          'style',
-          'outline: 1px solid #3F435029;'
-        )
-      }
-
       function selectPrimaryPlatform(platform) {
           if (platform == mattermostPrimaryPlatform) {
-            applyBorder(mattermostPrimaryPlatform, msteamsPrimaryPlatform);
             document.getElementById(mmSelectIconClass).classList.remove('d-none');
             document.getElementById(msteamsSelectIconClass).classList.add('d-none');
+            document.getElementById(msteamsPrimaryPlatform).classList.add('color-none');
+            document.getElementById(mattermostPrimaryPlatform).classList.remove('color-none');
           } else {
-            applyBorder(msteamsPrimaryPlatform, mattermostPrimaryPlatform);
             document.getElementById(mmSelectIconClass).classList.add('d-none');
             document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
+            document.getElementById(mattermostPrimaryPlatform).classList.add('color-none');
+            document.getElementById(msteamsPrimaryPlatform).classList.remove('color-none');
           }
       }
     </script>
@@ -86,11 +76,15 @@
           display: none;
         }
 
+        .color-none {
+          outline: 3px solid transparent !important;
+        }
+
         .card {
           display: flex;
           flex-direction: column;
           border: 1px solid #3F435029;
-          outline: 3px solid transparent;
+          outline: 3px solid #1C58D9;
           border-radius: 8px;
           box-sizing: border-box;
           width: 49%;
@@ -195,7 +189,7 @@
           <div class="heading">How will you be using the two platforms?</div>
         </div>
         <div class="card-holder">
-          <div class="card" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
+          <div class="card color-none" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
             <div class="card__heading">
               <div class="card__logo-holder">
                 <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
@@ -221,7 +215,7 @@
               </ul>
             </div>
           </div>
-          <div class="card" onclick="selectPrimaryPlatform('msteams')" id="msteams">
+          <div class="card color-none" onclick="selectPrimaryPlatform('msteams')" id="msteams">
             <div class="card__heading">
               <div class="card__logo-holder">
                 <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
