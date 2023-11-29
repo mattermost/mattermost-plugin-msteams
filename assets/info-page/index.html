@@ -6,23 +6,33 @@
       var msteamsPrimaryPlatform = 'msteams';
       var mmSelectIconClass = 'select-icon__mm';
       var msteamsSelectIconClass = 'select-icon__msteams';
+      var primaryPlatform;
 
       function closeInfoPage() {
         window.close();
       }
 
       function selectPrimaryPlatform(platform) {
-          if (platform == mattermostPrimaryPlatform) {
-            document.getElementById(mmSelectIconClass).classList.remove('d-none');
-            document.getElementById(msteamsSelectIconClass).classList.add('d-none');
-            document.getElementById(msteamsPrimaryPlatform).classList.add('color-none');
-            document.getElementById(mattermostPrimaryPlatform).classList.remove('color-none');
-          } else {
-            document.getElementById(mmSelectIconClass).classList.add('d-none');
-            document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
-            document.getElementById(mattermostPrimaryPlatform).classList.add('color-none');
-            document.getElementById(msteamsPrimaryPlatform).classList.remove('color-none');
-          }
+        primaryPlatform = platform;
+        if (platform == mattermostPrimaryPlatform) {
+          document.getElementById(mmSelectIconClass).classList.remove('d-none');
+          document.getElementById(msteamsSelectIconClass).classList.add('d-none');
+          document.getElementById(msteamsPrimaryPlatform).classList.add('color-none');
+          document.getElementById(mattermostPrimaryPlatform).classList.remove('color-none');
+        } else {
+          document.getElementById(mmSelectIconClass).classList.add('d-none');
+          document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
+          document.getElementById(mattermostPrimaryPlatform).classList.add('color-none');
+          document.getElementById(msteamsPrimaryPlatform).classList.remove('color-none');
+        }
+      }
+
+      function choosePrimaryPlatform() {
+        const serverURL = "{{.ServerURL}}";
+        const apiEndpoint = "{{.APIEndPoint}}";
+        const queryParam = "{{.QueryPrimaryPlatform}}";        
+        fetch(`${serverURL}${apiEndpoint}?${queryParam}=${primaryPlatform}`)
+        .then(() => window.close());
       }
     </script>
     <style>
@@ -179,10 +189,10 @@
   </head>
   <body class="msteams-sync">
     <div class="msteams-sync-info-page">
-      <img src="../close-icon.png" alt="close-icon" class="msteams-sync-close-icon" onclick="closeInfoPage()"/>
+      <img src="static/close-icon.png" alt="close-icon" class="msteams-sync-close-icon" onclick="closeInfoPage()"/>
       <div class="msteams-sync-body">
         <div class="connection-icon">
-          <img src="../connection-icon.png" alt="connection-icon"/>
+        <img src="static/connection-icon.png" alt="connection-icon"/>
         </div>
         <div class="heading-body">
           <div class="heading">Your account in now connected.</div>
@@ -192,25 +202,25 @@
           <div class="card color-none" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
             <div class="card__heading">
               <div class="card__logo-holder">
-                <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
+                <img src="static/mm-icon.png" alt="mm-icon" class="card__logo"/>
               </div>
               <div class="card__logo-details">Mattermost will be my primary platform</div>
               <div class="select-icon">
-                <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__mm"/>
+                <img src="static/select-icon.png" alt="select-icon" class="d-none" id="select-icon__mm"/>
               </div>
             </div>
             <div class="card__body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
-                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
                 </li>
                 <li class="list-item">
-                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">You will get notifications in Mattermost for synced messages and channels.
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">You will get notifications in Mattermost for synced messages and channels.
                 </li>
                 <li class="list-item">
                   <!-- TODO: Add correct links here -->
-                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">You will need to disable notifications in Microsoft Teams to avoid duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
+                  <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">You will need to disable notifications in Microsoft Teams to avoid duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
                 </li>
               </ul>
             </div>
@@ -218,33 +228,32 @@
           <div class="card color-none" onclick="selectPrimaryPlatform('msteams')" id="msteams">
             <div class="card__heading">
               <div class="card__logo-holder">
-                <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
+                <img src="static/msteams-icon.png" alt="msteams-icon" class="card__logo"/>
               </div>
               <div class="card__logo-details">Microsoft Teams will be my primary platform</div>
               <div class="select-icon">
-                <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__msteams"/>
+                <img src="static/select-icon.png" alt="select-icon" class="d-none" id="select-icon__msteams"/>
               </div>
             </div>
             <div class="card__body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
-                  <img src="../list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
                 </li>
                 <li class="list-item">
                   <!-- TODO: Add correct links here -->
-                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
+                  <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
                 </li>
                 <li class="list-item">
-                  <img src="../list-icon-warn.png" alt="list-icon" class="list-icon">Unread statuses in linked channels and DMs will not be synced between Mattermost and Microsoft Teams.
+                  <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">Unread statuses in linked channels and DMs will not be synced between Mattermost and Microsoft Teams.
                 </li>
               </ul>
             </div>
           </div>
         </div>
-        <div class="selection-button">
-          <!-- TODO: Update logic to select primary platform here -->
-          <a class="selection-button__text">Continue <img src="../trailing-icon.png" alt="trailing-icon"/></a>   
+        <div class="selection-button" onclick="choosePrimaryPlatform()">
+          <a class="selection-button__text">Continue <img src="static/trailing-icon.png" alt="trailing-icon"/></a>   
         </div>
         <div class="footer">
           <!-- TODO: Add correct links here -->
