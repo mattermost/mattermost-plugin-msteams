@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <script>
       var mattermostPrimaryPlatform = 'mattermost';
       var msteamsPrimaryPlatform = 'msteams';
       var mmSelectIconClass = 'select-icon__mm';
       var msteamsSelectIconClass = 'select-icon__msteams';
+      var mmCardBody = 'mm-card__body';
+      var msteamsCardBody = 'msteams-card__body';
+      var mmCardHeading = 'mm-card__heading';
+      var msteamsCardHeading = 'msteams-card__heading';
+      var choosenPlatform;
 
       function closeInfoPage() {
         window.close();
@@ -19,21 +25,59 @@
 
         document.getElementById(secondaryPlatform).setAttribute(
           'style',
-          'outline: 1px solid #3F435029;'
+          'outline: 3px solid transparent;'
+        )
+      }
+
+      function expandCardBody(primaryPlatform, secondaryPlatform) {
+        document.getElementById(primaryPlatform).setAttribute(
+          'style',
+          'display: block'
+        )
+
+        document.getElementById(secondaryPlatform).setAttribute(
+          'style',
+          'display: none'
+        )
+      }
+
+      function applyBorderOnCardExpand(primaryPlatform, secondaryPlatform) {
+        document.getElementById(primaryPlatform).setAttribute(
+          'style',
+          'border-bottom: 1px solid #3F435029;'
+        )
+
+        document.getElementById(secondaryPlatform).setAttribute(
+          'style',
+          'border-bottom: none'
         )
       }
 
       function selectPrimaryPlatform(platform) {
+        choosenPlatform = platform;
+        const mediaQuery = window.matchMedia('(min-width: 550px)');
           if (platform == mattermostPrimaryPlatform) {
             applyBorder(mattermostPrimaryPlatform, msteamsPrimaryPlatform);
             document.getElementById(mmSelectIconClass).classList.remove('d-none');
             document.getElementById(msteamsSelectIconClass).classList.add('d-none');
+            if (!mediaQuery.matches) {
+              expandCardBody(mmCardBody, msteamsCardBody);
+              applyBorderOnCardExpand(mmCardHeading, msteamsCardHeading);
+            }
           } else {
             applyBorder(msteamsPrimaryPlatform, mattermostPrimaryPlatform);
             document.getElementById(mmSelectIconClass).classList.add('d-none');
             document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
+            if (!mediaQuery.matches) {
+              expandCardBody(msteamsCardBody, mmCardBody);
+              applyBorderOnCardExpand(msteamsCardHeading, mmCardHeading);
+            }
           }
       }
+
+      window.addEventListener('resize', function(event){
+        selectPrimaryPlatform(choosenPlatform);
+      });
     </script>
     <style>
       .msteams-sync-info-page {
@@ -44,9 +88,15 @@
       }
 
       .msteams-sync-close-icon {
-        padding-top: 30px;
-        height: 20px;
-        cursor: pointer;
+        display: none;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-close-icon {
+          display: block;
+          padding-top: 30px;
+          height: 20px;
+          cursor: pointer;
+        }
       }
 
       .msteams-sync-body {
@@ -54,131 +104,194 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        font-family: 'Open Sans';
+        font-family: "Open Sans";
         width: 99%;
+      }
 
-        .heading-body {
-          margin-bottom: 32px;
-        }
+      .msteams-sync-body .heading-body {
+        margin-bottom: 32px;
+        text-align: center;
+      }
 
-        .heading {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-weight: 600;
-          font-size: 30px;
-        }
-
-        .connection-icon {
-          display: flex;
-          justify-content: center;
-        }
-
-        .card-holder {
-          display: flex;
-          width: 1000px;
-          max-width: 95%;
-          justify-content: space-between;
-          box-sizing: border-box;
-        }
-
-        .d-none {
-          display: none;
-        }
-
-        .card {
+      .msteams-sync-body .heading {
+        font-weight: 600;
+        font-size: 25px;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .heading {
           display: flex;
           flex-direction: column;
-          border: 1px solid #3F435029;
-          outline: 3px solid transparent;
-          border-radius: 8px;
-          box-sizing: border-box;
+          font-size: 30px;
+        }
+      }
+
+      .msteams-sync-body .heading__sub-heading {
+        display: inline;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .heading__sub-heading {
+          display: block;
+        }
+      }
+
+      .msteams-sync-body .connection-icon {
+        display: flex;
+        justify-content: center;
+      }
+
+      .msteams-sync-body .card-holder {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        gap: 20px;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card-holder {
+          flex-direction: row;
+          width: 1000px;
+          max-width: 95%;
+        }
+      }
+
+      .msteams-sync-body .d-none {
+        display: none;
+      }
+
+      .msteams-sync-body .card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid rgba(63, 67, 80, 0.1607843137);
+        outline: 3px solid transparent;
+        border-radius: 8px;
+        box-sizing: border-box;
+        cursor: pointer;
+        width: 100%;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card {
           width: 49%;
+          height: 100%;
         }
-                
-        .card__heading {
-          display: flex;
+      }
+
+      .msteams-sync-body .card__heading {
+        display: flex;
+        padding: 5%;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card__heading {
+          border-bottom: 1px solid rgba(63, 67, 80, 0.1607843137) !important;
           height: 30%;
-          padding: 5%;
-          border-bottom: 1px solid #3F435029;
-          align-items: center;
-          width: 100%;
-          box-sizing: border-box;
         }
+      }
 
-        .card__logo {
-          height: 42px;
-          width: 45px
-        }
+      .msteams-sync-body .card__logo {
+        height: 42px;
+        width: 45px;
+      }
 
-        .card__logo-details {
-          font-weight: 600;
+      .msteams-sync-body .card__logo-details {
+        font-weight: 600;
+        font-size: 18px;
+        margin-left: 15px;
+        width: 70%;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card__logo-details {
           font-size: 20px;
-          margin-left: 15px;
-          width: 70%;
         }
+      }
 
-        .select-icon {
-          margin-left: auto;
+      .msteams-sync-body .card__body {
+        width: 100%;
+        height: 60%;
+        box-sizing: border-box;
+        padding: 5%;
+        display: none;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card__body {
+          display: block !important;
         }
+      }
 
-        .card__body {
-          width: 100%;
-          height: 60%;
-          box-sizing: border-box;
-          padding: 5%;
-        }
-
-        .card__sub-heading {
-          font-weight: 600;
+      .msteams-sync-body .card__sub-heading {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .card__sub-heading {
           font-size: 16px;
         }
+      }
 
-        .list {
-          list-style: none;
-          padding: 0;
-        }        
+      .msteams-sync-body .select-icon {
+        margin-left: auto;
+      }
 
-        .list-item {
-          display: flex;
-          gap: 5px;
-          margin-bottom: 10px;
-        }
+      .msteams-sync-body .list {
+        list-style: none;
+        padding: 0;
+      }
 
-        .list-icon {
-          height: 20px;
-        }
-
-        .list-link {
-          text-decoration: none;
-          display: contents;
-        }
-
-        .selection-button {
-          text-align: center;
-          margin: 40px 0;
-          cursor: pointer;
-        }
-
-        .selection-button__text {
-          display: flex;
-          gap: 10px;
-          background-color: #1C58D9;
-          border-radius: 4px;
-          color: white;
-          padding: 15px 32px;
-          text-align: center;
-          text-decoration: none;
+      .msteams-sync-body .list-item {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .list-item {
           font-size: 16px;
         }
+      }
 
-        .footer {
-          text-align: center;
-        }
+      .msteams-sync-body .list-icon {
+        height: 20px;
+      }
 
-        .footer-link {
-          text-decoration: none;
+      .msteams-sync-body .list-link {
+        text-decoration: none;
+        display: contents;
+      }
+
+      .msteams-sync-body .selection-button {
+        text-align: center;
+        margin: 40px 0;
+        cursor: pointer;
+      }
+
+      .msteams-sync-body .selection-button__text {
+        display: flex;
+        gap: 10px;
+        background-color: #1C58D9;
+        border-radius: 4px;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 16px;
+      }
+
+      .msteams-sync-body .footer {
+        text-align: center;
+        font-size: 14px;
+      }
+      @media screen and (min-width: 550px) {
+        .msteams-sync-body .footer {
+          font-size: 16px;
         }
+      }
+
+      .msteams-sync-body .footer-link {
+        text-decoration: none;
       }
     </style>
     <title>Account Successfully Connected</title>
@@ -191,12 +304,12 @@
           <img src="../connection-icon.png" alt="connection-icon"/>
         </div>
         <div class="heading-body">
-          <div class="heading">Your account in now connected.</div>
-          <div class="heading">How will you be using the two platforms?</div>
+          <div class="heading">Your account in now connected.
+          <span class="heading__sub-heading">How will you be using the two platforms?</span></div>
         </div>
         <div class="card-holder">
           <div class="card" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
-            <div class="card__heading">
+            <div class="card__heading" id="mm-card__heading">
               <div class="card__logo-holder">
                 <img src="../mm-icon.png" alt="mm-icon" class="card__logo"/>
               </div>
@@ -205,7 +318,7 @@
                 <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__mm"/>
               </div>
             </div>
-            <div class="card__body">
+            <div class="card__body" id="mm-card__body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
@@ -222,7 +335,7 @@
             </div>
           </div>
           <div class="card" onclick="selectPrimaryPlatform('msteams')" id="msteams">
-            <div class="card__heading">
+            <div class="card__heading" id="msteams-card__heading">
               <div class="card__logo-holder">
                 <img src="../msteams-icon.png" alt="msteams-icon" class="card__logo"/>
               </div>
@@ -231,7 +344,7 @@
                 <img src="../select-icon.png" alt="select-icon" class="d-none" id="select-icon__msteams"/>
               </div>
             </div>
-            <div class="card__body">
+            <div class="card__body" id="msteams-card__body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
