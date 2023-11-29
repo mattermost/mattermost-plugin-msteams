@@ -563,3 +563,38 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 func IsDirectMessage(chatID string) bool {
 	return chatID != ""
 }
+
+func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince time.Time) {
+	messages, err := ah.plugin.GetClientForApp().ListChannelMessages(teamID, channelID, syncSince)
+	if err != nil {
+		ah.plugin.GetAPI().LogError("Unable to sync channel messages", "teamID", teamID, "channelID", channelID, "date", syncSince, "error", err)
+		return
+	}
+	for _, message := range messages {
+		isCreation := false
+		if message.CreateAt == message.LastUpdateAt {
+			isCreation = true
+		} else {
+			post, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID("", message.ID)
+			if err != nil || post == nil {
+				isCreation = false
+			}
+		}
+
+		if isCreation {
+			ah.handleCreatedActivity(message, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		} else {
+			ah.handleUpdatedActivity(message, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		}
+	}
+}

@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -65,6 +67,9 @@ func getAutocompleteData() *model.AutocompleteData {
 	show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
 	cmd.AddCommand(show)
 
+	sync := model.NewAutocompleteData("sync", "[number-of-hours]", "Sync the current channel with MS Teams channel (by default 24 hours)")
+	cmd.AddCommand(sync)
+
 	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
 	showLinks.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(showLinks)
@@ -122,6 +127,10 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "show-links" {
 		return p.executeShowLinksCommand(args)
+	}
+
+	if action == "sync" {
+		return p.executeSyncCommand(args, parameters)
 	}
 
 	if action == "connect" {
@@ -314,6 +323,48 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
+	return &model.CommandResponse{}, nil
+}
+
+func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	channel, appErr := p.API.GetChannel(args.ChannelId)
+	if appErr != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
+	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		return p.cmdError(args.UserId, args.ChannelId, "Syncrhonizing DMs or GMs is not supported yet")
+	}
+
+	hours := 24
+	if len(parameters) == 1 {
+		var err error
+		hours, err = strconv.Atoi(parameters[0])
+		if err != nil {
+			return p.cmdError(args.UserId, args.ChannelId, "Invalid command, please pass a valid number of hours as a parameter.")
+		}
+	} else if len(parameters) > 1 {
+		return p.cmdError(args.UserId, args.ChannelId, "Invalid command, please pass the number of hours as a parameter.")
+	}
+
+	link, err := p.store.GetLinkByChannelID(args.ChannelId)
+	if err != nil || link == nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
+	}
+
+	if _, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam); err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
+	}
+
+	if _, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel); err != nil {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
+	}
+
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Synchronizing last %d hours of the channel...", hours))
+	go func() {
+		p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, time.Now().Add(-time.Duration(hours)*time.Hour))
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Syncronization complete.")
+	}()
 	return &model.CommandResponse{}, nil
 }
 
