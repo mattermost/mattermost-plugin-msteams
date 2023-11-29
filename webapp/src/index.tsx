@@ -27,7 +27,7 @@ export default class Plugin {
         registry.registerUserSettings?.({
             id: manifest.id,
             icon: `${serverRoute}/plugins/${manifest.id}/public/msteams-sync-icon.svg`,
-            uiName: 'MS Teams Sync',
+            uiName: manifest.name,
             sections: [{
                 settings: [{
                     name: 'primary_platform',

@@ -22,7 +22,7 @@ export type PluginConfigurationSetting = PluginConfigurationRadioSetting
 export type PluginConfigurationSection = {
     settings: PluginConfigurationSetting[];
     title: string;
-    onSubmit?: (changes: {[name: string]: string}) => void;
+    onSubmit?: (changes: Record<string, string>) => void;
 }
 
 export type PluginConfiguration = {
