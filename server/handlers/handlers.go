@@ -241,7 +241,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		}
 		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
-		discardedReason = ah.handleDeletedActivity(activity.SubscriptionID, activityIds)
+		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
 		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
@@ -546,7 +546,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 	}
 }
 
-func (ah *ActivityHandler) handleDeletedActivity(subscriptionID string, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

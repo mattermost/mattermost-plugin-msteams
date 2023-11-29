@@ -1037,9 +1037,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
 
-			subscriptionID := "test"
-
-			ah.handleDeletedActivity(subscriptionID, testCase.activityIds)
+			ah.handleDeletedActivity(testCase.activityIds)
 		})
 	}
 }
