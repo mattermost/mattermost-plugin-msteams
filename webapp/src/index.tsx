@@ -33,12 +33,12 @@ export default class Plugin {
                     name: 'primary_platform',
                     options: [
                         {
-                            text: 'Mattermost will be my primary platform',
+                            text: 'Mattermost',
                             value: 'mm',
                             helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](http://google.com)**',
                         },
                         {
-                            text: 'Microsoft Teams will be my primary platform',
+                            text: 'Microsoft Teams',
                             value: 'teams',
                             helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you with to receive notifications. **[Learn more](http://google.com)**',
                         },
