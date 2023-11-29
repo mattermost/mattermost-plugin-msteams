@@ -564,11 +564,10 @@ func IsDirectMessage(chatID string) bool {
 	return chatID != ""
 }
 
-func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince time.Time) {
+func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince time.Time) error {
 	messages, err := ah.plugin.GetClientForApp().ListChannelMessages(teamID, channelID, syncSince)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to sync channel messages", "teamID", teamID, "channelID", channelID, "date", syncSince, "error", err)
-		return
+		return err
 	}
 	for _, message := range messages {
 		isCreation := false
@@ -597,4 +596,5 @@ func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince 
 			})
 		}
 	}
+	return nil
 }

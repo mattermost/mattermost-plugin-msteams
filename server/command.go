@@ -362,8 +362,13 @@ func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Synchronizing last %d hours of the channel...", hours))
 	go func() {
-		p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, time.Now().Add(-time.Duration(hours)*time.Hour))
-		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Syncronization complete.")
+		synce := time.Now().Add(-time.Duration(hours) * time.Hour)
+		if err := p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, synce); err != nil {
+			p.API.LogError("Unable to sync channel messages", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "synce", synce, "error", err)
+			p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Synchronization failed.")
+			return
+		}
+		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Synchronization complete.")
 	}()
 	return &model.CommandResponse{}, nil
 }
