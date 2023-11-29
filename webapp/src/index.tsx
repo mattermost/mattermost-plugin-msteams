@@ -40,7 +40,7 @@ export default class Plugin {
                         {
                             text: 'Microsoft Teams',
                             value: 'teams',
-                            helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you with to receive notifications. **[Learn more](http://google.com)**',
+                            helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](http://google.com)**',
                         },
                     ],
                     type: 'radio',
