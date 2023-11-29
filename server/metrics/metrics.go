@@ -60,7 +60,7 @@ type Metrics interface {
 	ObserveChangeEventQueueRejected()
 
 	ObserveChangeEvent(changeType string, discardedReason string)
-	ObserveLifecycleEvent(lifecycleEventType string)
+	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
 	ObserveMessage(action, source string, isDirectMessage bool)
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
@@ -80,6 +80,8 @@ type Metrics interface {
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
+
+	ObserveGoroutineFailure()
 }
 
 type InstanceInfo struct {
@@ -90,7 +92,8 @@ type InstanceInfo struct {
 type metrics struct {
 	registry *prometheus.Registry
 
-	pluginStartTime prometheus.Gauge
+	pluginStartTime        prometheus.Gauge
+	goroutineFailuresTotal prometheus.Counter
 
 	apiTime *prometheus.HistogramVec
 
@@ -145,6 +148,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.pluginStartTime.SetToCurrentTime()
 	m.registry.MustRegister(m.pluginStartTime)
 
+	m.goroutineFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSystem,
+		Name:        "plugin_goroutine_failures_total",
+		Help:        "The total number of times a goroutine has failed.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.goroutineFailuresTotal)
+
 	m.apiTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace:   MetricsNamespace,
@@ -190,7 +202,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Name:        "lifecycle_events_total",
 		Help:        "The total number of MS Teams lifecycle events received.",
 		ConstLabels: additionalLabels,
-	}, []string{"event_type"})
+	}, []string{"event_type", "discarded_reason"})
 	m.registry.MustRegister(m.lifecycleEventsTotal)
 
 	m.messagesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -330,6 +342,12 @@ func (m *metrics) GetRegistry() *prometheus.Registry {
 	return m.registry
 }
 
+func (m *metrics) ObserveGoroutineFailure() {
+	if m != nil {
+		m.goroutineFailuresTotal.Inc()
+	}
+}
+
 func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
 	if m != nil {
 		m.apiTime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
@@ -348,9 +366,9 @@ func (m *metrics) ObserveChangeEvent(changeType string, discardedReason string) 
 	}
 }
 
-func (m *metrics) ObserveLifecycleEvent(lifecycleEventType string) {
+func (m *metrics) ObserveLifecycleEvent(eventType string, discardedReason string) {
 	if m != nil {
-		m.lifecycleEventsTotal.With(prometheus.Labels{"event_type": lifecycleEventType}).Inc()
+		m.lifecycleEventsTotal.With(prometheus.Labels{"event_type": eventType, "discarded_reason": discardedReason}).Inc()
 	}
 }
 

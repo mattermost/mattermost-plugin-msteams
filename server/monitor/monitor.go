@@ -2,15 +2,16 @@ package monitor
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 )
 
 const monitoringSystemJobName = "monitoring_system"
@@ -65,6 +66,13 @@ func (m *Monitor) Start() error {
 }
 
 func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
 			m.api.LogDebug("Failed to set monitoring job running status to false.")

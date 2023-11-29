@@ -130,6 +130,48 @@
             "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
             "default": 1000
         },{
+            "key": "automaticallyPromoteSyntheticUsers",
+            "display_name": "Automatically Promote Synthetic Users",
+            "type": "bool",
+            "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
+            "default": false
+        },{
+            "key": "syntheticUserAuthService",
+            "display_name": "Synthetic User Auth Service",
+            "type": "dropdown",
+              "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'SAML'.",
+              "default": "saml",
+              "options": [
+                  {
+                      "display_name": "SAML",
+                      "value": "saml"
+                  },
+                  {
+                      "display_name": "AD/LDAP",
+                      "value": "ldap"
+                  }
+              ]   
+        },{
+            "key": "syntheticUserAuthData",
+            "display_name": "Synthetic User Auth Data",
+            "type": "dropdown",
+              "help_text": "Select the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID Attribute. ",
+              "default": "ID",
+              "options": [
+                  {
+                      "display_name": "ID",
+                      "value": "ID"
+                  },
+                  {
+                      "display_name": "Mail",
+                      "value": "Mail"
+                  },
+                  {
+                      "display_name": "User Principal Name",
+                      "value": "UserPrincipalName"
+                  }
+              ]         
+        },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
             "type": "custom", 
