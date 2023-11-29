@@ -74,11 +74,12 @@ type Channel struct {
 }
 
 type User struct {
-	DisplayName      string
-	ID               string
-	Mail             string
-	Type             string
-	IsAccountEnabled bool
+	DisplayName       string
+	ID                string
+	Mail              string
+	UserPrincipalName string
+	Type              string
+	IsAccountEnabled  bool
 }
 
 type Team struct {

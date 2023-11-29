@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	pluginapi "github.com/mattermost/mattermost-plugin-api"
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
@@ -30,8 +28,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -208,6 +208,9 @@ func (p *Plugin) start(syncSince *time.Time) {
 
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
+
+		// Start syncing the users on plugin start. The below job just schedules the job to run at a given interval of time but does not run it while scheduling. To avoid this, we call the function once separately to sync the users.
+		p.syncUsers()
 
 		job, jobErr := cluster.Schedule(
 			p.API,
@@ -488,7 +491,8 @@ func (p *Plugin) syncUsers() {
 		mmUsersMap[u.Email] = u
 	}
 
-	syncGuestUsers := p.getConfiguration().SyncGuestUsers
+	configuration := p.getConfiguration()
+	syncGuestUsers := configuration.SyncGuestUsers
 	for _, msUser := range msUsers {
 		userSuffixID := 1
 		if msUser.Mail == "" {
@@ -497,6 +501,17 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
+		authData := ""
+		if configuration.AutomaticallyPromoteSyntheticUsers {
+			switch configuration.SyntheticUserAuthData {
+			case "ID":
+				authData = msUser.ID
+			case "Mail":
+				authData = msUser.Mail
+			case "UserPrincipalName":
+				authData = msUser.UserPrincipalName
+			}
+		}
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
@@ -524,6 +539,22 @@ func (p *Plugin) syncUsers() {
 
 					continue
 				}
+
+				user, err := p.API.GetUser(mmUser.Id)
+				if err != nil {
+					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "Error", err.Error())
+					continue
+				}
+
+				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
+					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
+					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+						AuthService: configuration.SyntheticUserAuthService,
+						AuthData:    &authData,
+					}); err != nil {
+						p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					}
+				}
 			}
 		}
 
@@ -549,12 +580,21 @@ func (p *Plugin) syncUsers() {
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  p.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+
+			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID, "AuthService", configuration.SyntheticUserAuthService)
+				newMMUser.AuthService = configuration.SyntheticUserAuthService
+				newMMUser.AuthData = &authData
+			} else {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID)
+				newMMUser.Password = p.GenerateRandomPassword()
+			}
+
 			newMMUser.SetDefaultNotifications()
 			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 

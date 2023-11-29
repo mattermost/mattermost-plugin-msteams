@@ -11,7 +11,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 const (

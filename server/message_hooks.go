@@ -14,12 +14,27 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 )
+
+func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
+	if user.RemoteId != nil && *user.RemoteId != "" && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
+		p.API.LogDebug("Promoting synthetic user", "UserID", user.Id)
+		*user.RemoteId = ""
+		if _, appErr := p.API.UpdateUser(user); appErr != nil {
+			p.API.LogError("Unable to promote synthetic user", "UserID", user.Id)
+			return "Unable to promote synthetic user"
+		}
+
+		p.API.LogDebug("Promoted synthetic user", "UserID", user.Id)
+	}
+
+	return ""
+}
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post.Props != nil {
