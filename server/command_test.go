@@ -409,6 +409,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 24 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization complete.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -436,6 +437,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 8 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization complete.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -463,6 +465,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Link doesn't exist.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
@@ -482,6 +485,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Unable to get the MS Teams team information.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
@@ -505,6 +509,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 24 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization failed.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -1292,6 +1297,14 @@ func TestGetAutocompleteData(t *testing.T) {
 						Trigger:     "show",
 						HelpText:    "Show MS Teams linked channel",
 						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "sync",
+						Hint:        "[number-of-hours]",
+						HelpText:    "Sync the current channel with MS Teams channel (by default 24 hours)",
+						RoleID:      model.SystemAdminRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
 					},

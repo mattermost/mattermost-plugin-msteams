@@ -68,6 +68,7 @@ func getAutocompleteData() *model.AutocompleteData {
 	cmd.AddCommand(show)
 
 	sync := model.NewAutocompleteData("sync", "[number-of-hours]", "Sync the current channel with MS Teams channel (by default 24 hours)")
+	sync.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(sync)
 
 	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
@@ -327,6 +328,10 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 }
 
 func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
+	}
+
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
