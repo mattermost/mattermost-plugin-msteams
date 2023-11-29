@@ -41,10 +41,13 @@ type Activities struct {
 }
 
 const (
-	DefaultPage       = 0
-	MaxPerPage        = 100
-	QueryParamPage    = "page"
-	QueryParamPerPage = "per_page"
+	DefaultPage          = 0
+	MaxPerPage           = 100
+	QueryParamPage       = "page"
+	QueryParamPerPage    = "per_page"
+	QueryPrimaryPlatform = "primary_platform"
+
+	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
 
 func NewAPI(p *Plugin, store store.Store) *API {
@@ -68,6 +71,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -533,12 +537,39 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
+	connectionMessage := "Your account has been connected"
 	if mmUser.Id == a.p.GetBotUserID() {
-		_, _ = w.Write([]byte("<html><body><h1>The bot account has been connected</h1><p>You can close this window.</p></body></html>"))
-		return
+		connectionMessage = "The bot account has been connected"
 	}
 
-	http.Redirect(w, r, a.p.GetURL()+"/static/info-page/index.html", http.StatusFound)
+	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+
+	// TODO: Remove the comment after the completion of other related tasks.
+	// bundlePath, err := a.p.API.GetBundlePath()
+	// if err != nil {
+	// 	a.p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+	// 	return
+	// }
+
+	// t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
+	// if err != nil {
+	// 	a.p.API.LogError("unable to parse the template", "Error", err.Error())
+	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	// }
+
+	// err = t.Execute(w, struct {
+	// 	ServerURL string
+	// 	APIEndPoint string
+	// 	QueryPrimaryPlatform string
+	// } {
+	// 	ServerURL: a.p.GetURL(),
+	// 	APIEndPoint: APIChoosePrimaryPlatform,
+	// 	QueryPrimaryPlatform: QueryPrimaryPlatform,
+	// })
+	// if err != nil {
+	// 	a.p.API.LogError("unable to execute the template", "Error", err.Error())
+	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	// }
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
@@ -631,6 +662,24 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 		a.p.API.LogError("Unable to write the data", "Error", err.Error())
 		http.Error(w, "unable to write the data", http.StatusInternalServerError)
 	}
+}
+
+func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	primaryPlatform := r.URL.Query().Get(QueryPrimaryPlatform)
+	if primaryPlatform != "mattermost" && primaryPlatform != "msteams" {
+		a.p.API.LogError("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
+		http.Error(w, "invalid primary platform", http.StatusBadRequest)
+	}
+
+	// TODO: Complete the API to choose the primary platform.
+	w.WriteHeader(http.StatusOK)
 }
 
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
