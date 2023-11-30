@@ -49,8 +49,8 @@
       function choosePrimaryPlatform() {
         const serverURL = "{{.ServerURL}}";
         const apiEndpoint = "{{.APIEndPoint}}";
-        const queryParam = "{{.QueryPrimaryPlatform}}";        
-        fetch(`${serverURL}${apiEndpoint}?${queryParam}=${choosenPlatform}`)
+        const queryParam = "{{.QueryParamPrimaryPlatform}}";        
+        fetch(`${serverURL}${apiEndpoint}?${queryParam}=${primaryPlatform}`)
         .then(() => closeInfoPage());
       }
       
@@ -283,7 +283,7 @@
         text-decoration: none;
       }
     </style>
-    <title>Account Successfully Connected</title>
+    <title>MS Teams Connection Information</title>
   </head>
   <body class="msteams-sync">
     <div class="msteams-sync-info-page">
@@ -293,7 +293,7 @@
         <img src="static/connection-icon.png" alt="connection-icon"/>
         </div>
         <div class="heading-body">
-          <div class="heading">Your account in now connected.
+          <div class="heading">Your account is now connected.
           <span class="heading__sub-heading">How will you be using the two platforms?</span></div>
         </div>
         <div class="card-holder">
@@ -337,7 +337,7 @@
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
-                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will still be synced in Mattermost
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channels and direct messages from Microsoft Teams will still be synced in Mattermost
                 </li>
                 <li class="list-item">
                   <!-- TODO: Add correct links here -->
@@ -355,7 +355,7 @@
         </div>
         <div class="footer">
           <!-- TODO: Add correct links here -->
-          You can <a href="skip-url" class="footer-link">skip this for now</a> and change it in in your account setting later. For more information <a href="help-url" class="footer-link">visit this help article.</a>
+          You can <a href="skip-url" class="footer-link">skip this for now</a> and change it in your account settings later. For more information <a href="help-url" class="footer-link">visit this help article.</a>
         </div>
       </div>
     </div>

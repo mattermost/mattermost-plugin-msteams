@@ -41,11 +41,11 @@ type Activities struct {
 }
 
 const (
-	DefaultPage          = 0
-	MaxPerPage           = 100
-	QueryParamPage       = "page"
-	QueryParamPerPage    = "per_page"
-	QueryPrimaryPlatform = "primary_platform"
+	DefaultPage               = 0
+	MaxPerPage                = 100
+	QueryParamPage            = "page"
+	QueryParamPerPage         = "per_page"
+	QueryParamPrimaryPlatform = "primary_platform"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
@@ -560,11 +560,11 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	// err = t.Execute(w, struct {
 	// 	ServerURL string
 	// 	APIEndPoint string
-	// 	QueryPrimaryPlatform string
+	// 	QueryParamPrimaryPlatform string
 	// } {
 	// 	ServerURL: a.p.GetURL(),
 	// 	APIEndPoint: APIChoosePrimaryPlatform,
-	// 	QueryPrimaryPlatform: QueryPrimaryPlatform,
+	// 	QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
 	// })
 	// if err != nil {
 	// 	a.p.API.LogError("unable to execute the template", "Error", err.Error())
@@ -672,7 +672,7 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryPlatform := r.URL.Query().Get(QueryPrimaryPlatform)
+	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
 	if primaryPlatform != "mattermost" && primaryPlatform != "msteams" {
 		a.p.API.LogError("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
