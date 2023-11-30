@@ -710,12 +710,22 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 	return nil
 }
 
-func (s *SQLStore) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
+func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	if _, err := s.getQueryBuilder().Delete(subscriptionsTableName).Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
 		return err
 	}
 
 	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn, certificate").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro(), subscription.Certificate).RunWith(tx).Exec(); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
