@@ -50,7 +50,7 @@
         const serverURL = "{{.ServerURL}}";
         const apiEndpoint = "{{.APIEndPoint}}";
         const queryParam = "{{.QueryParamPrimaryPlatform}}";        
-        fetch(`${serverURL}${apiEndpoint}?${queryParam}=${primaryPlatform}`)
+        fetch(`${serverURL}${apiEndpoint}?${queryParam}=${choosenPlatform}`)
         .then(() => closeInfoPage());
       }
       
