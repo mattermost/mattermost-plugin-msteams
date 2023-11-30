@@ -105,7 +105,7 @@ func (ah *ActivityHandler) Start() {
 	// doStart is the meat of the activity handler worker
 	doStartLastActivityAt := func() {
 		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
-			if time.Now().Sub(lastUpdateAt.(time.Time)) <= 5*time.Minute {
+			if time.Since(lastUpdateAt.(time.Time)) <= 5*time.Minute {
 				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
 					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscriptionID", subscriptionID.(string), "lastUpdateAt", lastUpdateAt.(time.Time))
 				}
