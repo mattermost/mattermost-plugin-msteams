@@ -3,7 +3,6 @@
 package store
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -22,9 +21,9 @@ type Store interface {
 	StoreChannelLink(link *storemodels.ChannelLink) error
 	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
 	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
-	LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error
-	SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
-	SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
+	LinkPosts(postInfo storemodels.PostInfo) error
+	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error
+	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -61,9 +60,4 @@ type Store interface {
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
-	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
-	LockPostByMMPostID(tx *sql.Tx, messageID string) error
-	BeginTx() (*sql.Tx, error)
-	RollbackTx(tx *sql.Tx) error
-	CommitTx(tx *sql.Tx) error
 }
