@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +12,13 @@ import (
 )
 
 func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
@@ -35,7 +43,15 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 	for _, link := range links {
 		ws <- struct{}{}
 		wg.Add(1)
+
 		go func(link storemodels.ChannelLink) {
+			defer func() {
+				if r := recover(); r != nil {
+					m.metrics.ObserveGoroutineFailure()
+					m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+				}
+			}()
+
 			defer wg.Done()
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost

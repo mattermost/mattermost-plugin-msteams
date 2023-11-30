@@ -19,11 +19,12 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
@@ -246,13 +247,18 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	a.p.API.LogDebug("Lifecycle activity request", "activities", lifecycleEvents)
 
+	errors := ""
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {
-			a.p.API.LogError("Invalid webhook secret received in lifecycle event")
+			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
+			errors += "Invalid webhook secret"
 			continue
 		}
-		a.p.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent)
 		a.p.activityHandler.HandleLifecycleEvent(event)
+	}
+	if errors != "" {
+		http.Error(w, errors, http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
