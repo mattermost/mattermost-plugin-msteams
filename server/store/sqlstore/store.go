@@ -735,7 +735,10 @@ func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn 
 }
 
 func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
-	query := s.getQueryBuilder().Update(subscriptionsTableName).Set("lastActivityAt", lastActivityAt.UnixMicro()).Where(sq.Eq{"subscriptionID": subscriptionID}, sq.Lt{"lastActivityAt": lastActivityAt.Add(-10 * time.Second).UnixMicro()})
+	query := s.getQueryBuilder().
+		Update(subscriptionsTableName).
+		Set("lastActivityAt", lastActivityAt.UnixMicro()).
+		Where(sq.Eq{"subscriptionID": subscriptionID}, sq.Lt{"lastActivityAt": lastActivityAt})
 	_, err := query.Exec()
 	if err != nil {
 		return err
@@ -744,7 +747,13 @@ func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastA
 }
 
 func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	query := s.getQueryBuilder().Select("subscriptionID, lastActivityAt").From(subscriptionsTableName).Where(sq.NotEq{"lastActivityAt": nil}, sq.NotEq{"lastActivityAt": 0})
+	query := s.getQueryBuilder().
+		Select("subscriptionID, lastActivityAt").
+		From(subscriptionsTableName).
+		Where(
+			sq.NotEq{"lastActivityAt": nil},
+			sq.NotEq{"lastActivityAt": 0},
+		)
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err

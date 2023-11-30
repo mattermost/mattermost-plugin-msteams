@@ -104,21 +104,23 @@ func (ah *ActivityHandler) Start() {
 
 	// doStart is the meat of the activity handler worker
 	doStartLastActivityAt := func() {
+		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
+			if time.Now().Sub(lastUpdateAt.(time.Time)) <= 5*time.Minute {
+				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
+					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscriptionID", subscriptionID.(string), "lastUpdateAt", lastUpdateAt.(time.Time))
+				}
+			}
+			return true
+		}
 		for {
 			timer := time.NewTimer(5 * time.Minute)
 			select {
 			case <-timer.C:
-				ah.lastUpdateAtMap.Range(func(subscriptionID, lastUpdateAt any) bool {
-					if lastUpdateAt.(time.Time).Add(5 * time.Minute).After(time.Now()) {
-						if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
-							ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err)
-						}
-					}
-					return true
-				})
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
 			case <-ah.quit:
-				timer.Stop()
 				// we have received a signal to stop
+				timer.Stop()
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
 				return
 			}
 		}
