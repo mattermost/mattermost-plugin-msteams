@@ -5,32 +5,32 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 )
 
 type TestConfig struct {
 	MSTeams struct {
-		TenantID               string `toml:"tenant_id"`
-		ClientID               string `toml:"client_id"`
-		ConnectedChannelTeamID string `toml:"connected_channel_team_id"`
-		ConnectedChannelID     string `toml:"connected_channel_id"`
-		ChatID                 string `toml:"chat_id"`
-	} `toml:"msteams"`
+		TenantID               string `json:"tenant_id"`
+		ClientID               string `json:"client_id"`
+		ConnectedChannelTeamID string `json:"connected_channel_team_id"`
+		ConnectedChannelID     string `json:"connected_channel_id"`
+		ChatID                 string `json:"chat_id"`
+	} `json:"msteams"`
 	Mattermost struct {
-		URL                string `toml:"url"`
-		UserUsername       string `toml:"user_username"`
-		UserPassword       string `toml:"user_password"`
-		AdminUsername      string `toml:"admin_username"`
-		AdminPassword      string `toml:"admin_password"`
-		ConnectedChannelID string `toml:"connected_channel_id"`
-		DmID               string `toml:"dm_id"`
-	} `toml:"mattermost"`
+		URL                string `json:"url"`
+		UserUsername       string `json:"user_username"`
+		UserPassword       string `json:"user_password"`
+		AdminUsername      string `json:"admin_username"`
+		AdminPassword      string `json:"admin_password"`
+		ConnectedChannelID string `json:"connected_channel_id"`
+		DmID               string `json:"dm_id"`
+	} `json:"mattermost"`
 }
 
 var msClient msteams.Client
@@ -40,12 +40,12 @@ var testCfg *TestConfig
 
 func setup(t *testing.T) {
 	if testCfg == nil {
-		data, err := os.ReadFile("testconfig.toml")
+		data, err := os.ReadFile("testconfig.json")
 		if err != nil {
-			t.Fatal("testconfig.toml file not found")
+			t.Fatal("testconfig.json file not found, please read the `server/e2e/README.md` file for more information")
 		}
 		testCfg = &TestConfig{}
-		if err := toml.Unmarshal(data, testCfg); err != nil {
+		if err := json.Unmarshal(data, testCfg); err != nil {
 			t.Fatal(err)
 		}
 	}
