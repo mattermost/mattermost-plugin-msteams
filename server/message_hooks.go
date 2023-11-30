@@ -238,10 +238,6 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 	}
 
 	var teamsMessage *clientmodels.Message
-	tx, err := p.store.BeginTx()
-	if err != nil {
-		return err
-	}
 
 	if updateRequired {
 		teamsMessage, err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
@@ -259,7 +255,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 		}
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMSTeamsID(tx, teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
@@ -310,7 +306,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		}
 	}
 
-	if err = p.store.SetPostLastUpdateAtByMattermostID(tx, postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
@@ -344,7 +340,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 	}
 
 	p.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, true)
-	if err = p.store.SetPostLastUpdateAtByMSTeamsID(tx, teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
+	if err = p.store.SetPostLastUpdateAtByMSTeamsID(teamsMessageID, teamsMessage.LastUpdateAt); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
@@ -377,10 +373,6 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
-	tx, err := p.store.BeginTx()
-	if err != nil {
-		return err
-	}
 
 	teamsMessage, err := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
@@ -389,7 +381,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	p.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false)
-	if err = p.store.SetPostLastUpdateAtByMattermostID(tx, postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
+	if err = p.store.SetPostLastUpdateAtByMattermostID(postInfo.MattermostID, teamsMessage.LastUpdateAt); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err.Error())
 	}
 
@@ -487,7 +479,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, true)
 	if post.Id != "" {
-		if err := p.store.LinkPosts(nil, storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
+		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
@@ -575,7 +567,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, false)
 	if post.Id != "" {
-		if err := p.store.LinkPosts(nil, storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
+		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
@@ -708,7 +700,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		}
 	}
 
-	if err = p.store.LinkPosts(tx, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
+	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: channelID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
 
@@ -737,10 +729,6 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 	}
 
 	var updatedMessage *clientmodels.Message
-	tx, err := p.store.BeginTx()
-	if err != nil {
-		return err
-	}
 
 	if updateRequired {
 		md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false), markdown.LangPrefix("CodeMirror language-"))
@@ -765,7 +753,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *m
 		}
 	}
 
-	if err = p.store.LinkPosts(tx, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
+	if err = p.store.LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: chatID, MSTeamsID: postInfo.MSTeamsID, MSTeamsLastUpdateAt: updatedMessage.LastUpdateAt}); err != nil {
 		p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 	}
 

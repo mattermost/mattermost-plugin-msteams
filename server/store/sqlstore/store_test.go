@@ -513,7 +513,7 @@ func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, _ *pl
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
-	storeErr := store.LinkPosts(nil, mockPostInfo)
+	storeErr := store.LinkPosts(mockPostInfo)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetPostInfoByMSTeamsID("mockMSTeamsChannel-1", "mockMSTeamsID-1")
@@ -539,7 +539,7 @@ func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, _ 
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
-	storeErr := store.LinkPosts(nil, mockPostInfo)
+	storeErr := store.LinkPosts(mockPostInfo)
 	assert.Nil(storeErr)
 
 	resp, getErr := store.GetPostInfoByMattermostID("mockMattermostID-2")
@@ -936,9 +936,6 @@ func testGetGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API)
 	err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test5", "team-id", "channel-id-2", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test5") }()
-
-	err = store.CommitTx(tx)
-	require.NoError(t, err)
 
 	t.Run("not-existing-subscription", func(t *testing.T) {
 		_, err := store.GetGlobalSubscription("not-valid")

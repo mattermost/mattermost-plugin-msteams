@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"math"
 	"net/http"
 	"os"
@@ -135,7 +134,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
 	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
+	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",

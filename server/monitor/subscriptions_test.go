@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -553,29 +552,6 @@ func TestRecreateChannelSubscription(t *testing.T) {
 			},
 			setupStore:   func(store *mocksStore.Store) {},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
-		},
-		{
-			description:    "Unable to begin database transaction",
-			subscriptionID: "test-id",
-			teamID:         "team-id",
-			channelID:      "channel-id",
-			secret:         "webhook-secret",
-			expectsError:   true,
-			setupClient: func(client *mocksClient.Client) {
-				client.On("DeleteSubscription", "test-id").Return(nil).Times(1)
-				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret", "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Unable to delete old channel subscription from DB", "subscriptionID", "test-id", "error", "error in deleting subscription from store").Return()
-				mockAPI.On("LogWarn", "Unable to begin database transaction", "error", "unable to begin database transaction").Return().Times(1)
-			},
-			setupStore: func(store *mocksStore.Store) {
-				store.On("DeleteSubscription", "test-id").Return(errors.New("error in deleting subscription from store"))
-				store.On("BeginTx").Return(&sql.Tx{}, errors.New("unable to begin database transaction")).Times(1)
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
-			},
 		},
 		{
 			description:    "Failed to save the channel subscription in the database",
