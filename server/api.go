@@ -41,10 +41,10 @@ type Activities struct {
 }
 
 const (
-	DefaultPage          = 0
-	MaxPerPage           = 100
-	QueryParamPage       = "page"
-	QueryParamPerPage    = "per_page"
+	DefaultPage               = 0
+	MaxPerPage                = 100
+	QueryParamPage            = "page"
+	QueryParamPerPage         = "per_page"
 	QueryParamPrimaryPlatform = "primary_platform"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
