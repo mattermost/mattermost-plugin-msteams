@@ -95,6 +95,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/whitelist-user", api.handleAuthRequired(api.whitelistUser)).Methods(http.MethodGet)
 
 	channelsRouter.HandleFunc("/link", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
 	channelsRouter.HandleFunc(fmt.Sprintf("/{%s}/unlink", PathParamChannelID), api.handleAuthRequired(api.unlinkChannels)).Methods(http.MethodDelete)
@@ -862,6 +863,37 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 		a.p.API.LogError("Unable to write the data", "Error", err.Error())
 		http.Error(w, "unable to write the data", http.StatusInternalServerError)
 	}
+}
+
+func (a *API) whitelistUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get(HeaderMattermostUserID)
+
+	presentInWhitelist, err := a.p.store.IsUserPresentInWhitelist(userID)
+	if err != nil {
+		a.p.API.LogError("Error in checking if a user is present in whitelist", "UserID", userID, "Error", err.Error())
+		http.Error(w, "error in checking if a user is present in whitelist", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]bool{
+		"presentInWhitelist": presentInWhitelist,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(response)
+	if err != nil {
+		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		http.Error(w, "failed to marshal JSON response", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(data); err != nil {
+		a.p.API.LogError("Failed to write JSON response", "Error", err.Error())
+		http.Error(w, "failed to write JSON response", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
