@@ -240,7 +240,10 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 
 	var teamsMessage *clientmodels.Message
 
-	mutex := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	if err != nil {
+		return err
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -294,7 +297,10 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 
 	var teamsMessage *clientmodels.Message
 
-	mutex := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	if err != nil {
+		return err
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -342,7 +348,10 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
-	mutex := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	if err != nil {
+		return err
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -387,7 +396,10 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 
-	mutex := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	if err != nil {
+		return err
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -691,7 +703,10 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		return errors.New("post not found")
 	}
 
-	mutex := cluster.NewMutex(p.API, "post_mutex_"+newPost.Id)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+newPost.Id)
+	if err != nil {
+		return err
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
