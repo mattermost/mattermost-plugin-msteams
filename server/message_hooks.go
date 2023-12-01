@@ -16,6 +16,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
@@ -239,6 +240,10 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 
 	var teamsMessage *clientmodels.Message
 
+	mutex := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if updateRequired {
 		teamsMessage, err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 		if err != nil {
@@ -289,6 +294,10 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 
 	var teamsMessage *clientmodels.Message
 
+	mutex := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if updateRequired {
 		teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 		teamsMessage, err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
@@ -333,6 +342,10 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 		return err
 	}
 
+	mutex := cluster.NewMutex(p.API, "post_mutex_"+chatID+teamsMessageID)
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	teamsMessage, err := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
 		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
@@ -373,6 +386,10 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	}
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
+
+	mutex := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	teamsMessage, err := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
@@ -673,6 +690,10 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 		p.API.LogError("Error updating post, post not found.")
 		return errors.New("post not found")
 	}
+
+	mutex := cluster.NewMutex(p.API, "post_mutex_"+newPost.Id)
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	var updatedMessage *clientmodels.Message
 	if updateRequired {

@@ -785,7 +785,7 @@ func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plu
 	t.Run("no-near-to-expire-subscriptions", func(t *testing.T) {
 		subscription := testutils.GetChannelSubscription("test", "team-id", "channel-id", time.Now().Add(100*time.Minute))
 		go func() {
-			err = store.SaveChannelSubscription(subscription)
+			err := store.SaveChannelSubscription(subscription)
 			require.NoError(t, err)
 		}()
 
