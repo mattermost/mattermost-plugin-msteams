@@ -358,6 +358,20 @@ func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, 
 	return result, err
 }
 
+func (c *ClientTimerLayer) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	start := time.Now()
+
+	result, err := c.Client.ListChatMessages(chatID, since)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChatMessages", success, elapsed)
+	return result, err
+}
+
 func (c *ClientTimerLayer) ListSubscriptions() ([]*clientmodels.Subscription, error) {
 	start := time.Now()
 

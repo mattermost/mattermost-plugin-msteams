@@ -518,6 +518,29 @@ func (_m *Client) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	return r0, r1
 }
 
+// ListChatMessages provides a mock function with given fields: chatID, since
+func (_m *Client) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	ret := _m.Called(chatID, since)
+
+	var r0 []*clientmodels.Message
+	if rf, ok := ret.Get(0).(func(string, time.Time) []*clientmodels.Message); ok {
+		r0 = rf(chatID, since)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*clientmodels.Message)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, time.Time) error); ok {
+		r1 = rf(chatID, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListSubscriptions provides a mock function with given fields:
 func (_m *Client) ListSubscriptions() ([]*clientmodels.Subscription, error) {
 	ret := _m.Called()
