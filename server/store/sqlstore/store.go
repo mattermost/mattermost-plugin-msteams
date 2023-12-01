@@ -715,10 +715,7 @@ func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubsc
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
