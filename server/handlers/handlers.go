@@ -126,14 +126,6 @@ func (ah *ActivityHandler) Start() {
 		}
 	}
 
-	if lastActivityAtMap, err := ah.plugin.GetStore().GetSubscriptionsLastActivityAt(); err != nil {
-		ah.plugin.GetAPI().LogError("Unable to load last activity subscription", "error", err)
-	} else {
-		for subscriptionID, lastActivityAt := range lastActivityAtMap {
-			ah.lastUpdateAtMap.Store(subscriptionID, lastActivityAt)
-		}
-	}
-
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
 		return ah.quitting.Load()
