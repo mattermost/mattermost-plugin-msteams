@@ -873,7 +873,7 @@ func testSaveChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) 
 }
 
 func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
+	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
 	err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test2", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
@@ -895,7 +895,7 @@ func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.AP
 }
 
 func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
+	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
 
@@ -1073,7 +1073,7 @@ func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
 }
 
 func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
-	err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id", time.Now().Add(1*time.Minute)))
+	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 
 	defer func() { _ = store.DeleteSubscription("test1") }()
