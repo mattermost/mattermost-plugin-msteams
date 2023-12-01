@@ -31,5 +31,11 @@ export const msTeamsPluginApi = createApi({
                 method: Constants.pluginApiServiceConfigs.connect.method,
             }),
         }),
+        [Constants.pluginApiServiceConfigs.whitelistUser.apiServiceName]: builder.query<WhitelistUserResponse, APIRequestPayload>({
+            query: () => ({
+                url: Constants.pluginApiServiceConfigs.whitelistUser.path,
+                method: Constants.pluginApiServiceConfigs.whitelistUser.method,
+            }),
+        }),
     }),
 });

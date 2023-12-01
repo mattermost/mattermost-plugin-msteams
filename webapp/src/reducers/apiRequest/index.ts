@@ -1,5 +1,7 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
 
+import {ApiRequestCompletionState} from 'types/common/store.d';
+
 const initialState: ApiRequestCompletionState = {
     requests: [],
 };
