@@ -801,7 +801,7 @@ func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plu
 	})
 
 	t.Run("multiple-subscriptions-with-different-expiry-dates", func(t *testing.T) {
-		err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(100*time.Minute)))
+		err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(100*time.Minute)))
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 		err = store.SaveChannelSubscription(testutils.GetChannelSubscription("test2", "team-id", "channel-id-2", time.Now().Add(100*time.Minute)))
