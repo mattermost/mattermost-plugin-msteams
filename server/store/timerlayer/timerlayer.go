@@ -7,7 +7,6 @@
 package timerlayer
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
