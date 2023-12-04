@@ -80,7 +80,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	photo, appErr := a.store.GetAvatarCache(userID)
 	if appErr != nil || len(photo) == 0 {
 		var err error
-		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
+		photo, err = a.p.GetClientForApp().GetUserAvatar(userID)
 		if err != nil {
 			a.p.API.LogError("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
