@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@emotion/core": "11.0.0",
+    "@svgr/webpack": "8.1.0",
     "@types/enzyme": "3.10.12",
     "@types/jest": "29.4.4",
     "@types/js-cookie": "3.0.2",
@@ -46,10 +47,12 @@
     "ts-jest": "29.0.5",
     "ts-loader": "9.4.2",
     "ts-node": "10.9.1",
+    "url-loader": "4.1.1",
     "webpack": "5.76.1",
     "webpack-cli": "5.0.1"
   },
   "dependencies": {
+    "@brightscout/mattermost-ui-library": "file:../../mm-ui-library",
     "@reduxjs/toolkit": "1.8.2",
     "core-js": "3.29.1",
     "js-cookie": "3.0.1",

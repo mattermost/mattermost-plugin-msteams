@@ -10,3 +10,8 @@ interface ReduxState extends GlobalState {
 type ApiRequestCompletionState = {
     requests: PluginApiServiceName[]
 }
+
+type ConnectedState = {
+    connected: boolean;
+    username: string;
+};

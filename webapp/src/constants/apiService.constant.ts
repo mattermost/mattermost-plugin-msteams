@@ -15,4 +15,9 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         method: 'GET',
         apiServiceName: 'whitelistUser',
     },
+    getLinkedChannels: {
+        path: '/linked-channels',
+        method: 'GET',
+        apiServiceName: 'getLinkedChannels',
+    },
 };

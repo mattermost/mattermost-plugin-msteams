@@ -1,14 +1,15 @@
 import React from 'react';
 
-import Constants from 'constants/index';
+import {iconUrl} from 'constants/illustrations.constants';
+import {pluginTitle} from 'constants/common.constants';
 
 export const RHSTitle = () => (
     <span className='d-flex gap-8 items-center'>
         <img
             width={24}
             height={24}
-            src={Constants.iconUrl}
+            src={iconUrl}
         />
-        {Constants.pluginTitle}
+        {pluginTitle}
     </span>
 );

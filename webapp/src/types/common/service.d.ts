@@ -1,6 +1,6 @@
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-type PluginApiServiceName = 'needsConnect' | 'connect' | 'whitelistUser';
+type PluginApiServiceName = 'needsConnect' | 'connect' | 'whitelistUser' | 'getLinkedChannels';
 
 type PluginApiService = {
     path: string,
@@ -13,4 +13,4 @@ type APIError = {
     message: string,
 }
 
-type APIRequestPayload = void;
+type APIRequestPayload = SearchLinkedChannelParams | void;

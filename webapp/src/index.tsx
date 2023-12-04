@@ -3,9 +3,6 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import Constants from 'constants/index';
-
-import Rhs from 'containers/Rhs';
 import reducer from 'reducers';
 
 import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModal';
@@ -13,6 +10,12 @@ import MSTeamsAppManifestSetting from 'components/appManifestSetting';
 import ListConnectedUsers from 'components/getConnectedUsersSetting';
 
 import {RHSTitle} from 'components';
+
+import {Rhs} from 'containers';
+
+import {pluginTitle} from 'constants/common.constants';
+
+import {iconUrl} from 'constants/illustrations.constants';
 
 import manifest from './manifest';
 
@@ -36,21 +39,17 @@ export default class Plugin {
 
         // TODO: update icons later
         registry.registerChannelHeaderButtonAction(
-            <img
-                width={24}
-                height={24}
-                src={Constants.iconUrl}
-            />, () => store.dispatch(toggleRHSPlugin), null, Constants.pluginTitle);
+            null, () => store.dispatch(toggleRHSPlugin), null, pluginTitle);
 
         if (registry.registerAppBarComponent) {
-            registry.registerAppBarComponent(Constants.iconUrl, () => store.dispatch(toggleRHSPlugin), Constants.pluginTitle);
+            registry.registerAppBarComponent(iconUrl, () => store.dispatch(toggleRHSPlugin), pluginTitle);
         }
     }
 }
 
 declare global {
     interface Window {
-        registerPlugin(id: string, plugin: Plugin): void
+        registerPlugin(id: string, plugin: Plugin): void,
     }
 }
 
