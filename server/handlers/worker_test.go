@@ -28,10 +28,11 @@ func TestStartWorker(t *testing.T) {
 	// makeDoStart simulates a start function with the defined sequence of actions, whether to
 	// do a "normal" run, waiting for the signal to stop, to "panic", immediately crashing,
 	// or to unexpectedly "exit".
-	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(string, ...any), workerMetrics) {
+	makeDoStart := func(t *testing.T, sequence []string, started chan int, stopping, stopped chan bool) (func(), func(), func(string, ...any), workerMetrics) {
 		count := 0
+		doStartStopped := make(chan bool)
 
-		callback := func() {
+		doStart := func() {
 			started <- count
 			defer func() {
 				count++
@@ -43,16 +44,26 @@ func TestStartWorker(t *testing.T) {
 			case "normal":
 				// Wait for shut down
 				<-stopping
-				close(stopped)
+				close(doStartStopped)
 
 			case "panic":
-				panic("callback panic")
+				panic("doStart panic")
 
 			case "exit":
 				return
 
 			default:
 				require.Failf(t, "unexpected sequence", "got %s", sequence[count])
+			}
+		}
+
+		doQuit := func() {
+			select {
+			case <-doStartStopped:
+				// All good, we were asked to stop.
+				close(stopped)
+			default:
+				require.Failf(t, "unexpected stop", "stopped not yet closed")
 			}
 		}
 
@@ -90,7 +101,7 @@ func TestStartWorker(t *testing.T) {
 			assert.Equal(t, expectedFailures, reportedFailures, "metrics did not capture expected failures")
 		})
 
-		return callback, logError, metrics
+		return doStart, doQuit, logError, metrics
 	}
 
 	t.Run("quitting normally does not recover", func(t *testing.T) {
@@ -98,7 +109,7 @@ func TestStartWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		callback, logError, metrics := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
+		doStart, doQuit, logError, metrics := makeDoStart(t, []string{"normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -108,10 +119,10 @@ func TestStartWorker(t *testing.T) {
 			}
 		}
 
-		startWorker(logError, metrics, isQuitting, callback)
-		assertReceive(t, started, "callback failed to start")
+		startWorker(logError, metrics, isQuitting, doStart, doQuit)
+		assertReceive(t, started, "worker failed to start")
 		close(stopping)
-		assertReceive(t, stopped, "callback failed to finish")
+		assertReceive(t, stopped, "worker failed to finish")
 	})
 
 	t.Run("single panic recovers", func(t *testing.T) {
@@ -119,7 +130,7 @@ func TestStartWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		callback, logError, metrics := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
+		doStart, doQuit, logError, metrics := makeDoStart(t, []string{"panic", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -129,11 +140,11 @@ func TestStartWorker(t *testing.T) {
 			}
 		}
 
-		startWorker(logError, metrics, isQuitting, callback)
-		assertReceive(t, started, "callback failed to start")
-		assertReceive(t, started, "callback failed to start the second time")
+		startWorker(logError, metrics, isQuitting, doStart, doQuit)
+		assertReceive(t, started, "worker failed to start")
+		assertReceive(t, started, "worker failed to start the second time")
 		close(stopping)
-		assertReceive(t, stopped, "callback failed to finish")
+		assertReceive(t, stopped, "worker failed to finish")
 	})
 
 	t.Run("unexpected exit recovers", func(t *testing.T) {
@@ -141,7 +152,7 @@ func TestStartWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		callback, logError, metrics := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
+		doStart, doQuit, logError, metrics := makeDoStart(t, []string{"exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -151,11 +162,11 @@ func TestStartWorker(t *testing.T) {
 			}
 		}
 
-		startWorker(logError, metrics, isQuitting, callback)
-		assertReceive(t, started, "callback failed to start")
-		assertReceive(t, started, "callback failed to start the second time")
+		startWorker(logError, metrics, isQuitting, doStart, doQuit)
+		assertReceive(t, started, "worker failed to start")
+		assertReceive(t, started, "worker failed to start the second time")
 		close(stopping)
-		assertReceive(t, stopped, "callback failed to finish")
+		assertReceive(t, stopped, "worker failed to finish")
 	})
 
 	t.Run("multiple panics and unexpected exits recover", func(t *testing.T) {
@@ -163,7 +174,7 @@ func TestStartWorker(t *testing.T) {
 		stopping := make(chan bool)
 		stopped := make(chan bool)
 
-		callback, logError, metrics := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
+		doStart, doQuit, logError, metrics := makeDoStart(t, []string{"panic", "panic", "exit", "normal"}, started, stopping, stopped)
 		isQuitting := func() bool {
 			select {
 			case <-stopping:
@@ -173,12 +184,12 @@ func TestStartWorker(t *testing.T) {
 			}
 		}
 
-		startWorker(logError, metrics, isQuitting, callback)
-		assertReceive(t, started, "callback failed to start")
-		assertReceive(t, started, "callback failed to start the second time")
-		assertReceive(t, started, "callback failed to start the third time")
-		assertReceive(t, started, "callback failed to start the fourth time")
+		startWorker(logError, metrics, isQuitting, doStart, doQuit)
+		assertReceive(t, started, "worker failed to start")
+		assertReceive(t, started, "worker failed to start the second time")
+		assertReceive(t, started, "worker failed to start the third time")
+		assertReceive(t, started, "worker failed to start the fourth time")
 		close(stopping)
-		assertReceive(t, stopped, "callback failed to finish")
+		assertReceive(t, stopped, "worker failed to finish")
 	})
 }
