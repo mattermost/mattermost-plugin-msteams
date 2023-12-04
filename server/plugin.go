@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +42,6 @@ const (
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
 	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
-	lastReceivedChangeKey        = "last_received_change"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 
@@ -178,7 +176,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) start(syncSince *time.Time) {
+func (p *Plugin) start() {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
@@ -203,9 +201,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-	if syncSince != nil {
-		go p.syncSince(*syncSince)
-	}
 
 	if p.getConfiguration().SyncUsers > 0 {
 		p.API.LogDebug("Starting the sync users job")
@@ -232,11 +227,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
 		}
 	}
-}
-
-func (p *Plugin) syncSince(syncSince time.Time) {
-	// TODO: Implement the sync mechanism
-	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -293,7 +283,7 @@ func (p *Plugin) stop() {
 
 func (p *Plugin) restart() {
 	p.stop()
-	p.start(nil)
+	p.start()
 }
 
 func (p *Plugin) generatePluginSecrets() error {
@@ -341,22 +331,6 @@ func (p *Plugin) OnActivate() error {
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
-
-	data, appErr := p.API.KVGet(lastReceivedChangeKey)
-	if appErr != nil {
-		return appErr
-	}
-
-	lastReceivedChangeMicro := int64(0)
-	var lastRecivedChange *time.Time
-	if len(data) > 0 {
-		lastReceivedChangeMicro, err = strconv.ParseInt(string(data), 10, 64)
-		if err != nil {
-			return err
-		}
-		parsedTime := time.UnixMicro(lastReceivedChangeMicro)
-		lastRecivedChange = &parsedTime
-	}
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
@@ -426,7 +400,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}()
 
-	go p.start(lastRecivedChange)
+	go p.start()
 	return nil
 }
 
