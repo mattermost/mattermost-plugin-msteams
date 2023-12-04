@@ -69,7 +69,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 	config := model.Config{}
 	config.SetDefaults()
 	plugin.API.(*plugintest.API).On("KVGet", "cron_monitoring_system").Return(nil, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVGet", lastReceivedChangeKey).Return([]byte{}, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetServerVersion").Return("7.8.0")
 	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil)
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
@@ -515,7 +514,7 @@ func TestStart(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			test.SetupStore(p.store.(*storemocks.Store))
-			p.start(nil)
+			p.start()
 			time.Sleep(5 * time.Second)
 		})
 	}
