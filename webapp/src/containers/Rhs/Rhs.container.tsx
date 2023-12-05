@@ -6,6 +6,8 @@ import usePluginApi from 'hooks/usePluginApi';
 
 import {getConnectedState} from 'selectors';
 
+import {Snackbar} from 'components';
+
 import {ConnectAccount} from './views/ConnectAccount';
 import {LinkedChannels} from './views/LinkedChannels';
 
@@ -33,8 +35,13 @@ export const Rhs = () => {
     };
 
     return (
-        presentInWhitelist ?
-            getRhsView() :
+        <>
+            {
+                presentInWhitelist ?
+                    getRhsView() :
             <>{'MS Teams Sync plugin'}</>
+            }
+            <Snackbar/>
+        </>
     );
 };

@@ -1,0 +1,15 @@
+.msteams-sync-rhs {
+
+    &__snackbar {
+        transition: transform 200ms ease-in-out;
+
+        &--show {
+            transform: translateY(0);
+        }
+
+        &--hide {
+            transform: translateY(75px);
+        }
+    }
+        
+}
