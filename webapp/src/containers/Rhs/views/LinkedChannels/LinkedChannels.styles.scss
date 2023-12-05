@@ -1,0 +1,17 @@
+.msteams-sync-rhs {
+
+    .scroll-container {
+        height: 100%;
+        overflow-y: auto;
+    
+        .infinite-scroll-component__outerdiv {
+            .infinite-scroll-component {
+                overflow: hidden !important;
+            }
+        }
+
+        &__spinner {
+            width: 100% !important;
+        }
+    }
+}

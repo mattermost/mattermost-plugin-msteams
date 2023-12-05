@@ -1,0 +1,30 @@
+.msteams-sync-rhs {
+
+  .msteams-linked-channel {
+
+    &__link-icon {
+
+      &::before {
+        content : "";
+        top: 0;
+        left: 4px;
+        position: relative;
+        border-top: 2px solid rgba(var(--center-channel-color-rgb), 0.12);
+        border-left: 2px solid rgba(var(--center-channel-color-rgb), 0.12);
+        height: 10px;
+        width: 10px;
+      }
+
+      &::after{
+        content : "";
+        top: 0;
+        left: 4px;
+        position: relative;
+        border-bottom: 2px solid rgba(var(--center-channel-color-rgb), 0.12);
+        border-left: 2px solid rgba(var(--center-channel-color-rgb), 0.12);
+        height: 10px;
+        width: 10px;
+      }
+    }
+  }
+}

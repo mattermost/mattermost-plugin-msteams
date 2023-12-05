@@ -9,6 +9,9 @@ export const Icon = ({iconName, height, width, className}: IconProps) => (
         style={{
             width,
             height,
+
+            // To make span fit svg element
+            lineHeight: 0,
         }}
     >
         {IconMap[iconName]}

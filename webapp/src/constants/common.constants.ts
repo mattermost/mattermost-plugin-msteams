@@ -4,4 +4,4 @@ export const siteUrl = 'SITEURL';
 
 export const defaultPage = 0;
 
-export const defaultPerPage = 20;
+export const defaultPerPage = 5;

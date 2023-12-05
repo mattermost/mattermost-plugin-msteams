@@ -19,6 +19,13 @@
     }
 }
 
+// Font sizes
+@each $font-size in $font-sizes {
+    .font-#{$font-size} {
+        font-size: #{$font-size}px !important;
+    }
+}
+
 // padding
 @each $size in $sizes {
     .p-#{$size} {
@@ -44,6 +51,34 @@
 @each $size in $sizes {
     .py-#{$size} {
         padding-block: #{$size}px !important;
+    }
+}
+
+// padding inline
+@each $size in $sizes {
+    .px-#{$size} {
+        padding-inline: #{$size}px !important;
+    }
+}
+
+// padding inline
+@each $size in $sizes {
+    .px-#{$size} {
+        padding-inline: #{$size}px !important;
+    }
+}
+
+// padding inline
+@each $size in $sizes {
+    .px-#{$size} {
+        padding-inline: #{$size}px !important;
+    }
+}
+
+// padding inline
+@each $size in $sizes {
+    .px-#{$size} {
+        padding-inline: #{$size}px !important;
     }
 }
 
@@ -115,6 +150,10 @@
     flex: 2
 }
 
+.flex-1-0-0 {
+    flex: 1 0 0;
+}
+
 .flex-column {
     flex-direction: column;
 }
@@ -129,4 +168,14 @@
 
 .overflow-y-auto {
     overflow-y: auto;
+}
+
+.border-t-1 {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: rgba(var(--center-channel-color-rgb), 0.12);
+}
+
+.opacity-6 {
+    opacity: 0.6;
 }
