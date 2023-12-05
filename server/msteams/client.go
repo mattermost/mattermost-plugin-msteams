@@ -276,7 +276,7 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 
 func (tc *ClientImpl) GetMe() (*clientmodels.User, error) {
 	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
-		Select: []string{"id", "mail", "userPrincipalName"},
+		Select: []string{"id", "mail", "userPrincipalName", "displayName"},
 	}
 	configuration := &users.UserItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
