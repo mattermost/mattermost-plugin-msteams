@@ -867,7 +867,6 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) whitelistUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
-
 	presentInWhitelist, err := a.p.store.IsUserPresentInWhitelist(userID)
 	if err != nil {
 		a.p.API.LogError("Error in checking if a user is present in whitelist", "UserID", userID, "Error", err.Error())
