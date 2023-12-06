@@ -9,6 +9,7 @@ import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
 import {setConnected} from 'reducers/connectedState';
 import {defaultPage, defaultPerPage} from 'constants/common.constants';
+import {setNeedsConnect} from 'reducers/needsConnectState';
 
 import 'styles/main.scss';
 
@@ -34,7 +35,8 @@ const App = (): JSX.Element => {
         serviceName: pluginApiServiceConfigs.needsConnect.apiServiceName,
         handleSuccess: () => {
             const data = needsConnectData as NeedsConnectData;
-            dispatch(setConnected({connected: data.connected, username: data.username}));
+            dispatch(setConnected({connected: data.connected, username: data.username, msteamsUserId: data.msteamsUserId}));
+            dispatch(setNeedsConnect({needsConnect: data.needsConnect}));
         },
     });
 

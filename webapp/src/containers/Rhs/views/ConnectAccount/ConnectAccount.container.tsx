@@ -1,17 +1,40 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect} from 'react';
 
 import {Button} from '@brightscout/mattermost-ui-library';
+
+import {useDispatch} from 'react-redux';
 
 import {connectAccountFeatures, connectAccountMsg, connectButtonText, listTitle} from 'constants/connectAccount.constants';
 import {Icon, IconName, WarningCard} from 'components';
 import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
+import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
+import useAlert from 'hooks/useAlert';
+import {getConnectedState, getNeedsConnectedState} from 'selectors';
+import {setNeedsConnect} from 'reducers/needsConnectState';
 
 export const ConnectAccount = () => {
-    const {makeApiRequestWithCompletionStatus} = usePluginApi();
+    const showAlert = useAlert();
+    const {makeApiRequestWithCompletionStatus, state, getApiState} = usePluginApi();
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
+    const {connected} = getConnectedState(state);
+    const {needsConnect} = getNeedsConnectedState(state);
+    const dispatch = useDispatch();
+
+    useApiRequestCompletionState({
+        serviceName: pluginApiServiceConfigs.connect.apiServiceName,
+        handleError: () => {
+            showAlert({message: 'Account could not be connected.', severity: 'error'});
+        },
+    });
+
+    useEffect(() => {
+        if (connected && needsConnect) {
+            showAlert({message: 'Your account is connected successfully'});
+        }
+    }, [connected]);
 
     return (
         <div className='p-24 d-flex flex-column overflow-y-auto'>
