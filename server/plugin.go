@@ -280,6 +280,11 @@ func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
+	if p.metricsServer != nil {
+		if err := p.metricsServer.Shutdown(); err != nil {
+			p.API.LogWarn("Error shutting down metrics server", "error", err)
+		}
+	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
