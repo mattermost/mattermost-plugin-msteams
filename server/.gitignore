@@ -1,2 +1,3 @@
 coverage.txt
 dist
+e2e/testconfig.toml
