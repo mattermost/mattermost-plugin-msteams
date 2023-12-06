@@ -12,6 +12,7 @@
       var msteamsCardBody = 'msteams-card__body';
       var mmCardHeading = 'mm-card__heading';
       var msteamsCardHeading = 'msteams-card__heading';
+      var selectButtonClass = 'selection-button';
       var choosenPlatform = '';
 
       function closeInfoPage() {
@@ -19,6 +20,7 @@
       }
 
       function selectPrimaryPlatform(platform) {
+        document.getElementById(selectButtonClass).style.cursor = 'pointer';
         choosenPlatform = platform;
         const mediaQuery = window.matchMedia('(min-width: 550px)');
           if (platform == mattermostPrimaryPlatform) {
@@ -47,6 +49,9 @@
       }
 
       function choosePrimaryPlatform() {
+        if (!choosenPlatform) {
+          return;
+        }
         const serverURL = "{{.ServerURL}}";
         const apiEndpoint = "{{.APIEndPoint}}";
         const queryParam = "{{.QueryParamPrimaryPlatform}}";        
@@ -250,7 +255,7 @@
       .msteams-sync-body .selection-button {
         text-align: center;
         margin: 40px 0;
-        cursor: pointer;
+        cursor: not-allowed;
       }
 
       .msteams-sync-body .selection-button__text {
@@ -346,7 +351,7 @@
             </div>
           </div>
         </div>
-        <div class="selection-button" onclick="choosePrimaryPlatform()">
+        <div class="selection-button" id="selection-button" onclick="choosePrimaryPlatform()">
           <a class="selection-button__text">Continue <img src="static/trailing-icon.png" alt="trailing-icon"/></a>   
         </div>
         <div class="footer">
