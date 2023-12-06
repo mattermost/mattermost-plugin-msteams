@@ -7,5 +7,3 @@ export const getApiRequestCompletionState = (state: ReduxState): ApiRequestCompl
 export const getConnectedState = (state: ReduxState): ConnectedState => getPluginState(state).connectedStateSlice;
 
 export const getSnackbarState = (state: ReduxState): SnackbarState => getPluginState(state).snackbarSlice;
-
-export const getNeedsConnectedState = (state: ReduxState): NeedsConnectState => getPluginState(state).needsConnectStateSlice;

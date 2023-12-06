@@ -4,6 +4,7 @@ import {ConnectedState} from 'types/common/store.d';
 
 const initialState: ConnectedState = {
     connected: false,
+    isAlreadyConnected: false,
     username: '',
     msteamsUserId: '',
 };
@@ -14,6 +15,7 @@ export const connectedStateSlice = createSlice({
     reducers: {
         setConnected: (state: ConnectedState, action: PayloadAction<ConnectedState>) => {
             state.connected = action.payload.connected;
+            state.isAlreadyConnected = action.payload.isAlreadyConnected;
             state.username = action.payload.username;
             state.msteamsUserId = action.payload.msteamsUserId;
         },

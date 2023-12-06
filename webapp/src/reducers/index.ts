@@ -7,12 +7,9 @@ import connectedStateSlice from 'reducers/connectedState';
 
 import snackbarSlice from 'reducers/snackbar';
 
-import needsConnectStateSlice from './needsConnectState';
-
 export default combineReducers({
     apiRequestCompletionSlice,
     connectedStateSlice,
-    needsConnectStateSlice,
     snackbarSlice,
     [msTeamsPluginApi.reducerPath]: msTeamsPluginApi.reducer,
 });

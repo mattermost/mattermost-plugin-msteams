@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 
 import {Button} from '@brightscout/mattermost-ui-library';
 
@@ -10,8 +10,8 @@ import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 import useAlert from 'hooks/useAlert';
-import {getConnectedState, getNeedsConnectedState} from 'selectors';
-import {setNeedsConnect} from 'reducers/needsConnectState';
+import {getConnectedState} from 'selectors';
+import { setConnected } from 'reducers/connectedState';
 
 export const ConnectAccount = () => {
     const showAlert = useAlert();
@@ -19,9 +19,8 @@ export const ConnectAccount = () => {
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
-    const {connected} = getConnectedState(state);
-    const {needsConnect} = getNeedsConnectedState(state);
-    const dispatch = useDispatch();
+    const {connected, isAlreadyConnected, msteamsUserId, username} = getConnectedState(state);
+    const dispatch = useDispatch()
 
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.connect.apiServiceName,
@@ -31,10 +30,11 @@ export const ConnectAccount = () => {
     });
 
     useEffect(() => {
-        if (connected && needsConnect) {
+        if (connected && !isAlreadyConnected) {
             showAlert({message: 'Your account is connected successfully'});
+            dispatch(setConnected({connected, msteamsUserId, username, isAlreadyConnected: true}));
         }
-    }, [connected]);
+    }, [connected, isAlreadyConnected]);
 
     return (
         <div className='p-24 d-flex flex-column overflow-y-auto'>
