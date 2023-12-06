@@ -158,16 +158,20 @@ func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
 	defer p.msteamsAppClientMutex.Unlock()
 
-	if p.msteamsAppClient == nil {
-		msteamsAppClient := msteams.NewApp(
-			p.getConfiguration().TenantID,
-			p.getConfiguration().ClientID,
-			p.getConfiguration().ClientSecret,
-			&p.apiClient.Log,
-		)
-
-		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
+	// We don't currently support reconnecting with a new configuration: a plugin restart is
+	// required.
+	if p.msteamsAppClient != nil {
+		return nil
 	}
+
+	msteamsAppClient := msteams.NewApp(
+		p.getConfiguration().TenantID,
+		p.getConfiguration().ClientID,
+		p.getConfiguration().ClientSecret,
+		&p.apiClient.Log,
+	)
+
+	p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
 		p.API.LogError("Unable to connect to the app client", "error", err)
