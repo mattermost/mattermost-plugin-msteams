@@ -423,46 +423,6 @@ func TestSyncUsers(t *testing.T) {
 	}
 }
 
-func TestConnectTeamsAppClient(t *testing.T) {
-	for _, test := range []struct {
-		Name          string
-		SetupAPI      func(*plugintest.API)
-		SetupClient   func(*mocks.Client)
-		ExpectedError string
-	}{
-		{
-			Name: "ConnectTeamsAppClient: Unable to connect to the app client",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
-			},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
-			},
-			ExpectedError: "unable to connect to the app client",
-		},
-		{
-			Name:     "ConnectTeamsAppClient: Valid",
-			SetupAPI: func(api *plugintest.API) {},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(nil).Times(1)
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			p := newTestPlugin(t)
-			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
-			err := p.connectTeamsAppClient()
-			if test.ExpectedError != "" {
-				assert.Contains(err.Error(), test.ExpectedError)
-			} else {
-				assert.Nil(err)
-			}
-		})
-	}
-}
-
 func TestStart(t *testing.T) {
 	mockSiteURL := "mockSiteURL"
 	for _, test := range []struct {
@@ -472,18 +432,6 @@ func TestStart(t *testing.T) {
 		SetupClient func(*mocks.Client)
 		SetupStore  func(*storemocks.Store)
 	}{
-		{
-			Name:      "Start: Unable to connect to the app client",
-			IsRestart: false,
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
-				api.On("LogError", "Unable to connect to the msteams", "error", mock.Anything).Times(1)
-			},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
-			},
-			SetupStore: func(s *storemocks.Store) {},
-		},
 		{
 			Name:      "Start: Valid",
 			IsRestart: false,
