@@ -89,6 +89,10 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Req
 	api.ServeHTTP(w, r)
 }
 
+func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	p.metricsServer.Handler.ServeHTTP(w, r)
+}
+
 func (p *Plugin) GetAPI() plugin.API {
 	return p.API
 }
@@ -276,11 +280,6 @@ func (p *Plugin) stop() {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
-	if p.metricsServer != nil {
-		if err := p.metricsServer.Shutdown(); err != nil {
-			p.API.LogWarn("Error shutting down metrics server", "error", err)
-		}
-	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
@@ -341,6 +340,7 @@ func (p *Plugin) OnActivate() error {
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 	})
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
 	if appErr != nil {
@@ -431,6 +431,10 @@ func (p *Plugin) OnActivate() error {
 }
 
 func (p *Plugin) OnDeactivate() error {
+	if err := p.metricsServer.Shutdown(); err != nil {
+		p.API.LogWarn("Error shutting down metrics server", "error", err)
+	}
+
 	p.stop()
 	return nil
 }
@@ -698,8 +702,6 @@ func isRemoteUser(user *model.User) bool {
 
 func (p *Plugin) runMetricsServer() {
 	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
-
-	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	// Run server to expose metrics
 	go func() {

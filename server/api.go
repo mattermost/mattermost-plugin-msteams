@@ -394,7 +394,11 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.Header.Get(HeaderMattermostUserID)
-	client, _ := a.p.GetClientForUser(userID)
+	client, err := a.p.GetClientForUser(userID)
+	if err != nil {
+		a.p.API.LogError("Unable to get client for user", "error", err.Error())
+	}
+
 	if client != nil {
 		response["connected"] = true
 		user, err := client.GetMe()
@@ -879,7 +883,6 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) whitelistUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get(HeaderMattermostUserID)
-
 	presentInWhitelist, err := a.p.store.IsUserPresentInWhitelist(userID)
 	if err != nil {
 		a.p.API.LogError("Error in checking if a user is present in whitelist", "UserID", userID, "Error", err.Error())

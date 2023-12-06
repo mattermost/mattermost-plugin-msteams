@@ -785,25 +785,57 @@ func TestNeedsConnect(t *testing.T) {
 	for _, test := range []struct {
 		Name                  string
 		SetupPlugin           func(*plugintest.API)
-		SetupStore            func(*storemocks.Store)
+		SetupClient           func(*clientmocks.Client)
+		SetupStore            func(store *storemocks.Store)
+		SetupMetrics          func(metrics *metricsmocks.Metrics)
 		EnforceConnectedUsers bool
 		EnabledTeams          string
 		ExpectedResult        string
 	}{
 		{
-			Name:           "NeedsConnect: EnforceConnectedUsers is false",
-			SetupPlugin:    func(api *plugintest.API) {},
-			SetupStore:     func(store *storemocks.Store) {},
-			ExpectedResult: "{\"canSkip\":false,\"needsConnect\":false}",
+			Name:        "NeedsConnect: EnforceConnectedUsers is false and user is connected",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetMe").Return(&clientmodels.User{
+					DisplayName: "mockUser",
+				}, nil)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetMe", "true", mock.AnythingOfType("float64")).Once()
+			},
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false,\"username\":\"mockUser\"}",
 		},
 		{
-			Name:        "NeedsConnect: Unable to get the client",
-			SetupPlugin: func(api *plugintest.API) {},
+			Name: "NeedsConnect: EnforceConnectedUsers is false and user is connected but unable to get the user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get MS Teams user", "error", "unable to get the user").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetMe").Return(nil, errors.New("unable to get the user")).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetMe", "false", mock.AnythingOfType("float64")).Once()
+			},
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false,\"username\":\"\"}",
+		},
+		{
+			Name: "NeedsConnect: Unable to get the client",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Unable to get client for user", "error", "not connected user").Once()
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
+			SetupClient:           func(client *clientmocks.Client) {},
+			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true,\"username\":\"\"}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
@@ -813,13 +845,16 @@ func TestNeedsConnect(t *testing.T) {
 						Id: "mockTeam",
 					},
 				}, nil)
+				api.On("LogError", "Unable to get client for user", "error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
+			SetupClient:           func(client *clientmocks.Client) {},
+			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":false}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false,\"username\":\"\"}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
@@ -829,13 +864,16 @@ func TestNeedsConnect(t *testing.T) {
 						Id: "mockTeamID",
 					},
 				}, nil)
+				api.On("LogError", "Unable to get client for user", "error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
+			SetupClient:           func(client *clientmocks.Client) {},
+			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true,\"username\":\"\"}",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -845,6 +883,8 @@ func TestNeedsConnect(t *testing.T) {
 			plugin.configuration.EnabledTeams = test.EnabledTeams
 			test.SetupPlugin(plugin.API.(*plugintest.API))
 			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupClient(plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/needsConnect", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetID())
@@ -1758,6 +1798,81 @@ func TestUnlinkChannels(t *testing.T) {
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 
 			plugin.ServeHTTP(nil, w, r)
+			result := w.Result()
+			assert.NotNil(t, result)
+			defer result.Body.Close()
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+
+			bodyString := string(bodyBytes)
+			assert.Equal(test.ExpectedResult, bodyString)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+		})
+	}
+}
+
+func TestWhitelistUser(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		SetupMetrics       func(*metricsmocks.Metrics)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "WhitelistUser: unable to check user in the whitelist",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("LogError", "Error in checking if a user is present in whitelist", "UserID", testutils.GetUserID(), "Error", "unable to check user in the whitelist").Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, errors.New("unable to check user in the whitelist")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("IncrementHTTPErrors").Times(1)
+			},
+			ExpectedResult:     "error in checking if a user is present in whitelist\n",
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			Name:        "WhitelistUser: user is not present in whitelist",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Times(1)
+			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ExpectedResult:     `{"presentInWhitelist":false}`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+		{
+			Name:        "WhitelistUser: user present in whitelist",
+			SetupPlugin: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Times(1)
+			},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ExpectedResult:     `{"presentInWhitelist":true}`,
+			ExpectedStatusCode: http.StatusOK,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/whitelist-user", nil)
+			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+
 			result := w.Result()
 			assert.NotNil(t, result)
 			defer result.Body.Close()

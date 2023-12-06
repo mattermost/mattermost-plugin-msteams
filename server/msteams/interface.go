@@ -52,4 +52,6 @@ type Client interface {
 	ListUsers() ([]clientmodels.User, error)
 	ListTeams() ([]*clientmodels.Team, error)
 	ListChannels(teamID string) ([]*clientmodels.Channel, error)
+	ListChannelMessages(teamID, channelID string, since time.Time) ([]*clientmodels.Message, error)
+	ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error)
 }
