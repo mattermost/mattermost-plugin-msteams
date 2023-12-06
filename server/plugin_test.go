@@ -467,12 +467,14 @@ func TestStart(t *testing.T) {
 	mockSiteURL := "mockSiteURL"
 	for _, test := range []struct {
 		Name        string
+		IsRestart   bool
 		SetupAPI    func(*plugintest.API)
 		SetupClient func(*mocks.Client)
 		SetupStore  func(*storemocks.Store)
 	}{
 		{
-			Name: "Start: Unable to connect to the app client",
+			Name:      "Start: Unable to connect to the app client",
+			IsRestart: false,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
 				api.On("LogError", "Unable to connect to the msteams", "error", mock.Anything).Times(1)
@@ -483,7 +485,28 @@ func TestStart(t *testing.T) {
 			SetupStore: func(s *storemocks.Store) {},
 		},
 		{
-			Name: "Start: Valid",
+			Name:      "Start: Valid",
+			IsRestart: false,
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: &mockSiteURL,
+					},
+				})
+				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("Connect").Return(nil).Times(1)
+			},
+			SetupStore: func(s *storemocks.Store) {
+				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
+				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
+				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
+			},
+		},
+		{
+			Name:      "Restart: Valid",
+			IsRestart: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetConfig").Return(&model.Config{
 					ServiceSettings: model.ServiceSettings{
@@ -514,7 +537,7 @@ func TestStart(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			test.SetupStore(p.store.(*storemocks.Store))
-			p.start()
+			p.start(test.IsRestart)
 			time.Sleep(5 * time.Second)
 		})
 	}
