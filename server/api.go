@@ -386,14 +386,30 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
-	response := map[string]bool{
+	response := map[string]interface{}{
 		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
 		"needsConnect": false,
+		"connected":    false,
+		"username":     "",
+	}
+
+	userID := r.Header.Get(HeaderMattermostUserID)
+	client, err := a.p.GetClientForUser(userID)
+	if err != nil {
+		a.p.API.LogError("Unable to get client for user", "error", err.Error())
+	}
+
+	if client != nil {
+		response["connected"] = true
+		user, err := client.GetMe()
+		if err != nil {
+			a.p.API.LogError("Unable to get MS Teams user", "error", err.Error())
+		} else {
+			response["username"] = user.DisplayName
+		}
 	}
 
 	if a.p.getConfiguration().EnforceConnectedUsers {
-		userID := r.Header.Get(HeaderMattermostUserID)
-		client, _ := a.p.GetClientForUser(userID)
 		if client == nil {
 			if a.p.getConfiguration().EnabledTeams == "" {
 				response["needsConnect"] = true
