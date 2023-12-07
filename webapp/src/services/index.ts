@@ -3,7 +3,7 @@ import {createApi, fetchBaseQuery} from '@reduxjs/toolkit/query/react';
 // eslint-disable-next-line import/no-unresolved
 import Cookies from 'js-cookie';
 
-import Constants from 'constants/index';
+import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 
 import utils from 'utils';
 
@@ -14,27 +14,33 @@ export const msTeamsPluginApi = createApi({
         baseUrl: utils.getBaseUrls().pluginApiBaseUrl,
         prepareHeaders: (headers) => {
             headers.set('X-CSRF-Token', Cookies.get('MMCSRF') ?? '');
-
             return headers;
         },
     }),
     endpoints: (builder) => ({
-        [Constants.pluginApiServiceConfigs.needsConnect.apiServiceName]: builder.query<NeedsConnectData, APIRequestPayload>({
+        [pluginApiServiceConfigs.needsConnect.apiServiceName]: builder.query<NeedsConnectData, APIRequestPayload>({
             query: () => ({
-                url: Constants.pluginApiServiceConfigs.needsConnect.path,
-                method: Constants.pluginApiServiceConfigs.needsConnect.method,
+                url: pluginApiServiceConfigs.needsConnect.path,
+                method: pluginApiServiceConfigs.needsConnect.method,
             }),
         }),
-        [Constants.pluginApiServiceConfigs.connect.apiServiceName]: builder.query<ConnectData, APIRequestPayload>({
+        [pluginApiServiceConfigs.connect.apiServiceName]: builder.query<ConnectData, APIRequestPayload>({
             query: () => ({
-                url: Constants.pluginApiServiceConfigs.connect.path,
-                method: Constants.pluginApiServiceConfigs.connect.method,
+                url: pluginApiServiceConfigs.connect.path,
+                method: pluginApiServiceConfigs.connect.method,
             }),
         }),
-        [Constants.pluginApiServiceConfigs.whitelistUser.apiServiceName]: builder.query<WhitelistUserResponse, APIRequestPayload>({
+        [pluginApiServiceConfigs.whitelistUser.apiServiceName]: builder.query<WhitelistUserResponse, APIRequestPayload>({
             query: () => ({
-                url: Constants.pluginApiServiceConfigs.whitelistUser.path,
-                method: Constants.pluginApiServiceConfigs.whitelistUser.method,
+                url: pluginApiServiceConfigs.whitelistUser.path,
+                method: pluginApiServiceConfigs.whitelistUser.method,
+            }),
+        }),
+        [pluginApiServiceConfigs.getLinkedChannels.apiServiceName]: builder.query<ChannelLinkData[], APIRequestPayload>({
+            query: (params) => ({
+                url: pluginApiServiceConfigs.getLinkedChannels.path,
+                method: pluginApiServiceConfigs.getLinkedChannels.method,
+                params: {...params},
             }),
         }),
     }),

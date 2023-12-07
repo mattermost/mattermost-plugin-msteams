@@ -9,4 +9,6 @@ const getBaseUrls = (): {pluginApiBaseUrl: string} => {
     return {pluginApiBaseUrl};
 };
 
-export default {getBaseUrls};
+const getIconUrl = (iconName: string): string => `/plugins/${pluginId}/public/${iconName}`;
+
+export default {getBaseUrls, getIconUrl};

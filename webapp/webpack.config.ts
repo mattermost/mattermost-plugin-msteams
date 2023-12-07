@@ -66,6 +66,19 @@ module.exports = {
                 use: 'ts-loader',
             },
             {
+                test: /\.svg$/,
+                issuer: /\.[jt]sx?$/,
+                use: [
+                    {
+                        loader: '@svgr/webpack',
+                        options: {
+                            icon: true,
+                        },
+                    },
+                    'url-loader',
+                ],
+            },
+            {
                 test: /\.(scss|css)$/,
                 use: [
                     'style-loader',

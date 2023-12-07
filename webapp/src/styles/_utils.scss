@@ -1,17 +1,132 @@
-// Display
+// display
 @each $display in $display-styles {
     .d-#{$display} {
         display: $display !important;
     }
 }
 
-// Gap
+// gap
 @each $size in $sizes {
     .gap-#{$size} {
-        gap: #{$size}px;
+        gap: #{$size}px !important;
     }
 }
 
-.items-center {
+// font-weights
+@each $font-weight in $font-weights {
+    .wt-#{$font-weight} {
+        font-weight: $font-weight !important;
+    }
+}
+
+// padding
+@each $size in $sizes {
+    .p-#{$size} {
+        padding: #{$size}px !important;
+    }
+}
+
+// margin
+@each $size in $sizes {
+    .m-#{$size} {
+        margin: #{$size}px !important;
+    }
+}
+
+// margin block
+@each $size in $sizes {
+    .my-#{$size} {
+        margin-block: #{$size}px !important;
+    }
+}
+
+// padding block
+@each $size in $sizes {
+    .py-#{$size} {
+        padding-block: #{$size}px !important;
+    }
+}
+
+// line height
+@each $line-height in $line-heights {
+    .lh-#{$line-height} {
+        line-height: #{$line-height}px !important;
+    }
+}
+
+// positions 
+@each $size in $sizes {
+    .top-#{$size} {
+        top: #{$size}px;
+    }
+
+    .right-#{$size} {
+        right: #{$size}px;
+    }
+
+    .bottom-#{$size} {
+        bottom: #{$size}px;
+    }
+}
+
+@each $position in $positions {
+    .#{$position} {
+        position: $position !important;
+    }
+}
+
+.mt-0 {
+    margin-top: 0;
+}
+
+.align-items-center {
     align-items: center;
+}
+
+.align-items-start {
+    align-items: flex-start;
+}
+
+.align-items-end {
+    align-items: flex-end;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-start {
+    justify-content: flex-start;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.flex-1 {
+    flex: 1
+}
+
+.flex-2 {
+    flex: 2
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.w-full {
+    width: 100%
+}
+
+.text-center {
+    text-align: center;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
 }
