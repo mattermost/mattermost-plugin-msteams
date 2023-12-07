@@ -6,6 +6,7 @@ export interface PluginRegistry {
     registerChannelHeaderButtonAction(icon: JSX.Element | null, action: () => void, dropdownText: string | null, tooltipText: string | null)
     registerAppBarComponent(iconUrl: string, action: () => void, tooltipText: string)
     registerReducer(reducer)
+    registerWebSocketEventHandler(event: string, handler: (msg: WebsocketEventParams) => void)
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }

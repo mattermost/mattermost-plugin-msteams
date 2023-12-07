@@ -1,10 +1,14 @@
-export const connectAccountMsg = 'Connect your Microsoft Teams account';
+const connectAccountMsg = 'Connect your Microsoft Teams account';
 
-export const listTitle = 'With your connected Microsoft Teams account, you will be able to:';
+const listTitle = 'With your connected Microsoft Teams account, you will be able to:';
 
-export const connectButtonText = 'Connect Account';
+const connectButtonText = 'Connect Account';
 
-export const connectAccountFeatures = [
+const connectAccountSuccessfulMsg = 'Your account is connected successfully';
+
+const connectAccountUnsuccessfulMsg = 'Account could not be connected.';
+
+const connectAccountFeatures = [
     {
         icon: 'user',
         text: 'Send and receive direct and group messages with your colleagues on Microsoft Teams',
@@ -14,3 +18,12 @@ export const connectAccountFeatures = [
         text: 'Send and receive messages in channels that are linked between the two platforms.',
     },
 ];
+
+export default {
+    connectAccountFeatures,
+    connectAccountMsg,
+    connectAccountSuccessfulMsg,
+    connectAccountUnsuccessfulMsg,
+    connectButtonText,
+    listTitle,
+};

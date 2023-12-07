@@ -3,6 +3,7 @@ type NeedsConnectData = {
     needsConnect: boolean;
     connected: boolean;
     username: string;
+    msteamsUserId: string;
 }
 
 type ConnectData = {
@@ -24,4 +25,9 @@ type ChannelLinkData = {
     mattermostChannelID: string,
     mattermostChannelName: string,
     mattermostChannelType: string,
+}
+
+type WebsocketEventParams = {
+    event: string,
+    data: Record<string, string>,
 }

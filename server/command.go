@@ -361,6 +361,12 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return &model.CommandResponse{}, nil
 	}
 
+	p.API.PublishWebSocketEvent(
+		"disconnect",
+		nil,
+		&model.WebsocketBroadcast{UserId: args.UserId},
+	)
+
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
 		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())

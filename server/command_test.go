@@ -416,8 +416,8 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Your account has been disconnected.")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-
-				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
+				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time").Once()
+				api.On("PublishWebSocketEvent", "disconnect", mock.AnythingOfType("map[string]interface {}"), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamsUserID(), nil).Times(1)

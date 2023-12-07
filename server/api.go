@@ -387,10 +387,11 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
-		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
-		"needsConnect": false,
-		"connected":    false,
-		"username":     "",
+		"canSkip":       a.p.getConfiguration().AllowSkipConnectUsers,
+		"needsConnect":  false,
+		"connected":     false,
+		"username":      "",
+		"msteamsUserId": "",
 	}
 
 	userID := r.Header.Get(HeaderMattermostUserID)
@@ -406,6 +407,7 @@ func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
 			a.p.API.LogError("Unable to get MS Teams user", "error", err.Error())
 		} else {
 			response["username"] = user.DisplayName
+			response["msteamsUserId"] = user.ID
 		}
 	}
 
@@ -779,6 +781,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.PublishWebSocketEvent(
+		"connect",
+		map[string]interface{}{
+			"username":      msteamsUser.DisplayName,
+			"msteamsUserId": msteamsUser.ID,
+		},
+		&model.WebsocketBroadcast{UserId: mmUserID},
+	)
 
 	w.Header().Add("Content-Type", "text/html")
 	connectionMessage := "Your account has been connected"

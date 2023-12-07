@@ -16,7 +16,13 @@ type ApiRequestCompletionState = {
 
 type ConnectedState = {
     connected: boolean;
+    isAlreadyConnected: boolean;
     username: string;
+    msteamsUserId: string;
+};
+
+type NeedsConnectState = {
+    needsConnect: boolean;
 };
 
 type SnackbarState = {

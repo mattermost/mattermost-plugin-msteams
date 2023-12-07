@@ -801,12 +801,13 @@ func TestNeedsConnect(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client) {
 				client.On("GetMe").Return(&clientmodels.User{
 					DisplayName: "mockUser",
+					ID:          "mockUserID",
 				}, nil)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetMe", "true", mock.AnythingOfType("float64")).Once()
 			},
-			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false,\"username\":\"mockUser\"}",
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"msteamsUserId\":\"mockUserID\",\"needsConnect\":false,\"username\":\"mockUser\"}",
 		},
 		{
 			Name: "NeedsConnect: EnforceConnectedUsers is false and user is connected but unable to get the user",
@@ -822,7 +823,7 @@ func TestNeedsConnect(t *testing.T) {
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.GetMe", "false", mock.AnythingOfType("float64")).Once()
 			},
-			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"needsConnect\":false,\"username\":\"\"}",
+			ExpectedResult: "{\"canSkip\":false,\"connected\":true,\"msteamsUserId\":\"\",\"needsConnect\":false,\"username\":\"\"}",
 		},
 		{
 			Name: "NeedsConnect: Unable to get the client",
@@ -835,7 +836,7 @@ func TestNeedsConnect(t *testing.T) {
 			SetupClient:           func(client *clientmocks.Client) {},
 			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
-			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true,\"username\":\"\"}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"msteamsUserId\":\"\",\"needsConnect\":true,\"username\":\"\"}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
@@ -854,7 +855,7 @@ func TestNeedsConnect(t *testing.T) {
 			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":false,\"username\":\"\"}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"msteamsUserId\":\"\",\"needsConnect\":false,\"username\":\"\"}",
 		},
 		{
 			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
@@ -873,7 +874,7 @@ func TestNeedsConnect(t *testing.T) {
 			SetupMetrics:          func(metrics *metricsmocks.Metrics) {},
 			EnforceConnectedUsers: true,
 			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"needsConnect\":true,\"username\":\"\"}",
+			ExpectedResult:        "{\"canSkip\":false,\"connected\":false,\"msteamsUserId\":\"\",\"needsConnect\":true,\"username\":\"\"}",
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {

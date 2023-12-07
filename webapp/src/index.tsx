@@ -17,6 +17,8 @@ import {pluginTitle} from 'constants/common.constants';
 
 import {iconUrl} from 'constants/illustrations.constants';
 
+import {handleConnect, handleDisconnect} from 'websocket';
+
 import manifest from './manifest';
 
 // eslint-disable-next-line import/no-unresolved
@@ -48,6 +50,9 @@ export default class Plugin {
         if (registry.registerAppBarComponent) {
             registry.registerAppBarComponent(iconUrl, () => store.dispatch(toggleRHSPlugin), pluginTitle);
         }
+
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_connect`, handleConnect(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_disconnect`, handleDisconnect(store));
     }
 }
 

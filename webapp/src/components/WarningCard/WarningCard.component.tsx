@@ -3,7 +3,7 @@ import React from 'react';
 import {Button} from '@brightscout/mattermost-ui-library';
 
 import {Icon} from 'components/Icon';
-import {connectButtonText} from 'constants/connectAccount.constants';
+import Constants from 'constants/connectAccount.constants';
 
 import {WarningCardProps} from './WarningCard.types';
 
@@ -31,7 +31,7 @@ export const WarningCard = ({onConnect}: WarningCardProps) => {
                         <Button
                             onClick={onConnect}
                         >
-                            {connectButtonText}
+                            {Constants.connectButtonText}
                         </Button>
                     </div>
                 </div>

@@ -34,7 +34,7 @@ const App = (): JSX.Element => {
         serviceName: pluginApiServiceConfigs.needsConnect.apiServiceName,
         handleSuccess: () => {
             const data = needsConnectData as NeedsConnectData;
-            dispatch(setConnected({connected: data.connected, username: data.username}));
+            dispatch(setConnected({connected: data.connected, username: data.username, msteamsUserId: data.msteamsUserId, isAlreadyConnected: data.connected}));
         },
     });
 
