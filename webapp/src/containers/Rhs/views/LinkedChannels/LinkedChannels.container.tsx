@@ -56,7 +56,6 @@ export const LinkedChannels = () => {
         <div className='msteams-sync-rhs flex-1 d-flex flex-column'>
             <div className='p-20 d-flex flex-column gap-20'>
                 <WarningCard
-                    onClose={() => setIsOpen(false)}
                     onConnect={connectAccount}
                 />
             </div>

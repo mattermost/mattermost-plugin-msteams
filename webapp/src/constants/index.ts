@@ -11,4 +11,5 @@ export default {
     pluginApiServiceConfigs,
     connectAccountMsg,
     channelListTitle,
+    noMoreChannelsText,
 };
