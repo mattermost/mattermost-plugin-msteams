@@ -152,6 +152,10 @@
     width: 100%
 }
 
+.h-full {
+    height: 100%;
+}
+
 .text-center {
     text-align: center;
 }
@@ -164,6 +168,12 @@
     border-top-width: 1px;
     border-top-style: solid;
     border-top-color: rgba(var(--center-channel-color-rgb), 0.12);
+}
+
+.border-y-1 {
+    border-block-width: 1px;
+    border-block-style: solid;
+    border-block-color: rgba(var(--center-channel-color-rgb), 0.12);
 }
 
 .opacity-6 {

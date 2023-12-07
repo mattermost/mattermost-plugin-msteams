@@ -1054,10 +1054,10 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@brightscout/mattermost-ui-library@2.3.1":
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/@brightscout/mattermost-ui-library/-/mattermost-ui-library-2.3.1.tgz#bc9a74cff56ffa4f605661aaeb9c9e3689d75952"
-  integrity sha512-bJEKQ995tUaaQUZ2ozDmLm+twHGyPOKFzm7mA/sFT8ZS0sWlAbagEXDuDM6GriUPKqmYiQjSANMCXz9Eq0YEJw==
+"@brightscout/mattermost-ui-library@2.3.2":
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/@brightscout/mattermost-ui-library/-/mattermost-ui-library-2.3.2.tgz#436a18833e2ab1d2a1c780ec618a0ab5abfd68b6"
+  integrity sha512-BImjVyGkomWc07SXPF3yQNLEyGrBU+1Zebq/YPlwBgk0d9gZTKXRiIsl39YOh35QcOBSCJxUmL5XHLWvIeaRXw==
 
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"

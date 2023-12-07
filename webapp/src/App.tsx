@@ -9,6 +9,7 @@ import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
 import {setConnected} from 'reducers/connectedState';
 import {defaultPage, defaultPerPage} from 'constants/common.constants';
+import {setIsRhsLoading} from 'reducers/spinner';
 
 import 'styles/main.scss';
 
@@ -28,7 +29,11 @@ const App = (): JSX.Element => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
     }, []);
 
-    const {data: needsConnectData} = getApiState(pluginApiServiceConfigs.needsConnect.apiServiceName);
+    const {data: needsConnectData, isLoading} = getApiState(pluginApiServiceConfigs.needsConnect.apiServiceName);
+
+    useEffect(() => {
+        dispatch(setIsRhsLoading(isLoading));
+    }, [isLoading]);
 
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.needsConnect.apiServiceName,

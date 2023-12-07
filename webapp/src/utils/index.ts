@@ -11,4 +11,9 @@ const getBaseUrls = (): {pluginApiBaseUrl: string} => {
 
 const getIconUrl = (iconName: string): string => `/plugins/${pluginId}/public/${iconName}`;
 
-export default {getBaseUrls, getIconUrl};
+// Takes a userId and generates a link to that user's profile image
+const getAvatarUrl = (userId: string): string => {
+    return `${getBaseUrls().pluginApiBaseUrl}/avatar/${userId}`;
+};
+
+export default {getBaseUrls, getIconUrl, getAvatarUrl};

@@ -1,8 +1,6 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback} from 'react';
 
 import {Button} from '@brightscout/mattermost-ui-library';
-
-import {useDispatch} from 'react-redux';
 
 import Constants from 'constants/connectAccount.constants';
 import {Icon, IconName} from 'components';
@@ -10,17 +8,14 @@ import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 import useAlert from 'hooks/useAlert';
-import {getConnectedState} from 'selectors';
-import {setConnected} from 'reducers/connectedState';
 
 export const ConnectAccount = () => {
     const showAlert = useAlert();
-    const {makeApiRequestWithCompletionStatus, state, getApiState} = usePluginApi();
+    const {makeApiRequestWithCompletionStatus} = usePluginApi();
+
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
-    const {connected, isAlreadyConnected, msteamsUserId, username} = getConnectedState(state);
-    const dispatch = useDispatch();
 
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.connect.apiServiceName,
@@ -28,13 +23,6 @@ export const ConnectAccount = () => {
             showAlert({message: Constants.connectAccountUnsuccessfulMsg, severity: 'error'});
         },
     });
-
-    useEffect(() => {
-        if (connected && !isAlreadyConnected) {
-            showAlert({message: Constants.connectAccountSuccessfulMsg});
-            dispatch(setConnected({connected, msteamsUserId, username, isAlreadyConnected: true}));
-        }
-    }, [connected, isAlreadyConnected]);
 
     return (
         <div className='p-24 d-flex flex-column overflow-y-auto'>
