@@ -39,7 +39,7 @@ export const Rhs = () => {
             {
                 presentInWhitelist ?
                     getRhsView() :
-            <>{'MS Teams Sync plugin'}</>
+                    <>{'MS Teams Sync plugin'}</>
             }
             <Snackbar/>
         </>

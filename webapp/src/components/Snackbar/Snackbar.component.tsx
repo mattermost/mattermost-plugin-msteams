@@ -5,7 +5,6 @@ import {Button} from '@brightscout/mattermost-ui-library';
 
 import {Icon} from 'components/Icon';
 
-import './Snackbar.styles.scss';
 import {getSnackbarState} from 'selectors';
 
 import usePluginApi from 'hooks/usePluginApi';
@@ -13,6 +12,7 @@ import {closeAlert} from 'reducers/snackbar';
 import {alertTimeout} from 'constants/common.constants';
 
 import {SnackbarColor} from './Snackbar.types';
+import './Snackbar.styles.scss';
 
 export const Snackbar = () => {
     const dispatch = useDispatch();
