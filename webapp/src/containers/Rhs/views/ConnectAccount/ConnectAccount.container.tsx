@@ -11,7 +11,7 @@ import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 import useAlert from 'hooks/useAlert';
 import {getConnectedState} from 'selectors';
-import { setConnected } from 'reducers/connectedState';
+import {setConnected} from 'reducers/connectedState';
 
 export const ConnectAccount = () => {
     const showAlert = useAlert();
@@ -20,7 +20,7 @@ export const ConnectAccount = () => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);
     }, []);
     const {connected, isAlreadyConnected, msteamsUserId, username} = getConnectedState(state);
-    const dispatch = useDispatch()
+    const dispatch = useDispatch();
 
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.connect.apiServiceName,
