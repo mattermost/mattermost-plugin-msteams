@@ -3,7 +3,7 @@ import React, {useCallback} from 'react';
 import {Button} from '@brightscout/mattermost-ui-library';
 
 import {connectAccountFeatures, connectAccountMsg, connectButtonText, listTitle} from 'constants/connectAccount.constants';
-import {Icon, IconName, WarningCard} from 'components';
+import {Icon, IconName} from 'components';
 import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 

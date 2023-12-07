@@ -26,6 +26,13 @@
     }
 }
 
+// border radius
+@each $size in $sizes {
+    .rounded-#{$size} {
+        border-radius: #{$size}px !important;
+    }
+}
+
 // padding
 @each $size in $sizes {
     .p-#{$size} {
@@ -80,6 +87,10 @@
 
     .bottom-#{$size} {
         bottom: #{$size}px;
+    }
+
+    .left-#{$size} {
+        left: #{$size}px;
     }
 }
 
@@ -157,4 +168,40 @@
 
 .opacity-6 {
     opacity: 0.6;
+}
+
+.text-white {
+    color: var(--button-color)
+}
+
+.icon-white {
+    & path, & rect, & circle {
+        fill: var(--button-color),
+    }
+}
+
+.icon-16 {
+    height: 16px;
+    width: 16px;
+
+    svg  {
+        height: 16px;
+        width: 16px;
+    }
+}
+
+.elevation-2 {
+    box-shadow: var(--elevation-2);
+}
+
+.bg-success {
+    background-color: var(--online-indicator);
+}
+
+.bg-default {
+    background-color: var(--center-channel-color);
+}
+
+.bg-error {
+    background-color: var(--error-text);
 }
