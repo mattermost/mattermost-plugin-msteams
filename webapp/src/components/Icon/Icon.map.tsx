@@ -17,7 +17,6 @@ export const IconMap : Record<IconName, JSX.Element> = {
                 fillOpacity='0.56'
             />
         </svg>
-
     ),
     message: (
         <svg
@@ -33,7 +32,6 @@ export const IconMap : Record<IconName, JSX.Element> = {
                 fillOpacity='0.56'
             />
         </svg>
-
     ),
     connectAccount: (
         <svg

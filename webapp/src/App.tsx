@@ -4,12 +4,13 @@ import {useDispatch} from 'react-redux';
 import usePluginApi from 'hooks/usePluginApi';
 
 //global styles
-import 'styles/main.scss';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 
 import {setConnected} from 'reducers/connectedState';
 import {defaultPage, defaultPerPage} from 'constants/common.constants';
+
+import 'styles/main.scss';
 
 /**
  * This is main App component for plugin

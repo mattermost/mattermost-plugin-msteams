@@ -18,10 +18,10 @@ type ChannelLinkData = {
     msTeamsTeamName: string,
     msTeamsChannelID: string,
     msTeamsChannelName: string,
+    msTeamsChannelType: string,
     mattermostTeamID: string,
     mattermostTeamName: string,
     mattermostChannelID: string,
     mattermostChannelName: string,
     mattermostChannelType: string,
-    msTeamsChannelType: string,
 }

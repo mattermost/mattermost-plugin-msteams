@@ -1,18 +1,18 @@
-// Display
+// display
 @each $display in $display-styles {
     .d-#{$display} {
         display: $display !important;
     }
 }
 
-// Gap
+// gap
 @each $size in $sizes {
     .gap-#{$size} {
         gap: #{$size}px !important;
     }
 }
 
-// Font-weights
+// font-weights
 @each $font-weight in $font-weights {
     .wt-#{$font-weight} {
         font-weight: $font-weight !important;
@@ -47,14 +47,14 @@
     }
 }
 
-// Line height
+// line height
 @each $line-height in $line-heights {
     .lh-#{$line-height} {
         line-height: #{$line-height}px !important;
     }
 }
 
-// Positions 
+// positions 
 @each $size in $sizes {
     .top-#{$size} {
         top: #{$size}px;
@@ -74,7 +74,6 @@
         position: $position !important;
     }
 }
-
 
 .mt-0 {
     margin-top: 0;
@@ -104,7 +103,7 @@
     justify-content: flex-end;
 }
 
-.justify-between{
+.justify-between {
     justify-content: space-between;
 }
 

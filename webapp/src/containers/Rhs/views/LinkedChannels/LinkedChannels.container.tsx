@@ -5,8 +5,8 @@ import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 
 export const LinkedChannels = () => {
+    // TODO: Add Linked channel list
     const {makeApiRequestWithCompletionStatus} = usePluginApi();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);
@@ -14,12 +14,9 @@ export const LinkedChannels = () => {
 
     return (
         <div className='p-20 d-flex flex-column overflow-y-auto'>
-            {isOpen && (
-                <WarningCard
-                    onClose={() => setIsOpen(false)}
-                    onConnect={connectAccount}
-                />
-            )}
+            <WarningCard
+                onConnect={connectAccount}
+            />
         </div>
     );
 };

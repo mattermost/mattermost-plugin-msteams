@@ -14,4 +14,3 @@ export const Icon = ({iconName, height, width, className}: IconProps) => (
         {IconMap[iconName]}
     </span>
 );
-

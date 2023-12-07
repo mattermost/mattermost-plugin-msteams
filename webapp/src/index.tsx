@@ -39,7 +39,11 @@ export default class Plugin {
 
         // TODO: update icons later
         registry.registerChannelHeaderButtonAction(
-            null, () => store.dispatch(toggleRHSPlugin), null, pluginTitle);
+            <img
+                width={24}
+                height={24}
+                src={iconUrl}
+            />, () => store.dispatch(toggleRHSPlugin), null, pluginTitle);
 
         if (registry.registerAppBarComponent) {
             registry.registerAppBarComponent(iconUrl, () => store.dispatch(toggleRHSPlugin), pluginTitle);
