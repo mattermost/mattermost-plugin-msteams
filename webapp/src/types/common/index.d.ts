@@ -6,3 +6,7 @@ type NeedsConnectData = {
 type ConnectData = {
     connectUrl: string;
 }
+
+type WhitelistUserResponse= {
+    presentInWhitelist: boolean
+}

@@ -1,5 +1,7 @@
 import {useSelector, useDispatch} from 'react-redux';
 
+import {ReduxState} from 'types/common/store.d';
+
 import {setApiRequestCompletionState} from 'reducers/apiRequest';
 import {msTeamsPluginApi} from 'services';
 

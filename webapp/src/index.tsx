@@ -12,23 +12,27 @@ import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModa
 import MSTeamsAppManifestSetting from 'components/appManifestSetting';
 import ListConnectedUsers from 'components/getConnectedUsersSetting';
 
+import {RhsTitle} from 'components';
+
 import manifest from './manifest';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
+import App from './App';
 
 export default class Plugin {
     enforceConnectedAccountId = '';
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         registry.registerReducer(reducer);
+        registry.registerRootComponent(App);
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
-        const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, Constants.pluginTitle);
+        const {_, toggleRHSPlugin} = registry.registerRightHandSidebarComponent(Rhs, <RhsTitle/>);
 
         // TODO: update icons later
         registry.registerChannelHeaderButtonAction(
@@ -37,6 +41,7 @@ export default class Plugin {
                 height={24}
                 src={Constants.iconUrl}
             />, () => store.dispatch(toggleRHSPlugin), null, Constants.pluginTitle);
+
         if (registry.registerAppBarComponent) {
             registry.registerAppBarComponent(Constants.iconUrl, () => store.dispatch(toggleRHSPlugin), Constants.pluginTitle);
         }

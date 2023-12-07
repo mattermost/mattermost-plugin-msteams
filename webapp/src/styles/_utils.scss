@@ -1,0 +1,17 @@
+// Display
+@each $display in $display-styles {
+    .d-#{$display} {
+        display: $display !important;
+    }
+}
+
+// Gap
+@each $size in $sizes {
+    .gap-#{$size} {
+        gap: #{$size}px;
+    }
+}
+
+.items-center {
+    align-items: center;
+}
