@@ -10,7 +10,7 @@ import {closeDialog} from 'reducers/dialog';
 export const Dialog = ({onCloseHandler, onSubmitHandler}: Pick<DialogProps, 'onCloseHandler' | 'onSubmitHandler'>) => {
     const dispatch = useDispatch();
     const {state} = usePluginApi();
-    const {show, title, description, destructive, primaryButtonText, isLoading} = getDialogState(state);
+    const {show, title, description, destructive, primaryButtonText, secondaryButtonText, isLoading} = getDialogState(state);
 
     const handleClose = () => dispatch(closeDialog());
 
@@ -20,6 +20,7 @@ export const Dialog = ({onCloseHandler, onSubmitHandler}: Pick<DialogProps, 'onC
             destructive={destructive}
             show={show}
             primaryButtonText={primaryButtonText}
+            secondaryButtonText={secondaryButtonText}
             onCloseHandler={() => {
                 handleClose();
                 onCloseHandler();

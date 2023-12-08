@@ -433,4 +433,18 @@ export const IconMap : Record<IconName, JSX.Element> = {
             </defs>
         </svg>
     ),
+    tick: (
+        <svg
+            width='16'
+            height='16'
+            viewBox='0 0 16 16'
+            fill='none'
+            xmlns='http://www.w3.org/2000/svg'
+        >
+            <path
+                d='M14.75 4.25605L5.75 13.256L1.628 9.11605L2.69 8.07205L5.75 11.132L13.688 3.19405L14.75 4.25605Z'
+                fill='white'
+            />
+        </svg>
+    ),
 };

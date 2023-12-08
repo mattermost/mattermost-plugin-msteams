@@ -7,6 +7,7 @@ const initialState: DialogState = {
     destructive: false,
     show: false,
     primaryButtonText: '',
+    secondaryButtonText: '',
     isLoading: false,
     title: '',
 };
@@ -21,6 +22,7 @@ export const dialogSlice = createSlice({
             state.destructive = payload.destructive;
             state.isLoading = payload.isLoading;
             state.primaryButtonText = payload.primaryButtonText;
+            state.secondaryButtonText = payload.secondaryButtonText;
             state.title = payload.title;
         },
         closeDialog: (state) => {
