@@ -252,7 +252,7 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	return client
 }
 
-func RefreshToken(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) (*oauth2.Token, error) {
+func RefreshToken(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token) (*oauth2.Token, error) {
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -263,8 +263,7 @@ func RefreshToken(redirectURL, tenantID, clientID, clientSecret string, token *o
 		},
 		RedirectURL: redirectURL,
 	}
-	ts := conf.TokenSource(context.Background(), token)
-	return ts.Token()
+	return conf.TokenSource(context.Background(), token).Token()
 }
 
 func (tc *ClientImpl) Connect() error {

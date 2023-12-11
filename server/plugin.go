@@ -144,7 +144,8 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	}
 
 	if token.Expiry.Before(time.Now()) {
-		token, err := msteams.RefreshToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+		var err error
+		token, err = msteams.RefreshToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +169,8 @@ func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, erro
 	}
 
 	if token.Expiry.Before(time.Now()) {
-		token, err := msteams.RefreshToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+		var err error
+		token, err = msteams.RefreshToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token)
 		if err != nil {
 			return nil, err
 		}
