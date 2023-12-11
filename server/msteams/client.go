@@ -252,6 +252,21 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	return client
 }
 
+func RefreshToken(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) (*oauth2.Token, error) {
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+		},
+		RedirectURL: redirectURL,
+	}
+	ts := conf.TokenSource(context.Background(), token)
+	return ts.Token()
+}
+
 func (tc *ClientImpl) Connect() error {
 	var cred azcore.TokenCredential
 	switch tc.clientType {
