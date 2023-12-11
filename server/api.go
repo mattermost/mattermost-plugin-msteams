@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/constants"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -673,12 +674,18 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 	}
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
-	if primaryPlatform != "mattermost" && primaryPlatform != "msteams" {
+	if primaryPlatform != constants.PREFERENCE_VALUE_PLATFORM_MM && primaryPlatform != constants.PREFERENCE_VALUE_PLATFORM_MSTEAMS {
 		a.p.API.LogError("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 	}
 
-	// TODO: Complete the API to choose the primary platform.
+	a.p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+		UserId:   userID,
+		Category: getPreferenceCategoryName(),
+		Name:     constants.PREFERENCE_NAME_PLATFORM,
+		Value:    primaryPlatform,
+	}})
+
 	w.WriteHeader(http.StatusOK)
 }
 
