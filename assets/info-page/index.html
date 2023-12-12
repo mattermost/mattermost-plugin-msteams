@@ -4,26 +4,26 @@
     <link href="https://fonts.cdnfonts.com/css/metropolis-2" rel="stylesheet">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <script>
-      var mattermostPrimaryPlatform = 'mattermost';
-      var msteamsPrimaryPlatform = 'msteams';
-      var mmSelectIconClass = 'select-icon__mm';
-      var msteamsSelectIconClass = 'select-icon__msteams';
-      var mmCardBody = 'mm-card__body';
-      var msteamsCardBody = 'msteams-card__body';
-      var mmCardHeading = 'mm-card__heading';
-      var msteamsCardHeading = 'msteams-card__heading';
-      var selectButtonClass = 'selection-button';
-      var choosenPlatform = '';
+      const mattermostPrimaryPlatform = 'mattermost';
+      const msteamsPrimaryPlatform = 'msteams';
+      const mmSelectIconClass = 'select-icon__mm';
+      const msteamsSelectIconClass = 'select-icon__msteams';
+      const mmCardBody = 'mm-card__body';
+      const msteamsCardBody = 'msteams-card__body';
+      const mmCardHeading = 'mm-card__heading';
+      const msteamsCardHeading = 'msteams-card__heading';
+      const selectButtonClass = 'selection-button';
+      let choosenPlatform = '';
 
-      function closeInfoPage() {
+      closeInfoPage = () => {
         window.close();
       }
 
-      function selectPrimaryPlatform(platform) {
-        document.getElementById(selectButtonClass).style.cursor = 'pointer';
+      selectPrimaryPlatform = (platform) => {
+        document.getElementById(selectButtonClass).style.backgroundColor = '#1C58D9';
         choosenPlatform = platform;
         const mediaQuery = window.matchMedia('(min-width: 550px)');
-          if (platform == mattermostPrimaryPlatform) {
+          if (platform === mattermostPrimaryPlatform) {
             document.getElementById(mmSelectIconClass).classList.remove('d-none');
             document.getElementById(msteamsSelectIconClass).classList.add('d-none');
             document.getElementById(msteamsPrimaryPlatform).classList.add('color-none');
@@ -48,7 +48,7 @@
           }
       }
 
-      function choosePrimaryPlatform() {
+      choosePrimaryPlatform = () => {
         if (!choosenPlatform) {
           return;
         }
@@ -255,13 +255,12 @@
       .msteams-sync-body .selection-button {
         text-align: center;
         margin: 40px 0;
-        cursor: not-allowed;
+        background-color: #3f435052;
       }
 
       .msteams-sync-body .selection-button__text {
         display: flex;
         gap: 10px;
-        background-color: #1C58D9;
         border-radius: 4px;
         color: white;
         padding: 15px 32px;
