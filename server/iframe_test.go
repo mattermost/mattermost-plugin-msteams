@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
@@ -34,7 +35,7 @@ func newIFrameTestPlugin(t *testing.T) *Plugin {
 
 func TestIFrame(t *testing.T) {
 	plugin := newIFrameTestPlugin(t)
-
+	plugin.API.(*plugintest.API).On("GetBundlePath").Return(mock.Anything, nil).Once()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/iframe/mattermostTab", nil)
 
@@ -58,7 +59,7 @@ func TestIFrame(t *testing.T) {
 
 func TestIFrameManifest(t *testing.T) {
 	plugin := newIFrameTestPlugin(t)
-
+	plugin.API.(*plugintest.API).On("GetBundlePath").Return(mock.Anything, nil).Once()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/iframe-manifest", nil)
 
