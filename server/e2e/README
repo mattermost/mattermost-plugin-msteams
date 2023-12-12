@@ -1,0 +1,6 @@
+E2E Configuration
+-----------------
+
+To configure your end to end tests you have to copy the `e2e/testconfig.sample.json` file to `e2e/testconfig.json` and change the values to your needs.
+
+After that you can execute the `make e2e` command to run the end to end tests.

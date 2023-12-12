@@ -20,8 +20,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -36,6 +36,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/oauth2"
+)
+
+const (
+	subscriptionExpirationTime = 2 * time.Hour
 )
 
 type ConcurrentGraphRequestAdapter struct {
@@ -172,6 +176,38 @@ func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogSe
 		clientSecret: clientSecret,
 		logService:   logService,
 	}
+}
+
+func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService) Client {
+	c := &ClientImpl{
+		ctx:        context.Background(),
+		clientType: "token",
+		tenantID:   tenantID,
+		clientID:   clientID,
+		logService: logService,
+		client:     nil,
+	}
+
+	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
+		TenantID: tenantID,
+		ClientID: clientID,
+		UserPrompt: func(ctx context.Context, message azidentity.DeviceCodeMessage) error {
+			fmt.Println(message.Message)
+			return nil
+		},
+	})
+	if err != nil {
+		fmt.Printf("Error creating credentials: %v\n", err)
+		return nil
+	}
+
+	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	if err != nil {
+		fmt.Printf("Error creating client: %v\n", err)
+		return nil
+	}
+	c.client = client
+	return c
 }
 
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
@@ -752,7 +788,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 }
 
 func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType, certificate string) (*clientmodels.Subscription, error) {
-	expirationDateTime := time.Now().Add(30 * time.Minute)
+	expirationDateTime := time.Now().Add(subscriptionExpirationTime)
 
 	lifecycleNotificationURL := baseURL + "lifecycle"
 	notificationURL := baseURL + "changes"
@@ -825,7 +861,7 @@ func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string
 }
 
 func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, error) {
-	expirationDateTime := time.Now().Add(30 * time.Minute)
+	expirationDateTime := time.Now().Add(subscriptionExpirationTime)
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
@@ -1805,6 +1841,9 @@ func (tc *ClientImpl) ListUsers() ([]clientmodels.User, error) {
 	users := []clientmodels.User{}
 	err = pageIterator.Iterate(context.Background(), func(u models.Userable) bool {
 		user := clientmodels.User{}
+		if u.GetUserPrincipalName() != nil {
+			user.UserPrincipalName = strings.ToLower(*u.GetUserPrincipalName())
+		}
 		if u.GetDisplayName() != nil {
 			user.DisplayName = *u.GetDisplayName()
 		}
@@ -1908,6 +1947,85 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return channels, nil
+}
+
+func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
+	requestParameters := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+	}
+	configuration := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	requestInfo, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().Delta().ToGetRequestInformation(context.Background(), configuration)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	requestURI, err := requestInfo.GetUri()
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	requestURI.RawQuery += "&%24expand=replies"
+	requestInfo.SetUri(*requestURI)
+
+	errorMapping := abstractions.ErrorMappings{
+		"4XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
+		"5XX": odataerrors.CreateODataErrorFromDiscriminatorValue,
+	}
+	res, err := tc.client.GetAdapter().Send(context.Background(), requestInfo, teams.CreateItemChannelsItemMessagesDeltaGetResponseFromDiscriminatorValue, errorMapping)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](res, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	messages := []*clientmodels.Message{}
+	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
+		message := convertToMessage(m, teamID, channelID, "")
+		messages = append(messages, message)
+		for _, r := range m.GetReplies() {
+			message := convertToMessage(r, teamID, channelID, "")
+			messages = append(messages, message)
+		}
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	return messages, nil
+}
+
+func (tc *ClientImpl) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
+	requestParameters := &chats.ItemMessagesRequestBuilderGetQueryParameters{
+		Filter: &filterQuery,
+	}
+	configuration := &chats.ItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParameters,
+	}
+	res, err := tc.client.Chats().ByChatId(chatID).Messages().Get(context.Background(), configuration)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](res, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	messages := []*clientmodels.Message{}
+	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
+		message := convertToMessage(m, "", "", chatID)
+		messages = append(messages, message)
+		return true
+	})
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+	return messages, nil
 }
 
 func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.BatchRequest, getMessageRequestItem msgraphcore.BatchItem) (*clientmodels.Message, error) {

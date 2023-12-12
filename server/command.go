@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi/experimental/command"
 )
 
 const msteamsCommand = "msteams-sync"
@@ -333,13 +333,18 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
-	recovery.Go("send_links_with_details", p.API.LogError, func() {
-		p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
-	})
+	go p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
 	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false

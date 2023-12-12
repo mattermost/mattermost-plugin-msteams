@@ -13,25 +13,25 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gosimple/slug"
-	pluginapi "github.com/mattermost/mattermost-plugin-api"
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -87,6 +87,10 @@ type Plugin struct {
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	api := NewAPI(p, p.store)
 	api.ServeHTTP(w, r)
+}
+
+func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	p.metricsServer.Handler.ServeHTTP(w, r)
 }
 
 func (p *Plugin) GetAPI() plugin.API {
@@ -209,6 +213,9 @@ func (p *Plugin) start(syncSince *time.Time) {
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
 
+		// Start syncing the users on plugin start. The below job just schedules the job to run at a given interval of time but does not run it while scheduling. To avoid this, we call the function once separately to sync the users.
+		p.syncUsers()
+
 		job, jobErr := cluster.Schedule(
 			p.API,
 			syncUsersJobName,
@@ -273,11 +280,6 @@ func (p *Plugin) stop() {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
-	if p.metricsServer != nil {
-		if err := p.metricsServer.Shutdown(); err != nil {
-			p.API.LogWarn("Error shutting down metrics server", "error", err)
-		}
-	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
@@ -338,6 +340,7 @@ func (p *Plugin) OnActivate() error {
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 	})
+	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
 	data, appErr := p.API.KVGet(lastReceivedChangeKey)
 	if appErr != nil {
@@ -408,24 +411,42 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 
-	recovery.Go("prefill_whitelist", p.API.LogError, func() {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.GetMetrics().ObserveGoroutineFailure()
+				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
 			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
 		}
-	})
+	}()
 
 	go p.start(lastRecivedChange)
 	return nil
 }
 
 func (p *Plugin) OnDeactivate() error {
+	if err := p.metricsServer.Shutdown(); err != nil {
+		p.API.LogWarn("Error shutting down metrics server", "error", err)
+	}
+
 	p.stop()
 	return nil
 }
 
 func (p *Plugin) syncUsersPeriodically() {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
 			p.API.LogDebug("Failed to set sync users job running status to false.")
@@ -474,7 +495,8 @@ func (p *Plugin) syncUsers() {
 		mmUsersMap[u.Email] = u
 	}
 
-	syncGuestUsers := p.getConfiguration().SyncGuestUsers
+	configuration := p.getConfiguration()
+	syncGuestUsers := configuration.SyncGuestUsers
 	for _, msUser := range msUsers {
 		userSuffixID := 1
 		if msUser.Mail == "" {
@@ -483,6 +505,17 @@ func (p *Plugin) syncUsers() {
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
+		authData := ""
+		if configuration.AutomaticallyPromoteSyntheticUsers {
+			switch configuration.SyntheticUserAuthData {
+			case "ID":
+				authData = msUser.ID
+			case "Mail":
+				authData = msUser.Mail
+			case "UserPrincipalName":
+				authData = msUser.UserPrincipalName
+			}
+		}
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
@@ -510,6 +543,22 @@ func (p *Plugin) syncUsers() {
 
 					continue
 				}
+
+				user, err := p.API.GetUser(mmUser.Id)
+				if err != nil {
+					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "Error", err.Error())
+					continue
+				}
+
+				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
+					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
+					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+						AuthService: configuration.SyntheticUserAuthService,
+						AuthData:    &authData,
+					}); err != nil {
+						p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					}
+				}
 			}
 		}
 
@@ -535,12 +584,21 @@ func (p *Plugin) syncUsers() {
 			shortUserID := encoding.EncodeToString(userUUID)
 
 			newMMUser := &model.User{
-				Password:  p.GenerateRandomPassword(),
 				Email:     msUser.Mail,
 				RemoteId:  &shortUserID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
+
+			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID, "AuthService", configuration.SyntheticUserAuthService)
+				newMMUser.AuthService = configuration.SyntheticUserAuthService
+				newMMUser.AuthData = &authData
+			} else {
+				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID)
+				newMMUser.Password = p.GenerateRandomPassword()
+			}
+
 			newMMUser.SetDefaultNotifications()
 			newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
 
@@ -645,15 +703,20 @@ func isRemoteUser(user *model.User) bool {
 func (p *Plugin) runMetricsServer() {
 	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
 
-	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
-
 	// Run server to expose metrics
-	recovery.Go("metrics_server", p.API.LogError, func() {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.GetMetrics().ObserveGoroutineFailure()
+				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+
 		err := p.metricsServer.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			p.API.LogError("Metrics server could not be started", "error", err)
 		}
-	})
+	}()
 }
 
 func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {

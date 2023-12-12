@@ -16,8 +16,8 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
 
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
 func newIFrameTestPlugin(t *testing.T) *Plugin {

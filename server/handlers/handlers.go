@@ -9,19 +9,17 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var emojisReverseMap map[string]string
@@ -57,7 +55,7 @@ type ActivityHandler struct {
 	plugin               PluginIface
 	queue                chan msteams.Activity
 	quit                 chan bool
-	quitting             atomic.Bool
+	workersWaitGroup     sync.WaitGroup
 	IgnorePluginHooksMap sync.Map
 }
 
@@ -83,7 +81,7 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
-	ah.quitting.Store(false)
+	ah.quit = make(chan bool)
 
 	// This is constant for now, but report it as a metric to future proof dashboards.
 	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
@@ -102,25 +100,32 @@ func (ah *ActivityHandler) Start() {
 		}
 	}
 
+	// doQuit is called when the worker quits intentionally
+	doQuit := func() {
+		ah.workersWaitGroup.Done()
+	}
+
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
-		return ah.quitting.Load()
+		select {
+		case <-ah.quit:
+			return true
+		default:
+			return false
+		}
 	}
 
 	logError := ah.plugin.GetAPI().LogError
 
 	for i := 0; i < numberOfWorkers; i++ {
-		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
+		ah.workersWaitGroup.Add(1)
+		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart, doQuit)
 	}
 }
 
 func (ah *ActivityHandler) Stop() {
-	ah.quitting.Store(true)
-	go func() {
-		for i := 0; i < numberOfWorkers; i++ {
-			ah.quit <- true
-		}
-	}()
+	close(ah.quit)
+	ah.workersWaitGroup.Wait()
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
