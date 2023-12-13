@@ -212,12 +212,13 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
-		ctx:        context.Background(),
-		clientType: "token",
-		tenantID:   tenantID,
-		clientID:   clientID,
-		token:      token,
-		logService: logService,
+		ctx:          context.Background(),
+		clientType:   "token",
+		tenantID:     tenantID,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		token:        token,
+		logService:   logService,
 	}
 
 	conf := &oauth2.Config{
