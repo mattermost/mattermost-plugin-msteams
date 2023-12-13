@@ -428,6 +428,20 @@ func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Tim
 	return result, err
 }
 
+func (c *ClientTimerLayer) RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2.Token, error) {
+	start := time.Now()
+
+	result, err := c.Client.RefreshToken(redirectURL, token)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshToken", success, elapsed)
+	return result, err
+}
+
 func (c *ClientTimerLayer) SendChat(chatID string, message string, parentMessage *clientmodels.Message, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
 	start := time.Now()
 

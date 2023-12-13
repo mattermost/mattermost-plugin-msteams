@@ -252,14 +252,14 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	return client
 }
 
-func RefreshToken(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token) (*oauth2.Token, error) {
+func (tc *ClientImpl) RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2.Token, error) {
 	conf := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     tc.clientID,
+		ClientSecret: tc.clientSecret,
 		Scopes:       append(teamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
-			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tc.tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tc.tenantID),
 		},
 		RedirectURL: redirectURL,
 	}
