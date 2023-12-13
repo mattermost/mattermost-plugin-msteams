@@ -55,6 +55,7 @@ module.exports = {
             selectors: path.resolve(__dirname, './src/selectors/index.tsx'),
             services: path.resolve(__dirname, './src/services/index.ts'),
             utils: path.resolve(__dirname, './src/utils/index.ts'),
+            tests: path.resolve(__dirname, './src/tests'),
         },
         extensions: ['*', '.js', '.jsx', '.ts', '.tsx'],
     },

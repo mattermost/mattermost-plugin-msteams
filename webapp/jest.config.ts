@@ -54,6 +54,7 @@ const config: Config = {
         '^hooks/(.*)': '<rootDir>/src/hooks/$1',
         '^reducers/(.*)': '<rootDir>/src/reducers/$1',
         '^services': '<rootDir>/src/services/$1',
+        '^tests/(.*)': '<rootDir>/src/tests/$1',
     },
 
     // A preset that is used as a base for Jest's configuration

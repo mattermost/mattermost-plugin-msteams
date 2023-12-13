@@ -1,46 +1,89 @@
-export const mockTestState = {
+import {ReduxState} from 'types/common/store.d';
+
+export const mockTestState: Pick<ReduxState, 'plugins-com.mattermost.msteams-sync'> = {
     'plugins-com.mattermost.msteams-sync': {
+
         apiRequestCompletionSlice: {
-            requests: [],
+            requests: [
+                'whitelistUser',
+                'getLinkedChannels',
+            ],
         },
-        webSocketEventSlice: {
-            isExportZipCreated: {},
-            pollStatus: {},
-            isPostAdded: false,
+        connectedStateSlice: {
+            connected: true,
+            isAlreadyConnected: true,
+            username: 'John Doe',
+            msteamsUserId: 'mock_msteams_user_id',
         },
-        removeModalSlice: {
-            visibility: false,
-            args: [],
+        snackbarSlice: {
+            message: '',
+            severity: 'default',
+            isOpen: false,
         },
-        selectSearchPostsSlice: {
-            allSelected: false,
-            selectedIds: {},
-        },
-        selectExportPostsSlice: {
-            allSelected: false,
-            selectedIds: {},
-        },
-        selectPinnedPostsSlice: {
-            allSelected: false,
-            selectedIds: {},
-        },
-        errorDialogSlice: {
-            visibility: false,
-            title: '',
+        dialogSlice: {
             description: '',
+            destructive: false,
+            show: false,
+            primaryButtonText: '',
+            isLoading: false,
+            title: '',
         },
-        confirmationDialogSlice: {
-            visibility: false,
-        },
-        activeTabKeySlice: {
-            activeTabKey: 1,
-            isPollStarted: false,
+        rhsLoadingSlice: {
+            isRhsLoading: false,
         },
         msTeamsPluginApi: {
-            queries: {},
+            queries: {
+                'whitelistUser(undefined)': {
+                    status: 'fulfilled',
+                    endpointName: 'whitelistUser',
+                    requestId: 'mock_request_id',
+                    startedTimeStamp: 1702107980963,
+                    data: {
+                        presentInWhitelist: true,
+                    },
+                    fulfilledTimeStamp: 1702107981697,
+                },
+                'needsConnect(undefined)': {
+                    status: 'fulfilled',
+                    endpointName: 'needsConnect',
+                    requestId: 'mock_request_id',
+                    startedTimeStamp: 1702107980970,
+                    data: {
+                        canSkip: false,
+                        connected: true,
+                        msteamsUserId: 'mock_msteams_user_id',
+                        needsConnect: false,
+                        username: 'John Doe',
+                    },
+                    fulfilledTimeStamp: 1702107985184,
+                },
+                'getLinkedChannels({"page":0,"per_page":20})': {
+                    status: 'fulfilled',
+                    endpointName: 'getLinkedChannels',
+                    requestId: 'mock_request_id',
+                    originalArgs: {
+                        page: 0,
+                        per_page: 20,
+                    },
+                    startedTimeStamp: 1702107980968,
+                    data: [],
+                    fulfilledTimeStamp: 1702107981716,
+                },
+            },
             mutations: {},
             provided: {},
-            subscriptions: {},
+            subscriptions: {
+                'whitelistUser(undefined)': {
+                    '4S522qve32e23e2jH78ABYk_r8nGc': {},
+                },
+                'needsConnect(undefined)': {
+                    ghQe6Cf4HXIdPg23423a1D47SD: {},
+                    'cS3T_I323233r2F0VW4kEJclgd-IV': {},
+                },
+                'getLinkedChannels({"page":0,"per_page":20})': {
+                    GXmcNCITzra132134TGNGFtjD3: {},
+                },
+            },
             config: {
                 online: true,
                 focused: true,

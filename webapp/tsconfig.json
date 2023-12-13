@@ -29,7 +29,8 @@
       "reducers": ["./reducers"],
       "selectors": ["./selectors/index.tsx"],
       "services": ["./services/index.ts"],
-      "utils": ["./utils/index.ts"]
+      "utils": ["./utils/index.ts"],
+      "tests": ["./tests"]
     }
   },
   "include": [

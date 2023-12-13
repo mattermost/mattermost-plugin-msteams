@@ -5,13 +5,13 @@ import {RenderResult, render} from '@testing-library/react';
 
 import {mockDispatch} from 'tests/setup';
 
-import {ConnectAccount} from './ConnectAccount.container';
+import {LinkedChannels} from './LinkedChannels.container';
 
 let tree: RenderResult;
 
-describe('Connect Account View', () => {
+describe('Linked Channels View', () => {
     beforeEach(() => {
-        tree = render(<ConnectAccount/>);
+        tree = render(<LinkedChannels/>);
     });
 
     it('Should render correctly', () => {

@@ -16,3 +16,5 @@ jest.mock('react-redux', () => ({
 beforeAll(() => {
     mockState = mockTestState as unknown as ReduxState;
 });
+
+export {mockDispatch};
