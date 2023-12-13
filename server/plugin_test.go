@@ -290,14 +290,16 @@ func TestGetClientForTeamsUser(t *testing.T) {
 		{
 			Name: "GetClientForTeamsUser: Unable to get the token",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(nil, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Times(1)
 			},
 			ExpectedError: "not connected user",
 		},
 		{
 			Name: "GetClientForTeamsUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(&fakeToken, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 			},
 		},
 	} {
