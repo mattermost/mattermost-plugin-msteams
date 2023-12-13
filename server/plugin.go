@@ -158,16 +158,20 @@ func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
 	defer p.msteamsAppClientMutex.Unlock()
 
-	if p.msteamsAppClient == nil {
-		msteamsAppClient := msteams.NewApp(
-			p.getConfiguration().TenantID,
-			p.getConfiguration().ClientID,
-			p.getConfiguration().ClientSecret,
-			&p.apiClient.Log,
-		)
-
-		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
+	// We don't currently support reconnecting with a new configuration: a plugin restart is
+	// required.
+	if p.msteamsAppClient != nil {
+		return nil
 	}
+
+	msteamsAppClient := msteams.NewApp(
+		p.getConfiguration().TenantID,
+		p.getConfiguration().ClientID,
+		p.getConfiguration().ClientSecret,
+		&p.apiClient.Log,
+	)
+
+	p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
 		p.API.LogError("Unable to connect to the app client", "error", err)
@@ -176,7 +180,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) start() {
+func (p *Plugin) start(isRestart bool) {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
@@ -186,7 +190,10 @@ func (p *Plugin) start() {
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
 	}
 
-	p.activityHandler.Start()
+	// We don't restart the activity handler since it's stateless.
+	if !isRestart {
+		p.activityHandler.Start()
+	}
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
@@ -266,7 +273,7 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func (p *Plugin) stop() {
+func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
@@ -274,7 +281,9 @@ func (p *Plugin) stop() {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
 	}
-	if p.activityHandler != nil {
+
+	// We don't stop the activity handler on restart since it's stateless.
+	if !isRestart && p.activityHandler != nil {
 		p.activityHandler.Stop()
 	}
 
@@ -282,8 +291,8 @@ func (p *Plugin) stop() {
 }
 
 func (p *Plugin) restart() {
-	p.stop()
-	p.start()
+	p.stop(true)
+	p.start(true)
 }
 
 func (p *Plugin) generatePluginSecrets() error {
@@ -400,7 +409,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}()
 
-	go p.start()
+	go p.start(false)
 	return nil
 }
 
@@ -409,7 +418,7 @@ func (p *Plugin) OnDeactivate() error {
 		p.API.LogWarn("Error shutting down metrics server", "error", err)
 	}
 
-	p.stop()
+	p.stop(false)
 	return nil
 }
 
