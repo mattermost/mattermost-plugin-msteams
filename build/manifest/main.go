@@ -39,6 +39,9 @@ const manifest = JSON.parse(` + "`" + `
 ` + "`" + `);
 
 export default manifest;
+export const id = manifest.id;
+export const version = manifest.version;
+export const pluginId = manifest.id;
 `
 
 // These build-time vars are read from shell commands and populated in ../setup.mk
