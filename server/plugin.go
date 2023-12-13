@@ -147,7 +147,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	timerClient := client_timerlayer.New(client, p.GetMetrics())
 
 	if token.Expiry.Before(time.Now()) {
-		token, err := timerClient.RefreshToken(p.GetURL()+"/oauth-redirect", token)
+		newToken, err := timerClient.RefreshToken(p.GetURL()+"/oauth-redirect", token)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +155,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.store.SetUserInfo(userID, teamsUserID, token); err != nil {
+		if err := p.store.SetUserInfo(userID, teamsUserID, newToken); err != nil {
 			return nil, err
 		}
 	}
