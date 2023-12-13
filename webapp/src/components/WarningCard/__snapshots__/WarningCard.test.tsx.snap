@@ -1,0 +1,158 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Warning Card component Should render correctly 1`] = `
+{
+  "asFragment": [Function],
+  "baseElement": <body>
+    <div>
+      <div
+        class="rhs-connect p-16"
+        style="border-radius: 4px; background: rgb(251, 240, 240); border: 1px solid #f7434329;"
+      >
+        <div
+          class="d-flex gap-12"
+        >
+          <span
+            style="line-height: 0;"
+          >
+            <svg
+              fill="none"
+              height="20"
+              viewBox="0 0 22 20"
+              width="22"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20.648 14.5839C20.904 15.0479 21.024 15.5439 21.008 16.0719C20.992 16.5999 20.848 17.0959 20.576 17.5599C20.304 18.0079 19.936 18.3599 19.472 18.6159C19.024 18.8719 18.536 18.9999 18.008 18.9999H4.016C3.472 18.9999 2.968 18.8719 2.504 18.6159C2.056 18.3599 1.696 18.0079 1.424 17.5599C1.152 17.0959 1.008 16.5999 0.992 16.0719C0.976 15.5439 1.096 15.0479 1.352 14.5839L8.36 1.5759C8.616 1.0799 8.976 0.695901 9.44 0.423902C9.92 0.135902 10.44 -0.00809813 11 -0.00809813C11.56 -0.00809813 12.072 0.135902 12.536 0.423902C13.016 0.695901 13.384 1.0799 13.64 1.5759L20.648 14.5839ZM18.008 17.0079C18.248 17.0079 18.456 16.9359 18.632 16.7919C18.808 16.6319 18.92 16.4399 18.968 16.2159C19.016 15.9759 18.984 15.7439 18.872 15.5199L11.888 2.5359C11.792 2.3599 11.664 2.2319 11.504 2.1519C11.344 2.0559 11.176 2.0079 11 2.0079C10.824 2.0079 10.656 2.0559 10.496 2.1519C10.336 2.2319 10.208 2.3599 10.112 2.5359L3.128 15.5199C3.016 15.7439 2.984 15.9759 3.032 16.2159C3.08 16.4399 3.192 16.6319 3.368 16.7919C3.544 16.9359 3.752 17.0079 3.992 17.0079H18.008ZM11.504 11.0079L12.008 5.0079H9.992L10.496 11.0079H11.504ZM12.008 14.0079C12.008 13.7359 11.904 13.5039 11.696 13.3119C11.504 13.1039 11.272 12.9999 11 12.9999C10.728 12.9999 10.488 13.1039 10.28 13.3119C10.088 13.5039 9.992 13.7359 9.992 14.0079C9.992 14.2799 10.088 14.5119 10.28 14.7039C10.488 14.8959 10.728 14.9919 11 14.9919C11.272 14.9919 11.504 14.8959 11.696 14.7039C11.904 14.5119 12.008 14.2799 12.008 14.0079Z"
+                fill="#D24B4E"
+              />
+            </svg>
+          </span>
+          <div>
+            <div
+              class="d-flex align-items-start justify-between"
+            >
+              <h5
+                class="wt-600 mt-0"
+              >
+                Please Connect your MS Teams account.
+              </h5>
+            </div>
+            <p>
+              You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.
+            </p>
+            <div>
+              <button
+                class="sc-kEqXSa gYXdoQ mm-button "
+                width="fit-content"
+              >
+                Connect Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>,
+  "container": <div>
+    <div
+      class="rhs-connect p-16"
+      style="border-radius: 4px; background: rgb(251, 240, 240); border: 1px solid #f7434329;"
+    >
+      <div
+        class="d-flex gap-12"
+      >
+        <span
+          style="line-height: 0;"
+        >
+          <svg
+            fill="none"
+            height="20"
+            viewBox="0 0 22 20"
+            width="22"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M20.648 14.5839C20.904 15.0479 21.024 15.5439 21.008 16.0719C20.992 16.5999 20.848 17.0959 20.576 17.5599C20.304 18.0079 19.936 18.3599 19.472 18.6159C19.024 18.8719 18.536 18.9999 18.008 18.9999H4.016C3.472 18.9999 2.968 18.8719 2.504 18.6159C2.056 18.3599 1.696 18.0079 1.424 17.5599C1.152 17.0959 1.008 16.5999 0.992 16.0719C0.976 15.5439 1.096 15.0479 1.352 14.5839L8.36 1.5759C8.616 1.0799 8.976 0.695901 9.44 0.423902C9.92 0.135902 10.44 -0.00809813 11 -0.00809813C11.56 -0.00809813 12.072 0.135902 12.536 0.423902C13.016 0.695901 13.384 1.0799 13.64 1.5759L20.648 14.5839ZM18.008 17.0079C18.248 17.0079 18.456 16.9359 18.632 16.7919C18.808 16.6319 18.92 16.4399 18.968 16.2159C19.016 15.9759 18.984 15.7439 18.872 15.5199L11.888 2.5359C11.792 2.3599 11.664 2.2319 11.504 2.1519C11.344 2.0559 11.176 2.0079 11 2.0079C10.824 2.0079 10.656 2.0559 10.496 2.1519C10.336 2.2319 10.208 2.3599 10.112 2.5359L3.128 15.5199C3.016 15.7439 2.984 15.9759 3.032 16.2159C3.08 16.4399 3.192 16.6319 3.368 16.7919C3.544 16.9359 3.752 17.0079 3.992 17.0079H18.008ZM11.504 11.0079L12.008 5.0079H9.992L10.496 11.0079H11.504ZM12.008 14.0079C12.008 13.7359 11.904 13.5039 11.696 13.3119C11.504 13.1039 11.272 12.9999 11 12.9999C10.728 12.9999 10.488 13.1039 10.28 13.3119C10.088 13.5039 9.992 13.7359 9.992 14.0079C9.992 14.2799 10.088 14.5119 10.28 14.7039C10.488 14.8959 10.728 14.9919 11 14.9919C11.272 14.9919 11.504 14.8959 11.696 14.7039C11.904 14.5119 12.008 14.2799 12.008 14.0079Z"
+              fill="#D24B4E"
+            />
+          </svg>
+        </span>
+        <div>
+          <div
+            class="d-flex align-items-start justify-between"
+          >
+            <h5
+              class="wt-600 mt-0"
+            >
+              Please Connect your MS Teams account.
+            </h5>
+          </div>
+          <p>
+            You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.
+          </p>
+          <div>
+            <button
+              class="sc-kEqXSa gYXdoQ mm-button "
+              width="fit-content"
+            >
+              Connect Account
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  "debug": [Function],
+  "findAllByAltText": [Function],
+  "findAllByDisplayValue": [Function],
+  "findAllByLabelText": [Function],
+  "findAllByPlaceholderText": [Function],
+  "findAllByRole": [Function],
+  "findAllByTestId": [Function],
+  "findAllByText": [Function],
+  "findAllByTitle": [Function],
+  "findByAltText": [Function],
+  "findByDisplayValue": [Function],
+  "findByLabelText": [Function],
+  "findByPlaceholderText": [Function],
+  "findByRole": [Function],
+  "findByTestId": [Function],
+  "findByText": [Function],
+  "findByTitle": [Function],
+  "getAllByAltText": [Function],
+  "getAllByDisplayValue": [Function],
+  "getAllByLabelText": [Function],
+  "getAllByPlaceholderText": [Function],
+  "getAllByRole": [Function],
+  "getAllByTestId": [Function],
+  "getAllByText": [Function],
+  "getAllByTitle": [Function],
+  "getByAltText": [Function],
+  "getByDisplayValue": [Function],
+  "getByLabelText": [Function],
+  "getByPlaceholderText": [Function],
+  "getByRole": [Function],
+  "getByTestId": [Function],
+  "getByText": [Function],
+  "getByTitle": [Function],
+  "queryAllByAltText": [Function],
+  "queryAllByDisplayValue": [Function],
+  "queryAllByLabelText": [Function],
+  "queryAllByPlaceholderText": [Function],
+  "queryAllByRole": [Function],
+  "queryAllByTestId": [Function],
+  "queryAllByText": [Function],
+  "queryAllByTitle": [Function],
+  "queryByAltText": [Function],
+  "queryByDisplayValue": [Function],
+  "queryByLabelText": [Function],
+  "queryByPlaceholderText": [Function],
+  "queryByRole": [Function],
+  "queryByTestId": [Function],
+  "queryByText": [Function],
+  "queryByTitle": [Function],
+  "rerender": [Function],
+  "unmount": [Function],
+}
+`;

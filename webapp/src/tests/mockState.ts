@@ -16,17 +16,17 @@ export const mockTestState: Pick<ReduxState, 'plugins-com.mattermost.msteams-syn
             msteamsUserId: 'mock_msteams_user_id',
         },
         snackbarSlice: {
-            message: '',
-            severity: 'default',
-            isOpen: false,
+            message: 'mockMessage',
+            severity: 'error',
+            isOpen: true,
         },
         dialogSlice: {
             description: '',
             destructive: false,
-            show: false,
+            show: true,
             primaryButtonText: '',
-            isLoading: false,
-            title: '',
+            isLoading: true,
+            title: 'mockTitle',
         },
         rhsLoadingSlice: {
             isRhsLoading: false,
