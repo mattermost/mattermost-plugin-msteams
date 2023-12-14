@@ -38,6 +38,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	subscriptionExpirationTime = 2 * time.Hour
+)
+
 type ConcurrentGraphRequestAdapter struct {
 	msgraphsdk.GraphRequestAdapter
 	mutex sync.Mutex
@@ -784,7 +788,7 @@ func (tc *ClientImpl) UpdateChatMessage(chatID, msgID, message string, mentions 
 }
 
 func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType, certificate string) (*clientmodels.Subscription, error) {
-	expirationDateTime := time.Now().Add(30 * time.Minute)
+	expirationDateTime := time.Now().Add(subscriptionExpirationTime)
 
 	lifecycleNotificationURL := baseURL + "lifecycle"
 	notificationURL := baseURL + "changes"
@@ -857,7 +861,7 @@ func (tc *ClientImpl) SubscribeToUserChats(userID, baseURL, webhookSecret string
 }
 
 func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, error) {
-	expirationDateTime := time.Now().Add(30 * time.Minute)
+	expirationDateTime := time.Now().Add(subscriptionExpirationTime)
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
