@@ -1,6 +1,6 @@
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-type PluginApiServiceName = 'needsConnect' | 'connect' | 'whitelistUser' | 'getLinkedChannels' | 'disconnectUser' ;
+type PluginApiServiceName = 'needsConnect' | 'connect' | 'getConfig' | 'getLinkedChannels' | 'disconnectUser' ;
 
 type PluginApiService = {
     path: string,

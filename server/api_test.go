@@ -1813,64 +1813,36 @@ func TestUnlinkChannels(t *testing.T) {
 	}
 }
 
-func TestWhitelistUser(t *testing.T) {
+func TestGetConfig(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
-		SetupPlugin        func(*plugintest.API)
-		SetupStore         func(*storemocks.Store)
-		SetupMetrics       func(*metricsmocks.Metrics)
+		SetupPlugin        func(*Plugin)
 		ExpectedResult     string
 		ExpectedStatusCode int
 	}{
 		{
-			Name: "WhitelistUser: unable to check user in the whitelist",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "Error in checking if a user is present in whitelist", "UserID", testutils.GetUserID(), "Error", "unable to check user in the whitelist").Times(1)
+			Name: "RhsEnabled: rhs is enabled",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.EnableRHS = true
 			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, errors.New("unable to check user in the whitelist")).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("IncrementHTTPErrors").Times(1)
-			},
-			ExpectedResult:     "error in checking if a user is present in whitelist\n",
-			ExpectedStatusCode: http.StatusInternalServerError,
-		},
-		{
-			Name:        "WhitelistUser: user is not present in whitelist",
-			SetupPlugin: func(api *plugintest.API) {},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(false, nil).Times(1)
-			},
-			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ExpectedResult:     `{"presentInWhitelist":false}`,
+			ExpectedResult:     `{"rhsEnabled":true}`,
 			ExpectedStatusCode: http.StatusOK,
 		},
 		{
-			Name:        "WhitelistUser: user present in whitelist",
-			SetupPlugin: func(api *plugintest.API) {},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Times(1)
-			},
-			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ExpectedResult:     `{"presentInWhitelist":true}`,
+			Name:               "RhsEnabled: rhs is not enabled",
+			SetupPlugin:        func(p *Plugin) {},
+			ExpectedResult:     `{"rhsEnabled":false}`,
 			ExpectedStatusCode: http.StatusOK,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			mockAPI := &plugintest.API{}
 
-			plugin.SetAPI(mockAPI)
-			defer mockAPI.AssertExpectations(t)
-
-			test.SetupPlugin(mockAPI)
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
+			test.SetupPlugin(plugin)
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/whitelist-user", nil)
+			r := httptest.NewRequest(http.MethodGet, "/config", nil)
 			r.Header.Add(HeaderMattermostUserID, testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 

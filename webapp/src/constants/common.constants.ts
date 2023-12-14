@@ -8,6 +8,8 @@ export const defaultPage = 0;
 
 export const defaultPerPage = 20;
 
+export const rhsButtonId = 'rhsButtonId';
+
 // Severity used in alert component
 export const alertSeverity: Record<SnackbarColor, SnackbarColor> = {
     success: 'success',

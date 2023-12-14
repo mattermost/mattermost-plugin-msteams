@@ -172,6 +172,12 @@
                   }
               ]         
         },{
+            "key": "enableRhs",
+            "display_name": "Enable RHS",
+            "type": "bool",
+            "help_text": "When true, users will be able to view RHS (right hand sidebar).",
+            "default": false
+        },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
             "type": "custom", 

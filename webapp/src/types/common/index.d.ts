@@ -15,8 +15,8 @@ type WebsocketEventParams = {
     data: Record<string, string>,
 }
 
-type WhitelistUserResponse= {
-    presentInWhitelist: boolean
+type ConfigResponse= {
+    rhsEnabled: boolean
 }
 
 type ChannelLinkData = {

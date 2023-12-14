@@ -1,4 +1,4 @@
-export interface PluginRegistry {
+interface PluginRegistry {
     registerPostTypeComponent(typeName: string, component: React.ElementType)
     registerRootComponent(component: React.ElementType)
     registerAdminConsoleCustomSetting(key: string, component: React.ElementType)
@@ -7,6 +7,7 @@ export interface PluginRegistry {
     registerAppBarComponent(iconUrl: string, action: () => void, tooltipText: string)
     registerReducer(reducer)
     registerWebSocketEventHandler(event: string, handler: (msg: WebsocketEventParams) => void)
+    unregisterComponent(id: string)
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }

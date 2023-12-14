@@ -30,10 +30,10 @@ export const msTeamsPluginApi = createApi({
                 method: pluginApiServiceConfigs.connect.method,
             }),
         }),
-        [pluginApiServiceConfigs.whitelistUser.apiServiceName]: builder.query<WhitelistUserResponse, APIRequestPayload>({
+        [pluginApiServiceConfigs.getConfig.apiServiceName]: builder.query<ConfigResponse, APIRequestPayload>({
             query: () => ({
-                url: pluginApiServiceConfigs.whitelistUser.path,
-                method: pluginApiServiceConfigs.whitelistUser.method,
+                url: pluginApiServiceConfigs.getConfig.path,
+                method: pluginApiServiceConfigs.getConfig.method,
             }),
         }),
         [pluginApiServiceConfigs.getLinkedChannels.apiServiceName]: builder.query<ChannelLinkData[], APIRequestPayload>({

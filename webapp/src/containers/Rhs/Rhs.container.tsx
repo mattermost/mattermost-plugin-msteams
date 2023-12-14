@@ -22,10 +22,7 @@ export const Rhs = () => {
 
     const {isOpen} = getSnackbarState(state);
 
-    const {data} = getApiState(pluginApiServiceConfigs.whitelistUser.apiServiceName);
     const {data: linkedChannels} = getApiState(pluginApiServiceConfigs.getLinkedChannels.apiServiceName);
-
-    const {presentInWhitelist} = data as WhitelistUserResponse;
 
     // NOTE: Commented out on purpose.This is part of Phase-II
     // const isAnyChannelLinked = useMemo(() => Boolean((linkedChannels as ChannelLinkData[])?.length), [linkedChannels]);
@@ -34,8 +31,10 @@ export const Rhs = () => {
     const getRhsView = useCallback(() => {
         if (isRhsLoading) {
             return (
-                <div className='absolute d-flex align-items-center justify-center w-full h-full'>
-                    <Spinner size='xl'/>
+                <div className='msteams-sync-utils'>
+                    <div className='absolute d-flex align-items-center justify-center w-full h-full'>
+                        <Spinner size='xl'/>
+                    </div>
                 </div>
             );
         }
@@ -57,10 +56,7 @@ export const Rhs = () => {
 
     return (
         <>
-            {
-                presentInWhitelist ?
-                    getRhsView() : 'MS Teams Sync plugin'
-            }
+            {getRhsView()}
             {isOpen && <Snackbar/>}
         </>
     );

@@ -53,38 +53,40 @@ export const LinkedChannels = () => {
     ), [totalLinkedChannels]);
 
     return (
-        <div className='msteams-sync-rhs flex-1 d-flex flex-column'>
-            <div className='p-20 d-flex flex-column gap-20'>
-                <WarningCard
-                    onConnect={connectAccount}
-                />
-            </div>
-            <h4 className='font-16 lh-24 my-0 p-20 wt-600'>{channelListTitle}</h4>
-            <div
-                id='scrollableArea'
-                className='scroll-container flex-1-0-0'
-            >
-                <InfiniteScroll
-                    dataLength={totalLinkedChannels.length}
-                    next={handlePagination}
-                    hasMore={hasMoreLinkedChannels}
-                    loader={<Spinner className='scroll-container__spinner'/>}
-                    endMessage={
-                        <p className='text-center'>
-                            <b>{noMoreChannelsText}</b>
-                        </p>
-                    }
-                    scrollableTarget='scrollableArea'
+        <div className='msteams-sync-utils'>
+            <div className='msteams-sync-rhs flex-1 d-flex flex-column'>
+                <div className='p-20 d-flex flex-column gap-20'>
+                    <WarningCard
+                        onConnect={connectAccount}
+                    />
+                </div>
+                <h4 className='font-16 lh-24 my-0 p-20 wt-600'>{channelListTitle}</h4>
+                <div
+                    id='scrollableArea'
+                    className='scroll-container flex-1-0-0'
                 >
-                    {totalLinkedChannels.map(({msTeamsChannelID, ...rest}) => (
-                        <LinkedChannelCard
-                            channelId={msTeamsChannelID}
-                            key={msTeamsChannelID}
-                            {...rest}
-                        />
-                    ))
-                    }
-                </InfiniteScroll>
+                    <InfiniteScroll
+                        dataLength={totalLinkedChannels.length}
+                        next={handlePagination}
+                        hasMore={hasMoreLinkedChannels}
+                        loader={<Spinner className='scroll-container__spinner'/>}
+                        endMessage={
+                            <p className='text-center'>
+                                <b>{noMoreChannelsText}</b>
+                            </p>
+                        }
+                        scrollableTarget='scrollableArea'
+                    >
+                        {totalLinkedChannels.map(({msTeamsChannelID, ...rest}) => (
+                            <LinkedChannelCard
+                                channelId={msTeamsChannelID}
+                                key={msTeamsChannelID}
+                                {...rest}
+                            />
+                        ))
+                        }
+                    </InfiniteScroll>
+                </div>
             </div>
         </div>
     );

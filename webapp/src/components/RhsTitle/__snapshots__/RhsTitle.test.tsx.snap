@@ -5,6 +5,26 @@ exports[`Rhs Title component Should render correctly 1`] = `
   "asFragment": [Function],
   "baseElement": <body>
     <div>
+      <div
+        class="msteams-sync-utils"
+      >
+        <span
+          class="d-flex gap-8 align-items-center"
+        >
+          <img
+            height="24"
+            src="/plugins/com.mattermost.msteams-sync/public/msteams-sync-icon.svg"
+            width="24"
+          />
+          Microsoft Teams Sync
+        </span>
+      </div>
+    </div>
+  </body>,
+  "container": <div>
+    <div
+      class="msteams-sync-utils"
+    >
       <span
         class="d-flex gap-8 align-items-center"
       >
@@ -16,18 +36,6 @@ exports[`Rhs Title component Should render correctly 1`] = `
         Microsoft Teams Sync
       </span>
     </div>
-  </body>,
-  "container": <div>
-    <span
-      class="d-flex gap-8 align-items-center"
-    >
-      <img
-        height="24"
-        src="/plugins/com.mattermost.msteams-sync/public/msteams-sync-icon.svg"
-        width="24"
-      />
-      Microsoft Teams Sync
-    </span>
   </div>,
   "debug": [Function],
   "findAllByAltText": [Function],

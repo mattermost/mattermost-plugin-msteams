@@ -24,6 +24,10 @@ type ConnectedState = {
     msteamsUserId: string;
 };
 
+type CanSeeRhsState = {
+    canSeeRhs: boolean;
+}
+
 type NeedsConnectState = {
     needsConnect: boolean;
 };

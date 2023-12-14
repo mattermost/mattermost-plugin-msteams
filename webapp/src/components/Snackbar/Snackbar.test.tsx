@@ -19,7 +19,7 @@ describe('Snackbar component', () => {
     });
 
     it('Should show correct type', () => {
-        expect(tree.container.firstChild).toHaveClass('bg-error');
+        expect(tree.container.firstChild?.firstChild).toHaveClass('bg-error');
     });
 
     it('Should show correct message', () => {

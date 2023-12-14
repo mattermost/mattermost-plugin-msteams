@@ -1,217 +1,219 @@
-// display
-@each $display in $display-styles {
-    .d-#{$display} {
-        display: $display !important;
-    }
-}
-
-// gap
-@each $size in $sizes {
-    .gap-#{$size} {
-        gap: #{$size}px !important;
-    }
-}
-
-// font-weights
-@each $font-weight in $font-weights {
-    .wt-#{$font-weight} {
-        font-weight: $font-weight !important;
-    }
-}
-
-// font sizes
-@each $font-size in $font-sizes {
-    .font-#{$font-size} {
-        font-size: #{$font-size}px !important;
-    }
-}
-
-// border radius
-@each $size in $sizes {
-    .rounded-#{$size} {
-        border-radius: #{$size}px !important;
-    }
-}
-
-// padding
-@each $size in $sizes {
-    .p-#{$size} {
-        padding: #{$size}px !important;
-    }
-}
-
-// margin
-@each $size in $sizes {
-    .m-#{$size} {
-        margin: #{$size}px !important;
-    }
-}
-
-// margin block
-@each $size in $sizes {
-    .my-#{$size} {
-        margin-block: #{$size}px !important;
-    }
-}
-
-// padding block
-@each $size in $sizes {
-    .py-#{$size} {
-        padding-block: #{$size}px !important;
-    }
-}
-
-// padding inline
-@each $size in $sizes {
-    .px-#{$size} {
-        padding-inline: #{$size}px !important;
-    }
-}
-
-// line height
-@each $line-height in $line-heights {
-    .lh-#{$line-height} {
-        line-height: #{$line-height}px !important;
-    }
-}
-
-// positions 
-@each $size in $sizes {
-    .top-#{$size} {
-        top: #{$size}px;
+.msteams-sync-utils {
+    // display
+    @each $display in $display-styles {
+        .d-#{$display} {
+            display: $display !important;
+        }
     }
 
-    .right-#{$size} {
-        right: #{$size}px;
+    // gap
+    @each $size in $sizes {
+        .gap-#{$size} {
+            gap: #{$size}px !important;
+        }
     }
 
-    .bottom-#{$size} {
-        bottom: #{$size}px;
+    // font-weights
+    @each $font-weight in $font-weights {
+        .wt-#{$font-weight} {
+            font-weight: $font-weight !important;
+        }
     }
 
-    .left-#{$size} {
-        left: #{$size}px;
+    // font sizes
+    @each $font-size in $font-sizes {
+        .font-#{$font-size} {
+            font-size: #{$font-size}px !important;
+        }
     }
-}
 
-@each $position in $positions {
-    .#{$position} {
-        position: $position !important;
+    // border radius
+    @each $size in $sizes {
+        .rounded-#{$size} {
+            border-radius: #{$size}px !important;
+        }
     }
-}
 
-.mt-0 {
-    margin-top: 0;
-}
-
-.align-items-center {
-    align-items: center;
-}
-
-.align-items-start {
-    align-items: flex-start;
-}
-
-.align-items-end {
-    align-items: flex-end;
-}
-
-.justify-center {
-    justify-content: center;
-}
-
-.justify-start {
-    justify-content: flex-start;
-}
-
-.justify-end {
-    justify-content: flex-end;
-}
-
-.justify-between {
-    justify-content: space-between;
-}
-
-.flex-1 {
-    flex: 1
-}
-
-.flex-2 {
-    flex: 2
-}
-
-.flex-1-0-0 {
-    flex: 1 0 0;
-}
-
-.flex-column {
-    flex-direction: column;
-}
-
-.w-full {
-    width: 100%
-}
-
-.h-full {
-    height: 100%;
-}
-
-.text-center {
-    text-align: center;
-}
-
-.overflow-y-auto {
-    overflow-y: auto;
-}
-
-.border-t-1 {
-    border-top-width: 1px;
-    border-top-style: solid;
-    border-top-color: rgba(var(--center-channel-color-rgb), 0.12);
-}
-
-.border-y-1 {
-    border-block-width: 1px;
-    border-block-style: solid;
-    border-block-color: rgba(var(--center-channel-color-rgb), 0.12);
-}
-
-.opacity-6 {
-    opacity: 0.6;
-}
-
-.text-white {
-    color: var(--button-color)
-}
-
-.icon-white {
-    & path, & rect, & circle {
-        fill: var(--button-color),
+    // padding
+    @each $size in $sizes {
+        .p-#{$size} {
+            padding: #{$size}px !important;
+        }
     }
-}
 
-.icon-16 {
-    height: 16px;
-    width: 16px;
+    // margin
+    @each $size in $sizes {
+        .m-#{$size} {
+            margin: #{$size}px !important;
+        }
+    }
 
-    svg  {
+    // margin block
+    @each $size in $sizes {
+        .my-#{$size} {
+            margin-block: #{$size}px !important;
+        }
+    }
+
+    // padding block
+    @each $size in $sizes {
+        .py-#{$size} {
+            padding-block: #{$size}px !important;
+        }
+    }
+
+    // padding inline
+    @each $size in $sizes {
+        .px-#{$size} {
+            padding-inline: #{$size}px !important;
+        }
+    }
+
+    // line height
+    @each $line-height in $line-heights {
+        .lh-#{$line-height} {
+            line-height: #{$line-height}px !important;
+        }
+    }
+
+    // positions 
+    @each $size in $sizes {
+        .top-#{$size} {
+            top: #{$size}px;
+        }
+
+        .right-#{$size} {
+            right: #{$size}px;
+        }
+
+        .bottom-#{$size} {
+            bottom: #{$size}px;
+        }
+
+        .left-#{$size} {
+            left: #{$size}px;
+        }
+    }
+
+    @each $position in $positions {
+        .#{$position} {
+            position: $position !important;
+        }
+    }
+
+    .mt-0 {
+        margin-top: 0;
+    }
+
+    .align-items-center {
+        align-items: center;
+    }
+
+    .align-items-start {
+        align-items: flex-start;
+    }
+
+    .align-items-end {
+        align-items: flex-end;
+    }
+
+    .justify-center {
+        justify-content: center;
+    }
+
+    .justify-start {
+        justify-content: flex-start;
+    }
+
+    .justify-end {
+        justify-content: flex-end;
+    }
+
+    .justify-between {
+        justify-content: space-between;
+    }
+
+    .flex-1 {
+        flex: 1
+    }
+
+    .flex-2 {
+        flex: 2
+    }
+
+    .flex-1-0-0 {
+        flex: 1 0 0;
+    }
+
+    .flex-column {
+        flex-direction: column;
+    }
+
+    .w-full {
+        width: 100%
+    }
+
+    .h-full {
+        height: 100%;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .overflow-y-auto {
+        overflow-y: auto;
+    }
+
+    .border-t-1 {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: rgba(var(--center-channel-color-rgb), 0.12);
+    }
+
+    .border-y-1 {
+        border-block-width: 1px;
+        border-block-style: solid;
+        border-block-color: rgba(var(--center-channel-color-rgb), 0.12);
+    }
+
+    .opacity-6 {
+        opacity: 0.6;
+    }
+
+    .text-white {
+        color: var(--button-color)
+    }
+
+    .icon-white {
+        & path, & rect, & circle {
+            fill: var(--button-color),
+        }
+    }
+
+    .icon-16 {
         height: 16px;
         width: 16px;
+
+        svg  {
+            height: 16px;
+            width: 16px;
+        }
     }
-}
 
-.elevation-2 {
-    box-shadow: var(--elevation-2);
-}
+    .elevation-2 {
+        box-shadow: var(--elevation-2);
+    }
 
-.bg-success {
-    background-color: var(--online-indicator);
-}
+    .bg-success {
+        background-color: var(--online-indicator);
+    }
 
-.bg-default {
-    background-color: var(--center-channel-color);
-}
+    .bg-default {
+        background-color: var(--center-channel-color);
+    }
 
-.bg-error {
-    background-color: var(--error-text);
+    .bg-error {
+        background-color: var(--error-text);
+    }
 }
