@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -40,14 +41,19 @@ type Activities struct {
 }
 
 const (
-	DefaultPage       = 0
-	MaxPerPage        = 100
-	QueryParamPage    = "page"
-	QueryParamPerPage = "per_page"
+	DefaultPage               = 0
+	MaxPerPage                = 100
+	QueryParamPage            = "page"
+	QueryParamPerPage         = "per_page"
+	QueryParamPrimaryPlatform = "primary_platform"
+
+	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
+	p.handleStaticFiles(router)
+
 	api := &API{p: p, router: router, store: store}
 
 	if p.GetMetrics() != nil {
@@ -65,6 +71,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -536,6 +543,33 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+
+	// TODO: Remove the comment after the completion of other related tasks.
+	// bundlePath, err := a.p.API.GetBundlePath()
+	// if err != nil {
+	// 	a.p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+	// 	return
+	// }
+
+	// t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
+	// if err != nil {
+	// 	a.p.API.LogError("unable to parse the template", "Error", err.Error())
+	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	// }
+
+	// err = t.Execute(w, struct {
+	// 	ServerURL string
+	// 	APIEndPoint string
+	// 	QueryParamPrimaryPlatform string
+	// } {
+	// 	ServerURL: a.p.GetURL(),
+	// 	APIEndPoint: APIChoosePrimaryPlatform,
+	// 	QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
+	// })
+	// if err != nil {
+	// 	a.p.API.LogError("unable to execute the template", "Error", err.Error())
+	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	// }
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
@@ -630,6 +664,24 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
+	if primaryPlatform != "mattermost" && primaryPlatform != "msteams" {
+		a.p.API.LogError("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
+		http.Error(w, "invalid primary platform", http.StatusBadRequest)
+	}
+
+	// TODO: Complete the API to choose the primary platform.
+	w.WriteHeader(http.StatusOK)
+}
+
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	page := DefaultPage
 	perPage := MaxPerPage
@@ -649,6 +701,18 @@ func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	}
 
 	return connectedUserList, nil
+}
+
+// handleStaticFiles handles the static files under the assets directory.
+func (p *Plugin) handleStaticFiles(r *mux.Router) {
+	bundlePath, err := p.API.GetBundlePath()
+	if err != nil {
+		p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+		return
+	}
+
+	// This will serve static files from the 'assets' directory under '/static/<filename>'
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(bundlePath, "assets")))))
 }
 
 func GetPageAndPerPage(r *http.Request) (page, perPage int) {
