@@ -68,7 +68,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 	config := model.Config{}
 	config.SetDefaults()
 	plugin.API.(*plugintest.API).On("KVGet", "cron_monitoring_system").Return(nil, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVGet", lastReceivedChangeKey).Return([]byte{}, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetServerVersion").Return("7.8.0")
 	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil)
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
@@ -423,67 +422,38 @@ func TestSyncUsers(t *testing.T) {
 	}
 }
 
-func TestConnectTeamsAppClient(t *testing.T) {
-	for _, test := range []struct {
-		Name          string
-		SetupAPI      func(*plugintest.API)
-		SetupClient   func(*mocks.Client)
-		ExpectedError string
-	}{
-		{
-			Name: "ConnectTeamsAppClient: Unable to connect to the app client",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
-			},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
-			},
-			ExpectedError: "unable to connect to the app client",
-		},
-		{
-			Name:     "ConnectTeamsAppClient: Valid",
-			SetupAPI: func(api *plugintest.API) {},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(nil).Times(1)
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			p := newTestPlugin(t)
-			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
-			err := p.connectTeamsAppClient()
-			if test.ExpectedError != "" {
-				assert.Contains(err.Error(), test.ExpectedError)
-			} else {
-				assert.Nil(err)
-			}
-		})
-	}
-}
-
 func TestStart(t *testing.T) {
 	mockSiteURL := "mockSiteURL"
 	for _, test := range []struct {
 		Name        string
+		IsRestart   bool
 		SetupAPI    func(*plugintest.API)
 		SetupClient func(*mocks.Client)
 		SetupStore  func(*storemocks.Store)
 	}{
 		{
-			Name: "Start: Unable to connect to the app client",
+			Name:      "Start: Valid",
+			IsRestart: false,
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to connect to the app client", "error", mock.Anything).Times(1)
-				api.On("LogError", "Unable to connect to the msteams", "error", mock.Anything).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: &mockSiteURL,
+					},
+				})
+				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
 			},
 			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(errors.New("unable to connect to the app client")).Times(1)
+				client.On("Connect").Return(nil).Times(1)
 			},
-			SetupStore: func(s *storemocks.Store) {},
+			SetupStore: func(s *storemocks.Store) {
+				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
+				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
+				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
+			},
 		},
 		{
-			Name: "Start: Valid",
+			Name:      "Restart: Valid",
+			IsRestart: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetConfig").Return(&model.Config{
 					ServiceSettings: model.ServiceSettings{
@@ -514,7 +484,7 @@ func TestStart(t *testing.T) {
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			test.SetupStore(p.store.(*storemocks.Store))
-			p.start(nil)
+			p.start(test.IsRestart)
 			time.Sleep(5 * time.Second)
 		})
 	}

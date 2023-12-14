@@ -1900,6 +1900,7 @@ func TestUpdate(t *testing.T) {
 			Name: "Update: Unable to update the message",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error updating the post on MS Teams", "error", errors.New("unable to update the message"))
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1921,6 +1922,7 @@ func TestUpdate(t *testing.T) {
 			Name: "Update: Update not required on MS Teams",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error in getting the message from MS Teams", "error", errors.New("unable to get the updated message"))
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1945,6 +1947,7 @@ func TestUpdate(t *testing.T) {
 			Name: "Update: Unable to store the link posts",
 			SetupAPI: func(api *plugintest.API) {
 				api.On("LogWarn", "Error updating the msteams/mattermost post link metadata", "error", mock.Anything)
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
@@ -1968,8 +1971,10 @@ func TestUpdate(t *testing.T) {
 			UpdateRequired: true,
 		},
 		{
-			Name:     "Update: Valid",
-			SetupAPI: func(api *plugintest.API) {},
+			Name: "Update: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{

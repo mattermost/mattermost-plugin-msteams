@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
@@ -28,7 +26,6 @@ var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
-	lastReceivedChangeKey       = "last_received_change"
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
 	msteamsUserTypeGuest        = "Guest"
@@ -245,7 +242,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		ah.plugin.GetMetrics().ObserveConfirmedMessage(metrics.ActionSourceMattermost, isDirectMessage)
 		return metrics.DiscardedReasonDuplicatedPost
 	}
@@ -253,7 +249,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -329,7 +324,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 		})
 	}
 
-	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
@@ -358,13 +352,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonIsBotUser
 	}
 
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonOther
 	}
 
@@ -436,7 +428,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
-	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
 	return metrics.DiscardedReasonNone
 }
@@ -533,13 +524,6 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 
 	return metrics.DiscardedReasonNone
-}
-
-func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
-	err := ah.plugin.GetAPI().KVSet(lastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to store properly the last received change")
-	}
 }
 
 func (ah *ActivityHandler) isActiveUser(userID string) bool {
