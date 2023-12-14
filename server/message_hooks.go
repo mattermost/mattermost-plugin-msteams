@@ -297,7 +297,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 
 	var teamsMessage *clientmodels.Message
 
-	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+post.Id)
 	if err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 
-	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+postInfo.MattermostID)
+	mutex, err := cluster.NewMutex(p.API, "post_mutex_"+post.Id)
 	if err != nil {
 		return err
 	}
