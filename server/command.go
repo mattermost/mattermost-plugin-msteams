@@ -328,8 +328,8 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 }
 
 func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError(args.UserId, args.ChannelId, "Unable to execute the command, only system admins have access to execute this command.")
+	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSharedChannels) {
+		return p.cmdError(args.UserId, args.ChannelId, "Unable to execute the command, you require `manage_shared_channels` permission to sync the channel.")
 	}
 
 	channel, appErr := p.API.GetChannel(args.ChannelId)
@@ -367,9 +367,10 @@ func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Synchronizing last %d hours of the channel...", hours))
 	go func() {
-		synce := time.Now().Add(-time.Duration(hours) * time.Hour)
-		if err := p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, synce); err != nil {
-			p.API.LogError("Unable to sync channel messages", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "synce", synce, "error", err)
+		since := time.Now().Add(-time.Duration(hours) * time.Hour)
+		p.API.LogDebug("Running syncrhonization for channel", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "since", since)
+		if err := p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, since); err != nil {
+			p.API.LogError("Unable to sync channel messages", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "since", since, "error", err)
 			p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Synchronization failed.")
 			return
 		}

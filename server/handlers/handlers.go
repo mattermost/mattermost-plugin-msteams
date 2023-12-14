@@ -576,7 +576,7 @@ func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince 
 		} else {
 			post, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID("", message.ID)
 			if err != nil || post == nil {
-				isCreation = false
+				isCreation = true
 			}
 		}
 
