@@ -60,7 +60,7 @@ type Plugin struct {
 	// setConfiguration for usage.
 	configuration *configuration
 
-	msteamsAppClientMutex sync.Mutex
+	msteamsAppClientMutex sync.RWMutex
 	msteamsAppClient      msteams.Client
 
 	stopSubscriptions func()
@@ -124,6 +124,9 @@ func (p *Plugin) GetBotUserID() string {
 }
 
 func (p *Plugin) GetClientForApp() msteams.Client {
+	p.msteamsAppClientMutex.RLock()
+	defer p.msteamsAppClientMutex.RUnlock()
+
 	return p.msteamsAppClient
 }
 
@@ -200,7 +203,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -465,7 +468,7 @@ func (p *Plugin) stopSyncUsersJob() {
 }
 
 func (p *Plugin) syncUsers() {
-	msUsers, err := p.msteamsAppClient.ListUsers()
+	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return
