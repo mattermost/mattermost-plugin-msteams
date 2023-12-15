@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "@babel/core": "7.23.5",
-    "@brightscout/mattermost-ui-library": "2.3.3",
+    "@brightscout/mattermost-ui-library": "2.3.4",
     "@reduxjs/toolkit": "1.8.2",
     "core-js": "3.29.1",
     "react-bootstrap": "1.6.1",

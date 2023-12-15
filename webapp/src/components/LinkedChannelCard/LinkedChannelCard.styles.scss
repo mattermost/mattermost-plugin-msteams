@@ -2,6 +2,30 @@
 
   .msteams-linked-channel {
 
+    &__unlink-icon {
+      width: 15%;
+      display: none;
+      
+      svg {
+        path,rect{
+          color: var(--center-channel-color-56);
+        }
+      }
+    }
+
+    &:hover {
+      background-color: var(--center-channel-color-08);
+
+      .msteams-linked-channel__unlink-icon {
+        display: flex;
+        cursor: pointer;
+
+        .mm-icon {
+          margin: 0 !important;
+        }
+      }
+    }
+
     &__link-icon {
 
       &::before {
@@ -28,14 +52,14 @@
     }
 
     &__body {
-      width: 95%;
+      width: 80%;
     }
 
-    &__entity-label {
+    &__body-values {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 45%;
+      max-width: 35%;
       line-height: normal;
     }  
   }

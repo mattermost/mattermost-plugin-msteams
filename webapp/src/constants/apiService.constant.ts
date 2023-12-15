@@ -25,4 +25,24 @@ export const pluginApiServiceConfigs: Record<PluginApiServiceName, PluginApiServ
         method: 'GET',
         apiServiceName: 'disconnectUser',
     },
+    searchMSTeams: {
+        path: '/msteams/teams',
+        method: 'GET',
+        apiServiceName: 'searchMSTeams',
+    },
+    searchMSChannels: {
+        path: '/msteams/teams/{team_id}/channels',
+        method: 'GET',
+        apiServiceName: 'searchMSChannels',
+    },
+    linkChannels: {
+        path: '/channels/link',
+        method: 'POST',
+        apiServiceName: 'linkChannels',
+    },
+    unlinkChannel: {
+        path: '/channels/{channel_id}/unlink',
+        method: 'DELETE',
+        apiServiceName: 'unlinkChannel',
+    },
 };

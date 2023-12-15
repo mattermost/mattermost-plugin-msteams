@@ -31,3 +31,15 @@ type ChannelLinkData = {
     mattermostChannelName: string,
     mattermostChannelType: string,
 }
+
+type MMTeamOrChannel = {
+    id: string,
+    displayName: string,
+}
+
+type MSTeamOrChannel = {
+    ID: string,
+    DisplayName: string,
+}
+
+type MSTeamsSearchResponse = MSTeamOrChannel[];

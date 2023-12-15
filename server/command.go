@@ -147,20 +147,32 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if len(parameters) < 2 {
-		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
-	}
-
 	client, err := p.GetClientForUser(args.UserId)
 	if err != nil {
 		p.API.LogError("Unable to get the client for user", "MMUserID", args.UserId, "Error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
+	if len(parameters) < 2 {
+		p.API.PublishWebSocketEvent(
+			"link_channels",
+			nil,
+			&model.WebsocketBroadcast{UserId: args.UserId},
+		)
+
+		return &model.CommandResponse{}, nil
+	}
+
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
 	if errMsg, _ := p.LinkChannels(args.UserId, args.TeamId, args.ChannelId, parameters[0], parameters[1], client); errMsg != "" {
 		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
+
+	p.API.PublishWebSocketEvent(
+		"link",
+		nil,
+		&model.WebsocketBroadcast{UserId: args.UserId},
+	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
@@ -170,6 +182,12 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 	if errMsg, _ := p.UnlinkChannels(args.UserId, args.ChannelId); errMsg != "" {
 		return p.cmdError(args.UserId, args.ChannelId, errMsg)
 	}
+
+	p.API.PublishWebSocketEvent(
+		"unlink",
+		nil,
+		&model.WebsocketBroadcast{UserId: args.UserId},
+	)
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is no longer linked to this Mattermost channel.")
 

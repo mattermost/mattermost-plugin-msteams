@@ -1,4 +1,4 @@
-export type IconName = 'user' | 'message' | 'connectAccount' | 'warning' | 'close' | 'globe' | 'msTeams' | 'link' | 'noChannels' | 'tick' | 'lock'
+export type IconName = 'user' | 'message' | 'connectAccount' | 'warning' | 'close' | 'globe' | 'msTeams' | 'link' | 'noChannels' | 'tick' | 'lock' | 'mattermost'
 
 export type IconProps = {
     iconName: IconName;

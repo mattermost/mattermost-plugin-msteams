@@ -12,6 +12,7 @@ const linkedChannelCardProps: LinkedChannelCardProps = {
     msTeamsChannelName: 'mockMSTeamsChannelName',
     msTeamsTeamName: 'mockMSTeamsTeamName',
     mattermostChannelType: 'mattermostChannelType',
+    mattermostChannelID: 'mockMattermostChannelId',
 };
 
 let tree: RenderResult;

@@ -15,3 +15,13 @@
         }
     }
 }
+
+.msteams-sync-modal {
+    .mm-autocomplete {
+        .mm-menuItem {
+            &__secondary-label {
+                text-align: end;
+            }
+        }
+    }
+}

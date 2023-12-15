@@ -19,3 +19,5 @@ export const alertSeverity: Record<SnackbarColor, SnackbarColor> = {
 } as const;
 
 export const alertTimeout = 4000;
+
+export const debounceFunctionTimeLimitInMilliseconds = 300;

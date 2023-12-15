@@ -92,7 +92,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/connect", api.handleAuthRequired(api.connect)).Methods(http.MethodGet)
 	router.HandleFunc("/disconnect", api.handleAuthRequired(api.checkUserConnected(api.disconnect))).Methods(http.MethodGet)
 	router.HandleFunc("/linked-channels", api.handleAuthRequired(api.getLinkedChannels)).Methods(http.MethodGet)
-	router.HandleFunc("/link-channels", api.handleAuthRequired(api.checkUserConnected(api.linkChannels))).Methods(http.MethodPost)
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)

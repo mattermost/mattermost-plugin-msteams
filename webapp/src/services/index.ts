@@ -72,5 +72,34 @@ export const msTeamsPluginApi = createApi({
                 responseHandler: (res: Response) => res.text(),
             }),
         }),
+        [pluginApiServiceConfigs.searchMSTeams.apiServiceName]: builder.query<MSTeamsSearchResponse, SearchParams>({
+            query: (params) => ({
+                url: pluginApiServiceConfigs.searchMSTeams.path,
+                method: pluginApiServiceConfigs.searchMSTeams.method,
+                params: {...params},
+            }),
+        }),
+        [pluginApiServiceConfigs.searchMSChannels.apiServiceName]: builder.query<MSTeamsSearchResponse, SearchMSChannelsParams>({
+            query: ({teamId, ...params}) => ({
+                url: pluginApiServiceConfigs.searchMSChannels.path.replace('{team_id}', teamId),
+                method: pluginApiServiceConfigs.searchMSChannels.method,
+                params: {...params},
+            }),
+        }),
+        [pluginApiServiceConfigs.linkChannels.apiServiceName]: builder.query<string, LinkChannelsPayload>({
+            query: (payload) => ({
+                url: pluginApiServiceConfigs.linkChannels.path,
+                method: pluginApiServiceConfigs.linkChannels.method,
+                body: payload,
+                responseHandler: (res: Response) => res.text(),
+            }),
+        }),
+        [pluginApiServiceConfigs.unlinkChannel.apiServiceName]: builder.query<string, UnlinkChannelParams>({
+            query: ({channelId}) => ({
+                url: pluginApiServiceConfigs.unlinkChannel.path.replace('{channel_id}', channelId),
+                method: pluginApiServiceConfigs.unlinkChannel.method,
+                responseHandler: (res: Response) => res.text(),
+            }),
+        }),
     }),
 });

@@ -22,7 +22,6 @@ exports[`Linked Channel Card component Should render correctly 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <rect
-                fill="white"
                 height="18"
                 transform="translate(0.5 0.5)"
                 width="18"
@@ -174,6 +173,18 @@ exports[`Linked Channel Card component Should render correctly 1`] = `
             </h5>
           </div>
         </div>
+        <button
+          aria-label="unlink channel"
+          class="sc-kEqXSa bjmVZZ mm-button msteams-linked-channel__unlink-icon"
+          width="fit-content"
+        >
+          <div
+            class="sc-bdnxRM eVPApq mm-icon"
+            size="16"
+          >
+            <div />
+          </div>
+        </button>
       </div>
     </div>
   </body>,
@@ -195,7 +206,6 @@ exports[`Linked Channel Card component Should render correctly 1`] = `
             xmlns="http://www.w3.org/2000/svg"
           >
             <rect
-              fill="white"
               height="18"
               transform="translate(0.5 0.5)"
               width="18"
@@ -347,6 +357,18 @@ exports[`Linked Channel Card component Should render correctly 1`] = `
           </h5>
         </div>
       </div>
+      <button
+        aria-label="unlink channel"
+        class="sc-kEqXSa bjmVZZ mm-button msteams-linked-channel__unlink-icon"
+        width="fit-content"
+      >
+        <div
+          class="sc-bdnxRM eVPApq mm-icon"
+          size="16"
+        >
+          <div />
+        </div>
+      </button>
     </div>
   </div>,
   "debug": [Function],

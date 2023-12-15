@@ -6,7 +6,7 @@ import {Button, Input, Spinner} from '@brightscout/mattermost-ui-library';
 
 import {ReduxState} from 'types/common/store.d';
 
-import {Dialog, Icon, IconName, LinkedChannelCard, Snackbar, WarningCard} from 'components';
+import {Dialog, Icon, IconName, LinkChannelModal, LinkedChannelCard, Snackbar, WarningCard} from 'components';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
 import {debounceSearchFunctionTimeLimitInMilliseconds, defaultPage, defaultPerPage} from 'constants/common.constants';
 import Constants from 'constants/connectAccount.constants';
@@ -15,14 +15,17 @@ import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
 import useAlert from 'hooks/useAlert';
 import usePluginApi from 'hooks/usePluginApi';
 import usePreviousState from 'hooks/usePreviousState';
-import {getConnectedState, getIsRhsLoading, getSnackbarState} from 'selectors';
+import {getConnectedState, getIsRhsLoading, getLinkModalState, getRefetchState, getSnackbarState} from 'selectors';
 import {setConnected} from 'reducers/connectedState';
+import {showLinkModal} from 'reducers/linkModal';
+import {resetRefetch} from 'reducers/refetchState';
 import utils from 'utils';
 
 import './Rhs.styles.scss';
 
 export const Rhs = () => {
     const {makeApiRequestWithCompletionStatus, getApiState, state} = usePluginApi();
+    const {Avatar} = window.Components;
     const globalState = useSelector((reduxState: ReduxState) => reduxState);
 
     // state variables
@@ -31,7 +34,7 @@ export const Rhs = () => {
         page: defaultPage,
         per_page: defaultPerPage,
     });
-    const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<SearchLinkedChannelParams | null>({...paginationQueryParams});
+    const [getLinkedChannelsParams, setGetLinkedChannelsParams] = useState<SearchParams | null>({...paginationQueryParams});
     const {connected, msteamsUserId, username, isAlreadyConnected} = getConnectedState(state);
     const [searchLinkedChannelsText, setSearchLinkedChannelsText] = useState('');
     const [firstRender, setFirstRender] = useState(true);
@@ -43,7 +46,9 @@ export const Rhs = () => {
     const showAlert = useAlert();
 
     // Increase the page number by 1
-    const handlePagination = () => setPaginationQueryParams({...paginationQueryParams, page: paginationQueryParams.page + 1});
+    const handlePagination = useCallback(() => {
+        setPaginationQueryParams({...paginationQueryParams, page: paginationQueryParams.page + 1});
+    }, [paginationQueryParams]);
 
     // Make api call to connect user account
     const connectAccount = useCallback(() => {
@@ -68,9 +73,12 @@ export const Rhs = () => {
 
     // Show disconnect dialog component
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+
     const {isRhsLoading} = getIsRhsLoading(state);
     const {isOpen} = getSnackbarState(state);
-    const {data: linkedChannels, isLoading} = getApiState(pluginApiServiceConfigs.getLinkedChannels.apiServiceName, getLinkedChannelsParams as SearchLinkedChannelParams);
+    const {refetch} = getRefetchState(state);
+
+    const {data: linkedChannels, isLoading} = getApiState(pluginApiServiceConfigs.getLinkedChannels.apiServiceName, getLinkedChannelsParams as SearchParams);
     const {isLoading: isUserDisconnecting} = getApiState(pluginApiServiceConfigs.disconnectUser.apiServiceName);
 
     // Handle searching of linked channels with debounce
@@ -91,7 +99,7 @@ export const Rhs = () => {
 
     // Make api call to get linked channels
     useEffect(() => {
-        const linkedChannelsParams: SearchLinkedChannelParams = {page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
+        const linkedChannelsParams: SearchParams = {page: paginationQueryParams.page, per_page: paginationQueryParams.per_page};
         if (searchLinkedChannelsText) {
             linkedChannelsParams.search = searchLinkedChannelsText;
         }
@@ -112,7 +120,7 @@ export const Rhs = () => {
     // Update total linked channels after completion of the api to get linked channels
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.getLinkedChannels.apiServiceName,
-        payload: getLinkedChannelsParams as SearchLinkedChannelParams,
+        payload: getLinkedChannelsParams as SearchParams,
         handleSuccess: () => {
             if (linkedChannels) {
                 setTotalLinkedChannels([...totalLinkedChannels, ...(linkedChannels as ChannelLinkData[])]);
@@ -144,6 +152,13 @@ export const Rhs = () => {
             setShowDisconnectDialog(false);
         },
     });
+
+    useEffect(() => {
+        if (refetch) {
+            resetStates();
+            dispatch(resetRefetch());
+        }
+    }, [refetch]);
 
     // Get different states of rhs
     const getRhsView = useCallback(() => {
@@ -196,26 +211,10 @@ export const Rhs = () => {
          * user is connected and linked channels are present
         */
         return (
-            <div className='msteams-sync-rhs d-flex flex-column flex-1'>
+            <div className='msteams-sync-rhs d-flex flex-1 flex-column'>
                 {connected ? (
                     <div className='py-12 px-20 border-y-1 d-flex gap-8'>
-                        {/* TODO: Refactor user Avatar */}
-                        <div
-                            style={{
-                                height: '32px',
-                                width: '32px',
-                                borderRadius: '50%',
-                                backgroundColor: 'rgba(var(--center-channel-color-rgb), 0.12)',
-                            }}
-                        >
-                            <img
-                                style={{
-                                    borderRadius: '50%',
-                                }}
-                                src={utils.getAvatarUrl(msteamsUserId, globalState.entities.general.config.SiteURL ?? '')}
-                            />
-                        </div>
-
+                        <Avatar url={utils.getAvatarUrl(msteamsUserId, globalState.entities.general.config.SiteURL ?? '')}/>
                         <div>
                             <h5 className='my-0 font-12 lh-16'>{'Connected as '}<span className='wt-600'>{username}</span></h5>
                             <Button
@@ -243,30 +242,39 @@ export const Rhs = () => {
                 {/* State when user is connected, but no linked channels are present. */}
                 {!totalLinkedChannels.length && !isLinkedChannelsLoading && !searchLinkedChannelsText && !previousState?.searchLinkedChannelsText && (
                     <div className='d-flex align-items-center justify-center flex-1 flex-column px-40'>
-                        {<>
-                            <Icon iconName='noChannels'/>
-                            <h3 className='my-0 lh-28 wt-600 text-center'>{'There are no linked channels yet'}</h3>
-                        </>}
+                        <Icon iconName='noChannels'/>
+                        <h3 className='my-0 lh-28 wt-600 text-center'>{'There are no linked channels yet'}</h3>
+                        <Button
+                            className='mt-16'
+                            onClick={() => dispatch(showLinkModal())}
+                        >{'Link a Channel'}</Button>
                     </div>
                 )}
-                {/* State when user is connected and linked channels are present. */}
-                {((Boolean(totalLinkedChannels.length) || isLinkedChannelsLoading || searchLinkedChannelsText || previousState?.searchLinkedChannelsText) && !firstRender) && (
+                {/* State when user is conected and linked channels are present. */}
+                {((Boolean(totalLinkedChannels.length) || isLoading || searchLinkedChannelsText || previousState?.searchLinkedChannelsText) && !firstRender) && (
                     <>
-                        <div className='lh-24 p-20 d-flex flex-column gap-16'>
-                            <h4 className='font-16 my-0 wt-600'>{channelListTitle}</h4>
-                            <div>
-                                <Input
-                                    iconName='MagnifyingGlass'
-                                    label='Search for a channel'
-                                    fullWidth={true}
-                                    value={searchLinkedChannelsText}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchLinkedChannelsText(e.target.value)}
-                                    onClose={() => setSearchLinkedChannelsText('')}
-                                />
-                            </div>
+                        <div className='d-flex justify-between align-items-center p-20'>
+                            <h4 className='font-16 lh-24 my-0 wt-600'>{channelListTitle}</h4>
+                            {connected && (
+                                <Button
+                                    iconName='Add'
+                                    size='sm'
+                                    onClick={() => dispatch(showLinkModal())}
+                                >{'Add'}</Button>
+                            )}
+                        </div>
+                        <div className='p-20 pt-0 my-0'>
+                            <Input
+                                iconName='MagnifyingGlass'
+                                label='Search for a channel'
+                                fullWidth={true}
+                                value={searchLinkedChannelsText}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchLinkedChannelsText(e.target.value)}
+                                onClose={() => setSearchLinkedChannelsText('')}
+                            />
                         </div>
                         {/* Show a spinner while searching for a specific linked channel. */}
-                        {isLinkedChannelsLoading && !paginationQueryParams.page ? (
+                        {isLoading && !paginationQueryParams.page ? (
                             <Spinner
                                 size='xl'
                                 className='scroll-container__spinner'
@@ -326,6 +334,7 @@ export const Rhs = () => {
                 {getRhsView()}
             </div>
             {isOpen && <Snackbar/>}
+            {<LinkChannelModal/>}
         </>
     );
 };

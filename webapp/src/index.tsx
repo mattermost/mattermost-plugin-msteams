@@ -9,7 +9,9 @@ import EnforceConnectedAccountModal from 'components/enforceConnectedAccountModa
 import MSTeamsAppManifestSetting from 'components/appManifestSetting';
 import ListConnectedUsers from 'components/getConnectedUsersSetting';
 
-import {handleConnect, handleDisconnect} from 'websocket';
+import {LinkChannelModal} from 'components';
+
+import {handleConnect, handleDisconnect, handleLink, handleModalLink, handleUnlinkChannels} from 'websocket';
 
 import manifest from './manifest';
 
@@ -25,6 +27,7 @@ export default class Plugin {
                 store={store}
             />
         ));
+        registry.registerRootComponent(LinkChannelModal);
 
         // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
         this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
@@ -34,12 +37,16 @@ export default class Plugin {
 
         registry.registerWebSocketEventHandler(`custom_${manifest.id}_connect`, handleConnect(store));
         registry.registerWebSocketEventHandler(`custom_${manifest.id}_disconnect`, handleDisconnect(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_unlink`, handleUnlinkChannels(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_link_channels`, handleModalLink(store));
+        registry.registerWebSocketEventHandler(`custom_${manifest.id}_link`, handleLink(store));
     }
 }
 
 declare global {
     interface Window {
-        registerPlugin(id: string, plugin: Plugin): void,
+        registerPlugin(id: string, plugin: Plugin): void;
+        Components: any;
     }
 }
 

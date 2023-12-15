@@ -43,6 +43,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("PublishWebSocketEvent", "unlink", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription on MS Teams", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
@@ -162,6 +163,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("PublishWebSocketEvent", "unlink", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to get the subscription by MS Teams channel ID", "error", "unable to get the subscription").Return().Once()
 			},
@@ -186,6 +188,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("PublishWebSocketEvent", "unlink", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription from the DB", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
@@ -417,7 +420,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Your account has been disconnected.")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time").Once()
-				api.On("PublishWebSocketEvent", "disconnect", mock.AnythingOfType("map[string]interface {}"), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
+				api.On("PublishWebSocketEvent", "disconnect", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
@@ -577,6 +580,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				}, nil).Times(2)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("PublishWebSocketEvent", "link", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is now linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -721,10 +725,18 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
+				api.On("PublishWebSocketEvent", "link_channels", (map[string]interface{})(nil), &model.WebsocketBroadcast{UserId: testutils.GetUserID()}).Return().Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Invalid link command, please pass the MS Teams team id and channel id as parameters.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
-			setupStore:   func(s *mockStore.Store) {},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+			},
 			setupClient:  func(c *mockClient.Client, uc *mockClient.Client) {},
 			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {},
 		},
