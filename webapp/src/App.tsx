@@ -30,11 +30,8 @@ const App = ({registry, store}:{registry: PluginRegistry, store: Store<GlobalSta
     const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
 
     useEffect(() => {
-        const linkedChannelsParams: SearchLinkedChannelParams = {page: defaultPage, per_page: defaultPerPage};
-
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.getConfig.apiServiceName);
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.needsConnect.apiServiceName);
-        makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.getLinkedChannels.apiServiceName, linkedChannelsParams);
     }, []);
 
     const {data: needsConnectData, isLoading} = useMemo(() => getApiState(pluginApiServiceConfigs.needsConnect.apiServiceName), [getApiState]);

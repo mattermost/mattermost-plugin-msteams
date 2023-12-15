@@ -8,6 +8,7 @@ export const defaultPage = 0;
 
 export const defaultPerPage = 20;
 
+export const debounceSearchFunctionTimeLimitInMilliseconds = 500;
 export const rhsButtonId = 'rhsButtonId';
 
 // Severity used in alert component

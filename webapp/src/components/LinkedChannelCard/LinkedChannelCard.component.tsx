@@ -1,30 +1,50 @@
 import React from 'react';
 
+import {Tooltip} from '@brightscout/mattermost-ui-library';
+
+import {General as MMConstants} from 'mattermost-redux/constants';
+
 import {Icon} from 'components/Icon';
 
 import {LinkedChannelCardProps} from './LinkedChannelCard.types';
 
 import './LinkedChannelCard.styles.scss';
 
-export const LinkedChannelCard = ({msTeamsChannelName, msTeamsTeamName, mattermostChannelName, mattermostTeamName}: LinkedChannelCardProps) => (
-    <div className='msteams-sync-utils'>
+export const LinkedChannelCard = ({msTeamsChannelName, msTeamsTeamName, mattermostChannelName, mattermostTeamName, mattermostChannelType}: LinkedChannelCardProps) => {
+    const getData = (channelName: string, teamName: string) => {
+        return (
+            <>
+                <Tooltip
+                    placement='left'
+                    text={channelName}
+                >
+                    <h5 className='my-0 msteams-linked-channel__entity-label'>{channelName}</h5>
+                </Tooltip>
+                <Tooltip
+                    placement='left'
+                    text={teamName}
+                >
+                    <h5 className='my-0 opacity-6 msteams-linked-channel__entity-label'>{teamName}</h5>
+                </Tooltip>
+            </>
+        );
+    };
+
+    return (
         <div className='px-16 py-12 border-t-1 d-flex gap-4 msteams-linked-channel'>
             <div className='msteams-linked-channel__link-icon d-flex align-items-center flex-column justify-center'>
                 <Icon iconName='link'/>
             </div>
-            <div className='d-flex flex-column gap-6'>
+            <div className='d-flex flex-column gap-6 msteams-linked-channel__body'>
                 <div className='d-flex gap-8 align-items-center'>
-                    {/* TODO: Update icon on basis of channel type  */}
-                    <Icon iconName='globe'/>
-                    <h5 className='my-0'>{mattermostChannelName}</h5>
-                    <h5 className='my-0 opacity-6'>{mattermostTeamName}</h5>
+                    <Icon iconName={mattermostChannelType === MMConstants.PRIVATE_CHANNEL ? 'lock' : 'globe'}/>
+                    {getData(mattermostChannelName, mattermostTeamName)}
                 </div>
                 <div className='d-flex gap-8 align-items-center'>
                     <Icon iconName='msTeams'/>
-                    <h5 className='my-0'>{msTeamsChannelName}</h5>
-                    <h5 className='my-0 opacity-6'>{msTeamsTeamName}</h5>
+                    {getData(msTeamsChannelName, msTeamsTeamName)}
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};

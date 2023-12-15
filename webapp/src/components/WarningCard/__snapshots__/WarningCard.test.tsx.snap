@@ -35,11 +35,11 @@ exports[`Warning Card component Should render correctly 1`] = `
               <h5
                 class="wt-600 mt-0"
               >
-                Please Connect your MS Teams account.
+                Please connect your account
               </h5>
             </div>
             <p>
-              You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.
+              Your Microsoft Teams account is not connected. Please connect your account to continue with Microsoft Teams sync.
             </p>
             <div>
               <button
@@ -85,11 +85,11 @@ exports[`Warning Card component Should render correctly 1`] = `
             <h5
               class="wt-600 mt-0"
             >
-              Please Connect your MS Teams account.
+              Please connect your account
             </h5>
           </div>
           <p>
-            You are not connected to your MS Teams account yet, please connect to your account to continue using MS Teams sync.
+            Your Microsoft Teams account is not connected. Please connect your account to continue with Microsoft Teams sync.
           </p>
           <div>
             <button

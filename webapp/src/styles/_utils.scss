@@ -39,12 +39,24 @@
         .p-#{$size} {
             padding: #{$size}px !important;
         }
+
+        .pt-#{$size} {
+            padding-top: #{$size}px !important;
+        }
     }
 
     // margin
     @each $size in $sizes {
         .m-#{$size} {
             margin: #{$size}px !important;
+        }
+
+        .mt-#{$size} {
+            margin-top: #{$size}px !important;
+        }
+    
+        .mb-#{$size} {
+            margin-bottom: #{$size}px !important;
         }
     }
 
@@ -101,8 +113,8 @@
         }
     }
 
-    .mt-0 {
-        margin-top: 0;
+    .align-items-center {
+        align-items: center;
     }
 
     .align-items-center {

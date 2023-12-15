@@ -26,5 +26,17 @@
         width: 10px;
       }
     }
+
+    &__body {
+      width: 95%;
+    }
+
+    &__entity-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 45%;
+      line-height: normal;
+    }  
   }
 }
