@@ -47,6 +47,12 @@ export const SearchMMChannels = ({
         if (searchFor) {
             setSuggestionsLoading(true);
             dispatch(setLinkModalLoading(true));
+
+            /**
+             * TODO: Update this logic to enable searching of channels for users not having permissions of sysconsole_read_user_management_channels.
+             * We can send query parameters:'system_console=false' to fetch the channels for the above user.
+             * For more info visit: https://api.mattermost.com/#tag/channels/operation/SearchAllChannels
+            */
             Client4.searchAllChannels(searchFor).
                 then((channels) => {
                     const suggestions:ListItemType[] = [];
