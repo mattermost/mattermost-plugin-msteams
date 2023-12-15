@@ -64,7 +64,7 @@ type ConnectedUser struct {
 	Email            string
 }
 
-func IsChannelLinkPayloadValid(body *ChannelLink) error {
+func (body *ChannelLink) IsValid() error {
 	if body == nil {
 		return errors.New("invalid body")
 	}

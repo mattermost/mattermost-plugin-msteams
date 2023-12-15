@@ -1221,7 +1221,7 @@ func TestDisconnect(t *testing.T) {
 				mockmetrics.On("IncrementHTTPErrors").Times(1)
 			},
 			ExpectedResult:     "The account is not connected.\n",
-			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedStatusCode: http.StatusUnauthorized,
 		},
 		{
 			Name: "Disconnect: error occurred while setting the user info",

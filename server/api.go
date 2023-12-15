@@ -39,8 +39,9 @@ const (
 	QueryParamSearchTerm = "search"
 
 	// Path params
-	PathParamTeamID    = "team_id"
-	PathParamChannelID = "channel_id"
+	PathParamTeamID        = "team_id"
+	PathParamChannelID     = "channel_id"
+	PathParamMSTeamsUserID = "user_id"
 
 	// Used for storing the token in the request context to pass from one middleware to another
 	// #nosec G101 -- This is a false positive. The below line is not a hardcoded credential
@@ -84,7 +85,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	msTeamsRouter := router.PathPrefix("/msteams").Subrouter()
 	channelsRouter := router.PathPrefix("/channels").Subrouter()
 
-	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods(http.MethodGet)
+	router.HandleFunc(fmt.Sprintf("/avatar/{%s:.*}", PathParamMSTeamsUserID), api.getAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/changes", api.processActivity).Methods(http.MethodPost)
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods(http.MethodPost)
 	router.HandleFunc("/needsConnect", api.handleAuthRequired(api.needsConnect)).Methods(http.MethodGet)
@@ -118,7 +119,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 // getAvatar returns the microsoft teams avatar
 func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	userID := params["userId"]
+	userID := params[PathParamMSTeamsUserID]
 	photo, appErr := a.store.GetAvatarCache(userID)
 	if appErr != nil || len(photo) == 0 {
 		var err error
@@ -491,8 +492,13 @@ func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 
 	paginatedLinks := []*storemodels.ChannelLink{}
 	if len(links) > 0 {
+		mmChannelSortNames := map[string]string{}
+		for _, link := range links {
+			mmChannelSortNames[link.MattermostChannelID] = fmt.Sprintf("%s_%s", link.MattermostChannelName, link.MattermostChannelID)
+		}
+
 		sort.Slice(links, func(i, j int) bool {
-			return fmt.Sprintf("%s_%s", links[i].MattermostChannelName, links[i].MattermostChannelID) < fmt.Sprintf("%s_%s", links[j].MattermostChannelName, links[j].MattermostChannelID)
+			return mmChannelSortNames[links[i].MattermostChannelID] < mmChannelSortNames[links[j].MattermostChannelID]
 		})
 
 		msTeamsTeamIDsVsNames, msTeamsChannelIDsVsNames, errorsFound := a.p.GetMSTeamsTeamAndChannelDetailsFromChannelLinks(links, userID, true)
@@ -501,7 +507,7 @@ func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+		searchTerm := strings.ToLower(r.URL.Query().Get(QueryParamSearchTerm))
 		offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
 		matchCount := 0
 		for _, link := range links {
@@ -513,7 +519,7 @@ func (a *API) getLinkedChannels(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 
-			if strings.HasPrefix(strings.ToLower(link.MattermostChannelName), strings.ToLower(searchTerm)) {
+			if strings.HasPrefix(strings.ToLower(link.MattermostChannelName), searchTerm) {
 				if matchCount < offset {
 					matchCount++
 					continue
@@ -551,11 +557,16 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	msTeamsTeamSortNames := map[string]string{}
+	for _, team := range teams {
+		msTeamsTeamSortNames[team.ID] = fmt.Sprintf("%s_%s", team.DisplayName, team.ID)
+	}
+
 	sort.Slice(teams, func(i, j int) bool {
-		return fmt.Sprintf("%s_%s", teams[i].DisplayName, teams[i].ID) < fmt.Sprintf("%s_%s", teams[j].DisplayName, teams[j].ID)
+		return msTeamsTeamSortNames[teams[i].ID] < msTeamsTeamSortNames[teams[j].ID]
 	})
 
-	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+	searchTerm := strings.ToLower(r.URL.Query().Get(QueryParamSearchTerm))
 	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
 	paginatedTeams := []*clientmodels.Team{}
 	matchCount := 0
@@ -564,7 +575,7 @@ func (a *API) getMSTeamsTeamList(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if strings.HasPrefix(strings.ToLower(team.DisplayName), strings.ToLower(searchTerm)) {
+		if strings.HasPrefix(strings.ToLower(team.DisplayName), searchTerm) {
 			if matchCount >= offset {
 				paginatedTeams = append(paginatedTeams, team)
 			} else {
@@ -585,11 +596,16 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	msTeamsChannelSortNames := map[string]string{}
+	for _, channel := range channels {
+		msTeamsChannelSortNames[channel.ID] = fmt.Sprintf("%s_%s", channel.DisplayName, channel.ID)
+	}
+
 	sort.Slice(channels, func(i, j int) bool {
-		return fmt.Sprintf("%s_%s", channels[i].DisplayName, channels[i].ID) < fmt.Sprintf("%s_%s", channels[j].DisplayName, channels[j].ID)
+		return msTeamsChannelSortNames[channels[i].ID] < msTeamsChannelSortNames[channels[j].ID]
 	})
 
-	searchTerm := r.URL.Query().Get(QueryParamSearchTerm)
+	searchTerm := strings.ToLower(r.URL.Query().Get(QueryParamSearchTerm))
 	offset, limit := a.p.GetOffsetAndLimit(r.URL.Query())
 	paginatedChannels := []*clientmodels.Channel{}
 	matchCount := 0
@@ -598,7 +614,7 @@ func (a *API) getMSTeamsTeamChannels(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if strings.HasPrefix(strings.ToLower(channel.DisplayName), strings.ToLower(searchTerm)) {
+		if strings.HasPrefix(strings.ToLower(channel.DisplayName), searchTerm) {
 			if matchCount >= offset {
 				paginatedChannels = append(paginatedChannels, channel)
 			} else {
@@ -620,7 +636,7 @@ func (a *API) linkChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := storemodels.IsChannelLinkPayloadValid(body); err != nil {
+	if err := body.IsValid(); err != nil {
 		a.p.API.LogError("Invalid channel link payload.", "Error", err.Error())
 		http.Error(w, "Invalid channel link payload.", http.StatusBadRequest)
 		return
@@ -974,7 +990,7 @@ func (a *API) checkUserConnected(handleFunc http.HandlerFunc) http.HandlerFunc {
 		token, err := a.p.store.GetTokenForMattermostUser(mattermostUserID)
 		if err != nil {
 			a.p.API.LogError("Unable to get the oauth token for the user.", "UserID", mattermostUserID, "Error", err.Error())
-			http.Error(w, "The account is not connected.", http.StatusBadRequest)
+			http.Error(w, "The account is not connected.", http.StatusUnauthorized)
 			return
 		}
 
