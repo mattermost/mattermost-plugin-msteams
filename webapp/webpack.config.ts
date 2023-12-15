@@ -46,6 +46,17 @@ module.exports = {
             'node_modules',
             path.resolve(__dirname),
         ],
+        alias: {
+            components: path.resolve(__dirname, './src/components'),
+            constants: path.resolve(__dirname, './src/constants'),
+            containers: path.resolve(__dirname, './src/containers'),
+            hooks: path.resolve(__dirname, './src/hooks'),
+            reducers: path.resolve(__dirname, './src/reducers'),
+            selectors: path.resolve(__dirname, './src/selectors/index.tsx'),
+            services: path.resolve(__dirname, './src/services/index.ts'),
+            utils: path.resolve(__dirname, './src/utils/index.ts'),
+            tests: path.resolve(__dirname, './src/tests'),
+        },
         extensions: ['*', '.js', '.jsx', '.ts', '.tsx'],
     },
     module: {
@@ -54,6 +65,19 @@ module.exports = {
                 test: /\.(js|jsx|ts|tsx)$/,
                 exclude: /node_modules/,
                 use: 'ts-loader',
+            },
+            {
+                test: /\.svg$/,
+                issuer: /\.[jt]sx?$/,
+                use: [
+                    {
+                        loader: '@svgr/webpack',
+                        options: {
+                            icon: true,
+                        },
+                    },
+                    'url-loader',
+                ],
             },
             {
                 test: /\.(scss|css)$/,

@@ -307,8 +307,8 @@ func testStoreChannelLinkAndGetLinkByChannelID(t *testing.T, store *SQLStore, ap
 	mockChannelLink := &storemodels.ChannelLink{
 		MattermostChannelID: "mockMattermostChannelID-1",
 		MattermostTeamID:    "mockMattermostTeamID-1",
-		MSTeamsTeam:         "mockMSTeamsTeamID-1",
-		MSTeamsChannel:      "mockMSTeamsChannelID-1",
+		MSTeamsTeamID:       "mockMSTeamsTeamID-1",
+		MSTeamsChannelID:    "mockMSTeamsChannelID-1",
 		Creator:             "mockCreator",
 	}
 
@@ -342,8 +342,8 @@ func testStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T, store *SQLS
 	mockChannelLink := &storemodels.ChannelLink{
 		MattermostChannelID: "mockMattermostChannelID-2",
 		MattermostTeamID:    "mockMattermostTeamID-2",
-		MSTeamsTeam:         "mockMSTeamsTeamID-2",
-		MSTeamsChannel:      "mockMSTeamsChannelID-2",
+		MSTeamsTeamID:       "mockMSTeamsTeamID-2",
+		MSTeamsChannelID:    "mockMSTeamsChannelID-2",
 		Creator:             "mockCreator",
 	}
 
@@ -377,8 +377,8 @@ func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore
 	mockChannelLink := &storemodels.ChannelLink{
 		MattermostChannelID: "mockMattermostChannelID-3",
 		MattermostTeamID:    "mockMattermostTeamID-3",
-		MSTeamsTeam:         "mockMSTeamsTeamID-3",
-		MSTeamsChannel:      "mockMSTeamsChannelID-3",
+		MSTeamsTeamID:       "mockMSTeamsTeamID-3",
+		MSTeamsChannelID:    "mockMSTeamsChannelID-3",
 		Creator:             "mockCreator",
 	}
 
@@ -421,8 +421,8 @@ func testListChannelLinksWithNames(t *testing.T, store *SQLStore, api *plugintes
 		MattermostTeamID:      "mockMattermostTeamID-4",
 		MattermostTeamName:    "Mock Mattermost Team",
 		MattermostChannelName: "Mock Mattermost Channel",
-		MSTeamsTeam:           "mockMSTeamsTeamID-4",
-		MSTeamsChannel:        "mockMSTeamsChannelID-4",
+		MSTeamsTeamID:         "mockMSTeamsTeamID-4",
+		MSTeamsChannelID:      "mockMSTeamsChannelID-4",
 		Creator:               "mockCreator",
 	}
 
@@ -463,8 +463,8 @@ func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	mockChannelLink := &storemodels.ChannelLink{
 		MattermostChannelID: "mockMattermostChannelID-1",
 		MattermostTeamID:    "mockMattermostTeamID-1",
-		MSTeamsTeam:         "mockMSTeamsTeamID-1",
-		MSTeamsChannel:      "mockMSTeamsChannelID-1",
+		MSTeamsTeamID:       "mockMSTeamsTeamID-1",
+		MSTeamsChannelID:    "mockMSTeamsChannelID-1",
 		Creator:             "mockCreator",
 	}
 
@@ -481,8 +481,8 @@ func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	mockChannelLink = &storemodels.ChannelLink{
 		MattermostChannelID: "mockMattermostChannelID-2",
 		MattermostTeamID:    "mockMattermostTeamID-2",
-		MSTeamsTeam:         "mockMSTeamsTeamID-2",
-		MSTeamsChannel:      "mockMSTeamsChannelID-2",
+		MSTeamsTeamID:       "mockMSTeamsTeamID-2",
+		MSTeamsChannelID:    "mockMSTeamsChannelID-2",
 		Creator:             "mockCreator",
 	}
 	err = store.StoreChannelLink(mockChannelLink)
@@ -509,7 +509,7 @@ func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, _ *pl
 	mockPostInfo := storemodels.PostInfo{
 		MattermostID:        "mockMattermostID-1",
 		MSTeamsID:           "mockMSTeamsID-1",
-		MSTeamsChannel:      "mockMSTeamsChannel-1",
+		MSTeamsChannelID:    "mockMSTeamsChannel-1",
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 
@@ -535,7 +535,7 @@ func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, _ 
 	mockPostInfo := storemodels.PostInfo{
 		MattermostID:        "mockMattermostID-2",
 		MSTeamsID:           "mockMSTeamsID-2",
-		MSTeamsChannel:      "mockMSTeamsChannel-2",
+		MSTeamsChannelID:    "mockMSTeamsChannel-2",
 		MSTeamsLastUpdateAt: time.UnixMicro(int64(100)),
 	}
 

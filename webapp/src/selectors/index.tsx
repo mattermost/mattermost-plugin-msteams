@@ -1,16 +1,9 @@
-import {getConfig} from 'mattermost-redux/selectors/entities/general';
+import {ApiRequestCompletionState, ConnectedState, PluginReduxState, SnackbarState} from 'types/common/store.d';
 
-export const getServerRoute = (state: any) => {
-    const config = getConfig(state);
+export const getApiRequestCompletionState = (state: PluginReduxState): ApiRequestCompletionState => state.apiRequestCompletionSlice;
 
-    let basePath = '';
-    if (config && config.SiteURL) {
-        basePath = new URL(config.SiteURL).pathname;
+export const getConnectedState = (state: PluginReduxState): ConnectedState => state.connectedStateSlice;
 
-        if (basePath && basePath[basePath.length - 1] === '/') {
-            basePath = basePath.substr(0, basePath.length - 1);
-        }
-    }
+export const getSnackbarState = (state: PluginReduxState): SnackbarState => state.snackbarSlice;
 
-    return basePath;
-};
+export const getIsRhsLoading = (state: PluginReduxState): {isRhsLoading: boolean} => state.rhsLoadingSlice;

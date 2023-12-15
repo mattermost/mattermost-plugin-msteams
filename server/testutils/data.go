@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -51,6 +52,7 @@ func GetPostID() string {
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
+		Message:       errorMsg,
 		DetailedError: errorMsg,
 		Id:            GetID(),
 	}
@@ -112,7 +114,7 @@ func GetReaction() *model.Reaction {
 }
 
 func GetTeamsTeamID() string {
-	return "test-teams-team"
+	return "test-teams-team-qplsnwere9nurernidte"
 }
 
 func GetTeamsChannelID() string {
@@ -127,8 +129,8 @@ func GetChannelLinks(count int) []*storemodels.ChannelLink {
 			MattermostChannelID:   GetChannelID(),
 			MattermostTeamName:    "Test MM team",
 			MattermostChannelName: "Test MM channel",
-			MSTeamsTeam:           GetTeamsTeamID(),
-			MSTeamsChannel:        GetTeamsChannelID(),
+			MSTeamsTeamID:         GetTeamsTeamID(),
+			MSTeamsChannelID:      GetTeamsChannelID(),
 		})
 	}
 
@@ -167,6 +169,24 @@ func GetPostFromTeamsMessage(createAt int64) *model.Post {
 		},
 		FileIds: model.StringArray{},
 	}
+}
+
+func GetChannelLink() *storemodels.ChannelLink {
+	return &storemodels.ChannelLink{
+		MattermostTeamID:    GetTeamID(),
+		MattermostChannelID: GetChannelID(),
+		MSTeamsTeamID:       GetTeamsTeamID(),
+		MSTeamsChannelID:    GetTeamsChannelID(),
+	}
+}
+
+func GetLinkChannelsPayload(teamID, channelID, msTeamsTeamID, msTeamsChannelID string) string {
+	return fmt.Sprintf(`{
+		"mattermostTeamID":"%s",
+		"mattermostChannelID":"%s",
+		"msTeamsTeamID":"%s",
+		"msTeamsChannelID":"%s"
+	}`, teamID, channelID, msTeamsTeamID, msTeamsChannelID)
 }
 
 func GetTestEmail() string {

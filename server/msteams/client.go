@@ -312,7 +312,7 @@ func (tc *ClientImpl) GetMyID() (string, error) {
 
 func (tc *ClientImpl) GetMe() (*clientmodels.User, error) {
 	requestParameters := &users.UserItemRequestBuilderGetQueryParameters{
-		Select: []string{"id", "mail", "userPrincipalName"},
+		Select: []string{"id", "mail", "userPrincipalName", "displayName"},
 	}
 	configuration := &users.UserItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
@@ -1871,7 +1871,7 @@ func (tc *ClientImpl) ListUsers() ([]clientmodels.User, error) {
 	return users, nil
 }
 
-func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
+func (tc *ClientImpl) ListTeams() ([]*clientmodels.Team, error) {
 	requestParameters := &users.ItemJoinedTeamsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1888,9 +1888,9 @@ func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	teams := []clientmodels.Team{}
+	teams := []*clientmodels.Team{}
 	err = pageIterator.Iterate(context.Background(), func(t models.Teamable) bool {
-		team := clientmodels.Team{}
+		team := &clientmodels.Team{}
 		if t.GetId() != nil {
 			team.ID = *t.GetId()
 		}
@@ -1910,7 +1910,7 @@ func (tc *ClientImpl) ListTeams() ([]clientmodels.Team, error) {
 	return teams, nil
 }
 
-func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error) {
+func (tc *ClientImpl) ListChannels(teamID string) ([]*clientmodels.Channel, error) {
 	requestParameters := &teams.ItemChannelsRequestBuilderGetQueryParameters{
 		Select: []string{"displayName", "id", "description"},
 	}
@@ -1927,9 +1927,9 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 		return nil, NormalizeGraphAPIError(err)
 	}
 
-	channels := []clientmodels.Channel{}
+	channels := []*clientmodels.Channel{}
 	err = pageIterator.Iterate(context.Background(), func(c models.Channelable) bool {
-		channel := clientmodels.Channel{}
+		channel := &clientmodels.Channel{}
 		if c.GetId() != nil {
 			channel.ID = *c.GetId()
 		}

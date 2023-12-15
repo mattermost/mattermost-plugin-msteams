@@ -344,7 +344,7 @@ func (c *ClientTimerLayer) ListChannelMessages(teamID string, channelID string, 
 	return result, err
 }
 
-func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, error) {
+func (c *ClientTimerLayer) ListChannels(teamID string) ([]*clientmodels.Channel, error) {
 	start := time.Now()
 
 	result, err := c.Client.ListChannels(teamID)
@@ -386,7 +386,7 @@ func (c *ClientTimerLayer) ListSubscriptions() ([]*clientmodels.Subscription, er
 	return result, err
 }
 
-func (c *ClientTimerLayer) ListTeams() ([]clientmodels.Team, error) {
+func (c *ClientTimerLayer) ListTeams() ([]*clientmodels.Team, error) {
 	start := time.Now()
 
 	result, err := c.Client.ListTeams()

@@ -127,8 +127,8 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	link := storemodels.ChannelLink{
 		MattermostTeamID:    "team-id",
 		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsTeamID:       "ms-team-id",
+		MSTeamsChannelID:    "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
@@ -138,7 +138,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsChannelID:    "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
@@ -189,8 +189,8 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	link := storemodels.ChannelLink{
 		MattermostTeamID:    "team-id",
 		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
+		MSTeamsTeamID:       "ms-team-id",
+		MSTeamsChannelID:    "ms-channel-id",
 	}
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
