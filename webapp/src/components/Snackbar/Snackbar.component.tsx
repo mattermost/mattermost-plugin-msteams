@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useRef} from 'react';
 import {useDispatch} from 'react-redux';
 
 import {Button} from '@brightscout/mattermost-ui-library';
@@ -13,13 +13,25 @@ import {alertTimeout} from 'constants/common.constants';
 
 import {SnackbarColor} from './Snackbar.types';
 
+const snackbarColorMap: Record<SnackbarColor, string> = {
+    error: 'bg-error',
+    default: 'bg-default',
+    success: 'bg-success',
+};
+
+const snackbarIconMap: Record<SnackbarColor, IconName> = {
+    error: 'warning',
+    default: 'tick',
+    success: 'tick',
+};
+
 export const Snackbar = () => {
     const dispatch = useDispatch();
     const {state} = usePluginApi();
     const timeId = useRef(0);
     const {isOpen, message, severity} = getSnackbarState(state);
 
-    const handleClose = () => dispatch(closeAlert());
+    const handleClose = useCallback(() => dispatch(closeAlert()), []);
 
     useEffect(() => {
         if (isOpen) {
@@ -33,18 +45,6 @@ export const Snackbar = () => {
             clearTimeout(timeId.current);
         };
     }, [isOpen]);
-
-    const snackbarColorMap: Record<SnackbarColor, string> = {
-        error: 'bg-error',
-        default: 'bg-default',
-        success: 'bg-success',
-    };
-
-    const snackbarIconMap: Record<SnackbarColor, IconName> = {
-        error: 'warning',
-        default: 'tick',
-        success: 'tick',
-    };
 
     return (
         <div className='msteams-sync-utils'>

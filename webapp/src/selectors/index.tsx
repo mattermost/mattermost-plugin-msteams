@@ -1,13 +1,9 @@
-import {ApiRequestCompletionState, ConnectedState, DialogState, ReduxState, SnackbarState} from 'types/common/store.d';
+import {ApiRequestCompletionState, ConnectedState, PluginReduxState, SnackbarState} from 'types/common/store.d';
 
-const getPluginState = (state: ReduxState) => state['plugins-com.mattermost.msteams-sync'];
+export const getApiRequestCompletionState = (state: PluginReduxState): ApiRequestCompletionState => state.apiRequestCompletionSlice;
 
-export const getApiRequestCompletionState = (state: ReduxState): ApiRequestCompletionState => getPluginState(state).apiRequestCompletionSlice;
+export const getConnectedState = (state: PluginReduxState): ConnectedState => state.connectedStateSlice;
 
-export const getConnectedState = (state: ReduxState): ConnectedState => getPluginState(state).connectedStateSlice;
+export const getSnackbarState = (state: PluginReduxState): SnackbarState => state.snackbarSlice;
 
-export const getSnackbarState = (state: ReduxState): SnackbarState => getPluginState(state).snackbarSlice;
-
-export const getDialogState = (state: ReduxState): DialogState => getPluginState(state).dialogSlice;
-
-export const getIsRhsLoading = (state: ReduxState): {isRhsLoading: boolean} => getPluginState(state).rhsLoadingSlice;
+export const getIsRhsLoading = (state: PluginReduxState): {isRhsLoading: boolean} => state.rhsLoadingSlice;

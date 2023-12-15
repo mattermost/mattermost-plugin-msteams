@@ -29,6 +29,7 @@ export const LinkedChannels = () => {
         setTimeout(() => res(), 2000);
     });
 
+    // TODO: Remove this part used for mocking API call for infinite scroll.
     useEffect(() => {
         getChannels().then(() => {
             const linkedChannels = mockLinkedChannels.slice((paginationQueryParams.page * paginationQueryParams.per_page), (paginationQueryParams.page + 1) * paginationQueryParams.per_page);
@@ -43,10 +44,10 @@ export const LinkedChannels = () => {
     }, []);
 
     // Increase the page number by 1
-    const handlePagination = () => {
-        setPaginationQueryParams({...paginationQueryParams, page: paginationQueryParams.page + 1,
-        });
-    };
+    const handlePagination = useCallback(() => {
+        setPaginationQueryParams((prev) => ({...prev, page: paginationQueryParams.page + 1,
+        }));
+    }, [paginationQueryParams]);
 
     const hasMoreLinkedChannels = useMemo<boolean>(() => (
         (totalLinkedChannels.length - (paginationQueryParams.page * defaultPerPage) === defaultPerPage)

@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback} from 'react';
 
 import {Spinner} from '@brightscout/mattermost-ui-library';
 
@@ -14,7 +14,6 @@ import {ConnectAccount} from './views/ConnectAccount';
 import {LinkedChannels} from './views/LinkedChannels';
 import {ConnectedAccount} from './views/ConnectedAccount';
 
-// TODO: update component later
 export const Rhs = () => {
     const {state, getApiState} = usePluginApi();
     const {connected} = getConnectedState(state);

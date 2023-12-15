@@ -1,22 +1,30 @@
-import React, {useCallback, useEffect} from 'react';
-import {useDispatch} from 'react-redux';
+import React, {useCallback, useEffect, useState} from 'react';
+import {useDispatch, useSelector} from 'react-redux';
 
 import {Button} from '@brightscout/mattermost-ui-library';
 
-import usePluginApi from 'hooks/usePluginApi';
 import {pluginApiServiceConfigs} from 'constants/apiService.constant';
-import useDialog from 'hooks/useDialog';
+
+import {Dialog} from 'components';
+
+import usePluginApi from 'hooks/usePluginApi';
 import useAlert from 'hooks/useAlert';
 import useApiRequestCompletionState from 'hooks/useApiRequestCompletionState';
+
 import {setConnected} from 'reducers/connectedState';
+
 import {getConnectedState} from 'selectors';
+
+import {ReduxState} from 'types/common/store.d';
 
 import utils from 'utils';
 
 export const ConnectedAccount = () => {
     const dispatch = useDispatch();
+    const [showDialog, setShowDialog] = useState(false);
     const {makeApiRequestWithCompletionStatus, state} = usePluginApi();
     const {username, isAlreadyConnected, msteamsUserId, connected} = getConnectedState(state);
+    const globalState = useSelector((reduxState: ReduxState) => reduxState);
 
     const showAlert = useAlert();
 
@@ -24,18 +32,11 @@ export const ConnectedAccount = () => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.disconnectUser.apiServiceName);
     }, []);
 
-    const {DialogComponent, showDialog, hideDialog} = useDialog({
-        onSubmitHandler: disconnectUser,
-        onCloseHandler: () => {
-            hideDialog();
-        },
-    });
-
     useApiRequestCompletionState({
         serviceName: pluginApiServiceConfigs.disconnectUser.apiServiceName,
         handleSuccess: () => {
             dispatch(setConnected({connected: false, username: '', msteamsUserId: '', isAlreadyConnected: false}));
-            hideDialog();
+            setShowDialog(false);
             showAlert({
                 message: 'Your account has been disconnected.',
             });
@@ -45,7 +46,7 @@ export const ConnectedAccount = () => {
                 message: 'Error occurred while disconnecting the user.',
                 severity: 'error',
             });
-            hideDialog();
+            setShowDialog(false);
         },
     });
 
@@ -73,7 +74,7 @@ export const ConnectedAccount = () => {
                             style={{
                                 borderRadius: '50%',
                             }}
-                            src={utils.getAvatarUrl(msteamsUserId)}
+                            src={utils.getAvatarUrl(msteamsUserId, globalState?.entities?.general?.config?.SiteURL ?? '')}
                         />
                     </div>
                     <div>
@@ -82,14 +83,7 @@ export const ConnectedAccount = () => {
                             size='sm'
                             variant='text'
                             className='p-0 lh-16'
-                            onClick={() => showDialog({
-                                destructive: true,
-                                primaryButtonText: 'Disconnect',
-                                secondaryButtonText: 'Cancel',
-                                description: 'Are you sure you want to disconnect your Microsoft Teams Account? You will no longer be able to send and receive messages to Microsoft Teams users from Mattermost.',
-                                isLoading: false,
-                                title: 'Disconnect Microsoft Teams Account',
-                            })}
+                            onClick={() => setShowDialog(true)}
                         >{'Disconnect'}</Button>
                     </div>
                 </div>
@@ -98,7 +92,18 @@ export const ConnectedAccount = () => {
                     {/* <Icon iconName='noChannels'/>
                 <h3 className='my-0 lh-28 wt-600 text-center'>{'There are no linked channels yet'}</h3> */}
                 </div>
-                <DialogComponent/>
+                <Dialog
+                    show={showDialog}
+                    destructive={true}
+                    primaryButtonText='Disconnect'
+                    secondaryButtonText='Cancel'
+                    isLoading={false}
+                    title='Disconnect Microsoft Teams Account'
+                    onCloseHandler={() => setShowDialog(false)}
+                    onSubmitHandler={disconnectUser}
+                >
+                    {'Are you sure you want to disconnect your Microsoft Teams Account? You will no longer be able to send and receive messages to Microsoft Teams users from Mattermost.'}
+                </Dialog>
             </div>
         </div>
     );

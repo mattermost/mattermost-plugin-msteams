@@ -31,16 +31,9 @@ describe('Connected Account View', () => {
 
     it('Should display the name of connected user correctly', () => {
         const usernameContainer = tree.getByText('Connected as');
-        const username = tree.getByText(getConnectedState(mockTestState as ReduxState).username);
+        const username = tree.getByText(getConnectedState(mockTestState['plugins-com.mattermost.msteams-sync'] as ReduxState).username);
 
         expect(usernameContainer).toContainElement(username);
         expect(username).toBeVisible();
-    });
-
-    it('Should dispatch action on clicking disconnect', async () => {
-        const disconnectButton = tree.getByText('Disconnect');
-
-        await userEvent.click(disconnectButton);
-        expect(mockDispatch).toHaveBeenCalledTimes(1);
     });
 });

@@ -11,7 +11,7 @@ import useAlert from 'hooks/useAlert';
 
 export const ConnectAccount = () => {
     const showAlert = useAlert();
-    const {makeApiRequestWithCompletionStatus} = usePluginApi();
+    const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
 
     const connectAccount = useCallback(() => {
         makeApiRequestWithCompletionStatus(pluginApiServiceConfigs.connect.apiServiceName);

@@ -1,29 +1,32 @@
 import {useEffect} from 'react';
-import {useDispatch} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
 
-import {getApiRequestCompletionState} from 'selectors';
+import {ReduxState} from 'types/common/store.d';
+
 import {resetApiRequestCompletionState} from 'reducers/apiRequest';
-
-import usePluginApi from 'hooks/usePluginApi';
+import {msTeamsPluginApi} from 'services';
 
 type Props = {
     handleSuccess?: () => void
     handleError?: (error: APIError) => void
     serviceName: PluginApiServiceName
-    payload?: APIRequestPayload
+    payload?: APIRequestPayload,
 }
 
 function useApiRequestCompletionState({handleSuccess, handleError, serviceName, payload}: Props) {
-    const {getApiState, state} = usePluginApi();
+    const state = useSelector((reduxState: ReduxState) => reduxState['plugins-com.mattermost.msteams-sync']);
+    const apiState = msTeamsPluginApi.endpoints[serviceName].select(payload)(state);
+
+    const requests = state.apiRequestCompletionSlice.requests;
     const dispatch = useDispatch();
 
     // Observe for the change in redux state after API call and do the required actions
     useEffect(() => {
         if (
-            getApiRequestCompletionState(state).requests.includes(serviceName) &&
-            getApiState(serviceName, payload)
+            requests.includes(serviceName) &&
+            apiState
         ) {
-            const {isError, isSuccess, isUninitialized, error} = getApiState(serviceName, payload);
+            const {isError, isSuccess, isUninitialized, error} = apiState;
             if (isSuccess && !isError) {
                 handleSuccess?.();
             }
@@ -37,8 +40,9 @@ function useApiRequestCompletionState({handleSuccess, handleError, serviceName, 
             }
         }
     }, [
-        getApiRequestCompletionState(state).requests.includes(serviceName),
-        getApiState(serviceName, payload),
+        requests.includes(serviceName),
+        apiState,
+        resetApiRequestCompletionState(serviceName),
     ]);
 }
 

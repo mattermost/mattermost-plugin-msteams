@@ -1,4 +1,4 @@
-import React, {useCallback, useState, useEffect} from 'react';
+import React, {useCallback, useState, useEffect, useMemo, useRef} from 'react';
 
 import Constants from 'constants/index';
 
@@ -11,7 +11,7 @@ export default function EnforceConnectedAccountModal() {
     const [open, setOpen] = useState(false);
     const [canSkip, setCanSkip] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    const [isInterval, setIsInterval] = useState(false);
+    const isInterval = useRef(false);
     const {makeApiRequestWithCompletionStatus, getApiState} = usePluginApi();
 
     const skip = useCallback(() => {
@@ -26,15 +26,15 @@ export default function EnforceConnectedAccountModal() {
         makeApiRequestWithCompletionStatus(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
     }, []);
 
-    const {data: needsConnectData} = getApiState(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName);
-    const {data: connectData} = getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName);
+    const {data: needsConnectData} = useMemo(() => getApiState(Constants.pluginApiServiceConfigs.needsConnect.apiServiceName), [getApiState]);
+    const {data: connectData} = useMemo(() => getApiState(Constants.pluginApiServiceConfigs.connect.apiServiceName), [getApiState]);
 
     useApiRequestCompletionState({
         serviceName: Constants.pluginApiServiceConfigs.needsConnect.apiServiceName,
         handleSuccess: () => {
             if (needsConnectData) {
                 const data = needsConnectData as NeedsConnectData;
-                if (!isInterval) {
+                if (!isInterval.current) {
                     setOpen(data.needsConnect);
                     setCanSkip(data.canSkip);
                 } else if (!data.needsConnect) {
@@ -62,12 +62,12 @@ export default function EnforceConnectedAccountModal() {
     useEffect(() => {
         let interval: any = 0;
         if (connecting) {
-            setIsInterval(true);
+            isInterval.current = true;
             interval = setInterval(checkConnected, 1000);
         }
         return () => {
             if (interval) {
-                setIsInterval(false);
+                isInterval.current = false;
                 clearInterval(interval);
             }
         };

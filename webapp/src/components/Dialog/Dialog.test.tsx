@@ -9,15 +9,20 @@ const onCloseHandler = jest.fn();
 const onSubmitHandler = jest.fn();
 
 const dialogProps = {
+    show: true,
+    destructive: true,
+    primaryButtonText: 'Try Again',
+    secondaryButtonText: 'Cancel',
     onCloseHandler,
     onSubmitHandler,
+    title: 'Unlink Channel',
 };
 
 let tree: RenderResult;
 
 describe('Dialog component', () => {
     beforeEach(() => {
-        tree = render(<Dialog {...dialogProps}/>);
+        tree = render(<Dialog {...dialogProps}>{'Are you sure you want to disconnect your Microsoft Teams Account?'}</Dialog>);
     });
 
     it('Should render correctly', () => {
@@ -25,9 +30,8 @@ describe('Dialog component', () => {
     });
 
     it('Should close the dialog on clicking close button', () => {
-        expect(tree.getAllByRole('button').length).toEqual(2);
+        userEvent.click(tree.getByText('Cancel'));
 
-        userEvent.click(tree.getAllByRole('button')[1]);
         expect(onCloseHandler).toHaveBeenCalledTimes(1);
     });
 });
