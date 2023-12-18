@@ -1949,7 +1949,7 @@ func (tc *ClientImpl) ListChannels(teamID string) ([]clientmodels.Channel, error
 	return channels, nil
 }
 
-func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+func (tc *ClientImpl) OnChannelMessagesSince(teamID string, channelID string, since time.Time, callback func(*clientmodels.Message)) error {
 	filterQuery := fmt.Sprintf("lastModifiedDateTime gt %s", since.Format(time.RFC3339))
 	requestParameters := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{
 		Filter: &filterQuery,
@@ -1959,11 +1959,11 @@ func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since
 	}
 	requestInfo, err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().Delta().ToGetRequestInformation(context.Background(), configuration)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return NormalizeGraphAPIError(err)
 	}
 	requestURI, err := requestInfo.GetUri()
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return NormalizeGraphAPIError(err)
 	}
 	requestURI.RawQuery += "&%24expand=replies"
 	requestInfo.SetUri(*requestURI)
@@ -1974,12 +1974,12 @@ func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since
 	}
 	res, err := tc.client.GetAdapter().Send(context.Background(), requestInfo, teams.CreateItemChannelsItemMessagesDeltaGetResponseFromDiscriminatorValue, errorMapping)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return NormalizeGraphAPIError(err)
 	}
 
 	pageIterator, err := msgraphcore.NewPageIterator[models.ChatMessageable](res, tc.client.GetAdapter(), models.CreateChatMessageCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return NormalizeGraphAPIError(err)
 	}
 
 	messages := []*clientmodels.Message{}
@@ -1988,14 +1988,14 @@ func (tc *ClientImpl) ListChannelMessages(teamID string, channelID string, since
 		messages = append(messages, message)
 		for _, r := range m.GetReplies() {
 			message := convertToMessage(r, teamID, channelID, "")
-			messages = append(messages, message)
+			callback(message)
 		}
 		return true
 	})
 	if err != nil {
-		return nil, NormalizeGraphAPIError(err)
+		return NormalizeGraphAPIError(err)
 	}
-	return messages, nil
+	return nil
 }
 
 func (tc *ClientImpl) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {

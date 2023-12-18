@@ -330,20 +330,6 @@ func (c *ClientTimerLayer) GetUserAvatar(userID string) ([]byte, error) {
 	return result, err
 }
 
-func (c *ClientTimerLayer) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
-	start := time.Now()
-
-	result, err := c.Client.ListChannelMessages(teamID, channelID, since)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannelMessages", success, elapsed)
-	return result, err
-}
-
 func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	start := time.Now()
 
@@ -412,6 +398,20 @@ func (c *ClientTimerLayer) ListUsers() ([]clientmodels.User, error) {
 	}
 	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListUsers", success, elapsed)
 	return result, err
+}
+
+func (c *ClientTimerLayer) OnChannelMessagesSince(teamID string, channelID string, since time.Time, callback func(*clientmodels.Message)) error {
+	start := time.Now()
+
+	err := c.Client.OnChannelMessagesSince(teamID, channelID, since, callback)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.OnChannelMessagesSince", success, elapsed)
+	return err
 }
 
 func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Time, error) {

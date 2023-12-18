@@ -556,11 +556,7 @@ func IsDirectMessage(chatID string) bool {
 }
 
 func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince time.Time) error {
-	messages, err := ah.plugin.GetClientForApp().ListChannelMessages(teamID, channelID, syncSince)
-	if err != nil {
-		return err
-	}
-	for _, message := range messages {
+	return ah.plugin.GetClientForApp().OnChannelMessagesSince(teamID, channelID, syncSince, func(message *clientmodels.Message) {
 		isCreation := false
 		if message.CreateAt == message.LastUpdateAt {
 			isCreation = true
@@ -586,6 +582,5 @@ func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince 
 				ReplyID:   message.ReplyToID,
 			})
 		}
-	}
-	return nil
+	})
 }
