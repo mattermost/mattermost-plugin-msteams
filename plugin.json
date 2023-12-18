@@ -6,15 +6,11 @@
     "support_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/issues",
     "release_notes_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/releases/tag/v0.1.0",
     "icon_path": "assets/msteams-sync-icon.svg",
-    "version": "1.4.0",
     "min_server_version": "7.8.10",
     "server": {
         "executables": {
             "linux-amd64": "server/dist/plugin-linux-amd64",
-            "linux-arm64": "server/dist/plugin-linux-arm64",
-            "darwin-amd64": "server/dist/plugin-darwin-amd64",
-            "darwin-arm64": "server/dist/plugin-darwin-arm64",
-            "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+            "linux-arm64": "server/dist/plugin-linux-arm64"
         }
     },
     "webapp": {
@@ -126,7 +122,7 @@
         },{
             "key": "connectedUsersAllowed",
             "display_name": "Max Connected Users",
-            "type": "number", 
+            "type": "number",
             "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
             "default": 1000
         },{
@@ -150,7 +146,7 @@
                       "display_name": "AD/LDAP",
                       "value": "ldap"
                   }
-              ]   
+              ]
         },{
             "key": "syntheticUserAuthData",
             "display_name": "Synthetic User Auth Data",
@@ -170,13 +166,13 @@
                       "display_name": "User Principal Name",
                       "value": "UserPrincipalName"
                   }
-              ]         
+              ]
         },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
-            "type": "custom", 
+            "type": "custom",
             "help_text": "",
-            "default": ""            
+            "default": ""
         },{
           "key": "ConnectedUsersReportDownload",
           "display_name": "Download Report",
