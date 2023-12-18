@@ -57,14 +57,18 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
 				// Check if channel subscription is not present on MS Teams
-				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
+				_, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]
+				switch {
+				case !msteamsSubscriptionFound:
 					// Create channel subscription for the linked channel
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
 					<-ws
 					return
-				} else if mmSubscription.Certificate != m.certificate {
+
+				case mmSubscription.Certificate != m.certificate:
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
-				} else if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
+
+				case time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute):
 					if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
 						m.api.LogDebug("Unable to refresh channel subscription", "error", err.Error())
 						m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
