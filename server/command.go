@@ -208,7 +208,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
+	channelsSubscription, err := p.GetClientForApp().SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
 		p.API.LogDebug("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
@@ -294,7 +294,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return &model.CommandResponse{}, nil
 	}
 
-	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
+	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
 	}
 
@@ -307,12 +307,12 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
 	}
 
-	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
+	msteamsTeam, err := p.GetClientForApp().GetTeam(link.MSTeamsTeam)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
+	msteamsChannel, err := p.GetClientForApp().GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
@@ -466,7 +466,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 
 	teamsQuery := msTeamsFilterQuery.String()
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
-	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
+	msTeamsTeams, err := p.GetClientForApp().GetTeams(teamsQuery)
 	if err != nil {
 		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
 		return true
@@ -482,7 +482,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
 	errorsFound := false
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
-		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
+		channels, err := p.GetClientForApp().GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
 			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
 			errorsFound = true
