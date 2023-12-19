@@ -148,7 +148,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	timerClient := client_timerlayer.New(client, p.GetMetrics())
 
 	if token.Expiry.Before(time.Now()) {
-		newToken, err := timerClient.RefreshToken(p.GetURL()+"/oauth-redirect", token)
+		newToken, err := timerClient.RefreshToken(token)
 		if err != nil {
 			return nil, err
 		}
