@@ -427,7 +427,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
 				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
-				c.On("OnChannelMessagesSync", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
 			},
 		},
 		{
@@ -456,7 +456,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
 				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
-				c.On("OnChannelMessagesSync", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
 			},
 		},
 		{
@@ -531,7 +531,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 			setupClient: func(c *mockClient.Client) {
 				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
 				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
-				c.On("OnChannelMessagesSync", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(errors.New("unable to get channel messages")).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(errors.New("unable to get channel messages")).Times(1)
 			},
 		},
 	} {
