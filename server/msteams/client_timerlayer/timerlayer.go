@@ -429,10 +429,10 @@ func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Tim
 	return result, err
 }
 
-func (c *ClientTimerLayer) RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2.Token, error) {
+func (c *ClientTimerLayer) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	start := time.Now()
 
-	result, err := c.Client.RefreshToken(redirectURL, token)
+	result, err := c.Client.RefreshToken(token)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

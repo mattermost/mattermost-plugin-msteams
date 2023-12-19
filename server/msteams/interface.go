@@ -50,7 +50,7 @@ type Client interface {
 	GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64)
 	GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
-	RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2.Token, error)
+	RefreshToken(token *oauth2.Token) (*oauth2.Token, error)
 	ListUsers() ([]clientmodels.User, error)
 	ListTeams() ([]clientmodels.Team, error)
 	ListChannels(teamID string) ([]clientmodels.Channel, error)

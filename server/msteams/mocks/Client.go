@@ -635,13 +635,13 @@ func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error)
 	return r0, r1
 }
 
-// RefreshToken provides a mock function with given fields: redirectURL, token
-func (_m *Client) RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2.Token, error) {
-	ret := _m.Called(redirectURL, token)
+// RefreshToken provides a mock function with given fields: token
+func (_m *Client) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	ret := _m.Called(token)
 
 	var r0 *oauth2.Token
-	if rf, ok := ret.Get(0).(func(string, *oauth2.Token) *oauth2.Token); ok {
-		r0 = rf(redirectURL, token)
+	if rf, ok := ret.Get(0).(func(*oauth2.Token) *oauth2.Token); ok {
+		r0 = rf(token)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*oauth2.Token)
@@ -649,8 +649,8 @@ func (_m *Client) RefreshToken(redirectURL string, token *oauth2.Token) (*oauth2
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, *oauth2.Token) error); ok {
-		r1 = rf(redirectURL, token)
+	if rf, ok := ret.Get(1).(func(*oauth2.Token) error); ok {
+		r1 = rf(token)
 	} else {
 		r1 = ret.Error(1)
 	}
