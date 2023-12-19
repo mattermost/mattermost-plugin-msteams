@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +42,6 @@ const (
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
 	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
-	lastReceivedChangeKey        = "last_received_change"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 
@@ -62,7 +60,7 @@ type Plugin struct {
 	// setConfiguration for usage.
 	configuration *configuration
 
-	msteamsAppClientMutex sync.Mutex
+	msteamsAppClientMutex sync.RWMutex
 	msteamsAppClient      msteams.Client
 
 	stopSubscriptions func()
@@ -126,6 +124,9 @@ func (p *Plugin) GetBotUserID() string {
 }
 
 func (p *Plugin) GetClientForApp() msteams.Client {
+	p.msteamsAppClientMutex.RLock()
+	defer p.msteamsAppClientMutex.RUnlock()
+
 	return p.msteamsAppClient
 }
 
@@ -175,16 +176,20 @@ func (p *Plugin) connectTeamsAppClient() error {
 	p.msteamsAppClientMutex.Lock()
 	defer p.msteamsAppClientMutex.Unlock()
 
-	if p.msteamsAppClient == nil {
-		msteamsAppClient := msteams.NewApp(
-			p.getConfiguration().TenantID,
-			p.getConfiguration().ClientID,
-			p.getConfiguration().ClientSecret,
-			&p.apiClient.Log,
-		)
-
-		p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
+	// We don't currently support reconnecting with a new configuration: a plugin restart is
+	// required.
+	if p.msteamsAppClient != nil {
+		return nil
 	}
+
+	msteamsAppClient := msteams.NewApp(
+		p.getConfiguration().TenantID,
+		p.getConfiguration().ClientID,
+		p.getConfiguration().ClientSecret,
+		&p.apiClient.Log,
+	)
+
+	p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
 		p.API.LogError("Unable to connect to the app client", "error", err)
@@ -193,7 +198,7 @@ func (p *Plugin) connectTeamsAppClient() error {
 	return nil
 }
 
-func (p *Plugin) start(syncSince *time.Time) {
+func (p *Plugin) start(isRestart bool) {
 	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
 
 	if enableMetrics != nil && *enableMetrics {
@@ -203,14 +208,17 @@ func (p *Plugin) start(syncSince *time.Time) {
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
 	}
 
-	p.activityHandler.Start()
+	// We don't restart the activity handler since it's stateless.
+	if !isRestart {
+		p.activityHandler.Start()
+	}
 
 	err := p.connectTeamsAppClient()
 	if err != nil {
 		return
 	}
 
-	p.monitor = monitor.New(p.msteamsAppClient, p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -218,9 +226,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
-	if syncSince != nil {
-		go p.syncSince(*syncSince)
-	}
 
 	if p.getConfiguration().SyncUsers > 0 {
 		p.API.LogDebug("Starting the sync users job")
@@ -247,11 +252,6 @@ func (p *Plugin) start(syncSince *time.Time) {
 			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
 		}
 	}
-}
-
-func (p *Plugin) syncSince(syncSince time.Time) {
-	// TODO: Implement the sync mechanism
-	p.API.LogDebug("Syncing since", "date", syncSince)
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -291,15 +291,22 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func (p *Plugin) stop() {
+func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
+	}
+	if p.metricsServer != nil {
+		if err := p.metricsServer.Shutdown(); err != nil {
+			p.API.LogWarn("Error shutting down metrics server", "error", err)
+		}
 	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
 	}
-	if p.activityHandler != nil {
+
+	// We don't stop the activity handler on restart since it's stateless.
+	if !isRestart && p.activityHandler != nil {
 		p.activityHandler.Stop()
 	}
 
@@ -307,8 +314,8 @@ func (p *Plugin) stop() {
 }
 
 func (p *Plugin) restart() {
-	p.stop()
-	p.start(nil)
+	p.stop(true)
+	p.start(true)
 }
 
 func (p *Plugin) generatePluginSecrets() error {
@@ -356,22 +363,6 @@ func (p *Plugin) OnActivate() error {
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
-
-	data, appErr := p.API.KVGet(lastReceivedChangeKey)
-	if appErr != nil {
-		return appErr
-	}
-
-	lastReceivedChangeMicro := int64(0)
-	var lastRecivedChange *time.Time
-	if len(data) > 0 {
-		lastReceivedChangeMicro, err = strconv.ParseInt(string(data), 10, 64)
-		if err != nil {
-			return err
-		}
-		parsedTime := time.UnixMicro(lastReceivedChangeMicro)
-		lastRecivedChange = &parsedTime
-	}
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
@@ -441,7 +432,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}()
 
-	go p.start(lastRecivedChange)
+	go p.start(false)
 	return nil
 }
 
@@ -450,7 +441,7 @@ func (p *Plugin) OnDeactivate() error {
 		p.API.LogWarn("Error shutting down metrics server", "error", err)
 	}
 
-	p.stop()
+	p.stop(false)
 	return nil
 }
 
@@ -492,7 +483,7 @@ func (p *Plugin) stopSyncUsersJob() {
 }
 
 func (p *Plugin) syncUsers() {
-	msUsers, err := p.msteamsAppClient.ListUsers()
+	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return

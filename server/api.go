@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/constants"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
@@ -87,7 +88,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	photo, appErr := a.store.GetAvatarCache(userID)
 	if appErr != nil || len(photo) == 0 {
 		var err error
-		photo, err = a.p.msteamsAppClient.GetUserAvatar(userID)
+		photo, err = a.p.GetClientForApp().GetUserAvatar(userID)
 		if err != nil {
 			a.p.API.LogError("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
@@ -673,12 +674,25 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 	}
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
-	if primaryPlatform != "mattermost" && primaryPlatform != "msteams" {
+	if primaryPlatform != constants.PreferenceValuePlatformMM && primaryPlatform != constants.PreferenceValuePlatformMSTeams {
 		a.p.API.LogError("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
+		return
 	}
 
-	// TODO: Complete the API to choose the primary platform.
+	err := a.p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+		UserId:   userID,
+		Category: getPreferenceCategoryName(),
+		Name:     constants.PreferenceNamePlatform,
+		Value:    primaryPlatform,
+	}})
+
+	if err != nil {
+		a.p.API.LogError("Error when updating the preferences", "error", err)
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
