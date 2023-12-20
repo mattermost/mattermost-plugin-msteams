@@ -100,8 +100,9 @@ type AccessToken struct {
 }
 
 type GraphAPIError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code       string `json:"code"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
 }
 
 type ChatMessageAttachmentUser struct {
@@ -140,14 +141,20 @@ func NormalizeGraphAPIError(err error) error {
 				message = *terr.GetMessage()
 			}
 			return &GraphAPIError{
-				Code:    code,
-				Message: message,
+				Code:       code,
+				Message:    message,
+				StatusCode: e.ResponseStatusCode,
 			}
 		}
 	default:
+		statusCode := 0
+		if strings.HasPrefix(err.Error(), "oauth2: ") {
+			statusCode = 401
+		}
 		return &GraphAPIError{
-			Code:    "",
-			Message: err.Error(),
+			Code:       "",
+			Message:    err.Error(),
+			StatusCode: statusCode,
 		}
 	}
 
