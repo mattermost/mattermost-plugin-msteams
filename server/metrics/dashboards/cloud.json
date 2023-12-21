@@ -25,7 +25,7 @@
           "uid": "${datasource}"
         },
         "enable": true,
-        "expr": "msteams_connect_system_plugin_start_time{namespace=\"$namespace\"} * 1000",
+        "expr": "msteams_connect_system_plugin_start_timestamp_seconds{namespace=\"$namespace\"} * 1000",
         "iconColor": "green",
         "name": "Plugin Start",
         "target": {
@@ -63,7 +63,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 292,
+  "id": 306,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -138,7 +138,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(msteams_connect_app_connected_users_total{namespace=~\"$namespace\"})",
+          "expr": "avg(msteams_connect_app_connected_users{namespace=~\"$namespace\"})",
           "instant": false,
           "legendFormat": "Connected Users",
           "range": true,
@@ -202,7 +202,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(msteams_connect_app_synthetic_users_total{namespace=~\"$namespace\"})",
+          "expr": "avg(msteams_connect_app_synthetic_users{namespace=~\"$namespace\"})",
           "instant": false,
           "legendFormat": "Synthetic Users",
           "range": true,
@@ -270,7 +270,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(msteams_connect_app_linked_channels_total{namespace=~\"$namespace\"})",
+          "expr": "avg(msteams_connect_app_linked_channels{namespace=~\"$namespace\"})",
           "instant": false,
           "legendFormat": "Linked Channels",
           "range": true,
@@ -570,7 +570,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m])) by (instance)",
+          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[5m])) by (instance)",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -582,7 +582,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m]))",
+          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "Total",
@@ -894,7 +894,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_db_store_time_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
           "instant": false,
           "legendFormat": "p99 ({{instance}})",
           "range": true,
@@ -906,7 +906,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_db_store_time_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
           "hide": false,
           "instant": false,
           "legendFormat": "p50 ({{instance}})",
@@ -1017,7 +1017,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_api_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_api_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "instant": false,
           "legendFormat": "p99 ({{instance}})",
           "range": true,
@@ -1029,7 +1029,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_api_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_api_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "hide": false,
           "instant": false,
           "legendFormat": "p50 ({{instance}})",
@@ -1140,7 +1140,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\",method=~\"$top_db_count\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\",method=~\"$top_db_count\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{method}}",
           "range": true,
@@ -1250,7 +1250,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_api_time_count{namespace=~\"$namespace\"}[5m])) by (handler)",
+          "expr": "sum(increase(msteams_connect_api_time_seconds_count{namespace=~\"$namespace\"}[5m])) by (handler)",
           "instant": false,
           "legendFormat": "{{handler}}",
           "range": true,
@@ -1355,7 +1355,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_sum{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method) / sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{method}}",
           "range": true,
@@ -1469,7 +1469,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_api_time_sum{namespace=~\"$namespace\"}[5m])) by (handler) / sum(increase(msteams_connect_api_time_count{namespace=~\"$namespace\"}[5m])) by (handler)",
+          "expr": "sum(increase(msteams_connect_api_time_seconds_sum{namespace=~\"$namespace\"}[5m])) by (handler) / sum(increase(msteams_connect_api_time_seconds_count{namespace=~\"$namespace\"}[5m])) by (handler)",
           "instant": false,
           "legendFormat": "{{handler}}",
           "range": true,
@@ -1602,7 +1602,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success=\"true\"}[5m])) by (instance)",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",success=\"true\"}[5m])) by (instance)",
           "instant": false,
           "legendFormat": "Requests ({{instance}})",
           "range": true,
@@ -1614,7 +1614,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success!=\"true\"}[5m])) by (instance)",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",success!=\"true\"}[5m])) by (instance)",
           "hide": false,
           "instant": false,
           "legendFormat": "Errors ({{instance}})",
@@ -1627,7 +1627,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\"}[5m]))",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "Total",
@@ -1757,7 +1757,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success!=\"true\"}[5m])) by (instance)",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",success!=\"true\"}[5m])) by (instance)",
           "hide": false,
           "instant": false,
           "legendFormat": "Errors ({{instance}})",
@@ -1770,7 +1770,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success!=\"true\"}[5m]))",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",success!=\"true\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "Total",
@@ -1880,7 +1880,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",method=~\"$top_msgraph_client_count\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",method=~\"$top_msgraph_client_count\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{handler}}",
           "range": true,
@@ -1989,7 +1989,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_msgraph_client_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_msgraph_client_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "instant": false,
           "legendFormat": "p99 ({{instance}})",
           "range": true,
@@ -2001,7 +2001,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_msgraph_client_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_msgraph_client_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "hide": false,
           "instant": false,
           "legendFormat": "p50 ({{instance}})",
@@ -2087,7 +2087,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 60
       },
@@ -2117,7 +2117,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_sum{namespace=~\"$namespace\",method=~\"$top_msgraph_client_latency\"}[5m])) by (method) / sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",method=~\"$top_msgraph_client_latency\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_msgraph_client_time_seconds_sum{namespace=~\"$namespace\",method=~\"$top_msgraph_client_latency\"}[5m])) by (method) / sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\",method=~\"$top_msgraph_client_latency\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{handler}}",
           "range": true,
@@ -2340,7 +2340,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason=\"\"}[5m])) by (change_type)",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[5m])) by (change_type)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2435,7 +2435,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2455,7 +2455,29 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "Infinity": {
+                  "color": "yellow",
+                  "index": 1,
+                  "text": "0%"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "match": "nan",
+                "result": {
+                  "color": "dark-yellow",
+                  "index": 0,
+                  "text": "0%"
+                }
+              },
+              "type": "special"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2502,7 +2524,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason!=\"\"}[15m]))",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\"}[15m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2597,7 +2619,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_event_total{namespace=\"$namespace\"}[5m])) by (event_type)",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\"}[5m])) by (event_type)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2692,7 +2714,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2712,7 +2734,29 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "Infinity": {
+                  "color": "yellow",
+                  "index": 1,
+                  "text": "0%"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "match": "nan",
+                "result": {
+                  "color": "yellow",
+                  "index": 0,
+                  "text": "0%"
+                }
+              },
+              "type": "special"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2759,7 +2803,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_event_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_lifecycle_event_total{namespace=\"$namespace\",discarded_reason!=\"\"}[15m]))",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\"}[15m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2854,24 +2898,11 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_subscriptions_count{namespace=\"$namespace\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_subscriptions_total{namespace=\"$namespace\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "{{action}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_subscriptions_count{namespace=\"$namespace\",source=\"msteams\"}[5m]))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total",
-          "range": true,
-          "refId": "C"
         }
       ],
       "title": "Subscriptions (per second)",
@@ -2962,7 +2993,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -2974,7 +3005,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -2987,7 +3018,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total ({{action}})",
@@ -3083,7 +3114,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -3095,7 +3126,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -3108,7 +3139,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_messages_total{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total ({{action}})",
@@ -3204,7 +3235,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -3216,7 +3247,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -3229,8 +3260,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
-          "hide": false,
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Total ({{action}})",
           "range": true,
@@ -3325,7 +3355,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -3337,7 +3367,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -3350,7 +3380,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_reactions_total{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total ({{action}})",
@@ -3446,7 +3476,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -3458,7 +3488,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -3471,7 +3501,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total ({{action}})",
@@ -3567,7 +3597,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Direct ({{action}})",
           "range": true,
@@ -3579,7 +3609,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Channel ({{action}})",
@@ -3592,7 +3622,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_files_total{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total ({{action}})",
@@ -4088,8 +4118,8 @@
       {
         "current": {
           "selected": false,
-          "text": "w1343szyubdr7rkwouxwwjt89c",
-          "value": "w1343szyubdr7rkwouxwwjt89c"
+          "text": "",
+          "value": ""
         },
         "description": "The namespace (installation ID) by which to filter the graphs.",
         "hide": 0,
@@ -4098,11 +4128,11 @@
         "options": [
           {
             "selected": true,
-            "text": "w1343szyubdr7rkwouxwwjt89c",
-            "value": "w1343szyubdr7rkwouxwwjt89c"
+            "text": "",
+            "value": ""
           }
         ],
-        "query": "w1343szyubdr7rkwouxwwjt89c",
+        "query": "",
         "skipUrlSync": false,
         "type": "textbox"
       },
@@ -4127,6 +4157,7 @@
         "name": "top_plugin_api_count",
         "options": [],
         "query": {
+          "qryType": 3,
           "query": "query_result(topk(10, sum(increase(mattermost_plugin_api_time_count{namespace=~\"$namespace\",plugin_id=\"com.mattermost.msteams-sync\"}[${__range_s}s])) by (api_name)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
@@ -4157,6 +4188,7 @@
         "name": "top_plugin_api_latency",
         "options": [],
         "query": {
+          "qryType": 3,
           "query": "query_result(topk(10, sum(increase(mattermost_plugin_api_time_sum{namespace=~\"$namespace\",plugin_id=\"com.mattermost.msteams-sync\"}[${__range_s}s])) by (api_name) / sum(increase(mattermost_plugin_api_time_count{namespace=~\"$namespace\",plugin_id=\"com.mattermost.msteams-sync\"}[${__range_s}s])) by (api_name)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
@@ -4169,8 +4201,8 @@
       {
         "current": {
           "selected": false,
-          "text": "Prometheus Prod",
-          "value": "P27C405C01959D762"
+          "text": "Prometheus Test",
+          "value": "P3497915E6DC419FB"
         },
         "description": "The Prometheus data source from which to query.",
         "hide": 0,
@@ -4199,14 +4231,15 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
         "hide": 2,
         "includeAll": true,
         "multi": true,
         "name": "top_db_count",
         "options": [],
         "query": {
-          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "qryType": 3,
+          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -4229,14 +4262,15 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
         "hide": 2,
         "includeAll": true,
         "multi": true,
         "name": "top_db_latency",
         "options": [],
         "query": {
-          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "qryType": 3,
+          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -4259,7 +4293,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
         "description": "",
         "hide": 2,
         "includeAll": true,
@@ -4267,7 +4301,8 @@
         "name": "top_msgraph_client_count",
         "options": [],
         "query": {
-          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "qryType": 3,
+          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -4290,7 +4325,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
         "description": "",
         "hide": 2,
         "includeAll": true,
@@ -4298,7 +4333,8 @@
         "name": "top_msgraph_client_latency",
         "options": [],
         "query": {
-          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "qryType": 3,
+          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -4315,8 +4351,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "MSTeams Connect",
-  "uid": "c39b4ded-2384-4775-8e7a-5456fb65fecf",
-  "version": 10,
+  "title": "MSTeams Connect (v2, Renamed Metrics)",
+  "uid": "c97b2768-e8bd-42fb-92e4-ad26dbf943db",
+  "version": 8,
   "weekStart": ""
 }
