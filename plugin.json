@@ -4,13 +4,15 @@
     "description": "Plugin to sync Mattermost channels with Microsoft Teams channels",
     "homepage_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
     "support_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/issues",
-    "release_notes_url": "https://github.com/mattermost/mattermost-plugin-msteams-sync/releases/tag/v0.1.0",
     "icon_path": "assets/msteams-sync-icon.svg",
     "min_server_version": "7.8.10",
     "server": {
         "executables": {
             "linux-amd64": "server/dist/plugin-linux-amd64",
-            "linux-arm64": "server/dist/plugin-linux-arm64"
+            "linux-arm64": "server/dist/plugin-linux-arm64",
+            "darwin-amd64": "server/dist/plugin-darwin-amd64",
+            "darwin-arm64": "server/dist/plugin-darwin-arm64",
+            "windows-amd64": "server/dist/plugin-windows-amd64.exe"
         }
     },
     "webapp": {
@@ -106,13 +108,11 @@
           "help_text": "Set the time for DMs and GMs after which the user will get a prompt to connect their account when they try to post a message without connecting their account. (Leave it empty to disable the prompt)",
           "default": 0
         },{
-        },{
           "key": "maxSizeForCompleteDownload",
           "display_name": "Maximum size of attachments to support complete one time download (in MB)",
           "type": "number",
           "help_text": "Set the maximum size for attachments that can be loaded into the memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost",
           "default": 20
-        },{
         },{
           "key": "bufferSizeForFileStreaming",
           "display_name": "Buffer size for streaming files (in MB)",
