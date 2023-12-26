@@ -586,27 +586,27 @@ func IsDirectMessage(chatID string) bool {
 	return chatID != ""
 }
 
-func (ah *ActivityHandler) SyncChannelSince(teamID, channelID string, syncSince time.Time) error {
+func (ah *ActivityHandler) SyncChannelSince(subscriptionID, teamID, channelID string, syncSince time.Time) error {
 	return ah.plugin.GetClientForApp().OnChannelMessagesSince(teamID, channelID, syncSince, func(message *clientmodels.Message) {
 		isCreation := false
 		if message.CreateAt == message.LastUpdateAt {
 			isCreation = true
 		} else {
-			post, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID("", message.ID)
+			post, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID(message.ChatID+message.ChannelID, message.ID)
 			if err != nil || post == nil {
 				isCreation = true
 			}
 		}
 
 		if isCreation {
-			ah.handleCreatedActivity(message, clientmodels.ActivityIds{
+			ah.handleCreatedActivity(message, subscriptionID, clientmodels.ActivityIds{
 				TeamID:    teamID,
 				ChannelID: channelID,
 				MessageID: message.ID,
 				ReplyID:   message.ReplyToID,
 			})
 		} else {
-			ah.handleUpdatedActivity(message, clientmodels.ActivityIds{
+			ah.handleUpdatedActivity(message, subscriptionID, clientmodels.ActivityIds{
 				TeamID:    teamID,
 				ChannelID: channelID,
 				MessageID: message.ID,

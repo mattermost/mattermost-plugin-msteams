@@ -68,7 +68,6 @@ func getAutocompleteData() *model.AutocompleteData {
 	cmd.AddCommand(show)
 
 	sync := model.NewAutocompleteData("sync", "[number-of-hours]", "Sync the current channel with MS Teams channel (by default 24 hours)")
-	sync.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(sync)
 
 	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
@@ -304,7 +303,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
+		return p.cmdError(args.UserId, args.ChannelId, "This channel is not linked to a MSTeams channel.")
 	}
 
 	msteamsTeam, err := p.GetClientForApp().GetTeam(link.MSTeamsTeam)
@@ -354,23 +353,31 @@ func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
-		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
+		return p.cmdError(args.UserId, args.ChannelId, "This channel is not linked to a MSTeams channel.")
 	}
 
 	if _, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam); err != nil {
+		p.API.LogWarn("Unable to get the MS Teams team information.", "msteamsTeamID", link.MSTeamsTeam, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
 	if _, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel); err != nil {
+		p.API.LogWarn("Unable to get the MS Teams channel information.", "msteamsTeamID", link.MSTeamsTeam, "msteamsChannelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
+	}
+
+	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannel)
+	if err != nil {
+		p.API.LogDebug("Unable to get the subscription by MS Teams channel ID", "msteamsTeamID", link.MSTeamsTeam, "msteamsChannelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err.Error())
+		return &model.CommandResponse{}, nil
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("Synchronizing last %d hours of the channel...", hours))
 	go func() {
 		since := time.Now().Add(-time.Duration(hours) * time.Hour)
-		p.API.LogDebug("Running syncrhonization for channel", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "since", since)
-		if err := p.activityHandler.SyncChannelSince(link.MSTeamsTeam, link.MSTeamsChannel, since); err != nil {
-			p.API.LogError("Unable to sync channel messages", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "since", since, "error", err)
+		p.API.LogDebug("Running synchronization for channel", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "since", since)
+		if err := p.activityHandler.SyncChannelSince(subscription.SubscriptionID, link.MSTeamsTeam, link.MSTeamsChannel, since); err != nil {
+			p.API.LogError("Unable to sync channel messages", "teamID", link.MSTeamsTeam, "channelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "since", since, "error", err)
 			p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Synchronization failed.")
 			return
 		}
