@@ -242,7 +242,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			description: "Unable to get the link",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Link doesn't exist.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "This channel is not linked to a MSTeams channel.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "").Return(nil, errors.New("Error while getting the link")).Times(1)
@@ -468,7 +468,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Link doesn't exist.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "This channel is not linked to a MSTeams channel.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
