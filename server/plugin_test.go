@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -30,6 +32,21 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
+
+func newE2ETestPlugin(t *testing.T) {
+	ctx := context.Background()
+	mattermost, err := testutils.RunContainer(ctx, testutils.WithPlugin("../dist/com.mattermost.msteams-sync.tar.gz", "com.mattermost.msteams-sync"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mattermost.Terminate(ctx)
+	fmt.Println(mattermost.Url(ctx))
+	time.Sleep(60 * time.Second)
+}
+
+func TestTestContainer(t *testing.T) {
+	newE2ETestPlugin(t)
+}
 
 func newTestPlugin(t *testing.T) *Plugin {
 	clientMock := &mocks.Client{}
