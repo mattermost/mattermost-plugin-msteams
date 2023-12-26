@@ -450,6 +450,7 @@ func TestStart(t *testing.T) {
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
 				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
 				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
+				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
 			},
 		},
 		{
@@ -467,6 +468,7 @@ func TestStart(t *testing.T) {
 				client.On("Connect").Return(nil).Times(1)
 			},
 			SetupStore: func(s *storemocks.Store) {
+				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
 				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
 				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)

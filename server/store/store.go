@@ -66,4 +66,6 @@ type Store interface {
 	BeginTx() (*sql.Tx, error)
 	RollbackTx(tx *sql.Tx) error
 	CommitTx(tx *sql.Tx) error
+	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
+	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 }
