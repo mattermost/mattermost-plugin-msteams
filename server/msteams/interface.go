@@ -8,6 +8,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/oauth2"
 )
 
 type Client interface {
@@ -49,6 +50,7 @@ type Client interface {
 	GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64)
 	GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error)
 	GetCodeSnippet(url string) (string, error)
+	RefreshToken(token *oauth2.Token) (*oauth2.Token, error)
 	ListUsers() ([]clientmodels.User, error)
 	ListTeams() ([]clientmodels.Team, error)
 	ListChannels(teamID string) ([]clientmodels.Channel, error)
