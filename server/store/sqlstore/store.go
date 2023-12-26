@@ -738,7 +738,10 @@ func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastA
 	query := s.getQueryBuilder().
 		Update(subscriptionsTableName).
 		Set("lastActivityAt", lastActivityAt.UnixMicro()).
-		Where(sq.Eq{"subscriptionID": subscriptionID}, sq.Lt{"lastActivityAt": lastActivityAt})
+		Where(sq.And{
+			sq.Eq{"subscriptionID": subscriptionID},
+			sq.Or{sq.Lt{"lastActivityAt": lastActivityAt.UnixMicro()}, sq.Eq{"lastActivityAt": nil}},
+		})
 	_, err := query.Exec()
 	if err != nil {
 		return err
