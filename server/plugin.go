@@ -146,13 +146,13 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
 		return
 	}
-	if err := p.store.SetUserInfo(userID, teamsUserID, nil); err != nil {
-		p.API.LogWarn("Unable clean invalid token for the user", "userID", userID, "error", err.Error())
+	if err2 := p.store.SetUserInfo(userID, teamsUserID, nil); err2 != nil {
+		p.API.LogWarn("Unable clean invalid token for the user", "userID", userID, "error", err2.Error())
 		return
 	}
 	channel, appErr := p.API.GetDirectChannel(userID, p.GetBotUserID())
 	if appErr != nil {
-		p.API.LogWarn("Unable to get direct channel for send message to user", "userID", userID, "error", err.Error())
+		p.API.LogWarn("Unable to get direct channel for send message to user", "userID", userID, "error", appErr.Error())
 		return
 	}
 	_, appErr = p.API.CreatePost(&model.Post{
@@ -161,7 +161,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		Message:   "Your connection to MS Teams has been lost. Please reconnect to using /msteams-sync connect slash command.",
 	})
 	if appErr != nil {
-		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", err.Error())
+		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", appErr.Error())
 	}
 }
 
