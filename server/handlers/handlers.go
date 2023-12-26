@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
@@ -54,6 +55,7 @@ type ActivityHandler struct {
 	quit                 chan bool
 	workersWaitGroup     sync.WaitGroup
 	IgnorePluginHooksMap sync.Map
+	lastUpdateAtMap      sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -102,6 +104,30 @@ func (ah *ActivityHandler) Start() {
 		ah.workersWaitGroup.Done()
 	}
 
+	// doStart is the meat of the activity handler worker
+	doStartLastActivityAt := func() {
+		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
+			if time.Since(lastUpdateAt.(time.Time)) <= 5*time.Minute {
+				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
+					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscriptionID", subscriptionID.(string), "lastUpdateAt", lastUpdateAt.(time.Time))
+				}
+			}
+			return true
+		}
+		for {
+			timer := time.NewTimer(5 * time.Minute)
+			select {
+			case <-timer.C:
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
+			case <-ah.quit:
+				// we have received a signal to stop
+				timer.Stop()
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
+				return
+			}
+		}
+	}
+
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
 		select {
@@ -118,6 +144,8 @@ func (ah *ActivityHandler) Start() {
 		ah.workersWaitGroup.Add(1)
 		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart, doQuit)
 	}
+	ah.workersWaitGroup.Add(1)
+	startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStartLastActivityAt, doQuit)
 }
 
 func (ah *ActivityHandler) Stop() {
@@ -198,7 +226,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleCreatedActivity(msg, activityIds)
+		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "updated":
 		var msg *clientmodels.Message
 		if len(activity.Content) > 0 {
@@ -208,7 +236,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
+		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
@@ -219,7 +247,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -329,10 +357,12 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -429,6 +459,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 

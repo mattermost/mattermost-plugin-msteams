@@ -75,6 +75,7 @@ type ClientImpl struct {
 	clientType   string // can be "app" or "token"
 	token        *oauth2.Token
 	logService   *pluginapi.LogService
+	redirectURL  string
 }
 
 type Activity struct {
@@ -219,12 +220,14 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
-		ctx:        context.Background(),
-		clientType: "token",
-		tenantID:   tenantID,
-		clientID:   clientID,
-		token:      token,
-		logService: logService,
+		ctx:          context.Background(),
+		clientType:   "token",
+		tenantID:     tenantID,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		token:        token,
+		logService:   logService,
+		redirectURL:  redirectURL,
 	}
 
 	conf := &oauth2.Config{
@@ -257,6 +260,20 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	client.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return client
+}
+
+func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	conf := &oauth2.Config{
+		ClientID:     tc.clientID,
+		ClientSecret: tc.clientSecret,
+		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tc.tenantID),
+			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tc.tenantID),
+		},
+		RedirectURL: tc.redirectURL,
+	}
+	return conf.TokenSource(context.Background(), token).Token()
 }
 
 func (tc *ClientImpl) Connect() error {
