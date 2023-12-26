@@ -131,7 +131,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
+	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
 	now := time.Now()
 	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
 		MattermostID:        "post-id",
@@ -193,7 +193,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&oauth2.Token{}, nil).Times(1)
+	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
 	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
@@ -259,7 +259,7 @@ func TestGetClientForUser(t *testing.T) {
 		{
 			Name: "GetClientForUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
 		},
 	} {
@@ -288,14 +288,16 @@ func TestGetClientForTeamsUser(t *testing.T) {
 		{
 			Name: "GetClientForTeamsUser: Unable to get the token",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(nil, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Times(1)
 			},
 			ExpectedError: "not connected user",
 		},
 		{
 			Name: "GetClientForTeamsUser: Valid",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMSTeamsUser", testutils.GetTeamsUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
+				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 			},
 		},
 	} {
@@ -449,6 +451,7 @@ func TestStart(t *testing.T) {
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
 				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
 				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
+				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
 			},
 		},
 		{
@@ -466,6 +469,7 @@ func TestStart(t *testing.T) {
 				client.On("Connect").Return(nil).Times(1)
 			},
 			SetupStore: func(s *storemocks.Store) {
+				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
 				s.On("CompareAndSetJobStatus", "monitoring_system", false, true).Return(false, nil)
 				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)

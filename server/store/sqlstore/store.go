@@ -229,6 +229,10 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
+	if err := s.addColumn(subscriptionsTableName, "lastActivityAt", "BIGINT"); err != nil {
+		return err
+	}
+
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
 }
 
@@ -725,6 +729,47 @@ func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn 
 		return err
 	}
 	return nil
+}
+
+func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
+	query := s.getQueryBuilder().
+		Update(subscriptionsTableName).
+		Set("lastActivityAt", lastActivityAt.UnixMicro()).
+		Where(sq.And{
+			sq.Eq{"subscriptionID": subscriptionID},
+			sq.Or{sq.Lt{"lastActivityAt": lastActivityAt.UnixMicro()}, sq.Eq{"lastActivityAt": nil}},
+		})
+	_, err := query.Exec()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
+	query := s.getQueryBuilder().
+		Select("subscriptionID, lastActivityAt").
+		From(subscriptionsTableName).
+		Where(
+			sq.NotEq{"lastActivityAt": nil},
+			sq.NotEq{"lastActivityAt": 0},
+		)
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[string]time.Time{}
+	for rows.Next() {
+		var lastActivityAt int64
+		var subscriptionID string
+		if scanErr := rows.Scan(&subscriptionID, &lastActivityAt); scanErr != nil {
+			return nil, scanErr
+		}
+		result[subscriptionID] = time.UnixMicro(lastActivityAt)
+	}
+	return result, nil
 }
 
 func (s *SQLStore) DeleteSubscription(subscriptionID string) error {

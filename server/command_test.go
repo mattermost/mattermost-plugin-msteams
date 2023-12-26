@@ -578,7 +578,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
 				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
 			},
@@ -609,7 +609,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
@@ -733,7 +733,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), "").Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), "").Return(nil, errors.New("Error while getting the channel"))
@@ -769,7 +769,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "You are already connected to MS Teams. Please disconnect your account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Once()
 			},
 		},
 		{
@@ -900,7 +900,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(&fakeToken, nil).Once()
 			},
 		},
 		{
