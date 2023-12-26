@@ -416,9 +416,10 @@ func TestExecuteSyncCommand(t *testing.T) {
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("LogDebug", "Running syncrhonization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "since", mock.Anything).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MSTeamsTeam:    "Valid-MSTeamsTeam",
 					MSTeamsChannel: "Valid-MSTeamsChannel",
@@ -445,9 +446,10 @@ func TestExecuteSyncCommand(t *testing.T) {
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
-				api.On("LogDebug", "Running syncrhonization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "since", mock.Anything).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MSTeamsTeam:    "Valid-MSTeamsTeam",
 					MSTeamsChannel: "Valid-MSTeamsChannel",
@@ -493,6 +495,7 @@ func TestExecuteSyncCommand(t *testing.T) {
 					Id:   testutils.GetChannelID(),
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
+				api.On("LogWarn", "Unable to get the MS Teams team information.", "msteamsTeamID", "Invalid-MSTeamsTeam", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "error", mock.Anything).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
@@ -519,10 +522,11 @@ func TestExecuteSyncCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 
-				api.On("LogError", "Unable to sync channel messages", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "since", mock.AnythingOfType("time.Time"), "error", mock.Anything).Times(1)
-				api.On("LogDebug", "Running syncrhonization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "since", mock.Anything).Times(1)
+				api.On("LogError", "Unable to sync channel messages", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.AnythingOfType("time.Time"), "error", mock.Anything).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
 					MSTeamsTeam:    "Valid-MSTeamsTeam",
 					MSTeamsChannel: "Valid-MSTeamsChannel",
