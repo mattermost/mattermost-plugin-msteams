@@ -356,13 +356,13 @@ func (p *Plugin) executeSyncCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "This channel is not linked to a MSTeams channel.")
 	}
 
-	if _, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam); err != nil {
-		p.API.LogWarn("Unable to get the MS Teams team information.", "msteamsTeamID", link.MSTeamsTeam, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err.Error())
+	if _, err2 := p.msteamsAppClient.GetTeam(link.MSTeamsTeam); err2 != nil {
+		p.API.LogWarn("Unable to get the MS Teams team information.", "msteamsTeamID", link.MSTeamsTeam, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err2.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	if _, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel); err != nil {
-		p.API.LogWarn("Unable to get the MS Teams channel information.", "msteamsTeamID", link.MSTeamsTeam, "msteamsChannelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err.Error())
+	if _, err2 := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel); err2 != nil {
+		p.API.LogWarn("Unable to get the MS Teams channel information.", "msteamsTeamID", link.MSTeamsTeam, "msteamsChannelID", link.MSTeamsChannel, "mattermostChannelID", args.ChannelId, "userID", args.UserId, "error", err2.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
 
