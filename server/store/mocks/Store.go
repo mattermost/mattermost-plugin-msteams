@@ -462,6 +462,29 @@ func (_m *Store) GetSubscriptionType(subscriptionID string) (string, error) {
 	return r0, r1
 }
 
+// GetSubscriptionsLastActivityAt provides a mock function with given fields:
+func (_m *Store) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
+	ret := _m.Called()
+
+	var r0 map[string]time.Time
+	if rf, ok := ret.Get(0).(func() map[string]time.Time); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]time.Time)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTokenForMSTeamsUser provides a mock function with given fields: userID
 func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	ret := _m.Called(userID)
@@ -1005,6 +1028,20 @@ func (_m *Store) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn ti
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
 		r0 = rf(subscriptionID, expiresOn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateSubscriptionLastActivityAt provides a mock function with given fields: subscriptionID, lastActivityAt
+func (_m *Store) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
+	ret := _m.Called(subscriptionID, lastActivityAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, time.Time) error); ok {
+		r0 = rf(subscriptionID, lastActivityAt)
 	} else {
 		r0 = ret.Error(0)
 	}

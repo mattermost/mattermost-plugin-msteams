@@ -11,6 +11,8 @@ import (
 
 	models "github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	oauth2 "golang.org/x/oauth2"
+
 	time "time"
 )
 
@@ -617,6 +619,29 @@ func (_m *Client) RefreshSubscription(subscriptionID string) (*time.Time, error)
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RefreshToken provides a mock function with given fields: token
+func (_m *Client) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	ret := _m.Called(token)
+
+	var r0 *oauth2.Token
+	if rf, ok := ret.Get(0).(func(*oauth2.Token) *oauth2.Token); ok {
+		r0 = rf(token)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*oauth2.Token)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*oauth2.Token) error); ok {
+		r1 = rf(token)
 	} else {
 		r1 = ret.Error(1)
 	}
