@@ -1311,7 +1311,7 @@ func TestGetAutocompleteData(t *testing.T) {
 						Trigger:     "sync",
 						Hint:        "[number-of-hours]",
 						HelpText:    "Sync the current channel with MS Teams channel (by default 24 hours)",
-						RoleID:      model.SystemAdminRoleId,
+						RoleID:      model.SystemUserRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
 					},
