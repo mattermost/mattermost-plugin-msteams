@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"math"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
+	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -33,19 +35,68 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
-func newE2ETestPlugin(t *testing.T) {
+func newE2ETestPlugin(t *testing.T) (*testutils.MattermostContainer, func(ctx context.Context) error) {
 	ctx := context.Background()
-	mattermost, err := testutils.RunContainer(ctx, testutils.WithPlugin("../dist/com.mattermost.msteams-sync.tar.gz", "com.mattermost.msteams-sync"))
+	entries, err := os.ReadDir("../dist")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer mattermost.Terminate(ctx)
-	fmt.Println(mattermost.Url(ctx))
-	time.Sleep(60 * time.Second)
+	err = errors.New("plugin not found")
+	filename := ""
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".tar.gz") {
+			filename = entry.Name()
+			err = nil
+			break
+		}
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	pluginConfig := map[string]any{
+		"allowskipconnectusers":              true,
+		"appmanifestdownload":                "",
+		"automaticallypromotesyntheticusers": false,
+		"bufferSizeForFileStreaming":         20,
+		"buffersizeforfilestreaming":         20,
+		"certificatekey":                     nil,
+		"certificatepublic":                  nil,
+		"clientid":                           "client-id",
+		"clientsecret":                       "client-secret",
+		"connectedusersallowed":              1000,
+		"connectedusersreportdownload":       "",
+		"enabledteams":                       "",
+		"enforceconnectedusers":              true,
+		"evaluationapi":                      true,
+		"encryptionkey":                      "eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB",
+		"maxSizeForCompleteDownload":         20,
+		"maxsizeforcompletedownload":         20,
+		"promptIntervalForDMsAndGMs":         0,
+		"promptintervalfordmsandgms":         0,
+		"syncGuestUsers":                     false,
+		"syncdirectmessages":                 true,
+		"syncguestusers":                     true,
+		"syncusers":                          0,
+		"syntheticuserauthdata":              "ID",
+		"syntheticuserauthservice":           "saml",
+		"tenantid":                           "tenant-id",
+		"webhooksecret":                      "webhook-secret",
+	}
+	mattermost, err := testutils.RunContainer(ctx,
+		testutils.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
+		testutils.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
+	)
+
+	return mattermost, mattermost.Terminate
 }
 
-func TestTestContainer(t *testing.T) {
-	newE2ETestPlugin(t)
+func mockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {
+	mockStruct := MockCallReturns{ReturnType: returnType, Returns: returns, Err: returnErr}
+	mockData, err := json.Marshal(mockStruct)
+	require.NoError(t, err)
+
+	_, err = client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/add-mock/"+method, string(mockData), "")
+	require.NoError(t, err)
 }
 
 func newTestPlugin(t *testing.T) *Plugin {
@@ -122,6 +173,57 @@ func getPluginPathForTest() string {
 	}
 	path := path.Join(curr, "..")
 	return path
+}
+
+func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
+	mattermost, tearDown := newE2ETestPlugin(t)
+	defer tearDown(context.Background())
+
+	postgresDSN, err := mattermost.PostgresDSN(context.Background())
+	require.NoError(t, err)
+	conn, err := sql.Open("postgres", postgresDSN)
+	require.NoError(t, err)
+	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	store.Init()
+
+	url, err := mattermost.Url(context.Background())
+	require.NoError(t, err)
+
+	client := model.NewAPIv4Client(url)
+	user, _, err := client.Login(context.Background(), "admin", "admin")
+	require.NoError(t, err)
+
+	team, _, err := client.GetTeamByName(context.Background(), "test", "")
+	require.NoError(t, err)
+
+	channel, _, err := client.GetChannelByName(context.Background(), "town-square", team.Id, "")
+	require.NoError(t, err)
+
+	post := model.Post{
+		CreateAt:  model.GetMillis(),
+		UpdateAt:  model.GetMillis(),
+		UserId:    user.Id,
+		ChannelId: channel.Id,
+		Message:   "message",
+	}
+
+	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{})
+	require.NoError(t, err)
+
+	mockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
+
+	_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
+	require.NoError(t, err)
+
+	mockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", clientmodels.Message{ID: "ms-post-id", LastUpdateAt: time.Now()}, "")
+
+	newPost, _, err := client.CreatePost(context.Background(), &post)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+	postInfo, err := store.GetPostInfoByMattermostID(newPost.Id)
+	require.NoError(t, err)
+	require.Equal(t, postInfo.MSTeamsID, "ms-post-id")
 }
 
 func TestMessageHasBeenPostedNewMessage(t *testing.T) {

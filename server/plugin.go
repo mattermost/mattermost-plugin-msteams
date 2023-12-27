@@ -24,6 +24,8 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -33,8 +35,28 @@ import (
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
 )
+
+var clientMock *mocks.Client = nil
+
+func getClientMock(p *Plugin) *mocks.Client {
+	p.API.LogDebug("Using mock client")
+
+	if clientMock != nil {
+		return clientMock
+	}
+	newMock := mocks.Client{}
+	newMock.On("ClearSubscriptions").Return(nil)
+	newMock.On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
+	newMock.On("SubscribeToChannels", mock.Anything, p.configuration.WebhookSecret, "").Return("channel-subscription-id", nil)
+	newMock.On("SubscribeToChats", mock.Anything, p.configuration.WebhookSecret, false, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
+	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.configuration.WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
+	newMock.On("ListSubscriptions").Return([]*clientmodels.Subscription{}, nil)
+	clientMock = &newMock
+	return clientMock
+}
 
 const (
 	botUsername                  = "msteams"
@@ -132,6 +154,9 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 
 func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
+	if config.ServiceSettings.SiteURL == nil {
+		panic("SiteURL is required for this plugin to work")
+	}
 	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
 		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
 	}
@@ -164,6 +189,11 @@ func (p *Plugin) connectTeamsAppClient() error {
 	// We don't currently support reconnecting with a new configuration: a plugin restart is
 	// required.
 	if p.msteamsAppClient != nil {
+		return nil
+	}
+
+	if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
+		p.msteamsAppClient = getClientMock(p)
 		return nil
 	}
 
@@ -336,8 +366,18 @@ func (p *Plugin) generatePluginSecrets() error {
 }
 
 func (p *Plugin) OnActivate() error {
+	if err := p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
+		return err
+	}
+
 	if p.clientBuilderWithToken == nil {
-		p.clientBuilderWithToken = msteams.NewTokenClient
+		if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
+			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+				return getClientMock(p)
+			}
+		} else {
+			p.clientBuilderWithToken = msteams.NewTokenClient
+		}
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {
@@ -374,10 +414,6 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
-
-	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
-		return err
-	}
 
 	if p.store == nil {
 		db, dbErr := p.apiClient.Store.GetMasterDB()
