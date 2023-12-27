@@ -168,18 +168,33 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token == nil {
 		return nil, errors.New("not connected user")
 	}
+
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	return client_timerlayer.New(client, p.GetMetrics()), nil
+	timerClient := client_timerlayer.New(client, p.GetMetrics())
+
+	if token.Expiry.Before(time.Now()) {
+		newToken, err := timerClient.RefreshToken(token)
+		if err != nil {
+			return nil, err
+		}
+		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.store.SetUserInfo(userID, teamsUserID, newToken); err != nil {
+			return nil, err
+		}
+	}
+	return timerClient, nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
-	token, _ := p.store.GetTokenForMSTeamsUser(teamsUserID)
-	if token == nil {
-		return nil, errors.New("not connected user")
+	userID, err := p.store.TeamsToMattermostUserID(teamsUserID)
+	if err != nil {
+		return nil, err
 	}
 
-	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	return client_timerlayer.New(client, p.GetMetrics()), nil
+	return p.GetClientForUser(userID)
 }
 
 func (p *Plugin) connectTeamsAppClient() error {
@@ -309,11 +324,6 @@ func (p *Plugin) getPrivateKey() (*rsa.PrivateKey, error) {
 func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
-	}
-	if p.metricsServer != nil {
-		if err := p.metricsServer.Shutdown(); err != nil {
-			p.API.LogWarn("Error shutting down metrics server", "error", err)
-		}
 	}
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
