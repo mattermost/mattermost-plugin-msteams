@@ -241,6 +241,11 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
 
+	err = p.store.UpdateSubscriptionSyncNeeded(channelsSubscription.ID, false)
+	if err != nil {
+		p.API.LogWarn("Unable to mark the subscription as no sync needed", "subscriptionID", channelsSubscription.ID, "error", err.Error())
+	}
+
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }

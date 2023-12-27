@@ -68,4 +68,5 @@ type Store interface {
 	CommitTx(tx *sql.Tx) error
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
+	UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error
 }
