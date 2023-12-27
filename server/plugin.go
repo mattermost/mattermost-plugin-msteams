@@ -141,6 +141,7 @@ func (p *Plugin) GetURL() string {
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
+	p.metricsService.IncrementInvalidTokenDetected()
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
 		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
