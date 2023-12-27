@@ -172,10 +172,11 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	}
 
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	timerClient := client_timerlayer.New(client, p.GetMetrics())
+	client = client_timerlayer.New(client, p.GetMetrics())
+	client = client_disconnectionlayer.New(client, userID, p.OnDisconnectedTokenHandler)
 
 	if token.Expiry.Before(time.Now()) {
-		newToken, err := timerClient.RefreshToken(token)
+		newToken, err := client.RefreshToken(token)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +188,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 			return nil, err
 		}
 	}
-	return client_disconnectionlayer.New(timerClient, userID, p.OnDisconnectedTokenHandler), nil
+	return client, nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
