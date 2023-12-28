@@ -1,4 +1,4 @@
-package testutils
+package containere2e
 
 import (
 	"context"

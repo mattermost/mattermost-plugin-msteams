@@ -14,6 +14,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pkg/errors"
@@ -105,7 +106,7 @@ func getPluginPathForTest() string {
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	t.Parallel()
-	mattermost, store, tearDown := testutils.NewE2ETestPlugin(t)
+	mattermost, store, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown(context.Background())
 
 	client, err := mattermost.GetAdminClient(context.Background())
@@ -131,12 +132,12 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{})
 	require.NoError(t, err)
 
-	testutils.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
+	containere2e.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
 
 	_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
 	require.NoError(t, err)
 
-	testutils.MockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", clientmodels.Message{ID: "ms-post-id", LastUpdateAt: time.Now()}, "")
+	containere2e.MockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", clientmodels.Message{ID: "ms-post-id", LastUpdateAt: time.Now()}, "")
 
 	newPost, _, err := client.CreatePost(context.Background(), &post)
 	require.NoError(t, err)
@@ -150,7 +151,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 
 func TestMessageHasBeenPostedNewMessageWithoutChannelLinkE2E(t *testing.T) {
 	t.Parallel()
-	mattermost, store, tearDown := testutils.NewE2ETestPlugin(t)
+	mattermost, store, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown(context.Background())
 
 	client, err := mattermost.GetAdminClient(context.Background())
@@ -184,7 +185,7 @@ func TestMessageHasBeenPostedNewMessageWithoutChannelLinkE2E(t *testing.T) {
 
 func TestMessageHasBeenPostedNewMessageWithFailureSendingE2E(t *testing.T) {
 	t.Parallel()
-	mattermost, store, tearDown := testutils.NewE2ETestPlugin(t)
+	mattermost, store, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown(context.Background())
 
 	client, err := mattermost.GetAdminClient(context.Background())
@@ -210,12 +211,12 @@ func TestMessageHasBeenPostedNewMessageWithFailureSendingE2E(t *testing.T) {
 	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{})
 	require.NoError(t, err)
 
-	testutils.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
+	containere2e.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
 
 	_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
 	require.NoError(t, err)
 
-	testutils.MockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", nil, "Unable to send the message")
+	containere2e.MockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", nil, "Unable to send the message")
 
 	newPost, _, err := client.CreatePost(context.Background(), &post)
 	require.NoError(t, err)
