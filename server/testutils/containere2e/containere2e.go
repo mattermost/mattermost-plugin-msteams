@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func(ctx context.Context) error) {
+func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
 	ctx := context.Background()
-	matches, err := filepath.Glob("../dist/*.tar.gz")
+	matches, err := filepath.Glob("../../dist/*.tar.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,17 +39,25 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 		mmcontainer.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
 	)
+	require.NoError(t, err)
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
-		mattermost.Terminate(ctx)
+		_ = mattermost.Terminate(ctx)
 	}
 	require.NoError(t, err)
 
 	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
-	store.Init()
+	if err2 := store.Init(); err2 != nil {
+		_ = mattermost.Terminate(ctx)
+	}
+	require.NoError(t, err)
 
-	return mattermost, store, mattermost.Terminate
+	tearDown := func() {
+		require.NoError(t, mattermost.Terminate(context.Background()))
+	}
+
+	return mattermost, store, tearDown
 }
 
 func MockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {
@@ -57,6 +65,7 @@ func MockMSTeamsClient(t *testing.T, client *model.Client4, method string, retur
 	mockData, err := json.Marshal(mockStruct)
 	require.NoError(t, err)
 
-	_, err = client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/add-mock/"+method, string(mockData), "")
+	resp, err := client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/add-mock/"+method, string(mockData), "")
 	require.NoError(t, err)
+	resp.Body.Close()
 }

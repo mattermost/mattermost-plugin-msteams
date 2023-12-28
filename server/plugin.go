@@ -39,7 +39,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var clientMock *mocks.Client = nil
+var clientMock *mocks.Client
 
 func getClientMock(p *Plugin) *mocks.Client {
 	p.API.LogDebug("Using mock client")

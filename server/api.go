@@ -700,7 +700,7 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	var returnErr error = nil
+	var returnErr error
 	if mockCall.Err != "" {
 		returnErr = errors.New(mockCall.Err)
 	}
@@ -710,9 +710,10 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 	var output any
 
 	returns := method.Type.NumOut()
-	if returns == 0 {
+	switch returns {
+	case 0:
 		mockClient.On(methodName, parameters...)
-	} else if returns == 1 {
+	case 1:
 		data, err := json.Marshal(mockCall.Returns)
 		if err != nil {
 			http.Error(w, "unable to mock the method", http.StatusBadRequest)
@@ -823,7 +824,7 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
 			mockClient.On(methodName, parameters...).Return(output)
 		}
-	} else if returns == 2 {
+	case 2:
 		data, err := json.Marshal(mockCall.Returns)
 		if err != nil {
 			http.Error(w, "unable to mock the method", http.StatusBadRequest)
@@ -934,7 +935,11 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
 			mockClient.On(methodName, parameters...).Return(output, returnErr)
 		}
-	} else if returns == 3 {
+	case 3:
+		output1 := int64(mockCall.Returns.([]interface{})[0].(int))
+		output2 := mockCall.Returns.([]interface{})[0].(string)
+		a.p.API.LogDebug("mocking", "method", methodName, "output1", output1, "output2", output2, "returnErr", returnErr)
+		mockClient.On(methodName, parameters...).Return(output1, output2, returnErr)
 	}
 
 	w.WriteHeader(http.StatusOK)

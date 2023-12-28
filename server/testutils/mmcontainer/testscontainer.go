@@ -43,7 +43,7 @@ type MattermostContainer struct {
 	password    string
 }
 
-func (c *MattermostContainer) Url(ctx context.Context) (string, error) {
+func (c *MattermostContainer) URL(ctx context.Context) (string, error) {
 	containerPort, err := c.MappedPort(ctx, "8065/tcp")
 	if err != nil {
 		return "", err
@@ -58,7 +58,7 @@ func (c *MattermostContainer) Url(ctx context.Context) (string, error) {
 }
 
 func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client4, error) {
-	url, err := c.Url(ctx)
+	url, err := c.URL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *MattermostContainer) PostgresDSN(ctx context.Context) (string, error) {
 	return fmt.Sprintf("postgres://user:pass@%s/mattermost_test?sslmode=disable", net.JoinHostPort(host, containerPort.Port())), nil
 }
 
-func (c *MattermostContainer) initData(ctx context.Context, env map[string]string) {
+func (c *MattermostContainer) initData(ctx context.Context, env map[string]string) error {
 	email := defaultEmail
 	if env["TC_USER_EMAIL"] != "" {
 		email = env["TC_USER_EMAIL"]
@@ -110,7 +110,9 @@ func (c *MattermostContainer) initData(ctx context.Context, env map[string]strin
 	if env["TC_USER_PASSWORD"] != "" {
 		c.password = env["TC_USER_PASSWORD"]
 	}
-	c.CreateAdmin(ctx, email, c.username, c.password)
+	if err := c.CreateAdmin(ctx, email, c.username, c.password); err != nil {
+		return err
+	}
 
 	teamName := defaultTeamName
 	if env["TC_TEAM_NAME"] != "" {
@@ -120,22 +122,24 @@ func (c *MattermostContainer) initData(ctx context.Context, env map[string]strin
 	if env["TC_TEAM_DISPLAY_NAME"] != "" {
 		teamDisplayName = env["TC_TEAM_DISPLAY_NAME"]
 	}
-	c.CreateTeam(ctx, teamName, teamDisplayName)
+	if err := c.CreateTeam(ctx, teamName, teamDisplayName); err != nil {
+		return err
+	}
 
-	c.AddUserToTeam(ctx, c.username, teamName)
+	return c.AddUserToTeam(ctx, c.username, teamName)
 }
 
 func (c *MattermostContainer) Terminate(ctx context.Context) error {
 	var errors error
-	if err := c.network.Remove(ctx); err != nil {
-		errors = fmt.Errorf("%w + %w", errors, err)
-	}
-
 	if err := c.pgContainer.Terminate(ctx); err != nil {
 		errors = fmt.Errorf("%w + %w", errors, err)
 	}
 
 	if err := c.Container.Terminate(ctx); err != nil {
+		errors = fmt.Errorf("%w + %w", errors, err)
+	}
+
+	if err := c.network.Remove(ctx); err != nil {
 		errors = fmt.Errorf("%w + %w", errors, err)
 	}
 
@@ -175,7 +179,7 @@ func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, e
 }
 
 func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
-	url, err := c.Url(ctx)
+	url, err := c.URL(ctx)
 	if err != nil {
 		return err
 	}
@@ -281,8 +285,16 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) testco
 			fmt.Println("Error marshaling the patch config", err)
 			return
 		}
-		f.Write(data)
-		f.Close()
+		_, err = f.Write(data)
+		if err != nil {
+			fmt.Println("Error writing the temporary config file", err)
+			return
+		}
+		err = f.Close()
+		if err != nil {
+			fmt.Println("Error closing the temporary config file", err)
+			return
+		}
 
 		pluginFile := testcontainers.ContainerFile{
 			HostFilePath:      pluginPath,
@@ -327,7 +339,9 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 
 	postgresContainer, err := runPostgresContainer(ctx, newNetwork)
 	if err != nil {
-		newNetwork.Remove(ctx)
+		if err2 := newNetwork.Remove(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
 		return nil, err
 	}
 
@@ -361,6 +375,9 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 	for _, opt := range opts {
 		opt.Customize(&genericContainerReq)
 	}
+	if req.Env["TC_PLUGIN_CONFIG_OCAL"] != "" {
+		defer os.Remove(req.Env["TC_PLUGIN_CONFIG_LOCAL"])
+	}
 
 	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
 	if err != nil {
@@ -374,13 +391,27 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 	}
 
 	mattermost := &MattermostContainer{Container: container, pgContainer: postgresContainer, network: newNetwork}
-	mattermost.setSiteURL(context.Background())
+	if err := mattermost.setSiteURL(context.Background()); err != nil {
+		if err2 := mattermost.Terminate(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		return nil, err
+	}
 
-	mattermost.initData(ctx, req.Env)
+	if err := mattermost.initData(ctx, req.Env); err != nil {
+		if err2 := mattermost.Terminate(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		return nil, err
+	}
 
 	if req.Env["TC_PLUGIN_PATH"] != "" && req.Env["TC_PLUGIN_ID"] != "" && req.Env["TC_PLUGIN_CONFIG"] != "" {
-		mattermost.InstallPlugin(ctx, req.Env["TC_PLUGIN_PATH"], req.Env["TC_PLUGIN_ID"], req.Env["TC_PLUGIN_CONFIG"])
-		os.Remove(req.Env["TC_PLUGIN_CONFIG_LOCAL"])
+		if err := mattermost.InstallPlugin(ctx, req.Env["TC_PLUGIN_PATH"], req.Env["TC_PLUGIN_ID"], req.Env["TC_PLUGIN_CONFIG"]); err != nil {
+			if err2 := mattermost.Terminate(ctx); err2 != nil {
+				err = fmt.Errorf("%w + %w", err, err2)
+			}
+			return nil, err
+		}
 	}
 
 	return mattermost, nil
