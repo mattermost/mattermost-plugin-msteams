@@ -189,8 +189,28 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	return err
 }
 
-func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, configPath string) error {
+func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, config string) error {
 	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "plugin", "add", pluginPath})
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp("", "*.json")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+
+	_, err = f.Write([]byte(config))
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	configPath := "/tmp/plugin-config-" + pluginID + ".json"
+	err = c.CopyFileToContainer(ctx, f.Name(), configPath, 0o755)
 	if err != nil {
 		return err
 	}
@@ -199,6 +219,7 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 	if err != nil {
 		return err
 	}
+	_, _, err = c.Exec(ctx, []string{"rm", "-f", configPath})
 
 	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "plugin", "enable", pluginID})
 	return err
@@ -252,7 +273,7 @@ func WithAdmin(email, username, password string) testcontainers.CustomizeRequest
 	}
 }
 
-// WithAdmin sets the admin email, username and password for the mattermost container
+// WithTeam sets the team name and display name for the mattermost container
 func WithTeam(teamName, teamDisplayName string) testcontainers.CustomizeRequestOption {
 	return func(req *testcontainers.GenericContainerRequest) {
 		req.Env["TC_TEAM_NAME"] = teamName
@@ -260,33 +281,15 @@ func WithTeam(teamName, teamDisplayName string) testcontainers.CustomizeRequestO
 	}
 }
 
-// WithConfigFile sets the config file to be used for the postgres container
-// It will also set the "config_file" parameter to the path of the config file
-// as a command line argument to the container
+// WithPlugin sets the plugin to be installed in the mattermost container
 func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) testcontainers.CustomizeRequestOption {
 	return func(req *testcontainers.GenericContainerRequest) {
 		uuid, _ := uuid.NewUUID()
-
-		f, err := os.CreateTemp("", "*.json")
-		if err != nil {
-			fmt.Println("Error creating the patch config file", err)
-			return
-		}
 
 		patch := map[string]map[string]map[string]map[string]any{"PluginSettings": {"Plugins": {pluginID: pluginConfig}}}
 		data, err := json.Marshal(patch)
 		if err != nil {
 			fmt.Println("Error marshaling the patch config", err)
-			return
-		}
-		_, err = f.Write(data)
-		if err != nil {
-			fmt.Println("Error writing the temporary config file", err)
-			return
-		}
-		err = f.Close()
-		if err != nil {
-			fmt.Println("Error closing the temporary config file", err)
 			return
 		}
 
@@ -296,17 +299,10 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) testco
 			FileMode:          0o755,
 		}
 
-		cfgFile := testcontainers.ContainerFile{
-			HostFilePath:      f.Name(),
-			ContainerFilePath: fmt.Sprintf("/tmp/%s.config.json", uuid.String()),
-			FileMode:          0o755,
-		}
-
-		req.Files = append(req.Files, pluginFile, cfgFile)
+		req.Files = append(req.Files, pluginFile)
 		req.Env["TC_PLUGIN_PATH"] = fmt.Sprintf("/tmp/%s.tar.gz", uuid.String())
 		req.Env["TC_PLUGIN_ID"] = pluginID
-		req.Env["TC_PLUGIN_CONFIG"] = fmt.Sprintf("/tmp/%s.config.json", uuid.String())
-		req.Env["TC_PLUGIN_CONFIG_LOCAL"] = f.Name()
+		req.Env["TC_PLUGIN_CONFIG"] = string(data)
 	}
 }
 
@@ -368,9 +364,6 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 
 	for _, opt := range opts {
 		opt.Customize(&genericContainerReq)
-	}
-	if req.Env["TC_PLUGIN_CONFIG_OCAL"] != "" {
-		defer os.Remove(req.Env["TC_PLUGIN_CONFIG_LOCAL"])
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
