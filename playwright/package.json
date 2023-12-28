@@ -1,0 +1,17 @@
+{
+  "name": "playwright",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "@testcontainers/postgresql": "^10.4.0",
+    "@types/node": "^20.10.5",
+    "testcontainers": "^10.4.0",
+    "uuid": "^9.0.1"
+  }
+}
