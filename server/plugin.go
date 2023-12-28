@@ -376,10 +376,6 @@ func (p *Plugin) generatePluginSecrets() error {
 }
 
 func (p *Plugin) OnActivate() error {
-	if err := p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
-		return err
-	}
-
 	if p.clientBuilderWithToken == nil {
 		if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
 			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
@@ -424,6 +420,10 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
+
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
+		return err
+	}
 
 	if p.store == nil {
 		db, dbErr := p.apiClient.Store.GetMasterDB()
