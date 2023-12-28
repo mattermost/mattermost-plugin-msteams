@@ -28,6 +28,24 @@ const (
 	defaultMattermostImage = "mattermost/mattermost-enterprise-edition"
 )
 
+type MattermostCustomizeRequestOption func(req *MattermostContainerRequest)
+
+type plugin struct {
+	path   string
+	id     string
+	config map[string]any
+}
+
+type MattermostContainerRequest struct {
+	testcontainers.GenericContainerRequest
+	email           string
+	username        string
+	password        string
+	teamName        string
+	teamDisplayName string
+	plugins         []plugin
+}
+
 // MattermostContainer represents the mattermost container type used in the module
 type MattermostContainer struct {
 	testcontainers.Container
@@ -89,38 +107,6 @@ func (c *MattermostContainer) PostgresDSN(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("postgres://user:pass@%s/mattermost_test?sslmode=disable", net.JoinHostPort(host, containerPort.Port())), nil
-}
-
-func (c *MattermostContainer) initData(ctx context.Context, env map[string]string) error {
-	email := defaultEmail
-	if env["TC_USER_EMAIL"] != "" {
-		email = env["TC_USER_EMAIL"]
-	}
-	c.username = defaultUsername
-	if env["TC_USER_USERNAME"] != "" {
-		c.username = env["TC_USER_USERNAME"]
-	}
-	c.password = defaultPassword
-	if env["TC_USER_PASSWORD"] != "" {
-		c.password = env["TC_USER_PASSWORD"]
-	}
-	if err := c.CreateAdmin(ctx, email, c.username, c.password); err != nil {
-		return err
-	}
-
-	teamName := defaultTeamName
-	if env["TC_TEAM_NAME"] != "" {
-		teamName = env["TC_TEAM_NAME"]
-	}
-	teamDisplayName := defaultTeamDisplayName
-	if env["TC_TEAM_DISPLAY_NAME"] != "" {
-		teamDisplayName = env["TC_TEAM_DISPLAY_NAME"]
-	}
-	if err := c.CreateTeam(ctx, teamName, teamDisplayName); err != nil {
-		return err
-	}
-
-	return c.AddUserToTeam(ctx, c.username, teamName)
 }
 
 func (c *MattermostContainer) Terminate(ctx context.Context) error {
@@ -189,8 +175,9 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	return err
 }
 
-func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, config string) error {
-	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "plugin", "add", pluginPath})
+func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, pluginConfig map[string]any) error {
+	patch := map[string]map[string]map[string]map[string]any{"PluginSettings": {"Plugins": {pluginID: pluginConfig}}}
+	config, err := json.Marshal(patch)
 	if err != nil {
 		return err
 	}
@@ -209,17 +196,24 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 		return err
 	}
 
+	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "plugin", "add", pluginPath})
+	if err != nil {
+		return err
+	}
+
 	configPath := "/tmp/plugin-config-" + pluginID + ".json"
 	err = c.CopyFileToContainer(ctx, f.Name(), configPath, 0o755)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_, _, _ = c.Exec(ctx, []string{"rm", "-f", configPath})
+	}()
 
 	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "config", "patch", configPath})
 	if err != nil {
 		return err
 	}
-	_, _, err = c.Exec(ctx, []string{"rm", "-f", configPath})
 
 	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "plugin", "enable", pluginID})
 	return err
@@ -228,8 +222,8 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 // WithConfigFile sets the config file to be used for the postgres container
 // It will also set the "config_file" parameter to the path of the config file
 // as a command line argument to the container
-func WithConfigFile(cfg string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
+func WithConfigFile(cfg string) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
 		cfgFile := testcontainers.ContainerFile{
 			HostFilePath:      cfg,
 			ContainerFilePath: "/etc/mattermost.json",
@@ -242,8 +236,8 @@ func WithConfigFile(cfg string) testcontainers.CustomizeRequestOption {
 }
 
 // WithInitScripts sets the init scripts to be run when the container starts
-func WithInitScripts(scripts ...string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
+func WithInitScripts(scripts ...string) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
 		initScripts := []testcontainers.ContainerFile{}
 		for _, script := range scripts {
 			cf := testcontainers.ContainerFile{
@@ -258,40 +252,33 @@ func WithInitScripts(scripts ...string) testcontainers.CustomizeRequestOption {
 }
 
 // WithEnv sets the environment variable to the given value
-func WithEnv(env, value string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
+func WithEnv(env, value string) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
 		req.Env[env] = value
 	}
 }
 
 // WithAdmin sets the admin email, username and password for the mattermost container
-func WithAdmin(email, username, password string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
-		req.Env["TC_USER_EMAIL"] = email
-		req.Env["TC_USER_USERNAME"] = username
-		req.Env["TC_USER_PASSWORD"] = password
+func WithAdmin(email, username, password string) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
+		req.email = email
+		req.username = username
+		req.password = password
 	}
 }
 
 // WithTeam sets the team name and display name for the mattermost container
-func WithTeam(teamName, teamDisplayName string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
-		req.Env["TC_TEAM_NAME"] = teamName
-		req.Env["TC_TEAM_DISPLAY_NAME"] = teamDisplayName
+func WithTeam(teamName, teamDisplayName string) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
+		req.teamName = teamName
+		req.teamDisplayName = teamDisplayName
 	}
 }
 
 // WithPlugin sets the plugin to be installed in the mattermost container
-func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
+func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
 		uuid, _ := uuid.NewUUID()
-
-		patch := map[string]map[string]map[string]map[string]any{"PluginSettings": {"Plugins": {pluginID: pluginConfig}}}
-		data, err := json.Marshal(patch)
-		if err != nil {
-			fmt.Println("Error marshaling the patch config", err)
-			return
-		}
 
 		pluginFile := testcontainers.ContainerFile{
 			HostFilePath:      pluginPath,
@@ -300,9 +287,11 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) testco
 		}
 
 		req.Files = append(req.Files, pluginFile)
-		req.Env["TC_PLUGIN_PATH"] = fmt.Sprintf("/tmp/%s.tar.gz", uuid.String())
-		req.Env["TC_PLUGIN_ID"] = pluginID
-		req.Env["TC_PLUGIN_CONFIG"] = string(data)
+		req.plugins = append(req.plugins, plugin{
+			path:   fmt.Sprintf("/tmp/%s.tar.gz", uuid.String()),
+			id:     pluginID,
+			config: pluginConfig,
+		})
 	}
 }
 
@@ -321,7 +310,7 @@ func runPostgresContainer(ctx context.Context, nw *testcontainers.DockerNetwork)
 }
 
 // RunContainer creates an instance of the postgres container type
-func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*MattermostContainer, error) {
+func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption) (*MattermostContainer, error) {
 	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
 	if err != nil {
 		return nil, err
@@ -336,48 +325,60 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 	}
 
 	dbconn := fmt.Sprintf("postgres://user:pass@%s:%d/mattermost_test?sslmode=disable", "db", 5432)
-	req := testcontainers.ContainerRequest{
-		Image: defaultMattermostImage,
-		Env: map[string]string{
-			"MM_SQLSETTINGS_DATASOURCE":          dbconn,
-			"MM_SQLSETTINGS_DRIVERNAME":          "postgres",
-			"MM_SERVICESETTINGS_ENABLELOCALMODE": "true",
-			"MM_PASSWORDSETTINGS_MINIMUMLENGTH":  "5",
-			"MM_PLUGINSETTINGS_ENABLEUPLOADS":    "true",
-			"MM_FILESETTINGS_MAXFILESIZE":        "256000000",
-			"MM_LOGSETTINGS_CONSOLELEVEL":        "DEBUG",
-			"MM_LOGSETTINGS_FILELEVEL":           "DEBUG",
+	req := MattermostContainerRequest{
+		GenericContainerRequest: testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image: defaultMattermostImage,
+				Env: map[string]string{
+					"MM_SQLSETTINGS_DATASOURCE":          dbconn,
+					"MM_SQLSETTINGS_DRIVERNAME":          "postgres",
+					"MM_SERVICESETTINGS_ENABLELOCALMODE": "true",
+					"MM_PASSWORDSETTINGS_MINIMUMLENGTH":  "5",
+					"MM_PLUGINSETTINGS_ENABLEUPLOADS":    "true",
+					"MM_FILESETTINGS_MAXFILESIZE":        "256000000",
+					"MM_LOGSETTINGS_CONSOLELEVEL":        "DEBUG",
+					"MM_LOGSETTINGS_FILELEVEL":           "DEBUG",
+				},
+				ExposedPorts: []string{"8065/tcp"},
+				Cmd:          []string{"mattermost", "server"},
+				WaitingFor: wait.ForAll(
+					wait.ForLog("Server is listening on"),
+				).WithDeadline(30 * time.Second),
+				Networks:       []string{newNetwork.Name},
+				NetworkAliases: map[string][]string{newNetwork.Name: {"mattermost"}},
+			},
+			Started: true,
 		},
-		ExposedPorts: []string{"8065/tcp"},
-		Cmd:          []string{"mattermost", "server"},
-		WaitingFor: wait.ForAll(
-			wait.ForLog("Server is listening on"),
-		).WithDeadline(30 * time.Second),
-		Networks:       []string{newNetwork.Name},
-		NetworkAliases: map[string][]string{newNetwork.Name: {"mattermost"}},
-	}
-
-	genericContainerReq := testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
+		email:           defaultEmail,
+		username:        defaultUsername,
+		password:        defaultPassword,
+		teamName:        defaultTeamName,
+		teamDisplayName: defaultTeamDisplayName,
 	}
 
 	for _, opt := range opts {
-		opt.Customize(&genericContainerReq)
+		opt(&req)
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
+	container, err := testcontainers.GenericContainer(ctx, req.GenericContainerRequest)
 	if err != nil {
-		if err2 := newNetwork.Remove(ctx); err2 != nil {
+		if err2 := postgresContainer.Terminate(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
-		if err2 := postgresContainer.Terminate(ctx); err2 != nil {
+		if err2 := newNetwork.Remove(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
 		return nil, err
 	}
 
-	mattermost := &MattermostContainer{Container: container, pgContainer: postgresContainer, network: newNetwork}
+	mattermost := &MattermostContainer{
+		Container:   container,
+		pgContainer: postgresContainer,
+		network:     newNetwork,
+		username:    req.username,
+		password:    req.password,
+	}
+
 	if err := mattermost.setSiteURL(context.Background()); err != nil {
 		if err2 := mattermost.Terminate(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
@@ -385,15 +386,29 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 		return nil, err
 	}
 
-	if err := mattermost.initData(ctx, req.Env); err != nil {
+	if err := mattermost.CreateAdmin(ctx, req.email, req.username, req.password); err != nil {
 		if err2 := mattermost.Terminate(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
 		return nil, err
 	}
 
-	if req.Env["TC_PLUGIN_PATH"] != "" && req.Env["TC_PLUGIN_ID"] != "" && req.Env["TC_PLUGIN_CONFIG"] != "" {
-		if err := mattermost.InstallPlugin(ctx, req.Env["TC_PLUGIN_PATH"], req.Env["TC_PLUGIN_ID"], req.Env["TC_PLUGIN_CONFIG"]); err != nil {
+	if err := mattermost.CreateTeam(ctx, req.teamName, req.teamDisplayName); err != nil {
+		if err2 := mattermost.Terminate(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		return nil, err
+	}
+
+	if err := mattermost.AddUserToTeam(ctx, req.username, req.teamName); err != nil {
+		if err2 := mattermost.Terminate(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		return nil, err
+	}
+
+	for _, plugin := range req.plugins {
+		if err := mattermost.InstallPlugin(ctx, plugin.path, plugin.id, plugin.config); err != nil {
 			if err2 := mattermost.Terminate(ctx); err2 != nil {
 				err = fmt.Errorf("%w + %w", err, err2)
 			}
