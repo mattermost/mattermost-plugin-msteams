@@ -82,6 +82,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
 		router.HandleFunc("/add-mock/{method:.*}", api.addMockCall).Methods(http.MethodPost)
+		router.HandleFunc("/reset-mocks", api.resetMocks).Methods(http.MethodPost)
 	}
 
 	// iFrame support
@@ -673,6 +674,13 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 		a.p.API.LogError("Unable to write the data", "Error", err.Error())
 		http.Error(w, "unable to write the data", http.StatusInternalServerError)
 	}
+}
+
+func (a *API) resetMocks(w http.ResponseWriter, r *http.Request) {
+	clientMock = nil
+	newMock := getClientMock(a.p)
+	a.p.msteamsAppClient = newMock
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {

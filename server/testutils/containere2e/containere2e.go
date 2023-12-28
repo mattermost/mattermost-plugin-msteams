@@ -69,3 +69,9 @@ func MockMSTeamsClient(t *testing.T, client *model.Client4, method string, retur
 	require.NoError(t, err)
 	resp.Body.Close()
 }
+
+func ResetMSTeamsClientMock(t *testing.T, client *model.Client4) {
+	resp, err := client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/reset-mocks", "", "")
+	require.NoError(t, err)
+	resp.Body.Close()
+}
