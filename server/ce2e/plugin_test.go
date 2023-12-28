@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,8 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Without Channel Link", func(t *testing.T) {
-		newPost, _, err := client.CreatePost(context.Background(), &post)
+		var newPost *model.Post
+		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
 		time.Sleep(50 * time.Millisecond)
@@ -58,12 +60,14 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
 		require.NoError(t, err)
 
-		newPost, _, err := client.CreatePost(context.Background(), &post)
+		var newPost *model.Post
+		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
 		time.Sleep(50 * time.Millisecond)
 
-		postInfo, err := store.GetPostInfoByMattermostID(newPost.Id)
+		var postInfo *storemodels.PostInfo
+		postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.NoError(t, err)
 		require.Equal(t, postInfo.MSTeamsID, "ms-post-id")
 	})
