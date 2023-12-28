@@ -12,18 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/mmcontainer"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -35,7 +33,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
-func newE2ETestPlugin(t *testing.T) (*testutils.MattermostContainer, func(ctx context.Context) error) {
+func newE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *model.Client4, *sqlstore.SQLStore, func(ctx context.Context) error) {
 	ctx := context.Background()
 	entries, err := os.ReadDir("../dist")
 	if err != nil {
@@ -82,12 +80,39 @@ func newE2ETestPlugin(t *testing.T) (*testutils.MattermostContainer, func(ctx co
 		"tenantid":                           "tenant-id",
 		"webhooksecret":                      "webhook-secret",
 	}
-	mattermost, err := testutils.RunContainer(ctx,
-		testutils.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
-		testutils.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
+	mattermost, err := mmcontainer.RunContainer(ctx,
+		mmcontainer.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
+		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
 	)
 
-	return mattermost, mattermost.Terminate
+	postgresDSN, err := mattermost.PostgresDSN(ctx)
+	if err != nil {
+		mattermost.Terminate(ctx)
+	}
+	require.NoError(t, err)
+
+	conn, err := sql.Open("postgres", postgresDSN)
+	if err != nil {
+		mattermost.Terminate(ctx)
+	}
+	require.NoError(t, err)
+	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	store.Init()
+
+	url, err := mattermost.Url(context.Background())
+	if err != nil {
+		mattermost.Terminate(ctx)
+	}
+	require.NoError(t, err)
+
+	client := model.NewAPIv4Client(url)
+	_, _, err = client.Login(context.Background(), "admin", "admin")
+	if err != nil {
+		mattermost.Terminate(ctx)
+	}
+	require.NoError(t, err)
+
+	return mattermost, client, store, mattermost.Terminate
 }
 
 func mockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {
@@ -176,21 +201,11 @@ func getPluginPathForTest() string {
 }
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
-	mattermost, tearDown := newE2ETestPlugin(t)
+	t.Parallel()
+	_, client, store, tearDown := newE2ETestPlugin(t)
 	defer tearDown(context.Background())
 
-	postgresDSN, err := mattermost.PostgresDSN(context.Background())
-	require.NoError(t, err)
-	conn, err := sql.Open("postgres", postgresDSN)
-	require.NoError(t, err)
-	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
-	store.Init()
-
-	url, err := mattermost.Url(context.Background())
-	require.NoError(t, err)
-
-	client := model.NewAPIv4Client(url)
-	user, _, err := client.Login(context.Background(), "admin", "admin")
+	user, _, err := client.GetMe(context.Background(), "")
 	require.NoError(t, err)
 
 	team, _, err := client.GetTeamByName(context.Background(), "test", "")
@@ -220,107 +235,89 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	newPost, _, err := client.CreatePost(context.Background(), &post)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(50 * time.Millisecond)
+
 	postInfo, err := store.GetPostInfoByMattermostID(newPost.Id)
 	require.NoError(t, err)
 	require.Equal(t, postInfo.MSTeamsID, "ms-post-id")
 }
 
-func TestMessageHasBeenPostedNewMessage(t *testing.T) {
-	plugin := newTestPlugin(t)
+func TestMessageHasBeenPostedNewMessageWithoutChannelLinkE2E(t *testing.T) {
+	t.Parallel()
+	_, client, store, tearDown := newE2ETestPlugin(t)
+	defer tearDown(context.Background())
 
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
+	user, _, err := client.GetMe(context.Background(), "")
+	require.NoError(t, err)
+
+	team, _, err := client.GetTeamByName(context.Background(), "test", "")
+	require.NoError(t, err)
+
+	channel, _, err := client.GetChannelByName(context.Background(), "town-square", team.Id, "")
+	require.NoError(t, err)
+
 	post := model.Post{
-		Id:        "post-id",
 		CreateAt:  model.GetMillis(),
 		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
+		UserId:    user.Id,
 		ChannelId: channel.Id,
 		Message:   "message",
 	}
 
-	link := storemodels.ChannelLink{
-		MattermostTeamID:    "team-id",
-		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
-	}
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
-	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
-		MattermostID:        "post-id",
-		MSTeamsID:           "new-message-id",
-		MSTeamsChannel:      "ms-channel-id",
-		MSTeamsLastUpdateAt: now,
-	}).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
+	newPost, _, err := client.CreatePost(context.Background(), &post)
+	require.NoError(t, err)
 
-	plugin.MessageHasBeenPosted(nil, &post)
+	time.Sleep(50 * time.Millisecond)
+
+	_, err = store.GetPostInfoByMattermostID(newPost.Id)
+	require.Error(t, err)
 }
 
-func TestMessageHasBeenPostedNewMessageWithoutChannelLink(t *testing.T) {
-	plugin := newTestPlugin(t)
+func TestMessageHasBeenPostedNewMessageWithFailureSendingE2E(t *testing.T) {
+	t.Parallel()
+	mattermost, client, store, tearDown := newE2ETestPlugin(t)
+	defer tearDown(context.Background())
 
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
+	user, _, err := client.GetMe(context.Background(), "")
+	require.NoError(t, err)
+
+	team, _, err := client.GetTeamByName(context.Background(), "test", "")
+	require.NoError(t, err)
+
+	channel, _, err := client.GetChannelByName(context.Background(), "town-square", team.Id, "")
+	require.NoError(t, err)
+
 	post := model.Post{
-		Id:        "post-id",
 		CreateAt:  model.GetMillis(),
 		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
+		UserId:    user.Id,
 		ChannelId: channel.Id,
 		Message:   "message",
 	}
 
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
-	plugin.MessageHasBeenPosted(nil, &post)
-}
+	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{})
+	require.NoError(t, err)
 
-func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
-	plugin := newTestPlugin(t)
+	mockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
 
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
-	post := model.Post{
-		Id:        "post-id",
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
-		ChannelId: channel.Id,
-		Message:   "message",
-	}
+	_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
+	require.NoError(t, err)
 
-	link := storemodels.ChannelLink{
-		MattermostTeamID:    "team-id",
-		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
-	}
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
-	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
-	plugin.API.(*plugintest.API).On("LogWarn", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
+	mockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", nil, "Unable to send the message")
 
-	plugin.MessageHasBeenPosted(nil, &post)
+	newPost, _, err := client.CreatePost(context.Background(), &post)
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	logs, err := mattermost.GetLogs(context.Background(), 10)
+	require.NoError(t, err)
+
+	require.Contains(t, logs, "Error creating post on MS Teams")
+	require.Contains(t, logs, "Unable to handle message sent")
+
+	_, err = store.GetPostInfoByMattermostID(newPost.Id)
+	require.Error(t, err)
 }
 
 func TestGetURL(t *testing.T) {
