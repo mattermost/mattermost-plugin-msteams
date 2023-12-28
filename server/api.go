@@ -29,6 +29,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/testmodels"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -44,12 +45,6 @@ type API struct {
 
 type Activities struct {
 	Value []msteams.Activity
-}
-
-type MockCallReturns struct {
-	Returns    interface{}
-	ReturnType string
-	Err        string
 }
 
 const (
@@ -698,7 +693,7 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 		parameters = append(parameters, mock.Anything)
 	}
 
-	var mockCall MockCallReturns
+	var mockCall testmodels.MockCallReturns
 	err := json.NewDecoder(r.Body).Decode(&mockCall)
 	if err != nil {
 		http.Error(w, "unable to mock the method", http.StatusBadRequest)
