@@ -154,13 +154,14 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 
 func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
-	if config.ServiceSettings.SiteURL == nil {
-		panic("SiteURL is required for this plugin to work")
+	siteURL := ""
+	if config.ServiceSettings.SiteURL != nil {
+		siteURL = *config.ServiceSettings.SiteURL
 	}
-	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
-		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
+	if strings.HasSuffix(siteURL, "/") {
+		return siteURL + "plugins/" + pluginID
 	}
-	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
+	return siteURL + "/plugins/" + pluginID
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
