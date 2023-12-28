@@ -28,12 +28,6 @@ const (
 	defaultMattermostImage = "mattermost/mattermost-enterprise-edition"
 )
 
-type LogConsumer struct{}
-
-func (l *LogConsumer) Accept(entry testcontainers.Log) {
-	fmt.Println(string(entry.Content))
-}
-
 // MattermostContainer represents the mattermost container type used in the module
 type MattermostContainer struct {
 	testcontainers.Container
