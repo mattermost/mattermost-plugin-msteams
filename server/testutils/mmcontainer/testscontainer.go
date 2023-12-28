@@ -2,6 +2,7 @@ package mmcontainer
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -37,7 +39,7 @@ type MattermostContainer struct {
 	testcontainers.Container
 	pgContainer *postgres.PostgresContainer
 	network     *testcontainers.DockerNetwork
-	user        string
+	username    string
 	password    string
 }
 
@@ -53,6 +55,32 @@ func (c *MattermostContainer) Url(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("http://%s", net.JoinHostPort(host, containerPort.Port())), nil
+}
+
+func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client4, error) {
+	url, err := c.Url(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := model.NewAPIv4Client(url)
+	_, _, err = client.Login(context.Background(), c.username, c.password)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func (c *MattermostContainer) PostgresConnection(ctx context.Context) (*sql.DB, error) {
+	postgresDSN, err := c.PostgresDSN(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := sql.Open("postgres", postgresDSN)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 func (c *MattermostContainer) PostgresDSN(ctx context.Context) (string, error) {
@@ -74,15 +102,15 @@ func (c *MattermostContainer) initData(ctx context.Context, env map[string]strin
 	if env["TC_USER_EMAIL"] != "" {
 		email = env["TC_USER_EMAIL"]
 	}
-	username := defaultUsername
+	c.username = defaultUsername
 	if env["TC_USER_USERNAME"] != "" {
-		username = env["TC_USER_USERNAME"]
+		c.username = env["TC_USER_USERNAME"]
 	}
-	password := defaultPassword
+	c.password = defaultPassword
 	if env["TC_USER_PASSWORD"] != "" {
-		password = env["TC_USER_PASSWORD"]
+		c.password = env["TC_USER_PASSWORD"]
 	}
-	c.CreateAdmin(ctx, email, username, password)
+	c.CreateAdmin(ctx, email, c.username, c.password)
 
 	teamName := defaultTeamName
 	if env["TC_TEAM_NAME"] != "" {
@@ -94,7 +122,7 @@ func (c *MattermostContainer) initData(ctx context.Context, env map[string]strin
 	}
 	c.CreateTeam(ctx, teamName, teamDisplayName)
 
-	c.AddUserToTeam(ctx, username, teamName)
+	c.AddUserToTeam(ctx, c.username, teamName)
 }
 
 func (c *MattermostContainer) Terminate(ctx context.Context) error {

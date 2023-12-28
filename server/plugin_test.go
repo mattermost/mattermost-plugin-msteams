@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"math"
 	"net/http"
 	"os"
 	"path"
-	"strings"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -33,86 +32,42 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
-func newE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *model.Client4, *sqlstore.SQLStore, func(ctx context.Context) error) {
+func newE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func(ctx context.Context) error) {
 	ctx := context.Background()
-	entries, err := os.ReadDir("../dist")
+	matches, err := filepath.Glob("../dist/*.tar.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = errors.New("plugin not found")
-	filename := ""
-	for _, entry := range entries {
-		if strings.HasSuffix(entry.Name(), ".tar.gz") {
-			filename = entry.Name()
-			err = nil
-			break
-		}
+	if len(matches) == 0 {
+		t.Fatal("Unable to find plugin tar.gz file")
 	}
-	if err != nil {
-		t.Fatal(err)
-	}
+	filename := matches[0]
+
 	pluginConfig := map[string]any{
-		"allowskipconnectusers":              true,
-		"appmanifestdownload":                "",
-		"automaticallypromotesyntheticusers": false,
-		"bufferSizeForFileStreaming":         20,
-		"buffersizeforfilestreaming":         20,
-		"certificatekey":                     nil,
-		"certificatepublic":                  nil,
-		"clientid":                           "client-id",
-		"clientsecret":                       "client-secret",
-		"connectedusersallowed":              1000,
-		"connectedusersreportdownload":       "",
-		"enabledteams":                       "",
-		"enforceconnectedusers":              true,
-		"evaluationapi":                      true,
-		"encryptionkey":                      "eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB",
-		"maxSizeForCompleteDownload":         20,
-		"maxsizeforcompletedownload":         20,
-		"promptIntervalForDMsAndGMs":         0,
-		"promptintervalfordmsandgms":         0,
-		"syncGuestUsers":                     false,
-		"syncdirectmessages":                 true,
-		"syncguestusers":                     true,
-		"syncusers":                          0,
-		"syntheticuserauthdata":              "ID",
-		"syntheticuserauthservice":           "saml",
-		"tenantid":                           "tenant-id",
-		"webhooksecret":                      "webhook-secret",
+		"clientid":                   "client-id",
+		"clientsecret":               "client-secret",
+		"connectedusersallowed":      1000,
+		"encryptionkey":              "eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB",
+		"maxSizeForCompleteDownload": 20,
+		"maxsizeforcompletedownload": 20,
+		"tenantid":                   "tenant-id",
+		"webhooksecret":              "webhook-secret",
 	}
 	mattermost, err := mmcontainer.RunContainer(ctx,
 		mmcontainer.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
 	)
 
-	postgresDSN, err := mattermost.PostgresDSN(ctx)
+	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
 		mattermost.Terminate(ctx)
 	}
 	require.NoError(t, err)
 
-	conn, err := sql.Open("postgres", postgresDSN)
-	if err != nil {
-		mattermost.Terminate(ctx)
-	}
-	require.NoError(t, err)
 	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	store.Init()
 
-	url, err := mattermost.Url(context.Background())
-	if err != nil {
-		mattermost.Terminate(ctx)
-	}
-	require.NoError(t, err)
-
-	client := model.NewAPIv4Client(url)
-	_, _, err = client.Login(context.Background(), "admin", "admin")
-	if err != nil {
-		mattermost.Terminate(ctx)
-	}
-	require.NoError(t, err)
-
-	return mattermost, client, store, mattermost.Terminate
+	return mattermost, store, mattermost.Terminate
 }
 
 func mockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {
@@ -202,8 +157,11 @@ func getPluginPathForTest() string {
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	t.Parallel()
-	_, client, store, tearDown := newE2ETestPlugin(t)
+	mattermost, store, tearDown := newE2ETestPlugin(t)
 	defer tearDown(context.Background())
+
+	client, err := mattermost.GetAdminClient(context.Background())
+	require.NoError(t, err)
 
 	user, _, err := client.GetMe(context.Background(), "")
 	require.NoError(t, err)
@@ -244,8 +202,11 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 
 func TestMessageHasBeenPostedNewMessageWithoutChannelLinkE2E(t *testing.T) {
 	t.Parallel()
-	_, client, store, tearDown := newE2ETestPlugin(t)
+	mattermost, store, tearDown := newE2ETestPlugin(t)
 	defer tearDown(context.Background())
+
+	client, err := mattermost.GetAdminClient(context.Background())
+	require.NoError(t, err)
 
 	user, _, err := client.GetMe(context.Background(), "")
 	require.NoError(t, err)
@@ -275,8 +236,11 @@ func TestMessageHasBeenPostedNewMessageWithoutChannelLinkE2E(t *testing.T) {
 
 func TestMessageHasBeenPostedNewMessageWithFailureSendingE2E(t *testing.T) {
 	t.Parallel()
-	mattermost, client, store, tearDown := newE2ETestPlugin(t)
+	mattermost, store, tearDown := newE2ETestPlugin(t)
 	defer tearDown(context.Background())
+
+	client, err := mattermost.GetAdminClient(context.Background())
+	require.NoError(t, err)
 
 	user, _, err := client.GetMe(context.Background(), "")
 	require.NoError(t, err)
