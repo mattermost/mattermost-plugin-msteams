@@ -800,7 +800,7 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 	row := s.getQueryBuilder().Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, lastActivityAt, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
-	var lastActivityAt int64
+	var lastActivityAt *int64
 	var certificate *string
 	if err := row.Scan(&subscription.SubscriptionID, &subscription.ChannelID, &subscription.TeamID, &subscription.Secret, &expiresOn, &lastActivityAt, &certificate); err != nil {
 		return nil, err
@@ -809,7 +809,9 @@ func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.C
 		subscription.Certificate = *certificate
 	}
 	subscription.ExpiresOn = time.UnixMicro(expiresOn)
-	subscription.LastActivityAt = time.UnixMicro(lastActivityAt)
+	if lastActivityAt != nil {
+		subscription.LastActivityAt = time.UnixMicro(*lastActivityAt)
+	}
 	return &subscription, nil
 }
 
