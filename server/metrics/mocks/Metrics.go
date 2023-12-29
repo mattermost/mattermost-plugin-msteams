@@ -48,6 +48,11 @@ func (_m *Metrics) IncrementHTTPRequests() {
 	_m.Called()
 }
 
+// IncrementInvalidTokenDetected provides a mock function with given fields:
+func (_m *Metrics) IncrementInvalidTokenDetected() {
+	_m.Called()
+}
+
 // ObserveAPIEndpointDuration provides a mock function with given fields: handler, method, statusCode, elapsed
 func (_m *Metrics) ObserveAPIEndpointDuration(handler string, method string, statusCode string, elapsed float64) {
 	_m.Called(handler, method, statusCode, elapsed)
