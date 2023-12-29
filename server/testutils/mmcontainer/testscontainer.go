@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,6 +55,7 @@ type MattermostContainer struct {
 	password    string
 }
 
+// URL returns the url of the mattermost instance
 func (c *MattermostContainer) URL(ctx context.Context) (string, error) {
 	containerPort, err := c.MappedPort(ctx, "8065/tcp")
 	if err != nil {
@@ -70,6 +70,7 @@ func (c *MattermostContainer) URL(ctx context.Context) (string, error) {
 	return fmt.Sprintf("http://%s", net.JoinHostPort(host, containerPort.Port())), nil
 }
 
+// GetClient returns a mattermost client with the admin logged in for the mattermost instance
 func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client4, error) {
 	url, err := c.URL(ctx)
 	if err != nil {
@@ -83,6 +84,7 @@ func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client
 	return client, nil
 }
 
+// PostgresConnection returns a direct sql.DB postgres connection to the postgres container
 func (c *MattermostContainer) PostgresConnection(ctx context.Context) (*sql.DB, error) {
 	postgresDSN, err := c.PostgresDSN(ctx)
 	if err != nil {
@@ -96,6 +98,7 @@ func (c *MattermostContainer) PostgresConnection(ctx context.Context) (*sql.DB, 
 	return conn, nil
 }
 
+// PostgresDSN returns the public postgres dsn for the postgres container
 func (c *MattermostContainer) PostgresDSN(ctx context.Context) (string, error) {
 	containerPort, err := c.pgContainer.MappedPort(ctx, "5432/tcp")
 	if err != nil {
@@ -110,6 +113,7 @@ func (c *MattermostContainer) PostgresDSN(ctx context.Context) (string, error) {
 	return fmt.Sprintf("postgres://user:pass@%s/mattermost_test?sslmode=disable", net.JoinHostPort(host, containerPort.Port())), nil
 }
 
+// Terminate terminates the mattermost and postgres containers
 func (c *MattermostContainer) Terminate(ctx context.Context) error {
 	var errors error
 	if err := c.pgContainer.Terminate(ctx); err != nil {
@@ -127,26 +131,31 @@ func (c *MattermostContainer) Terminate(ctx context.Context) error {
 	return errors
 }
 
+// CreateAdmin creates an admin user
 func (c *MattermostContainer) CreateAdmin(ctx context.Context, email, username, password string) error {
 	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"})
 	return err
 }
 
+// CreateUser creates a regular user
 func (c *MattermostContainer) CreateUser(ctx context.Context, email, username, password string) error {
 	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--email-verified"})
 	return err
 }
 
+// CreateTeam creates a team
 func (c *MattermostContainer) CreateTeam(ctx context.Context, name, displayName string) error {
 	_, err := c.runCtlCommand(ctx, "team", []string{"create", "--name", name, "--display-name", displayName})
 	return err
 }
 
+// AddUserToTeam adds a user to a team
 func (c *MattermostContainer) AddUserToTeam(ctx context.Context, username, teamname string) error {
 	_, err := c.runCtlCommand(ctx, "team", []string{"users", "add", teamname, username})
 	return err
 }
 
+// GetLogs returns the logs of the mattermost instance
 func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, error) {
 	output, err := c.runCtlCommand(ctx, "logs", []string{"--number", fmt.Sprintf("%d", lines)})
 	if err != nil {
@@ -159,11 +168,13 @@ func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, e
 	return string(outputData), nil
 }
 
+// SetConfig sets the config key to the given value
 func (c *MattermostContainer) SetConfig(ctx context.Context, configKey string, configValue string) error {
 	_, err := c.runCtlCommand(ctx, "config", []string{"set", configKey, configValue})
 	return err
 }
 
+// setSiteURL sets the site url and listen address to the mattermost instance
 func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	url, err := c.URL(ctx)
 	if err != nil {
@@ -185,6 +196,7 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	return nil
 }
 
+// UpdateConfig updates the config to be used for the mattermost instance
 func (c *MattermostContainer) UpdateConfig(ctx context.Context, cfg *model.Config) error {
 	config, err := json.Marshal(cfg)
 	if err != nil {
@@ -199,6 +211,7 @@ func (c *MattermostContainer) UpdateConfig(ctx context.Context, cfg *model.Confi
 	return err
 }
 
+// runCtlCommand runs the mmctl command with the given arguments
 func (c *MattermostContainer) runCtlCommand(ctx context.Context, command string, args []string) (io.Reader, error) {
 	exitCode, output, err := c.Exec(ctx, append([]string{"mmctl", "--local", command}, args...))
 	if err != nil {
@@ -214,6 +227,7 @@ func (c *MattermostContainer) runCtlCommand(ctx context.Context, command string,
 	return output, nil
 }
 
+// InstallPlugin installs a plugin in the mattermost instance
 func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, pluginConfig map[string]any) error {
 	patch := map[string]map[string]map[string]map[string]any{"PluginSettings": {"Plugins": {pluginID: pluginConfig}}}
 	config, err := json.Marshal(patch)
@@ -241,6 +255,7 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 	return nil
 }
 
+// init initializes the mattermost instance
 func (c *MattermostContainer) init(ctx context.Context, req MattermostContainerRequest) error {
 	if req.config != nil {
 		if err := c.UpdateConfig(ctx, req.config); err != nil {
@@ -272,7 +287,7 @@ func (c *MattermostContainer) init(ctx context.Context, req MattermostContainerR
 	return nil
 }
 
-// WithConfigFile sets the config file to be used for the mattermost application
+// WithConfigFile sets the config file to be used for the mattermost instance
 func WithConfigFile(cfg string) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		cfgFile := testcontainers.ContainerFile{
@@ -286,26 +301,10 @@ func WithConfigFile(cfg string) MattermostCustomizeRequestOption {
 	}
 }
 
-// WithConfig updates the config to be used for the mattermost container after the start up
+// WithConfig updates the config to be used for the mattermost instance after the start up
 func WithConfig(cfg *model.Config) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		req.config = cfg
-	}
-}
-
-// WithInitScripts sets the init scripts to be run when the container starts
-func WithInitScripts(scripts ...string) MattermostCustomizeRequestOption {
-	return func(req *MattermostContainerRequest) {
-		initScripts := []testcontainers.ContainerFile{}
-		for _, script := range scripts {
-			cf := testcontainers.ContainerFile{
-				HostFilePath:      script,
-				ContainerFilePath: "/docker-entrypoint-initdb.d/" + filepath.Base(script),
-				FileMode:          0o755,
-			}
-			initScripts = append(initScripts, cf)
-		}
-		req.Files = append(req.Files, initScripts...)
 	}
 }
 
@@ -316,7 +315,7 @@ func WithEnv(env, value string) MattermostCustomizeRequestOption {
 	}
 }
 
-// WithAdmin sets the admin email, username and password for the mattermost container
+// WithAdmin sets the admin email, username and password for the mattermost instance
 func WithAdmin(email, username, password string) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		req.email = email
@@ -325,7 +324,7 @@ func WithAdmin(email, username, password string) MattermostCustomizeRequestOptio
 	}
 }
 
-// WithTeam sets the team name and display name for the mattermost container
+// WithTeam sets the initial team name and display name for the mattermost instance
 func WithTeam(teamName, teamDisplayName string) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		req.teamName = teamName
@@ -333,7 +332,7 @@ func WithTeam(teamName, teamDisplayName string) MattermostCustomizeRequestOption
 	}
 }
 
-// WithPlugin sets the plugin to be installed in the mattermost container
+// WithPlugin sets the plugin to be installed in the mattermost instance
 func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		uuid, _ := uuid.NewUUID()
@@ -353,6 +352,7 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) Matter
 	}
 }
 
+// runPostgresContainer creates a postgres container
 func runPostgresContainer(ctx context.Context, nw *testcontainers.DockerNetwork) (*postgres.PostgresContainer, error) {
 	return postgres.RunContainer(ctx,
 		testcontainers.WithImage("docker.io/postgres:15.2-alpine"),
@@ -367,7 +367,7 @@ func runPostgresContainer(ctx context.Context, nw *testcontainers.DockerNetwork)
 	)
 }
 
-// RunContainer creates an instance of the postgres container type
+// RunContainer creates an instance of the mattermost container type
 func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption) (*MattermostContainer, error) {
 	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
 	if err != nil {
