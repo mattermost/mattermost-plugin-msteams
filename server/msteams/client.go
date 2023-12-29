@@ -126,6 +126,10 @@ func (e *GraphAPIError) Error() string {
 	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
 }
 
+func isOAuthError(err error) bool {
+	return strings.HasPrefix(err.Error(), "oauth2: ")
+}
+
 func NormalizeGraphAPIError(err error) error {
 	if err == nil {
 		return nil
@@ -149,7 +153,7 @@ func NormalizeGraphAPIError(err error) error {
 		}
 	default:
 		statusCode := 0
-		if strings.HasPrefix(err.Error(), "oauth2: ") {
+		if isOAuthError(err) {
 			statusCode = 401
 		}
 		return &GraphAPIError{
