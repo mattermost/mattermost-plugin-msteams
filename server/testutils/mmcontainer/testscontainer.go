@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -127,27 +126,27 @@ func (c *MattermostContainer) Terminate(ctx context.Context) error {
 }
 
 func (c *MattermostContainer) CreateAdmin(ctx context.Context, email, username, password string) error {
-	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"})
+	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"})
 	return err
 }
 
 func (c *MattermostContainer) CreateUser(ctx context.Context, email, username, password string) error {
-	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--email-verified"})
+	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--email-verified"})
 	return err
 }
 
 func (c *MattermostContainer) CreateTeam(ctx context.Context, name, displayName string) error {
-	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "team", "create", "--name", name, "--display-name", displayName})
+	_, err := c.runCtlCommand(ctx, "team", []string{"create", "--name", name, "--display-name", displayName})
 	return err
 }
 
 func (c *MattermostContainer) AddUserToTeam(ctx context.Context, username, teamname string) error {
-	_, _, err := c.Exec(ctx, []string{"mmctl", "--local", "team", "users", "add", teamname, username})
+	_, err := c.runCtlCommand(ctx, "team", []string{"users", "add", teamname, username})
 	return err
 }
 
 func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, error) {
-	_, output, err := c.Exec(ctx, []string{"mmctl", "--local", "logs", "--number", fmt.Sprintf("%d", lines)})
+	output, err := c.runCtlCommand(ctx, "logs", []string{"--number", fmt.Sprintf("%d", lines)})
 	if err != nil {
 		return "", err
 	}
@@ -163,16 +162,35 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "config", "set", "ServiceSettings.SiteURL", url})
-	if err != nil {
-		return err
-	}
 	containerPort, err := c.MappedPort(ctx, "8065/tcp")
 	if err != nil {
 		return err
 	}
-	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "config", "set", "ServiceSettings.ListenAddress", containerPort.Port()})
-	return err
+
+	if _, err = c.runCtlCommand(ctx, "config", []string{"set", "ServiceSettings.SiteURL", url}); err != nil {
+		return err
+	}
+
+	if _, err = c.runCtlCommand(ctx, "config", []string{"set", "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int())}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *MattermostContainer) runCtlCommand(ctx context.Context, command string, args []string) (io.Reader, error) {
+	exitCode, output, err := c.Exec(ctx, append([]string{"mmctl", "--local", command}, args...))
+	if err != nil {
+		return nil, err
+	}
+	if exitCode != 0 {
+		outputData, err := io.ReadAll(output)
+		if err != nil {
+			outputData = []byte{}
+		}
+		return nil, fmt.Errorf("exit code %d\noutput:\n%s", exitCode, string(outputData))
+	}
+	return output, nil
 }
 
 func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath string, pluginID string, pluginConfig map[string]any) error {
@@ -181,42 +199,25 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp("", "*.json")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
 
-	_, err = f.Write([]byte(config))
-	if err != nil {
-		return err
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-
-	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "plugin", "add", pluginPath})
-	if err != nil {
+	if _, err = c.runCtlCommand(ctx, "plugin", []string{"add", pluginPath}); err != nil {
 		return err
 	}
 
 	configPath := "/tmp/plugin-config-" + pluginID + ".json"
-	err = c.CopyFileToContainer(ctx, f.Name(), configPath, 0o755)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_, _, _ = c.Exec(ctx, []string{"rm", "-f", configPath})
-	}()
-
-	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "config", "patch", configPath})
+	err = c.CopyToContainer(ctx, config, configPath, 0o755)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.Exec(ctx, []string{"mmctl", "--local", "plugin", "enable", pluginID})
-	return err
+	if _, err = c.runCtlCommand(ctx, "config", []string{"patch", configPath}); err != nil {
+		return err
+	}
+
+	if _, err = c.runCtlCommand(ctx, "plugin", []string{"enable", pluginID}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // WithConfigFile sets the config file to be used for the postgres container

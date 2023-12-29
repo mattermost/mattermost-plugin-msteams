@@ -36,7 +36,7 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 		"webhooksecret":              "webhook-secret",
 	}
 	mattermost, err := mmcontainer.RunContainer(ctx,
-		mmcontainer.WithPlugin("../dist/"+filename, "com.mattermost.msteams-sync", pluginConfig),
+		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
 	)
 	require.NoError(t, err)
