@@ -138,6 +138,11 @@ func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 	_m.Called(count)
 }
 
+// ObserveWhitelistLimit provides a mock function with given fields: limit
+func (_m *Metrics) ObserveWhitelistLimit(limit int) {
+	_m.Called(limit)
+}
+
 type mockConstructorTestingTNewMetrics interface {
 	mock.TestingT
 	Cleanup(func())
