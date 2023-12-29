@@ -133,31 +133,31 @@ func (c *MattermostContainer) Terminate(ctx context.Context) error {
 
 // CreateAdmin creates an admin user
 func (c *MattermostContainer) CreateAdmin(ctx context.Context, email, username, password string) error {
-	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"})
+	_, err := c.RunCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"})
 	return err
 }
 
 // CreateUser creates a regular user
 func (c *MattermostContainer) CreateUser(ctx context.Context, email, username, password string) error {
-	_, err := c.runCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--email-verified"})
+	_, err := c.RunCtlCommand(ctx, "user", []string{"create", "--email", email, "--username", username, "--password", password, "--email-verified"})
 	return err
 }
 
 // CreateTeam creates a team
 func (c *MattermostContainer) CreateTeam(ctx context.Context, name, displayName string) error {
-	_, err := c.runCtlCommand(ctx, "team", []string{"create", "--name", name, "--display-name", displayName})
+	_, err := c.RunCtlCommand(ctx, "team", []string{"create", "--name", name, "--display-name", displayName})
 	return err
 }
 
 // AddUserToTeam adds a user to a team
 func (c *MattermostContainer) AddUserToTeam(ctx context.Context, username, teamname string) error {
-	_, err := c.runCtlCommand(ctx, "team", []string{"users", "add", teamname, username})
+	_, err := c.RunCtlCommand(ctx, "team", []string{"users", "add", teamname, username})
 	return err
 }
 
 // GetLogs returns the logs of the mattermost instance
 func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, error) {
-	output, err := c.runCtlCommand(ctx, "logs", []string{"--number", fmt.Sprintf("%d", lines)})
+	output, err := c.RunCtlCommand(ctx, "logs", []string{"--number", fmt.Sprintf("%d", lines)})
 	if err != nil {
 		return "", err
 	}
@@ -170,7 +170,7 @@ func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, e
 
 // SetConfig sets the config key to the given value
 func (c *MattermostContainer) SetConfig(ctx context.Context, configKey string, configValue string) error {
-	_, err := c.runCtlCommand(ctx, "config", []string{"set", configKey, configValue})
+	_, err := c.RunCtlCommand(ctx, "config", []string{"set", configKey, configValue})
 	return err
 }
 
@@ -207,12 +207,12 @@ func (c *MattermostContainer) UpdateConfig(ctx context.Context, cfg *model.Confi
 	if err != nil {
 		return err
 	}
-	_, err = c.runCtlCommand(ctx, "config", []string{"patch", configPath})
+	_, err = c.RunCtlCommand(ctx, "config", []string{"patch", configPath})
 	return err
 }
 
-// runCtlCommand runs the mmctl command with the given arguments
-func (c *MattermostContainer) runCtlCommand(ctx context.Context, command string, args []string) (io.Reader, error) {
+// RunCtlCommand runs the mmctl command with the given arguments
+func (c *MattermostContainer) RunCtlCommand(ctx context.Context, command string, args []string) (io.Reader, error) {
 	exitCode, output, err := c.Exec(ctx, append([]string{"mmctl", "--local", command}, args...))
 	if err != nil {
 		return nil, err
@@ -235,7 +235,7 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 		return err
 	}
 
-	if _, err = c.runCtlCommand(ctx, "plugin", []string{"add", pluginPath}); err != nil {
+	if _, err = c.RunCtlCommand(ctx, "plugin", []string{"add", pluginPath}); err != nil {
 		return err
 	}
 
@@ -245,11 +245,11 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 		return err
 	}
 
-	if _, err = c.runCtlCommand(ctx, "config", []string{"patch", configPath}); err != nil {
+	if _, err = c.RunCtlCommand(ctx, "config", []string{"patch", configPath}); err != nil {
 		return err
 	}
 
-	if _, err = c.runCtlCommand(ctx, "plugin", []string{"enable", pluginID}); err != nil {
+	if _, err = c.RunCtlCommand(ctx, "plugin", []string{"enable", pluginID}); err != nil {
 		return err
 	}
 	return nil
