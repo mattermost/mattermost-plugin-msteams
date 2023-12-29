@@ -25,6 +25,7 @@ const (
 	defaultTeamName        = "test"
 	defaultTeamDisplayName = "Test"
 	defaultMattermostImage = "mattermost/mattermost-enterprise-edition"
+	dbconn                 = "postgres://user:pass@db:5432/mattermost_test?sslmode=disable"
 )
 
 type MattermostCustomizeRequestOption func(req *MattermostContainerRequest)
@@ -43,6 +44,7 @@ type MattermostContainerRequest struct {
 	teamName        string
 	teamDisplayName string
 	plugins         []plugin
+	config          *model.Config
 }
 
 // MattermostContainer represents the mattermost container type used in the module
@@ -157,6 +159,11 @@ func (c *MattermostContainer) GetLogs(ctx context.Context, lines int) (string, e
 	return string(outputData), nil
 }
 
+func (c *MattermostContainer) SetConfig(ctx context.Context, configKey string, configValue string) error {
+	_, err := c.runCtlCommand(ctx, "config", []string{"set", configKey, configValue})
+	return err
+}
+
 func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 	url, err := c.URL(ctx)
 	if err != nil {
@@ -167,15 +174,29 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 		return err
 	}
 
-	if _, err = c.runCtlCommand(ctx, "config", []string{"set", "ServiceSettings.SiteURL", url}); err != nil {
+	if err = c.SetConfig(ctx, "ServiceSettings.SiteURL", url); err != nil {
 		return err
 	}
 
-	if _, err = c.runCtlCommand(ctx, "config", []string{"set", "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int())}); err != nil {
+	if err = c.SetConfig(ctx, "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int())); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (c *MattermostContainer) UpdateConfig(ctx context.Context, cfg *model.Config) error {
+	config, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	configPath := "/tmp/new-config.json"
+	err = c.CopyToContainer(ctx, config, configPath, 0o755)
+	if err != nil {
+		return err
+	}
+	_, err = c.runCtlCommand(ctx, "config", []string{"patch", configPath})
+	return err
 }
 
 func (c *MattermostContainer) runCtlCommand(ctx context.Context, command string, args []string) (io.Reader, error) {
@@ -220,9 +241,38 @@ func (c *MattermostContainer) InstallPlugin(ctx context.Context, pluginPath stri
 	return nil
 }
 
-// WithConfigFile sets the config file to be used for the postgres container
-// It will also set the "config_file" parameter to the path of the config file
-// as a command line argument to the container
+func (c *MattermostContainer) init(ctx context.Context, req MattermostContainerRequest) error {
+	if req.config != nil {
+		if err := c.UpdateConfig(ctx, req.config); err != nil {
+			return err
+		}
+	}
+
+	if err := c.setSiteURL(context.Background()); err != nil {
+		return err
+	}
+
+	if err := c.CreateAdmin(ctx, req.email, req.username, req.password); err != nil {
+		return err
+	}
+
+	if err := c.CreateTeam(ctx, req.teamName, req.teamDisplayName); err != nil {
+		return err
+	}
+
+	if err := c.AddUserToTeam(ctx, req.username, req.teamName); err != nil {
+		return err
+	}
+
+	for _, plugin := range req.plugins {
+		if err := c.InstallPlugin(ctx, plugin.path, plugin.id, plugin.config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WithConfigFile sets the config file to be used for the mattermost application
 func WithConfigFile(cfg string) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
 		cfgFile := testcontainers.ContainerFile{
@@ -233,6 +283,13 @@ func WithConfigFile(cfg string) MattermostCustomizeRequestOption {
 
 		req.Files = append(req.Files, cfgFile)
 		req.Cmd = append(req.Cmd, "-c", "/etc/mattermost.json")
+	}
+}
+
+// WithConfig updates the config to be used for the mattermost container after the start up
+func WithConfig(cfg *model.Config) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
+		req.config = cfg
 	}
 }
 
@@ -325,7 +382,6 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 		return nil, err
 	}
 
-	dbconn := fmt.Sprintf("postgres://user:pass@%s:%d/mattermost_test?sslmode=disable", "db", 5432)
 	req := MattermostContainerRequest{
 		GenericContainerRequest: testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
@@ -380,41 +436,11 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 		password:    req.password,
 	}
 
-	if err := mattermost.setSiteURL(context.Background()); err != nil {
+	if err := mattermost.init(ctx, req); err != nil {
 		if err2 := mattermost.Terminate(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
 		return nil, err
-	}
-
-	if err := mattermost.CreateAdmin(ctx, req.email, req.username, req.password); err != nil {
-		if err2 := mattermost.Terminate(ctx); err2 != nil {
-			err = fmt.Errorf("%w + %w", err, err2)
-		}
-		return nil, err
-	}
-
-	if err := mattermost.CreateTeam(ctx, req.teamName, req.teamDisplayName); err != nil {
-		if err2 := mattermost.Terminate(ctx); err2 != nil {
-			err = fmt.Errorf("%w + %w", err, err2)
-		}
-		return nil, err
-	}
-
-	if err := mattermost.AddUserToTeam(ctx, req.username, req.teamName); err != nil {
-		if err2 := mattermost.Terminate(ctx); err2 != nil {
-			err = fmt.Errorf("%w + %w", err, err2)
-		}
-		return nil, err
-	}
-
-	for _, plugin := range req.plugins {
-		if err := mattermost.InstallPlugin(ctx, plugin.path, plugin.id, plugin.config); err != nil {
-			if err2 := mattermost.Terminate(ctx); err2 != nil {
-				err = fmt.Errorf("%w + %w", err, err2)
-			}
-			return nil, err
-		}
 	}
 
 	return mattermost, nil
