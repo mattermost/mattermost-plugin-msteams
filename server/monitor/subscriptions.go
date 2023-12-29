@@ -179,14 +179,14 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 
 func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string) error {
 	var err error
-	var oldSubscription *storemodels.ChannelSubscription = nil
+	var oldSubscription *storemodels.ChannelSubscription
 	if subscriptionID != "" {
 		oldSubscription, err = m.store.GetChannelSubscription(subscriptionID)
 		if err != nil {
 			m.api.LogWarn("Unable get the old subscription", "error", err.Error())
 			return err
 		}
-		if err := m.client.DeleteSubscription(subscriptionID); err != nil {
+		if err = m.client.DeleteSubscription(subscriptionID); err != nil {
 			m.api.LogDebug("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
 		}
 	}
@@ -230,7 +230,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 
 	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
 
-	var oldSubscription *storemodels.ChannelSubscription = nil
+	var oldSubscription *storemodels.ChannelSubscription
 	if subscriptionID != "" {
 		oldSubscription, err = m.store.GetChannelSubscription(subscriptionID)
 		if err != nil {
@@ -291,7 +291,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 
 	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
 
-	var oldSubscription *storemodels.ChannelSubscription = nil
+	var oldSubscription *storemodels.ChannelSubscription
 	if subscriptionID != "" {
 		oldSubscription, err = m.store.GetChannelSubscription(subscriptionID)
 		if err != nil {

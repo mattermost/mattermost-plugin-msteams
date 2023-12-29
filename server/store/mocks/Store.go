@@ -1049,6 +1049,20 @@ func (_m *Store) UpdateSubscriptionLastActivityAt(subscriptionID string, lastAct
 	return r0
 }
 
+// UpdateSubscriptionSyncNeeded provides a mock function with given fields: subscriptionID, syncNeeded
+func (_m *Store) UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error {
+	ret := _m.Called(subscriptionID, syncNeeded)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(subscriptionID, syncNeeded)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // VerifyOAuth2State provides a mock function with given fields: state
 func (_m *Store) VerifyOAuth2State(state string) error {
 	ret := _m.Called(state)

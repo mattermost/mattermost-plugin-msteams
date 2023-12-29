@@ -219,8 +219,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	var txErr error
 	defer func() {
 		if txErr != nil {
-			if err := p.store.RollbackTx(tx); err != nil {
-				p.API.LogError("Unable to rollback database transaction", "error", err.Error())
+			if rollbackErr := p.store.RollbackTx(tx); rollbackErr != nil {
+				p.API.LogError("Unable to rollback database transaction", "error", rollbackErr.Error())
 			}
 		}
 	}()
@@ -236,7 +236,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 
-	if err := p.store.CommitTx(tx); err != nil {
+	if err = p.store.CommitTx(tx); err != nil {
 		p.API.LogError("Unable to commit database transaction", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
