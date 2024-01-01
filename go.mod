@@ -3,12 +3,12 @@ module github.com/mattermost/mattermost-plugin-msteams-sync
 go 1.18
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/enescakir/emoji v1.0.0
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.13.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -17,7 +17,7 @@ require (
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20231111015533-48bf4e9bd879
 	github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9
 	github.com/microsoft/kiota-abstractions-go v1.5.3
-	github.com/microsoftgraph/msgraph-sdk-go v1.26.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.28.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -32,7 +32,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
