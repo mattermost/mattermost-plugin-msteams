@@ -48,7 +48,6 @@ type ChannelSubscription struct {
 	ExpiresOn      time.Time
 	Secret         string
 	Certificate    string
-	LastActivityAt time.Time
 }
 
 type ConnectedUser struct {

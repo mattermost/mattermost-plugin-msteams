@@ -69,4 +69,5 @@ type Store interface {
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 	UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error
+	UpdateSubscriptionData(subscriptionID string, newSubscriptionID, secret string, expiresOn time.Time, certificate string) error
 }

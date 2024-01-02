@@ -736,6 +736,20 @@ func (s *TimerLayer) TeamsToMattermostUserID(userID string) (string, error) {
 	return result, err
 }
 
+func (s *TimerLayer) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string) error {
+	start := time.Now()
+
+	err := s.Store.UpdateSubscriptionData(subscriptionID, newSubscriptionID, secret, expiresOn, certificate)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionData", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	start := time.Now()
 

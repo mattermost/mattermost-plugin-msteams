@@ -1021,6 +1021,20 @@ func (_m *Store) TeamsToMattermostUserID(userID string) (string, error) {
 	return r0, r1
 }
 
+// UpdateSubscriptionData provides a mock function with given fields: subscriptionID, newSubscriptionID, secret, expiresOn, certificate
+func (_m *Store) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string) error {
+	ret := _m.Called(subscriptionID, newSubscriptionID, secret, expiresOn, certificate)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, time.Time, string) error); ok {
+		r0 = rf(subscriptionID, newSubscriptionID, secret, expiresOn, certificate)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // UpdateSubscriptionExpiresOn provides a mock function with given fields: subscriptionID, expiresOn
 func (_m *Store) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	ret := _m.Called(subscriptionID, expiresOn)
