@@ -584,6 +584,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
 				s.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
 				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
+				s.On("UpdateSubscriptionSyncNeeded", "channel-subscription-id", false).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
