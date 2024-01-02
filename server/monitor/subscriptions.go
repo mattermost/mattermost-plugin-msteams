@@ -196,8 +196,8 @@ func (m *Monitor) recreateChatSubscription(subscriptionID, userID, secret string
 			return err
 		}
 	} else {
-		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate); err != nil {
-			m.api.LogError("Unable to update subscription ID in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
+		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate, true); err != nil {
+			m.api.LogError("Unable to update subscription data in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
 			return err
 		}
 	}
@@ -244,8 +244,8 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 			return
 		}
 	} else {
-		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate); err != nil {
-			m.api.LogError("Unable to update subscription ID in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
+		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate, true); err != nil {
+			m.api.LogError("Unable to update subscription data in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
 			return
 		}
 	}
@@ -271,8 +271,8 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 			return err
 		}
 	} else {
-		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate); err != nil {
-			m.api.LogError("Unable to update subscription ID in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
+		if err := m.store.UpdateSubscriptionData(subscriptionID, newSubscription.ID, secret, newSubscription.ExpiresOn, m.certificate, true); err != nil {
+			m.api.LogError("Unable to update subscription data in DB", "subscriptionID", subscriptionID, "newSubscriptionID", newSubscription.ID, "error", err.Error())
 			return err
 		}
 	}

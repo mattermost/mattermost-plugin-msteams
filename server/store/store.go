@@ -67,7 +67,6 @@ type Store interface {
 	RollbackTx(tx *sql.Tx) error
 	CommitTx(tx *sql.Tx) error
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
-	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 	UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error
-	UpdateSubscriptionData(subscriptionID string, newSubscriptionID, secret string, expiresOn time.Time, certificate string) error
+	UpdateSubscriptionData(subscriptionID string, newSubscriptionID, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error
 }

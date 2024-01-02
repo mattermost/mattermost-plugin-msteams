@@ -106,7 +106,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListGlobalSubscriptions").Return([]*storemodels.GlobalSubscription{{SubscriptionID: "test-id", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil).Times(1)
-				store.On("UpdateSubscriptionData", "test-id", "test-id", "webhook-secret", newExpiresOn, "").Return(nil)
+				store.On("UpdateSubscriptionData", "test-id", "test-id", "webhook-secret", newExpiresOn, "", true).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -266,7 +266,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now().Add(3 * time.Minute)}}, nil).Times(1)
-				store.On("UpdateSubscriptionData", "test", "new-id", "webhook-secret", newExpiresOn, "").Return(nil)
+				store.On("UpdateSubscriptionData", "test", "new-id", "webhook-secret", newExpiresOn, "", true).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -473,10 +473,10 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true, "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to update subscription ID in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Return().Times(1)
+				mockAPI.On("LogError", "Unable to update subscription data in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Return().Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(errors.New("test"))
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(errors.New("test"))
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -507,7 +507,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(nil)
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -619,10 +619,10 @@ func TestRecreateChannelSubscription(t *testing.T) {
 				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret", "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to update subscription ID in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Return().Times(1)
+				mockAPI.On("LogError", "Unable to update subscription data in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Return().Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(errors.New("test"))
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(errors.New("test"))
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -728,7 +728,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(nil)
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveSubscription", metrics.SubscriptionReconnected).Times(1)
@@ -807,10 +807,10 @@ func TestMonitorRecreateChatSubscription(t *testing.T) {
 				client.On("SubscribeToUserChats", "user-id", "base-url", "webhook-secret", true, "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogError", "Unable to update subscription ID in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Times(1)
+				mockAPI.On("LogError", "Unable to update subscription data in DB", "subscriptionID", "test-id", "newSubscriptionID", "new-id", "error", "test").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(errors.New("test"))
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(errors.New("test"))
 			},
 		},
 		{
@@ -825,7 +825,7 @@ func TestMonitorRecreateChatSubscription(t *testing.T) {
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "").Return(nil)
+				store.On("UpdateSubscriptionData", "test-id", "new-id", "webhook-secret", newExpiresOn, "", true).Return(nil)
 			},
 		},
 		{

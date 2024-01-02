@@ -462,29 +462,6 @@ func (_m *Store) GetSubscriptionType(subscriptionID string) (string, error) {
 	return r0, r1
 }
 
-// GetSubscriptionsLastActivityAt provides a mock function with given fields:
-func (_m *Store) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	ret := _m.Called()
-
-	var r0 map[string]time.Time
-	if rf, ok := ret.Get(0).(func() map[string]time.Time); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]time.Time)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetTokenForMSTeamsUser provides a mock function with given fields: userID
 func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	ret := _m.Called(userID)
@@ -1021,13 +998,13 @@ func (_m *Store) TeamsToMattermostUserID(userID string) (string, error) {
 	return r0, r1
 }
 
-// UpdateSubscriptionData provides a mock function with given fields: subscriptionID, newSubscriptionID, secret, expiresOn, certificate
-func (_m *Store) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string) error {
-	ret := _m.Called(subscriptionID, newSubscriptionID, secret, expiresOn, certificate)
+// UpdateSubscriptionData provides a mock function with given fields: subscriptionID, newSubscriptionID, secret, expiresOn, certificate, syncNeeded
+func (_m *Store) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error {
+	ret := _m.Called(subscriptionID, newSubscriptionID, secret, expiresOn, certificate, syncNeeded)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, time.Time, string) error); ok {
-		r0 = rf(subscriptionID, newSubscriptionID, secret, expiresOn, certificate)
+	if rf, ok := ret.Get(0).(func(string, string, string, time.Time, string, bool) error); ok {
+		r0 = rf(subscriptionID, newSubscriptionID, secret, expiresOn, certificate, syncNeeded)
 	} else {
 		r0 = ret.Error(0)
 	}
