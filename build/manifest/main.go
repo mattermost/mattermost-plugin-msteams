@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -59,6 +61,14 @@ func main() {
 	manifest, err := findManifest()
 	if err != nil {
 		panic("failed to find manifest: " + err.Error())
+	}
+
+	if manifest.HasServer() {
+		// Build only the current platform if MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
+		if isDeveloperBuild, _ := strconv.ParseBool(os.Getenv("MM_SERVICESETTINGS_ENABLEDEVELOPER")); isDeveloperBuild {
+			manifest.Server.Executables = nil
+			manifest.Server.Executable = fmt.Sprintf("server/dist/plugin-%s-%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	cmd := os.Args[1]
