@@ -67,6 +67,7 @@ type Plugin struct {
 	stopContext       context.Context
 
 	userID    string
+	remoteID  string
 	apiClient *pluginapi.Client
 
 	store                     store.Store
@@ -408,6 +409,36 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
+	remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+		Displayname:  "ms_teams_connect",
+		PluginID:     pluginID,
+		CreatorID:    botID,
+		AutoShareDMs: true,
+		AutoInvited:  true,
+	})
+	if err != nil {
+		return err
+	}
+	p.remoteID = remoteID
+
+	linkedChannels, err := p.store.ListChannelLinks()
+	if err != nil {
+		return err
+	}
+	for _, linkedChannel := range linkedChannels {
+		p.API.LogDebug("LINKED CHANNEL", "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+		// TODO: Handling error here or using a better policy about re-share channels
+		_, _ = p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: linkedChannel.MattermostChannelID,
+			TeamId:    linkedChannel.MattermostTeamID,
+			Home:      true,
+			ReadOnly:  false,
+			CreatorId: botID,
+			RemoteId:  p.remoteID,
+			ShareName: linkedChannel.MattermostChannelID,
+		})
+	}
+
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
 	}
@@ -733,4 +764,47 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 
 	metricsUpdater()
 	model.CreateRecurringTask("metricsUpdater", metricsUpdater, updateMetricsTaskFrequency)
+}
+
+func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
+	p.API.LogDebug("Ping received", "remote", rc.DisplayName, "pluginID", pluginID)
+	return true
+}
+
+func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
+	p.API.LogDebug("SyncMsg received", "msg", msg, "remote", rc.DisplayName, "pluginID", pluginID)
+	var resp model.SyncResponse
+	for _, post := range msg.Posts {
+		// TODO: Handle post deletions
+		postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
+		if err == nil && postInfo != nil {
+			if err := p.syncMessageUpdate(post); err != nil {
+				return resp, err
+			}
+		} else {
+			if err := p.syncMessage(post); err != nil {
+				return resp, err
+			}
+		}
+
+		if resp.PostsLastUpdateAt < post.UpdateAt {
+			resp.PostsLastUpdateAt = post.UpdateAt
+		}
+	}
+	for _, reaction := range msg.Reactions {
+		reaction.ChannelId = msg.ChannelId
+		if reaction.DeleteAt > 0 {
+			if err := p.syncReactionRemoved(reaction); err != nil {
+				return resp, err
+			}
+		} else {
+			if err := p.syncReactionAdded(reaction); err != nil {
+				return resp, err
+			}
+		}
+		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
+			resp.ReactionsLastUpdateAt = reaction.UpdateAt
+		}
+	}
+	return resp, nil
 }
