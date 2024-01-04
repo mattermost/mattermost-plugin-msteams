@@ -1,6 +1,7 @@
 import {StartedTestContainer, GenericContainer, StartedNetwork, Network, Wait} from "testcontainers";
 import {StartedPostgreSqlContainer, PostgreSqlContainer} from "@testcontainers/postgresql";
-import { v4 as uuidv4 } from 'uuid';
+import {Client4} from "@mattermost/client";
+import { Client } from 'pg'
 
 const defaultEmail           = "admin@example.com";
 const defaultUsername        = "admin";
@@ -21,8 +22,6 @@ export default class MattermostContainer {
     teamDisplayName: string;
     envs:        {[key: string]: string};
     command:    string[];
-    files: any[];
-    filesContent: any[];
     configFile: any[];
     plugins: any[];
 
@@ -32,32 +31,47 @@ export default class MattermostContainer {
         return `http://${host}:${containerPort}`
     }
 
-    // getAdminClient(): Client4 {
-    //     const url = this.url()
-    //     const client = new Client4(url)
-    //     client.Login(this.username, this.password)
-    //     return client
-    // }
+    db = async (): Client => {
+        const port = this.pgContainer.getMappedPort(5432)
+        const host = this.pgContainer.getHost()
+        const database = "mattermost_test"
+        const client = new Client({user: "user", password: "pass", host, port, database})
+        await client.connect()
+        return client
+    }
+
+    getAdminClient = async (): Promise<Client4> => {
+        return this.getClient(this.username, this.password)
+    }
+
+    getClient = async (username: string, password: string): Promise<Client4> => {
+        const url = this.url()
+        const client = new Client4()
+        client.setUrl(url)
+        await client.login(username, password)
+        return client
+    }
 
     stop = async () => {
         await this.pgContainer.stop()
         await this.container.stop()
         await this.network.stop()
     }
-    createAdmin = (email: string, username: string, password: string): void => {
-        this.container.exec(["mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"])
+
+    createAdmin = async (email: string, username: string, password: string) => {
+        await this.container.exec(["mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--system-admin", "--email-verified"])
     }
 
-    createUser = (email: string, username: string, password: string): void => {
-        this.container.exec(["mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--email-verified"])
+    createUser = async (email: string, username: string, password: string) => {
+        await this.container.exec(["mmctl", "--local", "user", "create", "--email", email, "--username", username, "--password", password, "--email-verified"])
     }
 
-    createTeam = (name: string, displayName: string): void => {
-        this.container.exec(["mmctl", "--local", "team", "create", "--name", name, "--display-name", displayName])
+    createTeam = async (name: string, displayName: string) => {
+        await this.container.exec(["mmctl", "--local", "team", "create", "--name", name, "--display-name", displayName])
     }
 
-    addUserToTeam = (username: string, teamname: string): void => {
-        this.container.exec(["mmctl", "--local", "team", "users", "add", teamname, username])
+    addUserToTeam = async (username: string, teamname: string) => {
+        await this.container.exec(["mmctl", "--local", "team", "users", "add", teamname, username])
     }
 
     getLogs = async (lines: number): Promise<string> => {
@@ -65,17 +79,22 @@ export default class MattermostContainer {
         return output
     }
 
-    setSiteURL = (): void => {
+    setSiteURL = async () => {
         const url = this.url()
-        this.container.exec(["mmctl", "--local", "config", "set", "ServiceSettings.SiteURL", url])
+        await this.container.exec(["mmctl", "--local", "config", "set", "ServiceSettings.SiteURL", url])
         const containerPort = this.container.getMappedPort(8065)
-        this.container.exec(["mmctl", "--local", "config", "set", "ServiceSettings.ListenAddress", `${containerPort}`])
+        await this.container.exec(["mmctl", "--local", "config", "set", "ServiceSettings.ListenAddress", `${containerPort}`])
     }
 
-    installPlugin = (pluginPath: string, pluginID: string, configPath: string): void => {
-        this.container.exec(["mmctl", "--local", "plugin", "add", pluginPath])
-        this.container.exec(["mmctl", "--local", "config", "patch", configPath])
-        this.container.exec(["mmctl", "--local", "plugin", "enable", pluginID])
+    installPlugin = async (pluginPath: string, pluginID: string, pluginConfig: any) => {
+		const patch = JSON.stringify({PluginSettings: {Plugins: {[pluginID]: pluginConfig}}})
+
+        await this.container.copyFilesToContainer([{source: pluginPath, target: `/tmp/plugin.tar.gz`}])
+        await this.container.copyContentToContainer([{content: patch, target: `/tmp/plugin.config.json`}])
+
+        await this.container.exec(["mmctl", "--local", "plugin", "add", '/tmp/plugin.tar.gz'])
+        await this.container.exec(["mmctl", "--local", "config", "patch", '/tmp/plugin.config.json'])
+        await this.container.exec(["mmctl", "--local", "plugin", "enable", pluginID])
     }
 
     withEnv = (env: string, value: string): MattermostContainer => {
@@ -106,22 +125,8 @@ export default class MattermostContainer {
         return this
     }
 
-    withPlugin = (pluginPath: string, pluginID: string, pluginConfig: string): MattermostContainer => {
-        const uuid = uuidv4();
-
-		const patch = `{"PluginSettings": {"Plugins": {"${pluginID}": ${JSON.stringify(pluginConfig)}}}}`
-
-        this.files.push({
-			source:      pluginPath,
-            target:      `/tmp/${uuid}.tar.gz`,
-		})
-
-        this.filesContent.push({
-            content: patch,
-            target: `/tmp/${uuid}.config.json`,
-		})
-
-        this.plugins.push({id: pluginID, path: `/tmp/${uuid}.tar.gz`, config: `/tmp/${uuid}.config.json`})
+    withPlugin = (pluginPath: string, pluginID: string, pluginConfig: any): MattermostContainer => {
+        this.plugins.push({id: pluginID, path: pluginPath, config: pluginConfig})
 
         return this
     }
@@ -144,17 +149,14 @@ export default class MattermostContainer {
         this.password = defaultPassword;
         this.teamName = defaultTeamName;
         this.teamDisplayName = defaultTeamDisplayName;
-        this.files = [];
-        this.filesContent = [];
         this.plugins = [];
         this.configFile = [];
     }
 
-
-
     start = async (): Promise<MattermostContainer> => {
         this.network = await new Network().start()
         this.pgContainer = await new PostgreSqlContainer("docker.io/postgres:15.2-alpine")
+            .withExposedPorts(5432)
             .withDatabase("mattermost_test")
             .withUsername("user")
             .withPassword("pass")
@@ -170,24 +172,18 @@ export default class MattermostContainer {
             .withNetworkAliases("mattermost")
             .withCommand(this.command)
             .withWaitStrategy(Wait.forLogMessage("Server is listening on"))
-            .withCopyFilesToContainer(this.files)
             .withCopyFilesToContainer(this.configFile)
-            .withCopyContentToContainer(this.filesContent)
             .start()
 
-        this.setSiteURL()
-        this.createAdmin(this.email, this.username, this.password)
-        this.createTeam(this.teamName, this.teamDisplayName)
-        this.addUserToTeam(this.username, this.teamName)
+        await this.setSiteURL()
+        await this.createAdmin(this.email, this.username, this.password)
+        await this.createTeam(this.teamName, this.teamDisplayName)
+        await this.addUserToTeam(this.username, this.teamName)
 
         for (const plugin of this.plugins) {
-            this.installPlugin(plugin.path, plugin.id, plugin.config)
+            await this.installPlugin(plugin.path, plugin.id, plugin.config)
         }
 
         return this
     }
 }
-
-
-
-

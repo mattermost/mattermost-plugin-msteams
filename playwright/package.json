@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "playwright test",
+    "ui": "playwright test --ui"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -11,7 +14,13 @@
     "@playwright/test": "^1.40.1",
     "@testcontainers/postgresql": "^10.4.0",
     "@types/node": "^20.10.5",
+    "playwright": "^1.40.1",
     "testcontainers": "^10.4.0",
     "uuid": "^9.0.1"
+  },
+  "dependencies": {
+    "@mattermost/client": "^9.2.0",
+    "@mattermost/types": "^9.2.0",
+    "pg": "^8.11.3"
   }
 }
