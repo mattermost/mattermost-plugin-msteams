@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
@@ -65,7 +66,8 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			postInfo, err := store.GetPostInfoByMattermostID(newPost.Id)
+			var postInfo *storemodels.PostInfo
+			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
 			if err != nil {
 				return false
 			}
@@ -88,7 +90,8 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			logs, err := mattermost.GetLogs(context.Background(), 10)
+			var logs string
+			logs, err = mattermost.GetLogs(context.Background(), 10)
 			if err != nil {
 				return false
 			}
