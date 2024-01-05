@@ -2,11 +2,11 @@ package ce2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
@@ -64,12 +64,16 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
-
-		var postInfo *storemodels.PostInfo
-		postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
-		require.NoError(t, err)
-		require.Equal(t, postInfo.MSTeamsID, "ms-post-id")
+		require.Eventually(t, func() bool {
+			postInfo, err := store.GetPostInfoByMattermostID(newPost.Id)
+			if err != nil {
+				return false
+			}
+			if postInfo.MSTeamsID == "ms-post-id" {
+				return true
+			}
+			return false
+		}, 1*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -83,13 +87,16 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
-
-		logs, err := mattermost.GetLogs(context.Background(), 10)
-		require.NoError(t, err)
-
-		require.Contains(t, logs, "Error creating post on MS Teams")
-		require.Contains(t, logs, "Unable to handle message sent")
+		require.Eventually(t, func() bool {
+			logs, err := mattermost.GetLogs(context.Background(), 10)
+			if err != nil {
+				return false
+			}
+			if strings.Contains(logs, "Error creating post on MS Teams") && strings.Contains(logs, "Unable to send the message") {
+				return true
+			}
+			return false
+		}, 1*time.Second, 50*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)

@@ -81,8 +81,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 
 	if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
-		router.HandleFunc("/add-mock/{method:.*}", api.addMockCall).Methods(http.MethodPost)
-		router.HandleFunc("/reset-mocks", api.resetMocks).Methods(http.MethodPost)
+		router.HandleFunc("/add-mock/{method:.*}", api.addMSTeamsClientMock).Methods(http.MethodPost)
+		router.HandleFunc("/reset-mocks", api.resetMSTeamsClientMocks).Methods(http.MethodPost)
 	}
 
 	// iFrame support
@@ -676,14 +676,42 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) resetMocks(w http.ResponseWriter, r *http.Request) {
+// resetMSTeamsClientMocks resets the msteams client mocks (for testing only)
+func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
 	clientMock = nil
 	newMock := getClientMock(a.p)
 	a.p.msteamsAppClient = newMock
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
+// addMSTeamsClientMock adds a new msteams client function mock (for testing only)
+func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-Id")
+	if userID == "" {
+		a.p.API.LogError("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
 	params := mux.Vars(r)
 	methodName := params["method"]
 
@@ -713,236 +741,67 @@ func (a *API) addMockCall(w http.ResponseWriter, r *http.Request) {
 		returnErr = errors.New(mockCall.Err)
 	}
 
-	a.p.API.LogDebug("mocking method", "method", method, "returns", mockCall.Returns, "returnType", mockCall.ReturnType, "returnErr", returnErr)
-
 	var output any
+
+	data, err := json.Marshal(mockCall.Returns)
+	if err != nil {
+		http.Error(w, "unable to mock the method", http.StatusBadRequest)
+		return
+	}
+
+	switch mockCall.ReturnType {
+	case "":
+		output = nil
+	case "Chat":
+		output = &clientmodels.Chat{}
+		err = json.Unmarshal(data, &output)
+	case "ChatMember":
+		output = &clientmodels.ChatMember{}
+		err = json.Unmarshal(data, &output)
+	case "Attachment":
+		output = &clientmodels.Attachment{}
+		err = json.Unmarshal(data, &output)
+	case "Reaction":
+		output = &clientmodels.Reaction{}
+		err = json.Unmarshal(data, &output)
+	case "Mention":
+		output = &clientmodels.Mention{}
+		err = json.Unmarshal(data, &output)
+	case "Message":
+		output = &clientmodels.Message{}
+		err = json.Unmarshal(data, &output)
+	case "Subscription":
+		output = &clientmodels.Subscription{}
+		err = json.Unmarshal(data, &output)
+	case "Channel":
+		output = &clientmodels.Channel{}
+		err = json.Unmarshal(data, &output)
+	case "User":
+		output = &clientmodels.User{}
+		err = json.Unmarshal(data, &output)
+	case "Team":
+		output = &clientmodels.Team{}
+		err = json.Unmarshal(data, &output)
+	case "ActivityIds":
+		output = &clientmodels.ActivityIds{}
+		err = json.Unmarshal(data, &output)
+	}
+	if err != nil {
+		http.Error(w, "unable to mock the method", http.StatusBadRequest)
+		return
+	}
 
 	returns := method.Type.NumOut()
 	switch returns {
 	case 0:
+		a.p.API.LogDebug("mocking", "method", methodName)
 		mockClient.On(methodName, parameters...)
 	case 1:
-		data, err := json.Marshal(mockCall.Returns)
-		if err != nil {
-			http.Error(w, "unable to mock the method", http.StatusBadRequest)
-			return
-		}
-
-		switch mockCall.ReturnType {
-		case "":
-			a.p.API.LogDebug("mocking", "method", methodName, "output", nil, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(nil)
-		case "Chat":
-			output = &clientmodels.Chat{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "ChatMember":
-			output = &clientmodels.ChatMember{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Attachment":
-			output = &clientmodels.Attachment{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Reaction":
-			output = &clientmodels.Reaction{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Mention":
-			output = &clientmodels.Mention{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Message":
-			output = &clientmodels.Message{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Subscription":
-			output = &clientmodels.Subscription{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Channel":
-			output = &clientmodels.Channel{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "User":
-			output = &clientmodels.User{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "Team":
-			output = &clientmodels.Team{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		case "ActivityIds":
-			output = &clientmodels.ActivityIds{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output)
-		}
+		a.p.API.LogDebug("mocking", "method", methodName, "output", output)
+		mockClient.On(methodName, parameters...).Return(output)
 	case 2:
-		data, err := json.Marshal(mockCall.Returns)
-		if err != nil {
-			http.Error(w, "unable to mock the method", http.StatusBadRequest)
-			return
-		}
-
-		switch mockCall.ReturnType {
-		case "":
-			a.p.API.LogDebug("mocking", "method", methodName, "output", nil, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(nil, returnErr)
-		case "Chat":
-			output = &clientmodels.Chat{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "ChatMember":
-			output = &clientmodels.ChatMember{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Attachment":
-			output = &clientmodels.Attachment{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Reaction":
-			output = &clientmodels.Reaction{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Mention":
-			output = &clientmodels.Mention{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Message":
-			output = &clientmodels.Message{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Subscription":
-			output = &clientmodels.Subscription{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Channel":
-			output = &clientmodels.Channel{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "User":
-			output = &clientmodels.User{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "Team":
-			output = &clientmodels.Team{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		case "ActivityIds":
-			output = &clientmodels.ActivityIds{}
-			err = json.Unmarshal(data, &output)
-			if err != nil {
-				http.Error(w, "unable to mock the method", http.StatusBadRequest)
-				return
-			}
-			a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
-			mockClient.On(methodName, parameters...).Return(output, returnErr)
-		}
+		a.p.API.LogDebug("mocking", "method", methodName, "output", output, "returnErr", returnErr)
+		mockClient.On(methodName, parameters...).Return(output, returnErr)
 	case 3:
 		output1 := int64(mockCall.Returns.([]interface{})[0].(int))
 		output2 := mockCall.Returns.([]interface{})[0].(string)
