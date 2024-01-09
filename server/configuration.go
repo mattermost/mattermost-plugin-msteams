@@ -167,10 +167,6 @@ func (p *Plugin) OnConfigurationChange() error {
 
 	p.setConfiguration(configuration)
 
-	if p.metricsService != nil {
-		p.metricsService.ObserveWhitelistLimit(configuration.ConnectedUsersAllowed)
-	}
-
 	// Only restart the application if the OnActivate is already executed
 	if p.store != nil {
 		go p.restart()

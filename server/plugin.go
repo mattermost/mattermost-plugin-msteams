@@ -206,6 +206,8 @@ func (p *Plugin) start(isRestart bool) {
 		p.runMetricsServer()
 		// run metrics updater recurring task
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
+
+		p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 	}
 
 	// We don't restart the activity handler since it's stateless.
@@ -358,8 +360,6 @@ func (p *Plugin) OnActivate() error {
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
-
-	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
