@@ -20,6 +20,7 @@ const (
 	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
+	MetricsVersionLabel           = "version"
 
 	ActionSourceMSTeams     = "msteams"
 	ActionSourceMattermost  = "mattermost"
@@ -95,6 +96,7 @@ type Metrics interface {
 
 type InstanceInfo struct {
 	InstallationID string
+	PluginVersion  string
 }
 
 // metrics used to instrumentate metrics in prometheus.
@@ -102,6 +104,7 @@ type metrics struct {
 	registry *prometheus.Registry
 
 	pluginStartTime        prometheus.Gauge
+	pluginInfo             prometheus.Gauge
 	goroutineFailuresTotal prometheus.Counter
 
 	apiTime *prometheus.HistogramVec
@@ -158,6 +161,19 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.pluginStartTime.SetToCurrentTime()
 	m.registry.MustRegister(m.pluginStartTime)
+
+	m.pluginInfo = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: MetricsNamespace,
+		Subsystem: MetricsSubsystemSystem,
+		Name:      "plugin_info",
+		Help:      "The plugin version.",
+		ConstLabels: map[string]string{
+			MetricsCloudInstallationLabel: info.InstallationID,
+			MetricsVersionLabel:           info.PluginVersion,
+		},
+	})
+	m.pluginInfo.Set(1)
+	m.registry.MustRegister(m.pluginInfo)
 
 	m.goroutineFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,

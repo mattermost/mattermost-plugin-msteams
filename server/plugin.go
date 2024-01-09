@@ -356,6 +356,7 @@ func (p *Plugin) OnActivate() error {
 
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		PluginVersion:  manifest.Version,
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
