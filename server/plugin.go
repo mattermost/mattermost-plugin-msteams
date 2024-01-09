@@ -478,6 +478,9 @@ func (p *Plugin) stopSyncUsersJob() {
 }
 
 func (p *Plugin) syncUsers() {
+	done := p.GetMetrics().ObserveWorker(metrics.WorkerSyncUsers)
+	defer done()
+
 	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
