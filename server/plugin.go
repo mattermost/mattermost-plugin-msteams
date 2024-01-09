@@ -359,6 +359,8 @@ func (p *Plugin) OnActivate() error {
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
+	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
+
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
 	p.activityHandler = handlers.New(p)
