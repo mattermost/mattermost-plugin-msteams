@@ -155,7 +155,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "whitelist_limit",
-		Help:        "The number of allowed connected users by configuration.",
+		Help:        "The maximum number of users allowed to connect.",
 		ConstLabels: additionalLabels,
 	})
 	m.whitelistLimit.Set(float64(info.WhiteListLimit))
