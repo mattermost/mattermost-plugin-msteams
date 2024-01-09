@@ -394,7 +394,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 
@@ -485,7 +485,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *clientmode
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 

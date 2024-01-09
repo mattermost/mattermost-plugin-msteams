@@ -292,7 +292,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "Error", appErr.Error())
+				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "error", appErr.Error())
 			}
 		}
 
@@ -340,7 +340,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "Error", appErr)
+		ah.plugin.GetAPI().LogError("Unable to create post", "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
 
@@ -454,7 +454,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 				return metrics.DiscardedReasonOther
 			}
 		} else {
-			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "Error", appErr)
+			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "error", appErr)
 			return metrics.DiscardedReasonOther
 		}
 	}

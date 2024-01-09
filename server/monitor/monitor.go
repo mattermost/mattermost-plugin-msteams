@@ -76,7 +76,7 @@ func (m *Monitor) RunMonitoringSystemJob() {
 
 	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
 	if sErr != nil {
-		m.api.LogError("Something went wrong while fetching monitoring job status", "Error", sErr.Error())
+		m.api.LogError("Something went wrong while fetching monitoring job status", "error", sErr.Error())
 		return
 	}
 

@@ -304,7 +304,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 
 	links, err := p.store.ListChannelLinksWithNames()
 	if err != nil {
-		p.API.LogDebug("Unable to get links from store", "Error", err.Error())
+		p.API.LogDebug("Unable to get links from store", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 	}
 
@@ -386,7 +386,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
 	msTeamsTeams, err := p.GetClientForApp().GetTeams(teamsQuery)
 	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		p.API.LogDebug("Unable to get the MS Teams teams information", "error", err.Error())
 		return true
 	}
 
@@ -402,7 +402,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.GetClientForApp().GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "error", err.Error())
 			errorsFound = true
 		}
 
@@ -422,14 +422,14 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
-		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "Error", err.Error())
+		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			p.API.LogError("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -467,14 +467,14 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
-		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", err.Error())
+		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			p.API.LogError("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -521,7 +521,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())
+		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil

@@ -177,7 +177,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 		}
 	} else {
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", tableName)); err != nil {
-			s.api.LogDebug("Error in dropping primary key", "Error", err.Error())
+			s.api.LogDebug("Error in dropping primary key", "error", err.Error())
 		}
 
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
@@ -264,7 +264,7 @@ func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, erro
 	for rows.Next() {
 		link := &storemodels.ChannelLink{}
 		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
-			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			s.api.LogDebug("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1032,7 +1032,7 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	for rows.Next() {
 		connectedUser := &storemodels.ConnectedUser{}
 		if err := rows.Scan(&connectedUser.MattermostUserID, &connectedUser.TeamsUserID, &connectedUser.FirstName, &connectedUser.LastName, &connectedUser.Email); err != nil {
-			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			s.api.LogDebug("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1057,12 +1057,12 @@ func (s *SQLStore) PrefillWhitelist() error {
 			count++
 			var connectedUserID string
 			if err := rows.Scan(&connectedUserID); err != nil {
-				s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+				s.api.LogDebug("Unable to scan the result", "error", err.Error())
 				continue
 			}
 
 			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
+				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "error", err.Error())
 			}
 		}
 

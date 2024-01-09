@@ -238,7 +238,7 @@ func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, cli
 	}()
 	fileInfo, err := ah.plugin.GetAPI().UploadData(uploadSession, pipeReader)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "Error", err.Error())
+		ah.plugin.GetAPI().LogError("Unable to upload data in the upload session", "UploadSessionID", uploadSession.Id, "error", err.Error())
 		return ""
 	}
 

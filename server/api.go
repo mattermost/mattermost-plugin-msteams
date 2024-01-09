@@ -105,7 +105,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(photo); err != nil {
-		a.p.API.LogError("Unable to write the response", "Error", err.Error())
+		a.p.API.LogError("Unable to write the response", "error", err.Error())
 	}
 }
 
@@ -284,7 +284,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -292,7 +292,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	teams, err := client.ListTeams()
 	if err != nil {
-		a.p.API.LogError("Unable to get the MS Teams teams", "Error", err.Error())
+		a.p.API.LogError("Unable to get the MS Teams teams", "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -325,7 +325,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the client for user", "MMUserID", userID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -334,7 +334,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	teamID := args[2]
 	channels, err := client.ListChannels(teamID)
 	if err != nil {
-		a.p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "Error", err.Error())
+		a.p.API.LogError("Unable to get the channels for MS Teams team", "TeamID", teamID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -444,7 +444,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
-		a.p.API.LogError("Unable to verify OAuth state", "MMUserID", mmUserID, "Error", err.Error())
+		a.p.API.LogError("Unable to verify OAuth state", "MMUserID", mmUserID, "error", err.Error())
 		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
 		return
 	}
@@ -497,7 +497,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	storedToken, err := a.p.store.GetTokenForMSTeamsUser(msteamsUser.ID)
 	if err != nil {
-		a.p.API.LogDebug("Unable to get the token for MS Teams user", "Error", err.Error())
+		a.p.API.LogDebug("Unable to get the token for MS Teams user", "error", err.Error())
 	}
 
 	if storedToken != nil {
@@ -523,16 +523,16 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
+			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
 		}
 		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
 		return
 	}
 
 	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
-		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "Error", err.Error())
+		a.p.API.LogError("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "Error", err.Error())
+			a.p.API.LogError("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
 		}
 
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
@@ -550,13 +550,13 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: Remove the comment after the completion of other related tasks.
 	// bundlePath, err := a.p.API.GetBundlePath()
 	// if err != nil {
-	// 	a.p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+	// 	a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
 	// 	return
 	// }
 
 	// t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
 	// if err != nil {
-	// 	a.p.API.LogError("unable to parse the template", "Error", err.Error())
+	// 	a.p.API.LogError("unable to parse the template", "error", err.Error())
 	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
 	// }
 
@@ -570,7 +570,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	// 	QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
 	// })
 	// if err != nil {
-	// 	a.p.API.LogError("unable to execute the template", "Error", err.Error())
+	// 	a.p.API.LogError("unable to execute the template", "error", err.Error())
 	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
 	// }
 }
@@ -592,7 +592,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	page, perPage := GetPageAndPerPage(r)
 	connectedUsersList, err := a.p.store.GetConnectedUsers(page, perPage)
 	if err != nil {
-		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		a.p.API.LogError("Unable to get connected users list", "error", err.Error())
 		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
 		return
 	}
@@ -600,14 +600,14 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	b, err := json.Marshal(connectedUsersList)
 	if err != nil {
-		a.p.API.LogError("Failed to marshal JSON response", "Error", err.Error())
+		a.p.API.LogError("Failed to marshal JSON response", "error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("[]"))
 		return
 	}
 
 	if _, err = w.Write(b); err != nil {
-		a.p.API.LogError("Error while writing response", "Error", err.Error())
+		a.p.API.LogError("Error while writing response", "error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -631,7 +631,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 
 	connectedUsersList, err := a.p.getConnectedUsersList()
 	if err != nil {
-		a.p.API.LogError("Unable to get connected users list", "Error", err.Error())
+		a.p.API.LogError("Unable to get connected users list", "error", err.Error())
 		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
 		return
 	}
@@ -639,14 +639,14 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	b := &bytes.Buffer{}
 	csvWriter := csv.NewWriter(b)
 	if err := csvWriter.Write([]string{"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id"}); err != nil {
-		a.p.API.LogError("Unable to write headers in CSV file", "Error", err.Error())
+		a.p.API.LogError("Unable to write headers in CSV file", "error", err.Error())
 		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
 		return
 	}
 
 	for _, connectedUser := range connectedUsersList {
 		if err := csvWriter.Write([]string{connectedUser.FirstName, connectedUser.LastName, connectedUser.Email, connectedUser.MattermostUserID, connectedUser.TeamsUserID}); err != nil {
-			a.p.API.LogError("Unable to write data in CSV file", "Error", err.Error())
+			a.p.API.LogError("Unable to write data in CSV file", "error", err.Error())
 			http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
 			return
 		}
@@ -654,7 +654,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 
 	csvWriter.Flush()
 	if err := csvWriter.Error(); err != nil {
-		a.p.API.LogError("Unable to flush the data in writer", "Error", err.Error())
+		a.p.API.LogError("Unable to flush the data in writer", "error", err.Error())
 		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
 		return
 	}
@@ -662,7 +662,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment;filename=connected-users.csv")
 	if _, err := w.Write(b.Bytes()); err != nil {
-		a.p.API.LogError("Unable to write the data", "Error", err.Error())
+		a.p.API.LogError("Unable to write the data", "error", err.Error())
 		http.Error(w, "unable to write the data", http.StatusInternalServerError)
 	}
 }
@@ -723,7 +723,7 @@ func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 func (p *Plugin) handleStaticFiles(r *mux.Router) {
 	bundlePath, err := p.API.GetBundlePath()
 	if err != nil {
-		p.API.LogWarn("Failed to get bundle path.", "Error", err.Error())
+		p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
 		return
 	}
 

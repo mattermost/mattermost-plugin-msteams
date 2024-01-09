@@ -474,7 +474,7 @@ func (p *Plugin) OnActivate() error {
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
-			p.API.LogDebug("Error in populating the whitelist with already connected users", "Error", err.Error())
+			p.API.LogDebug("Error in populating the whitelist with already connected users", "error", err.Error())
 		}
 	}()
 
@@ -507,7 +507,7 @@ func (p *Plugin) syncUsersPeriodically() {
 
 	isStatusUpdated, sErr := p.store.CompareAndSetJobStatus(syncUsersJobName, false, true)
 	if sErr != nil {
-		p.API.LogError("Something went wrong while fetching sync users job status", "Error", sErr.Error())
+		p.API.LogError("Something went wrong while fetching sync users job status", "error", sErr.Error())
 		return
 	}
 
@@ -574,7 +574,7 @@ func (p *Plugin) syncUsers() {
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
-					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 				}
 			}
 
@@ -584,7 +584,7 @@ func (p *Plugin) syncUsers() {
 					if mmUser.DeleteAt != 0 {
 						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
 					}
 				} else {
@@ -592,7 +592,7 @@ func (p *Plugin) syncUsers() {
 					if mmUser.DeleteAt == 0 {
 						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
 					}
 
@@ -601,7 +601,7 @@ func (p *Plugin) syncUsers() {
 
 				user, err := p.API.GetUser(mmUser.Id)
 				if err != nil {
-					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "Error", err.Error())
+					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "error", err.Error())
 					continue
 				}
 
@@ -624,7 +624,7 @@ func (p *Plugin) syncUsers() {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "Error", err.Error())
+						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					}
 				}
 

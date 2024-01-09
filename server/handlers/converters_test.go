@@ -54,7 +54,6 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -131,7 +130,6 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
