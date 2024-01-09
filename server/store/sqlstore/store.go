@@ -264,7 +264,7 @@ func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, erro
 	for rows.Next() {
 		link := &storemodels.ChannelLink{}
 		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
-			s.api.LogDebug("Unable to scan the result", "error", err.Error())
+			s.api.LogError("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1032,7 +1032,7 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	for rows.Next() {
 		connectedUser := &storemodels.ConnectedUser{}
 		if err := rows.Scan(&connectedUser.MattermostUserID, &connectedUser.TeamsUserID, &connectedUser.FirstName, &connectedUser.LastName, &connectedUser.Email); err != nil {
-			s.api.LogDebug("Unable to scan the result", "error", err.Error())
+			s.api.LogError("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1057,12 +1057,12 @@ func (s *SQLStore) PrefillWhitelist() error {
 			count++
 			var connectedUserID string
 			if err := rows.Scan(&connectedUserID); err != nil {
-				s.api.LogDebug("Unable to scan the result", "error", err.Error())
+				s.api.LogError("Unable to scan the result", "error", err.Error())
 				continue
 			}
 
 			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "error", err.Error())
+				s.api.LogError("Unable to store user in whitelist", "UserID", connectedUserID, "error", err.Error())
 			}
 		}
 

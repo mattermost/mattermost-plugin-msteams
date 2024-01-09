@@ -474,7 +474,7 @@ func (p *Plugin) OnActivate() error {
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
 		if err := p.store.PrefillWhitelist(); err != nil {
-			p.API.LogDebug("Error in populating the whitelist with already connected users", "error", err.Error())
+			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err.Error())
 		}
 	}()
 
@@ -574,7 +574,7 @@ func (p *Plugin) syncUsers() {
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
-					p.API.LogDebug("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					p.API.LogWarn("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 				}
 			}
 

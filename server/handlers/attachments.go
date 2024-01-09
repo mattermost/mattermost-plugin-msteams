@@ -78,7 +78,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 		extension := ""
 		extensions, extensionErr := mime.ExtensionsByType(contentType)
 		if extensionErr != nil {
-			ah.plugin.GetAPI().LogDebug("Unable to get the extensions using content type", "error", extensionErr.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to get the extensions using content type", "error", extensionErr.Error())
 		} else if len(extensions) > 0 {
 			extension = extensions[0]
 		}

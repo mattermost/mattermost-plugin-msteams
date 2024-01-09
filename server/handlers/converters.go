@@ -18,7 +18,7 @@ func (ah *ActivityHandler) GetAvatarURL(userID string) string {
 	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
 	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get user avatar", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get user avatar", "error", err.Error())
 		return defaultAvatarURL
 	}
 
@@ -95,13 +95,13 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "error", err.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "error", getErr.DetailedError)
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user details", "MMUserID", mmUserID, "error", getErr.DetailedError)
 				continue
 			}
 

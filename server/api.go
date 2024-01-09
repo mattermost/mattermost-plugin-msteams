@@ -112,12 +112,12 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decode encrypted data", "error", err)
+		a.p.API.LogWarn("Unable to decode encrypted data", "error", err.Error())
 		return nil, err
 	}
 	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decode data signature", "error", err)
+		a.p.API.LogWarn("Unable to decode data signature", "error", err.Error())
 		return nil, err
 	}
 
@@ -125,7 +125,7 @@ func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.E
 	mac.Write(ciphertext)
 	expectedMac := mac.Sum(nil)
 	if !hmac.Equal(expectedMac, msDataSignature) {
-		a.p.API.LogDebug("Invalid data signature", "error", errors.New("The key signature doesn't match"))
+		a.p.API.LogWarn("Invalid data signature", "error", errors.New("The key signature doesn't match"))
 		return nil, errors.New("The key signature doesn't match")
 	}
 	block, err := aes.NewCipher(key)
@@ -153,19 +153,19 @@ func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.E
 func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decode key", "error", err)
+		a.p.API.LogWarn("Unable to decode key", "error", err.Error())
 		return nil, err
 	}
 
 	key, err := a.p.getPrivateKey()
 	if err != nil {
-		a.p.API.LogDebug("Unable to get private key", "error", err)
+		a.p.API.LogWarn("Unable to get private key", "error", err.Error())
 		return nil, err
 	}
 	hash := sha1.New() //nolint:gosec
 	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decrypt data", "error", err, "cipheredText", string(ciphertext))
+		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error(), "cipheredText", string(ciphertext))
 		return nil, err
 	}
 	return plaintext, nil
@@ -174,13 +174,13 @@ func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedC
 func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	msKey, err := a.decryptEncryptedContentDataKey(encryptedContent)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decrypt key", "error", err)
+		a.p.API.LogWarn("Unable to decrypt key", "error", err.Error())
 		return nil, err
 	}
 
 	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
 	if err != nil {
-		a.p.API.LogDebug("Unable to decrypt data", "error", err)
+		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error())
 		return nil, err
 	}
 	return data, nil
@@ -497,7 +497,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	storedToken, err := a.p.store.GetTokenForMSTeamsUser(msteamsUser.ID)
 	if err != nil {
-		a.p.API.LogDebug("Unable to get the token for MS Teams user", "error", err.Error())
+		a.p.API.LogWarn("Unable to get the token for MS Teams user", "error", err.Error())
 	}
 
 	if storedToken != nil {

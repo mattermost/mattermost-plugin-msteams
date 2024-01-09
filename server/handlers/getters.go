@@ -171,7 +171,7 @@ func (ah *ActivityHandler) getChatChannelID(chat *clientmodels.Chat) (string, er
 		if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 			if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 				if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-					ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "TeamsUserID", msteamsUser.ID, "error", appErr.Error())
+					ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "MMUserID", mmUserID, "TeamsUserID", msteamsUser.ID, "error", appErr.Error())
 				}
 			}
 

@@ -191,12 +191,12 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
 		return false
 	}
 
 	if _, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID); err != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the link by MS Teams channel ID", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get the link by MS Teams channel ID", "error", err.Error())
 		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
 		_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
 		return false
@@ -226,7 +226,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 			var err error
 			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
 		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
@@ -236,7 +236,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 			var err error
 			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
+				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
 		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
@@ -292,7 +292,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "error", appErr.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "MMUserID", mmUserID, "error", appErr.Error())
 			}
 		}
 
@@ -578,7 +578,7 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	user, userErr := ah.plugin.GetAPI().GetUser(userID)
 	if userErr != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get MM user", "mmuserID", userID, "error", userErr.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get MM user", "mmuserID", userID, "error", userErr.Error())
 		return false
 	}
 
