@@ -49,7 +49,7 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	})
 
 	if _, err := w.Write([]byte(html)); err != nil {
-		a.p.API.LogError("Unable to serve the iFrame", "error", err.Error())
+		a.p.API.LogWarn("Unable to serve the iFrame", "error", err.Error())
 	}
 }
 
@@ -87,7 +87,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 		zipFile{name: LogoOutlineFilename, data: assets.LogoOutlineData},
 	)
 	if err != nil {
-		a.p.API.LogError("Error generating app manifest", "error", err.Error())
+		a.p.API.LogWarn("Error generating app manifest", "error", err.Error())
 		http.Error(w, "Error generating app manifest", http.StatusInternalServerError)
 		return
 	}
@@ -96,7 +96,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=com.mattermost.msteamsapp.zip")
 
 	if _, err := io.Copy(w, bufReader); err != nil {
-		a.p.API.LogError("Unable to serve the app manifest", "error", err.Error())
+		a.p.API.LogWarn("Unable to serve the app manifest", "error", err.Error())
 	}
 }
 
@@ -142,7 +142,7 @@ var iFrameHTML = `<!DOCTYPE html>
 </head>
 
 <body>
-    <iframe 
+    <iframe
 		style="position:absolute;top:0px;width:100%;height:100vh;"
 		src="{{SITE_URL}}" title="Mattermost">
 	</iframe>

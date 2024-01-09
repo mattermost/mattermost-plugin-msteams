@@ -542,7 +542,6 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 			},
 			setupStore: func(store *storemocks.Store) {},
 			setupAPI: func(api *plugintest.API) {
-
 			},
 			expectedError: "Error while getting original chat",
 		},

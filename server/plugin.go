@@ -534,14 +534,14 @@ func (p *Plugin) syncUsers() {
 
 	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
-		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())
+		p.API.LogWarn("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return
 	}
 
 	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
-		p.API.LogError("Unable to get MM users during sync user job", "error", appErr.Error())
+		p.API.LogWarn("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
@@ -584,7 +584,7 @@ func (p *Plugin) syncUsers() {
 					if mmUser.DeleteAt != 0 {
 						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-							p.API.LogError("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+							p.API.LogWarn("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
 					}
 				} else {
@@ -592,7 +592,7 @@ func (p *Plugin) syncUsers() {
 					if mmUser.DeleteAt == 0 {
 						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogError("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+							p.API.LogWarn("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
 					}
 
@@ -601,7 +601,7 @@ func (p *Plugin) syncUsers() {
 
 				user, err := p.API.GetUser(mmUser.Id)
 				if err != nil {
-					p.API.LogError("Unable to fetch MM user", "MMUserID", mmUser.Id, "error", err.Error())
+					p.API.LogWarn("Unable to fetch MM user", "MMUserID", mmUser.Id, "error", err.Error())
 					continue
 				}
 
@@ -611,7 +611,7 @@ func (p *Plugin) syncUsers() {
 						AuthService: configuration.SyntheticUserAuthService,
 						AuthData:    &authData,
 					}); err != nil {
-						p.API.LogError("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+						p.API.LogWarn("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					}
 				}
 			}
@@ -624,7 +624,7 @@ func (p *Plugin) syncUsers() {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogError("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+						p.API.LogWarn("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					}
 				}
 
@@ -667,7 +667,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to create new MM user during sync job", "TeamsUserID", msUser.ID, "error", appErr.Error())
+					p.API.LogWarn("Unable to create new MM user during sync job", "TeamsUserID", msUser.ID, "error", appErr.Error())
 					break
 				}
 
@@ -685,11 +685,11 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogError("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
+				p.API.LogWarn("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
-				p.API.LogError("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+				p.API.LogWarn("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -703,7 +703,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogError("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					p.API.LogWarn("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					break
 				}
 
@@ -778,7 +778,7 @@ func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequ
 	metricsUpdater := func() {
 		stats, err := store.GetStats()
 		if err != nil {
-			p.API.LogError("failed to update computed metrics", "error", err)
+			p.API.LogWarn("failed to update computed metrics", "error", err)
 		}
 		p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 		p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)

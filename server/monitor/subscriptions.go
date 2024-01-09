@@ -22,13 +22,13 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
-		m.api.LogError("Unable to list channel links from DB", "error", err.Error())
+		m.api.LogWarn("Unable to list channel links from DB", "error", err.Error())
 		return
 	}
 
 	subscriptions, err := m.store.ListChannelSubscriptions()
 	if err != nil {
-		m.api.LogError("Unable to get the channel subscriptions", "error", err.Error())
+		m.api.LogWarn("Unable to get the channel subscriptions", "error", err.Error())
 		return
 	}
 
@@ -91,7 +91,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	m.api.LogDebug("Checking for chats subscriptions")
 // 	subscriptions, err := m.store.ListChatSubscriptionsToCheck()
 // 	if err != nil {
-// 		m.api.LogError("Unable to get the chat subscriptions", "error", err)
+// 		m.api.LogWarn("Unable to get the chat subscriptions", "error", err)
 // 		return
 // 	}
 // 	m.api.LogDebug("Refreshing chats subscriptions", "count", len(subscriptions))
@@ -116,7 +116,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
-		m.api.LogError("Unable to get the chat subscriptions from store", "error", err.Error())
+		m.api.LogWarn("Unable to get the chat subscriptions from store", "error", err.Error())
 		return
 	}
 
@@ -125,7 +125,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 			m.CreateAndSaveChatSubscription(nil)
 		} else {
 			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret, Certificate: m.certificate}); err != nil {
-				m.api.LogError("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err.Error())
+				m.api.LogWarn("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err.Error())
 			}
 		}
 
@@ -167,7 +167,7 @@ func (m *Monitor) CreateAndSaveChatSubscription(mmSubscription *storemodels.Glob
 
 	if mmSubscription != nil {
 		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogError("Unable to delete the old all chats subscription", "error", err.Error())
+			m.api.LogWarn("Unable to delete the old all chats subscription", "error", err.Error())
 		}
 	}
 

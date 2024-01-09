@@ -19,7 +19,7 @@ const commandWaitingMessage = "Please wait while your request is being processed
 func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
 	if err != nil {
-		p.API.LogError("Unable to get the MS Teams icon for the slash command")
+		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
 
 	return &model.Command{
@@ -422,14 +422,14 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
-		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "error", err.Error())
+		p.API.LogWarn("Error in checking if a user is present in whitelist", "UserID", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "error", err.Error())
+			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -440,13 +440,13 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
 	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
-		p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
+		p.API.LogWarn("Error in storing the code verifier", "error", appErr.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
@@ -467,14 +467,14 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
-		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "error", err.Error())
+		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "error", err.Error())
+			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -485,7 +485,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
 	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
+		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 

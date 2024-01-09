@@ -103,7 +103,7 @@ func (m *Monitor) check() {
 
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
-		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
+		m.api.LogWarn("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 

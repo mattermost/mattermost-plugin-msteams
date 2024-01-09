@@ -174,14 +174,14 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if event.LifecycleEvent == "reauthorizationRequired" {
 		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to refresh the subscription", "error", err.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to refresh the subscription", "error", err.Error())
 			ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedToRefresh)
 			return
 		}
 
 		ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
 		if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
-			ah.plugin.GetAPI().LogError("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
 		}
 	}
 
@@ -244,7 +244,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
-		ah.plugin.GetAPI().LogError("Unsupported change type", "change_type", activity.ChangeType)
+		ah.plugin.GetAPI().LogWarn("Unsupported change type", "change_type", activity.ChangeType)
 	}
 
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
@@ -253,7 +253,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
@@ -285,7 +285,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(msg.UserID)
 	if clientErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "error", clientErr.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get the MS Teams user", "error", clientErr.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
@@ -309,7 +309,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		channelID, err = ah.getChatChannelID(chat)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("Unable to get original channel id", "error", err.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 			return metrics.DiscardedReasonOther
 		}
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
@@ -340,7 +340,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to create post", "error", appErr)
+		ah.plugin.GetAPI().LogWarn("Unable to create post", "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
 
@@ -368,7 +368,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
@@ -403,7 +403,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		var channelLink *storemodels.ChannelLink
 		channelLink, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
-			ah.plugin.GetAPI().LogError("Unable to find the subscription")
+			ah.plugin.GetAPI().LogWarn("Unable to find the subscription")
 			return metrics.DiscardedReasonOther
 		}
 		channelID = channelLink.MattermostChannelID
@@ -416,16 +416,16 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		if postErr != nil {
 			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
-					ah.plugin.GetAPI().LogError("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
+					ah.plugin.GetAPI().LogWarn("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
 					return metrics.DiscardedReasonOther
 				}
 				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 				if postErr != nil {
-					ah.plugin.GetAPI().LogError("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
+					ah.plugin.GetAPI().LogWarn("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
 					return metrics.DiscardedReasonOther
 				}
 			} else {
-				ah.plugin.GetAPI().LogError("Unable to find the original post", "error", postErr.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to find the original post", "error", postErr.Error())
 				return metrics.DiscardedReasonOther
 			}
 		}
@@ -450,11 +450,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
-				ah.plugin.GetAPI().LogError("Unable to recover the post", "PostID", post.Id, "error", err)
+				ah.plugin.GetAPI().LogWarn("Unable to recover the post", "PostID", post.Id, "error", err)
 				return metrics.DiscardedReasonOther
 			}
 		} else {
-			ah.plugin.GetAPI().LogError("Unable to update post", "PostID", post.Id, "error", appErr)
+			ah.plugin.GetAPI().LogWarn("Unable to update post", "PostID", post.Id, "error", appErr)
 			return metrics.DiscardedReasonOther
 		}
 	}
@@ -488,12 +488,12 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 	for _, reaction := range reactions {
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
-			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogWarn("No code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
 		}
 		reactionUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(reaction.UserID)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogWarn("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
 		}
 		allReactions[reactionUserID+emojiName] = true
@@ -503,7 +503,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 		if !allReactions[r.UserId+r.EmojiName] {
 			r.ChannelId = "removedfromplugin"
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
-				ah.plugin.GetAPI().LogError("Unable to remove reaction", "error", appErr.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to remove reaction", "error", appErr.Error())
 			}
 			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
@@ -512,13 +512,13 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 	for _, reaction := range reactions {
 		reactionUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(reaction.UserID)
 		if err != nil {
-			ah.plugin.GetAPI().LogError("unable to find the user for the reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogWarn("unable to find the user for the reaction", "reaction", reaction.Reaction)
 			continue
 		}
 
 		emojiName, ok := emojisReverseMap[reaction.Reaction]
 		if !ok {
-			ah.plugin.GetAPI().LogError("No code reaction found for reaction", "reaction", reaction.Reaction)
+			ah.plugin.GetAPI().LogWarn("No code reaction found for reaction", "reaction", reaction.Reaction)
 			continue
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
@@ -531,7 +531,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 			})
 			if appErr != nil {
 				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
-				ah.plugin.GetAPI().LogError("failed to create the reaction", "err", appErr)
+				ah.plugin.GetAPI().LogWarn("failed to create the reaction", "err", appErr)
 				continue
 			}
 			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
@@ -552,7 +552,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 
 	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
 	if appErr != nil {
-		ah.plugin.GetAPI().LogError("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
+		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
 
