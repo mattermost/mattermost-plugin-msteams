@@ -129,6 +129,12 @@
             "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
             "default": false
         },{
+            "key": "useSharedChannelsInfrastructure",
+            "display_name": "Use Shared Channels Infrastructure",
+            "type": "bool",
+            "help_text": "When true, the system use the Shared Channels Mattermost infrastructure to provide more reliability of messages delivery. When false, the system will use the regular mattermost message/reaction hooks.",
+            "default": false
+        },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",

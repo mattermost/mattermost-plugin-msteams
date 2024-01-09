@@ -773,12 +773,15 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
 	p.API.LogDebug("SyncMsg received", "msg", msg, "remote", rc.DisplayName, "pluginID", pluginID)
+	if !p.configuration.UseSharedChannelsInfrastructure {
+		return model.SyncResponse{}, nil
+	}
 	var resp model.SyncResponse
 	for _, post := range msg.Posts {
 		// TODO: Handle post deletions
 		postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 		if err == nil && postInfo != nil {
-			if err := p.syncMessageUpdate(post); err != nil {
+			if err := p.syncMessageUpdate(post, true); err != nil {
 				return resp, err
 			}
 		} else {
@@ -798,7 +801,7 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteClu
 				return resp, err
 			}
 		} else {
-			if err := p.syncReactionAdded(reaction); err != nil {
+			if err := p.syncReactionAdded(reaction, true); err != nil {
 				return resp, err
 			}
 		}

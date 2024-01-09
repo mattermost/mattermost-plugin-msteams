@@ -41,6 +41,7 @@ type configuration struct {
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
+	UseSharedChannelsInfrastructure    bool   `json:"useSharedChannelsInfrastructure"`
 }
 
 func (c *configuration) ProcessConfiguration() {
