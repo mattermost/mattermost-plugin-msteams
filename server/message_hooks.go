@@ -44,7 +44,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if post.IsSystemMessage() {
-		p.API.LogDebug("Skipping system message post", "PostID", post.Id)
 		return
 	}
 
@@ -121,7 +120,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
 	if reaction.ChannelId == "removedfromplugin" {
-		p.API.LogInfo("Ignore reaction that has been triggered from the plugin handler")
 		return
 	}
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)

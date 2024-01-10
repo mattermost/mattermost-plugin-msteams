@@ -1099,7 +1099,6 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
 	if _, err := query.Exec(); err != nil {
 		if isDuplicate(err) {
-			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
 			return nil
 		}
 

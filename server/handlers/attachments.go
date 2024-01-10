@@ -206,8 +206,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectMessage)
 		countFileAttachments++
 		if countFileAttachments == maxFileAttachmentsSupported {
-			ah.plugin.GetAPI().LogDebug("discarding the rest of the attachments as Mattermost supports only 10 attachments per post")
-
 			// Calculate the count of file attachments discarded by subtracting handled file attachments and other attachments from total message attachments.
 			fileAttachmentsDiscarded := len(msg.Attachments) - countNonFileAttachments - countFileAttachments
 			ah.plugin.GetMetrics().ObserveFiles(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, isDirectMessage, int64(fileAttachmentsDiscarded))

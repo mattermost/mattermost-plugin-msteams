@@ -330,7 +330,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
-	ah.plugin.GetAPI().LogDebug("Post generated")
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
@@ -340,7 +339,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
 
-	ah.plugin.GetAPI().LogDebug("Post created")
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
 			ChannelId: channelID,

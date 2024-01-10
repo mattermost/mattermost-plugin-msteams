@@ -512,7 +512,6 @@ func (p *Plugin) syncUsersPeriodically() {
 	}
 
 	if !isStatusUpdated {
-		p.API.LogDebug("Sync users job already running")
 		return
 	}
 

@@ -81,7 +81,6 @@ func (m *Monitor) RunMonitoringSystemJob() {
 	}
 
 	if !isStatusUpdated {
-		m.api.LogDebug("Monitoring job already running")
 		return
 	}
 

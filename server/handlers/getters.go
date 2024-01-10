@@ -175,7 +175,6 @@ func (ah *ActivityHandler) getChatChannelID(chat *clientmodels.Chat) (string, er
 				}
 			}
 
-			ah.plugin.GetAPI().LogDebug("Skipping guest user while creating DM/GM", "TeamsUserID", msteamsUser.ID)
 			continue
 		}
 

@@ -296,7 +296,6 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.p.API.LogDebug("Successfully fetched the list of teams", "Count", len(teams))
 	for _, t := range teams {
 		s := model.AutocompleteListItem{
 			Item:     t.ID,
@@ -338,7 +337,6 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.p.API.LogDebug("Successfully fetched the list of channels for MS Teams team", "TeamID", teamID, "Count", len(channels))
 	for _, c := range channels {
 		s := model.AutocompleteListItem{
 			Item:     c.ID,
