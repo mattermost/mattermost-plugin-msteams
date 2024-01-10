@@ -70,7 +70,7 @@ func (m *Monitor) RunMonitoringSystemJob() {
 
 	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-			m.api.LogDebug("Failed to set monitoring job running status to false.")
+			m.api.LogError("Failed to set monitoring job running status to false.")
 		}
 	}()
 

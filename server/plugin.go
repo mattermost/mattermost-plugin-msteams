@@ -501,7 +501,7 @@ func (p *Plugin) syncUsersPeriodically() {
 
 	defer func() {
 		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
-			p.API.LogDebug("Failed to set sync users job running status to false.")
+			p.API.LogError("Failed to set sync users job running status to false.", "error", sErr.Error())
 		}
 	}()
 
