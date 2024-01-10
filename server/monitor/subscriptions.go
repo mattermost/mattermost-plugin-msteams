@@ -19,7 +19,6 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		}
 	}()
 
-	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
 		m.api.LogWarn("Unable to list channel links from DB", "error", err.Error())
@@ -112,7 +111,6 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // }
 
 func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
-	m.api.LogDebug("Checking for global subscriptions")
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
 		m.api.LogWarn("Unable to get the chat subscriptions from store", "error", err.Error())

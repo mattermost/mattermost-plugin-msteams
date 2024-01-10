@@ -46,8 +46,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			description:          "Empty list of subscriptions, but subscription present on MS Teams",
 			allChatsSubscription: allChatsSubscription,
 			setupClient:          func(client *mocksClient.Client) {},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI:             func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListGlobalSubscriptions").Return([]*storemodels.GlobalSubscription{}, nil).Times(1)
 				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
@@ -59,8 +58,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true, "").Return(allChatsSubscription, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListGlobalSubscriptions").Return([]*storemodels.GlobalSubscription{}, nil).Times(1)
 				store.On("SaveGlobalSubscription", mockGlobalSubscription).Return(nil).Times(1)
@@ -74,8 +72,7 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("SubscribeToChats", "base-url", "webhook-secret", true, "").Return(allChatsSubscription, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListGlobalSubscriptions").Return([]*storemodels.GlobalSubscription{{SubscriptionID: "test", Type: "allChats", Secret: "webhook-secret", ExpiresOn: time.Now().Add(10 * time.Second)}}, nil).Times(1)
 				store.On("DeleteSubscription", "test").Return(nil).Times(1)
@@ -192,8 +189,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 		{
 			description: "Empty list of links",
 			setupClient: func(client *mocksClient.Client) {},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI:    func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{}, nil).Times(1)
@@ -205,8 +201,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret", "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{}, nil).Times(1)
@@ -221,8 +216,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("SubscribeToChannel", "team-id", "channel-id", "base-url", "webhook-secret", "").Return(&clientmodels.Subscription{ID: "new-id", ExpiresOn: newExpiresOn}, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{}, nil).Times(1)
@@ -262,8 +256,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			setupClient: func(client *mocksClient.Client) {
 				client.On("RefreshSubscription", "test").Return(&newExpiresOn, nil).Times(1)
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("ListChannelLinks").Return([]storemodels.ChannelLink{channelLink}, nil).Times(1)
 				store.On("ListChannelSubscriptions").Return([]*storemodels.ChannelSubscription{{SubscriptionID: "test", TeamID: "team-id", ChannelID: "channel-id", Secret: "webhook-secret", ExpiresOn: time.Now()}}, nil).Times(1)
