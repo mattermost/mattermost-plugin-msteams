@@ -24,14 +24,13 @@ import (
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	if user.RemoteId != nil && *user.RemoteId != "" && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
-		p.API.LogDebug("Promoting synthetic user", "UserID", user.Id)
 		*user.RemoteId = ""
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
 			p.API.LogWarn("Unable to promote synthetic user", "UserID", user.Id, "error", appErr.Error())
 			return "Unable to promote synthetic user"
 		}
 
-		p.API.LogDebug("Promoted synthetic user", "UserID", user.Id)
+		p.API.LogInfo("Promoted synthetic user", "UserID", user.Id)
 	}
 
 	return ""

@@ -162,7 +162,7 @@ func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 }
 
 func getClientMock(p *Plugin) *mocks.Client {
-	p.API.LogDebug("Using mock client")
+	p.API.LogInfo("Using mock client")
 
 	if clientMock != nil {
 		return clientMock

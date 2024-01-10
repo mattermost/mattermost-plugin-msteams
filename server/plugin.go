@@ -144,7 +144,7 @@ func (p *Plugin) GetURL() string {
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
-	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
+	p.API.LogInfo("Token for user disconnected", "userID", userID)
 	p.metricsService.ObserveOAuthTokenInvalidated()
 
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
@@ -270,7 +270,7 @@ func (p *Plugin) start(isRestart bool) {
 	p.stopContext = ctx
 
 	if p.getConfiguration().SyncUsers > 0 {
-		p.API.LogDebug("Starting the sync users job")
+		p.API.LogInfo("Starting the sync users job")
 
 		// Close the previous background job if exists.
 		p.stopSyncUsersJob()
@@ -516,7 +516,7 @@ func (p *Plugin) syncUsersPeriodically() {
 		return
 	}
 
-	p.API.LogDebug("Running the Sync Users Job")
+	p.API.LogInfo("Running the Sync Users Job")
 	p.syncUsers()
 }
 
@@ -582,7 +582,7 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogDebug("Activating the inactive user", "TeamsUserID", msUser.ID)
+						p.API.LogInfo("Activating the inactive user", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
 							p.API.LogWarn("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
@@ -590,7 +590,7 @@ func (p *Plugin) syncUsers() {
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogDebug("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
+						p.API.LogInfo("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogWarn("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 						}
@@ -622,7 +622,7 @@ func (p *Plugin) syncUsers() {
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogDebug("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
+					p.API.LogInfo("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 						p.API.LogWarn("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
 					}

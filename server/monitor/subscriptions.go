@@ -88,13 +88,12 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 
 // Commenting the below function as we are not creating any user type subscriptions
 // func (m *Monitor) checkChatsSubscriptions() {
-// 	m.api.LogDebug("Checking for chats subscriptions")
 // 	subscriptions, err := m.store.ListChatSubscriptionsToCheck()
 // 	if err != nil {
 // 		m.api.LogWarn("Unable to get the chat subscriptions", "error", err)
 // 		return
 // 	}
-// 	m.api.LogDebug("Refreshing chats subscriptions", "count", len(subscriptions))
+// 	m.api.LogInfo("Refreshing chats subscriptions", "count", len(subscriptions))
 
 // 	for _, subscription := range subscriptions {
 // 		if time.Until(subscription.ExpiresOn) < (15 * time.Second) {
