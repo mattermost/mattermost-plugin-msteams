@@ -258,12 +258,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
 	if msg.UserID == "" {
-		ah.plugin.GetAPI().LogDebug("Skipping not user event", "msg", msg)
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
@@ -272,14 +270,12 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
-		ah.plugin.GetAPI().LogDebug("duplicate post")
 		ah.plugin.GetMetrics().ObserveConfirmedMessage(metrics.ActionSourceMattermost, isDirectMessage)
 		return metrics.DiscardedReasonDuplicatedPost
 	}
 
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -326,12 +322,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return metrics.DiscardedReasonInactiveUser
 	}
 
 	if channelID == "" {
-		ah.plugin.GetAPI().LogDebug("Channel not set")
 		return metrics.DiscardedReasonOther
 	}
 
@@ -373,18 +367,15 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 	}
 
 	if msg == nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get the message (probably because belongs to private chats of non-connected users)")
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
 	if msg.UserID == "" {
-		ah.plugin.GetAPI().LogDebug("Skipping not user event", "msg", msg)
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -438,7 +429,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		ah.plugin.GetAPI().LogDebug("Skipping messages from inactive user", "MMUserID", senderID)
 		return metrics.DiscardedReasonInactiveUser
 	}
 
@@ -468,8 +458,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []clientmodels.Reaction) {
-	ah.plugin.GetAPI().LogDebug("Handling reactions", "reactions", reactions)
-
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
 		return
@@ -523,7 +511,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 		}
 		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
 			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
-			r, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
+			_, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
 				UserId:    reactionUserID,
 				PostId:    postID,
 				ChannelId: channelID,
@@ -534,7 +522,6 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 				ah.plugin.GetAPI().LogWarn("failed to create the reaction", "err", appErr)
 				continue
 			}
-			ah.plugin.GetAPI().LogDebug("Added reaction", "reaction", r)
 			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectMessage)
 		}
 	}

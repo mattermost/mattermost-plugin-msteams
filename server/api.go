@@ -255,8 +255,6 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	a.p.API.LogDebug("Lifecycle activity request", "activities", lifecycleEvents)
-
 	errors := ""
 	for _, event := range lifecycleEvents.Value {
 		if event.ClientState != a.p.getConfiguration().WebhookSecret {

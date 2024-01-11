@@ -99,7 +99,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Skipping not user event", "msg", &clientmodels.Message{}).Times(1)
 			},
 			setupStore:   func(store *mocksStore.Store) {},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
@@ -137,7 +136,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "duplicate post").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
@@ -180,7 +178,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Skipping messages from bot user").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
@@ -644,7 +641,6 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("LogDebug", "Skipping messages from bot user").Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)

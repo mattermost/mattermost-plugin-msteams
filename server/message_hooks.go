@@ -86,12 +86,10 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		updateRequired = !ignoreHookForReaction
 	}
 
-	p.API.LogDebug("Reaction added hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "mmPostID", reaction.PostId, "error", err.Error())
 	} else if postInfo == nil {
-		p.API.LogDebug("No matching Teams post corresponding to MM post", "mmPostID", reaction.PostId)
 		return
 	}
 
@@ -122,7 +120,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
 	if reaction.ChannelId == "removedfromplugin" {
 		p.API.LogInfo("Ignore reaction that has been triggered from the plugin handler")
 		return
@@ -131,7 +128,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "mmPostID", reaction.PostId, "error", err.Error())
 	} else if postInfo == nil {
-		p.API.LogDebug("No matching Teams post corresponding to MM post", "mmPostID", reaction.PostId)
 		return
 	}
 
@@ -222,8 +218,6 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 }
 
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
-	p.API.LogDebug("Setting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
-
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, channelID)
@@ -274,8 +268,6 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 }
 
 func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post, emojiName string, updateRequired bool) error {
-	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "PostID", post.Id, "emojiName", emojiName)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
@@ -332,8 +324,6 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 }
 
 func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
-	p.API.LogDebug("Unsetting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
-
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, channelID)
@@ -373,8 +363,6 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 }
 
 func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Post, emojiName string) error {
-	p.API.LogDebug("Unsetting reaction", "teamID", teamID, "channelID", channelID, "PostID", post.Id, "emojiName", emojiName)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
@@ -421,8 +409,6 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 }
 
 func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
-	p.API.LogDebug("Sending direct message to MS Teams", "SrcUser", srcUser, "UsersIDs", usersIDs, "PostID", post.Id)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -431,7 +417,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		}
 	}
 
-	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
+	_, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, post.ChannelId)
 		return "", err
@@ -454,7 +440,6 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		teamsUsersIDs[idx] = teamsUserID
 	}
 
-	p.API.LogDebug("Sending direct message to MS Teams", "SrcUserID", srcUserID, "TeamsUsersIDs", teamsUsersIDs, "PostID", post.Id)
 	text := post.Message
 
 	chat, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
@@ -539,8 +524,6 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
-	p.API.LogDebug("Sending message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "PostID", post.Id)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -607,8 +590,6 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 }
 
 func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting message from MS Teams", "teamID", teamID, "channelID", channelID)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -646,8 +627,6 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 }
 
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting direct message from MS Teams", "ChatID", chatID, "PostID", post.Id)
-
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
 		p.handlePromptForConnection(user.Id, post.ChannelId)
@@ -675,8 +654,6 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 }
 
 func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
-	p.API.LogDebug("Updating message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "OldPostID", oldPost.Id, "NewPostID", newPost.Id)
-
 	parentID := ""
 	if oldPost.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(newPost.RootId)
@@ -747,8 +724,6 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 }
 
 func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
-	p.API.LogDebug("Updating direct message to MS Teams", "ChatID", chatID, "OldPostID", oldPost.Id, "NewPostID", newPost.Id)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
 		p.API.LogWarn("Error getting post info", "error", err)
