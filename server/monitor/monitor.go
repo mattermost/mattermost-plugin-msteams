@@ -3,6 +3,7 @@ package monitor
 import (
 	"fmt"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
@@ -97,12 +98,23 @@ func (m *Monitor) Stop() {
 }
 
 func (m *Monitor) check() {
+	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
+	defer done()
+
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
 		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
-	go m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
+	}()
+
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+
+	wg.Wait()
 }
