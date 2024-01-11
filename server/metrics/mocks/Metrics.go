@@ -12,6 +12,11 @@ type Metrics struct {
 	mock.Mock
 }
 
+// DecrementActiveWorkers provides a mock function with given fields: worker
+func (_m *Metrics) DecrementActiveWorkers(worker string) {
+	_m.Called(worker)
+}
+
 // DecrementChangeEventQueueLength provides a mock function with given fields: changeType
 func (_m *Metrics) DecrementChangeEventQueueLength(changeType string) {
 	_m.Called(changeType)
@@ -31,6 +36,11 @@ func (_m *Metrics) GetRegistry() *prometheus.Registry {
 	}
 
 	return r0
+}
+
+// IncrementActiveWorkers provides a mock function with given fields: worker
+func (_m *Metrics) IncrementActiveWorkers(worker string) {
+	_m.Called(worker)
 }
 
 // IncrementChangeEventQueueLength provides a mock function with given fields: changeType
@@ -141,6 +151,27 @@ func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 // ObserveWhitelistLimit provides a mock function with given fields: limit
 func (_m *Metrics) ObserveWhitelistLimit(limit int) {
 	_m.Called(limit)
+}
+
+// ObserveWorker provides a mock function with given fields: worker
+func (_m *Metrics) ObserveWorker(worker string) func() {
+	ret := _m.Called(worker)
+
+	var r0 func()
+	if rf, ok := ret.Get(0).(func(string) func()); ok {
+		r0 = rf(worker)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(func())
+		}
+	}
+
+	return r0
+}
+
+// ObserveWorkerDuration provides a mock function with given fields: worker, elapsed
+func (_m *Metrics) ObserveWorkerDuration(worker string, elapsed float64) {
+	_m.Called(worker, elapsed)
 }
 
 type mockConstructorTestingTNewMetrics interface {

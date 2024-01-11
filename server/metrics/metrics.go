@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -19,6 +20,7 @@ const (
 	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
+	MetricsVersionLabel           = "version"
 
 	ActionSourceMSTeams     = "msteams"
 	ActionSourceMattermost  = "mattermost"
@@ -50,6 +52,10 @@ const (
 	DiscardedReasonInvalidWebhookSecret      = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
+
+	WorkerMonitor         = "monitor"
+	WorkerSyncUsers       = "sync_users"
+	WorkerActivityHandler = "activity_handler"
 )
 
 type Metrics interface {
@@ -83,11 +89,16 @@ type Metrics interface {
 	GetRegistry() *prometheus.Registry
 
 	ObserveGoroutineFailure()
+	IncrementActiveWorkers(worker string)
+	DecrementActiveWorkers(worker string)
+	ObserveWorkerDuration(worker string, elapsed float64)
+	ObserveWorker(worker string) func()
 }
 
 type InstanceInfo struct {
 	InstallationID string
 	WhiteListLimit int
+	PluginVersion  string
 }
 
 // metrics used to instrumentate metrics in prometheus.
@@ -95,6 +106,7 @@ type metrics struct {
 	registry *prometheus.Registry
 
 	pluginStartTime        prometheus.Gauge
+	pluginInfo             prometheus.Gauge
 	goroutineFailuresTotal prometheus.Counter
 	whitelistLimit         prometheus.Gauge
 
@@ -121,8 +133,10 @@ type metrics struct {
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
+	activeWorkersTotal            *prometheus.GaugeVec
 
-	storeTime *prometheus.HistogramVec
+	storeTime   *prometheus.HistogramVec
+	workersTime *prometheus.HistogramVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -160,6 +174,19 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.whitelistLimit.Set(float64(info.WhiteListLimit))
 	m.registry.MustRegister(m.whitelistLimit)
+
+	m.pluginInfo = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: MetricsNamespace,
+		Subsystem: MetricsSubsystemSystem,
+		Name:      "plugin_info",
+		Help:      "The plugin version.",
+		ConstLabels: map[string]string{
+			MetricsCloudInstallationLabel: info.InstallationID,
+			MetricsVersionLabel:           info.PluginVersion,
+		},
+	})
+	m.pluginInfo.Set(1)
+	m.registry.MustRegister(m.pluginInfo)
 
 	m.goroutineFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -348,6 +375,24 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"method", "success"})
 	m.registry.MustRegister(m.storeTime)
 
+	m.activeWorkersTotal = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "active_workers_total",
+		Help:        "The number of active workers.",
+		ConstLabels: additionalLabels,
+	}, []string{"worker"})
+	m.registry.MustRegister(m.activeWorkersTotal)
+
+	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "workers_time_seconds",
+		Help:        "Time to execute various workers.",
+		ConstLabels: additionalLabels,
+	}, []string{"worker"})
+	m.registry.MustRegister(m.workersTime)
+
 	return m
 }
 
@@ -490,4 +535,39 @@ func (m *metrics) ObserveStoreMethodDuration(method, success string, elapsed flo
 	if m != nil {
 		m.storeTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
 	}
+}
+
+func (m *metrics) IncrementActiveWorkers(worker string) {
+	if m != nil {
+		m.activeWorkersTotal.With(prometheus.Labels{"worker": worker}).Inc()
+	}
+}
+
+func (m *metrics) DecrementActiveWorkers(worker string) {
+	if m != nil {
+		m.activeWorkersTotal.With(prometheus.Labels{"worker": worker}).Dec()
+	}
+}
+
+func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
+	if m != nil {
+		m.workersTime.With(prometheus.Labels{"worker": worker}).Observe(elapsed)
+	}
+}
+
+// ObserveWorker is a helper routine that abstracts tracking active workers and duration, returning
+// a callback to invoke when the worker is done executing.
+func (m *metrics) ObserveWorker(worker string) func() {
+	if m != nil {
+		m.IncrementActiveWorkers(worker)
+		start := time.Now()
+
+		return func() {
+			m.DecrementActiveWorkers(worker)
+			elapsed := float64(time.Since(start)) / float64(time.Second)
+			m.ObserveWorkerDuration(worker, elapsed)
+		}
+	}
+
+	return func() {}
 }

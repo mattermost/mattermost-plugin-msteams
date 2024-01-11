@@ -206,6 +206,9 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 }
 
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
+	done := ah.plugin.GetMetrics().ObserveWorker(metrics.WorkerActivityHandler)
+	defer done()
+
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
 	if activityIds.ChatID == "" {
