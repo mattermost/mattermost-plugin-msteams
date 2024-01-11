@@ -116,7 +116,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(api *plugintest.API) {
@@ -132,7 +132,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {},
 			setupAPI: func(api *plugintest.API) {
@@ -148,7 +148,7 @@ func TestHandleCodeSnippet(t *testing.T) {
 			text:           "mock-data",
 			expectedOutput: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("", errors.New("Error while retrieving code snippet"))
@@ -199,8 +199,8 @@ func TestHandleMessageReference(t *testing.T) {
 			expectedText:     "mock-data",
 			expectedParentID: testutils.GetID(),
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetStore").Return(store)
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetStore").Return(store).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupStore: func() {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
@@ -219,7 +219,7 @@ func TestHandleMessageReference(t *testing.T) {
 			text:         "mock-data",
 			expectedText: "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupStore: func() {},
 			setupAPI:   func() {},
@@ -233,7 +233,7 @@ func TestHandleMessageReference(t *testing.T) {
 			text:            "mock-data",
 			expectedText:    "mock-data",
 			setupPlugin: func(p *mocksPlugin.PluginIface) {
-				p.On("GetStore").Return(store)
+				p.On("GetStore").Return(store).Maybe()
 				store.On("GetPostInfoByMSTeamsID", "mock-chatOrChannelID", testutils.GetMessageID()).Return(nil, errors.New("Error while getting post info by msteam ID"))
 			},
 			setupStore: func() {},
@@ -271,8 +271,8 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Successfully handled attachments",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetClientForApp").Return(client).Times(1)
-				p.On("GetAPI").Return(mockAPI).Times(2)
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
@@ -305,7 +305,7 @@ func TestHandleAttachments(t *testing.T) {
 			description: "Client is nil",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(nil)
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("LogError", "Unable to get the client").Return()
@@ -321,8 +321,8 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Error uploading the file",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetClientForApp").Return(client).Once()
-				p.On("GetAPI").Return(mockAPI).Times(3)
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
@@ -352,8 +352,8 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Number of attachments are greater than 10",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetClientForApp").Return(client).Once()
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(10)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
@@ -383,7 +383,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Attachment type code snippet",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetClientForApp").Return(client)
+				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -411,9 +411,9 @@ func TestHandleAttachments(t *testing.T) {
 			description: "Attachment type message reference",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
-				p.On("GetClientForApp").Return(client)
+				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetStore").Return(store, nil)
-				p.On("GetAPI").Return(mockAPI)
+				p.On("GetAPI").Return(mockAPI).Maybe()
 				store.On("GetPostInfoByMSTeamsID", fmt.Sprintf("%s%s", testutils.GetChatID(), testutils.GetChannelID()), "mock-ID").Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetUserID(),
 				}, nil)

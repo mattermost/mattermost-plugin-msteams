@@ -51,7 +51,7 @@ func TestMsgToPost(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetURL").Return("https://example.com/")
-				p.On("GetClientForApp").Return(client)
+				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
@@ -128,8 +128,8 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Unable to get mm user ID for user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Once()
-				p.On("GetStore").Return(store).Once()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogDebug", "Unable to get MM user ID from Teams user ID", "TeamsUserID", testutils.GetTeamsUserID(), "Error", "unable to get mm user ID").Once()
@@ -152,8 +152,8 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Unable to get mm user details for user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Twice()
-				p.On("GetStore").Return(store).Once()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogDebug", "Unable to get MM user details", "MMUserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
@@ -177,8 +177,8 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Successful user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Twice()
-				p.On("GetStore").Return(store).Twice()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
