@@ -356,6 +356,7 @@ func (p *Plugin) OnActivate() error {
 
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		PluginVersion:  manifest.Version,
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
@@ -478,6 +479,9 @@ func (p *Plugin) stopSyncUsersJob() {
 }
 
 func (p *Plugin) syncUsers() {
+	done := p.GetMetrics().ObserveWorker(metrics.WorkerSyncUsers)
+	defer done()
+
 	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())

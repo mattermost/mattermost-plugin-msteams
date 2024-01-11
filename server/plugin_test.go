@@ -335,7 +335,9 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return(nil, errors.New("unable to get the user list")).Times(1)
 			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
+			},
 		},
 		{
 			Name: "SyncUsers: Unable to get the MM users",
@@ -356,6 +358,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
@@ -381,6 +384,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
@@ -410,6 +414,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
