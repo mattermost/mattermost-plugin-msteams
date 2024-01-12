@@ -53,10 +53,6 @@
         .then(() => window.close());
       }
     </script>
-    <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,700" rel="stylesheet" type="text/css">
-    <style type="text/css">
-      @import url(https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,700);
-    </style> -->
     <style>
       @font-face {
           font-family: 'Metropolis';
@@ -327,6 +323,11 @@
           color: white;
         }
 
+        .skip-button__text {
+          background-color: rgba(28,88,217,0.08);
+          color: #1C58D9;
+        }
+
         .button__container {
           gap: 8px;
           margin: 40px 0;
@@ -345,11 +346,6 @@
           font-weight: 600;
         }
 
-        .skip-button__text {
-          background-color: rgba(28,88,217,0.08);
-          color: #1C58D9;
-        }
-
         .footer {
           text-align: center;
         }
@@ -358,7 +354,19 @@
           text-decoration: none;
         }
 
+        .mobile-only {
+          display: none;
+        }
+
         @media screen and (max-width: 500px) {
+          .mobile-only {
+            display: unset;
+          }
+
+          .web-only {
+            display: none;
+          }
+
           .button__container {
             flex-direction: column-reverse;
           }
@@ -403,9 +411,12 @@
         <div class="connection-icon">
         <img src="static/connection-icon.png" alt="connection-icon"/>
         </div>
-        <div class="heading-body">
+        <div class="heading-body web-only">
           <div class="heading">Your account is now connected.</div>
           <div class="heading">How will you be using the two platforms?</div>
+        </div>
+        <div class="heading-body mobile-only">
+          <div class="heading">Your account is now connected. How will you be using the two platforms?</div>
         </div>
         <div class="card-holder">
           <div class="card color-none" onclick="selectPrimaryPlatform('mattermost')" id="mattermost">
