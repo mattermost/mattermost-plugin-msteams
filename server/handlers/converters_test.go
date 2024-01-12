@@ -14,7 +14,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +54,7 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
+
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -132,7 +131,7 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get MM user ID from Teams user ID", "TeamsUserID", testutils.GetTeamsUserID(), "Error", "unable to get mm user ID").Once()
+
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
@@ -156,7 +155,6 @@ func TestHandleMentions(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get MM user details", "MMUserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
@@ -219,6 +217,7 @@ func TestHandleMentions(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			testCase.setupPlugin(p, mockAPI, store)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			testCase.setupStore(store)
 
 			ah.plugin = p
