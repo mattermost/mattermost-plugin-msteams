@@ -6,6 +6,8 @@
       var msteamsPrimaryPlatform = 'msteams';
       var mmSelectIconClass = 'select-icon__mm';
       var msteamsSelectIconClass = 'select-icon__msteams';
+      var mattermostCardBodyId = 'mattermost-body'
+      var msTeamsCardBodyId = 'msteams-body'
       var primaryPlatform;
 
       function closeInfoPage() {
@@ -19,11 +21,27 @@
           document.getElementById(msteamsSelectIconClass).classList.add('d-none');
           document.getElementById(msteamsPrimaryPlatform).classList.add('color-none');
           document.getElementById(mattermostPrimaryPlatform).classList.remove('color-none');
+          const msTeamsClassList = document.getElementById(msTeamsCardBodyId).classList;
+          if (msTeamsClassList.contains('expanded')) {
+            msTeamsClassList.remove('expanded');
+            msTeamsClassList.add('collapsed');
+          }
+          const mattermostClassList = document.getElementById(mattermostCardBodyId).classList;
+          mattermostClassList.remove('collapsed');
+          mattermostClassList.add('expanded');
         } else {
           document.getElementById(mmSelectIconClass).classList.add('d-none');
           document.getElementById(msteamsSelectIconClass).classList.remove('d-none');
           document.getElementById(mattermostPrimaryPlatform).classList.add('color-none');
           document.getElementById(msteamsPrimaryPlatform).classList.remove('color-none');
+          const mattermostClassList = document.getElementById(mattermostCardBodyId).classList;
+          if (mattermostClassList.contains('expanded')) {
+            mattermostClassList.remove('expanded');
+            mattermostClassList.add('collapsed');
+          }
+          const msTeamsClassList = document.getElementById(msTeamsCardBodyId).classList;
+          msTeamsClassList.remove('collapsed');
+          msTeamsClassList.add('expanded');
         }
       }
 
@@ -35,7 +53,141 @@
         .then(() => window.close());
       }
     </script>
+    <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,700" rel="stylesheet" type="text/css">
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,700);
+    </style> -->
     <style>
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: normal;
+          font-weight: 600;
+          src: url('./static/fonts/Metropolis-SemiBold.woff') format('woff');
+      }
+
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: italic;
+          font-weight: 600;
+          src: url('./static/fonts/Metropolis-SemiBoldItalic.woff') format('woff');
+      }
+
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: normal;
+          font-weight: 400;
+          src: url('./static/fonts/Metropolis-Regular.woff') format('woff');
+      }
+
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: italic;
+          font-weight: 400;
+          src: url('./static/fonts/Metropolis-RegularItalic.woff') format('woff');
+      }
+
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: normal;
+          font-weight: 300;
+          src: url('./static/fonts/Metropolis-Light.woff') format('woff');
+      }
+
+      @font-face {
+          font-family: 'Metropolis';
+          font-style: italic;
+          font-weight: 300;
+          src: url('./static/fonts/Metropolis-LightItalic.woff') format('woff');
+      }
+
+      /* open-sans-300 - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 300;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-300.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-300.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      /* open-sans-300italic - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: italic;
+          font-weight: 300;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-300italic.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-300italic.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      /* open-sans-regular - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 400;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      /* open-sans-italic - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: italic;
+          font-weight: 400;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-italic.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-italic.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      /* open-sans-600italic - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: italic;
+          font-weight: 600;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-600italic.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-600italic.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      /* open-sans-600 - vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic */
+      @font-face {
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 600;
+          src:
+              local(''),
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-600.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+              url('./static/fonts/open-sans-v18-vietnamese_latin-ext_latin_greek-ext_greek_cyrillic-ext_cyrillic-600.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
+
+      @keyframes expand-card {
+        from {
+          max-height: 0;
+          padding: 0 16px;
+        }
+        to {
+          max-height: 400px;
+          padding: 16px;
+        }
+      }
+
+      @keyframes collapse-card {
+        from {
+          max-height: 400px;
+          padding: 16px;
+        }
+        to {
+          max-height: 0;
+          padding: 0 16px;
+        }
+      }
+
       .msteams-sync-info-page {
         max-width: 100%;
         display: flex;
@@ -47,6 +199,10 @@
         padding-top: 30px;
         height: 20px;
         cursor: pointer;
+
+        @media screen and (max-width: 500px) {
+          display: none;
+        }
       }
 
       .msteams-sync-body {
@@ -67,6 +223,8 @@
           align-items: center;
           font-weight: 600;
           font-size: 30px;
+          text-align: center;
+          font-family: 'Metropolis';
         }
 
         .connection-icon {
@@ -103,7 +261,7 @@
         .card__heading {
           display: flex;
           height: 30%;
-          padding: 5%;
+          padding: 16px 24px 16px 16px;
           border-bottom: 1px solid #3F435029;
           align-items: center;
           width: 100%;
@@ -120,6 +278,7 @@
           font-size: 20px;
           margin-left: 15px;
           width: 70%;
+          font-family: 'Metropolis';
         }
 
         .select-icon {
@@ -130,7 +289,7 @@
           width: 100%;
           height: 60%;
           box-sizing: border-box;
-          padding: 5%;
+          padding: 16px;
         }
 
         .card__sub-heading {
@@ -160,20 +319,35 @@
 
         .selection-button {
           text-align: center;
-          margin: 40px 0;
           cursor: pointer;
         }
 
         .selection-button__text {
+          background-color: #1C58D9;
+          color: white;
+        }
+
+        .button__container {
+          gap: 8px;
+          margin: 40px 0;
+          display: flex;
+        }
+
+        .button__text {
           display: flex;
           gap: 10px;
-          background-color: #1C58D9;
-          border-radius: 4px;
-          color: white;
           padding: 15px 32px;
+          border-radius: 4px;
           text-align: center;
           text-decoration: none;
           font-size: 16px;
+          line-height: 24px;
+          font-weight: 600;
+        }
+
+        .skip-button__text {
+          background-color: rgba(28,88,217,0.08);
+          color: #1C58D9;
         }
 
         .footer {
@@ -182,6 +356,41 @@
 
         .footer-link {
           text-decoration: none;
+        }
+
+        @media screen and (max-width: 500px) {
+          .button__container {
+            flex-direction: column-reverse;
+          }
+
+          .card-holder {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+          }
+
+          .card {
+            width: 100%;
+          }
+
+          .card__body {
+            height: auto;
+            max-height: 0;
+            padding: 0 16px;
+            overflow: hidden;
+
+            &.expanded {
+              animation-name: expand-card;
+              animation-duration: 1s;
+              animation-fill-mode: forwards;
+            }
+
+            &.collapsed {
+              animation-name: collapse-card;
+              animation-duration: 1s;
+              animation-fill-mode: forwards;
+            }
+          }
         }
       }
     </style>
@@ -209,14 +418,14 @@
                 <img src="static/select-icon.png" alt="select-icon" class="d-none" id="select-icon__mm"/>
               </div>
             </div>
-            <div class="card__body">
+            <div class="card__body" id="mattermost-body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
-                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channel and direct messages from Microsoft Teams will be synced in Mattermost
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channels and direct messages from Microsoft Teams will be available in Mattermost
                 </li>
                 <li class="list-item">
-                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">You will get notifications in Mattermost for synced messages and channels.
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">You will receive notifications in Mattermost for synchronized messages and channels.
                 </li>
                 <li class="list-item">
                   <!-- TODO: Add correct links here -->
@@ -235,29 +444,34 @@
                 <img src="static/select-icon.png" alt="select-icon" class="d-none" id="select-icon__msteams"/>
               </div>
             </div>
-            <div class="card__body">
+            <div class="card__body" id="msteams-body">
               <div class="card__sub-heading">What this choice means:</div>
               <ul class="list">
                 <li class="list-item">
-                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channels and direct messages from Microsoft Teams will still be synced in Mattermost
+                  <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">Linked channels and direct messages from Microsoft Teams will be available in Mattermost.
                 </li>
                 <li class="list-item">
                   <!-- TODO: Add correct links here -->
                   <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. <a href="learn-more-url" class="list-link">Learn more</a>
                 </li>
                 <li class="list-item">
-                  <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">Unread statuses in linked channels and DMs will not be synced between Mattermost and Microsoft Teams.
+                  <img src="static/list-icon-warn.png" alt="list-icon" class="list-icon">Unread statuses for linked channels and DMs won't be available between Mattermost and Microsoft Teams.
                 </li>
               </ul>
             </div>
           </div>
         </div>
-        <div class="selection-button" onclick="choosePrimaryPlatform()">
-          <a class="selection-button__text">Continue <img src="static/trailing-icon.png" alt="trailing-icon"/></a>   
+        <div class="button__container">
+          <div class="selection-button" onclick="closeInfoPage()">
+            <a class="button__text skip-button__text">Skip for now</a>   
+          </div>
+          <div class="selection-button" onclick="choosePrimaryPlatform()">
+            <a class="button__text selection-button__text">Continue <img src="static/trailing-icon.png" alt="trailing-icon"/></a>   
+          </div>
         </div>
         <div class="footer">
           <!-- TODO: Add correct links here -->
-          You can <a href="skip-url" class="footer-link">skip this for now</a> and change it in your account settings later. For more information <a href="help-url" class="footer-link">visit this help article.</a>
+          You can change this preference in your account settings later. For more information <a href="help-url" class="footer-link">visit this help article.</a>
         </div>
       </div>
     </div>
