@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"math"
 	"net/http"
 	"os"
@@ -134,7 +133,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
 	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", (*sql.Tx)(nil), storemodels.PostInfo{
+	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
 		MattermostID:        "post-id",
 		MSTeamsID:           "new-message-id",
 		MSTeamsChannel:      "ms-channel-id",
@@ -335,7 +334,9 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return(nil, errors.New("unable to get the user list")).Times(1)
 			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
+			},
 		},
 		{
 			Name: "SyncUsers: Unable to get the MM users",
@@ -356,6 +357,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
@@ -381,6 +383,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
@@ -410,6 +413,7 @@ func TestSyncUsers(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
 				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
 			},
 		},
