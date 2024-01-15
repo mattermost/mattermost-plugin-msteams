@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -59,6 +62,14 @@ func main() {
 	manifest, err := findManifest()
 	if err != nil {
 		panic("failed to find manifest: " + err.Error())
+	}
+
+	if manifest.HasServer() {
+		// Build only the current platform if MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
+		if isDeveloperBuild, _ := strconv.ParseBool(os.Getenv("MM_SERVICESETTINGS_ENABLEDEVELOPER")); isDeveloperBuild {
+			manifest.Server.Executables = nil
+			manifest.Server.Executable = fmt.Sprintf("server/dist/plugin-%s-%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	cmd := os.Args[1]
@@ -135,7 +146,10 @@ func findManifest() (*model.Manifest, error) {
 
 	// Update the release notes url to point at the latest tag, if present.
 	if BuildTagLatest != "" {
-		manifest.ReleaseNotesURL = manifest.HomepageURL + "releases/tag/" + BuildTagLatest
+		manifest.ReleaseNotesURL, err = url.JoinPath(manifest.HomepageURL, "releases/tag", BuildTagLatest)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build release notes url")
+		}
 	}
 
 	return &manifest, nil
