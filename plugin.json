@@ -19,6 +19,12 @@
         "header": "",
         "footer": "",
         "settings": [{
+          "key": "applicationId",
+          "display_name": "Application ID",
+          "type": "text",
+          "help_text": "Microsoft Teams Application ID",
+          "default": ""
+        },{
           "key": "tenantId",
           "display_name": "Tenant ID",
           "type": "text",

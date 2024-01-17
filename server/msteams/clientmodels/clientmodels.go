@@ -96,3 +96,9 @@ type ActivityIds struct {
 	ReplyID          string
 	HostedContentsID string
 }
+
+type Credential struct {
+	Name       string
+	ID         string
+	ExpireDate time.Time
+}

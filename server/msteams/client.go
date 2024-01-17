@@ -67,15 +67,16 @@ func (a *ConcurrentGraphRequestAdapter) GetSerializationWriterFactory() serializ
 var clientMutex sync.Mutex
 
 type ClientImpl struct {
-	client       *msgraphsdk.GraphServiceClient
-	ctx          context.Context
-	tenantID     string
-	clientID     string
-	clientSecret string
-	clientType   string // can be "app" or "token"
-	token        *oauth2.Token
-	logService   *pluginapi.LogService
-	redirectURL  string
+	client        *msgraphsdk.GraphServiceClient
+	ctx           context.Context
+	applicationID string
+	tenantID      string
+	clientID      string
+	clientSecret  string
+	clientType    string // can be "app" or "token"
+	token         *oauth2.Token
+	logService    *pluginapi.LogService
+	redirectURL   string
 }
 
 type Activity struct {
@@ -168,25 +169,27 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 
 var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
-func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
+func NewApp(applicationID, tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "app",
-		tenantID:     tenantID,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		logService:   logService,
+		ctx:           context.Background(),
+		clientType:    "app",
+		applicationID: applicationID,
+		tenantID:      tenantID,
+		clientID:      clientID,
+		clientSecret:  clientSecret,
+		logService:    logService,
 	}
 }
 
-func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService) Client {
+func NewManualClient(applicationID, tenantID, clientID string, logService *pluginapi.LogService) Client {
 	c := &ClientImpl{
-		ctx:        context.Background(),
-		clientType: "token",
-		tenantID:   tenantID,
-		clientID:   clientID,
-		logService: logService,
-		client:     nil,
+		ctx:           context.Background(),
+		clientType:    "token",
+		applicationID: applicationID,
+		tenantID:      tenantID,
+		clientID:      clientID,
+		logService:    logService,
+		client:        nil,
 	}
 
 	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
@@ -211,16 +214,17 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 	return c
 }
 
-func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
+func NewTokenClient(redirectURL, applicationID, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
 	client := &ClientImpl{
-		ctx:          context.Background(),
-		clientType:   "token",
-		tenantID:     tenantID,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		token:        token,
-		logService:   logService,
-		redirectURL:  redirectURL,
+		ctx:           context.Background(),
+		clientType:    "token",
+		applicationID: applicationID,
+		tenantID:      tenantID,
+		clientID:      clientID,
+		clientSecret:  clientSecret,
+		token:         token,
+		logService:    logService,
+		redirectURL:   redirectURL,
 	}
 
 	conf := &oauth2.Config{
@@ -267,6 +271,23 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 		RedirectURL: tc.redirectURL,
 	}
 	return conf.TokenSource(context.Background(), token).Token()
+}
+
+func (tc *ClientImpl) GetAppCredentials() ([]clientmodels.Credential, error) {
+	application, err := tc.client.ApplicationsWithAppId(&tc.applicationID).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	credentials := []clientmodels.Credential{}
+	credentialsList := application.GetPasswordCredentials()
+	for _, credential := range credentialsList {
+		credentials = append(credentials, clientmodels.Credential{
+			ID:         credential.GetKeyId().String(),
+			Name:       *credential.GetDisplayName(),
+			ExpireDate: *credential.GetEndDateTime(),
+		})
+	}
+	return credentials, nil
 }
 
 func (tc *ClientImpl) Connect() error {

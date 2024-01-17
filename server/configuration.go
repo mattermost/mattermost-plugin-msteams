@@ -20,6 +20,7 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
+	ApplicationID                      string `json:"applicationid"`
 	TenantID                           string `json:"tenantid"`
 	ClientID                           string `json:"clientid"`
 	ClientSecret                       string `json:"clientsecret"`
@@ -44,6 +45,7 @@ type configuration struct {
 }
 
 func (c *configuration) ProcessConfiguration() {
+	c.ApplicationID = strings.TrimSpace(c.ApplicationID)
 	c.TenantID = strings.TrimSpace(c.TenantID)
 	c.ClientID = strings.TrimSpace(c.ClientID)
 	c.ClientSecret = strings.TrimSpace(c.ClientSecret)
@@ -54,6 +56,9 @@ func (c *configuration) ProcessConfiguration() {
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	configuration.ProcessConfiguration()
+	if configuration.ApplicationID == "" {
+		return errors.New("application ID should not be empty")
+	}
 	if configuration.TenantID == "" {
 		return errors.New("tenant ID should not be empty")
 	}

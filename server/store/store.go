@@ -62,4 +62,5 @@ type Store interface {
 	IsUserPresentInWhitelist(userID string) (bool, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
+	GetMattermostAdminsIds() ([]string, error)
 }

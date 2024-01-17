@@ -21,16 +21,18 @@ type Monitor struct {
 	api              plugin.API
 	metrics          metrics.Metrics
 	job              *cluster.Job
+	botUserID        string
 	baseURL          string
 	webhookSecret    string
 	certificate      string
 	useEvaluationAPI bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, botUserID string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
+		botUserID:        botUserID,
 		api:              api,
 		metrics:          metrics,
 		baseURL:          baseURL,
@@ -115,6 +117,8 @@ func (m *Monitor) check() {
 	}()
 
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+
+	m.checkCredentials()
 
 	wg.Wait()
 }

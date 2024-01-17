@@ -48,7 +48,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, applicationID, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
 	}
@@ -139,7 +139,7 @@ func TestMessageHasBeenPostedNewMessage(t *testing.T) {
 		MSTeamsChannel:      "ms-channel-id",
 		MSTeamsLastUpdateAt: now,
 	}).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
 	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
@@ -194,7 +194,7 @@ func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
 	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
 	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
+	clientMock := plugin.clientBuilderWithToken("", "", "", "", "", nil, nil)
 	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
 	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
 	plugin.API.(*plugintest.API).On("LogWarn", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
