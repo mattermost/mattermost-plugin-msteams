@@ -69,7 +69,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	config.SetDefaults()
 	plugin.API.(*plugintest.API).On("KVGet", "cron_monitoring_system").Return(nil, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetServerVersion").Return("7.8.0")
-	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil)
+	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil).Maybe()
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
 	plugin.API.(*plugintest.API).On("EnsureBotUser", bot).Return("bot-user-id", nil).Times(1)
@@ -92,6 +92,10 @@ func newTestPlugin(t *testing.T) *Plugin {
 
 	plugin.API.(*plugintest.API).Test(t)
 	_ = plugin.OnActivate()
+	// OnActivate is actually failing right now, but mocking it is quite difficult. So just
+	// manually wire up the API by hand until we get the E2E tests going.
+	plugin.apiHandler = NewAPI(plugin, plugin.store)
+
 	plugin.metricsService = mockMetricsService
 	plugin.userID = "bot-user-id"
 	return plugin
