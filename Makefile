@@ -39,6 +39,12 @@ else
 	GO_BUILD_GCFLAGS =
 endif
 
+ifeq ($(GITHUB_JOB),plugin-ci)
+	GO_BUILD_FLAGS = -tags clientMock
+else
+	GO_BUILD_FLAGS =
+endif
+
 ## Checks the code style, tests, builds and bundles the plugin.
 .PHONY: all
 all: check-style test dist
