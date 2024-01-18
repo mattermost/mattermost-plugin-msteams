@@ -206,6 +206,8 @@ func (p *Plugin) start(isRestart bool) {
 		p.runMetricsServer()
 		// run metrics updater recurring task
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
+
+		p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 	}
 
 	// We don't restart the activity handler since it's stateless.

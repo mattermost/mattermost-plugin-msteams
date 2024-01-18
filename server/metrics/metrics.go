@@ -64,6 +64,7 @@ type Metrics interface {
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
 	ObserveChangeEventQueueRejected()
+	ObserveWhitelistLimit(limit int)
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
@@ -96,6 +97,7 @@ type Metrics interface {
 
 type InstanceInfo struct {
 	InstallationID string
+	WhiteListLimit int
 	PluginVersion  string
 }
 
@@ -106,6 +108,7 @@ type metrics struct {
 	pluginStartTime        prometheus.Gauge
 	pluginInfo             prometheus.Gauge
 	goroutineFailuresTotal prometheus.Counter
+	whitelistLimit         prometheus.Gauge
 
 	apiTime *prometheus.HistogramVec
 
@@ -161,6 +164,16 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.pluginStartTime.SetToCurrentTime()
 	m.registry.MustRegister(m.pluginStartTime)
+
+	m.whitelistLimit = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "whitelist_limit",
+		Help:        "The maximum number of users allowed to connect.",
+		ConstLabels: additionalLabels,
+	})
+	m.whitelistLimit.Set(float64(info.WhiteListLimit))
+	m.registry.MustRegister(m.whitelistLimit)
 
 	m.pluginInfo = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: MetricsNamespace,
@@ -390,6 +403,12 @@ func (m *metrics) GetRegistry() *prometheus.Registry {
 func (m *metrics) ObserveGoroutineFailure() {
 	if m != nil {
 		m.goroutineFailuresTotal.Inc()
+	}
+}
+
+func (m *metrics) ObserveWhitelistLimit(limit int) {
+	if m != nil {
+		m.whitelistLimit.Set(float64(limit))
 	}
 }
 
