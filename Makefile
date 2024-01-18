@@ -9,6 +9,7 @@ MM_UTILITIES_DIR ?= ../mattermost-utilities
 DLV_DEBUG_PORT := 2346
 DEFAULT_GOOS := $(shell go env GOOS)
 DEFAULT_GOARCH := $(shell go env GOARCH)
+CLIENT_MOCK_ENABLED := ""
 
 export GO111MODULE=on
 
@@ -37,6 +38,12 @@ ifneq ($(MM_DEBUG),)
 	GO_BUILD_GCFLAGS = -gcflags "all=-N -l"
 else
 	GO_BUILD_GCFLAGS =
+endif
+
+ifneq ($(CLIENT_MOCK_ENABLED),)
+	GO_BUILD_FLAGS = -tags clientMock
+else
+	GO_BUILD_FLAGS =
 endif
 
 ## Checks the code style, tests, builds and bundles the plugin.
@@ -231,9 +238,8 @@ ifneq ($(HAS_SERVER),)
 endif
 
 .PHONY: ce2e
-ce2e:
+ce2e: dist
 ifneq ($(HAS_SERVER),)
-	GO_BUILD_FLAGS="-tags clientMock" make dist
 	$(GO) test $(GO_TEST_FLAGS) -v ./server/ce2e...
 endif
 
