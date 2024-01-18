@@ -18,6 +18,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var clientMock *mocks.Client
+
 func (a *API) registerClientMock() {
 	a.router.HandleFunc("/add-mock/{method:.*}", a.addMSTeamsClientMock).Methods(http.MethodPost)
 	a.router.HandleFunc("/reset-mocks", a.resetMSTeamsClientMocks).Methods(http.MethodPost)

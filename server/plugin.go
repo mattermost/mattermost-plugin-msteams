@@ -24,7 +24,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
@@ -36,8 +35,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
-
-var clientMock *mocks.Client
 
 const (
 	botUsername                  = "msteams"
