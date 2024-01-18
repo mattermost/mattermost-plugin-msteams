@@ -358,7 +358,7 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
-		if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
+		if getClientMock(p) != nil {
 			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
 				return getClientMock(p)
 			}
