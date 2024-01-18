@@ -233,6 +233,7 @@ endif
 .PHONY: ce2e
 ce2e:
 ifneq ($(HAS_SERVER),)
+	GO_BUILD_FLAGS="-tags clientMock" make dist
 	$(GO) test $(GO_TEST_FLAGS) -v ./server/ce2e...
 endif
 

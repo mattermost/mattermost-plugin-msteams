@@ -24,7 +24,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
@@ -35,29 +34,10 @@ import (
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
 )
 
 var clientMock *mocks.Client
-
-func getClientMock(p *Plugin) *mocks.Client {
-	p.API.LogDebug("Using mock client")
-
-	if clientMock != nil {
-		return clientMock
-	}
-	newMock := mocks.Client{}
-	newMock.On("ClearSubscriptions").Return(nil)
-	newMock.On("RefreshToken", mock.Anything).Return(&oauth2.Token{}, nil)
-	newMock.On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
-	newMock.On("SubscribeToChannels", mock.Anything, p.configuration.WebhookSecret, "").Return("channel-subscription-id", nil)
-	newMock.On("SubscribeToChats", mock.Anything, p.configuration.WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
-	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.configuration.WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
-	newMock.On("ListSubscriptions").Return([]*clientmodels.Subscription{}, nil)
-	clientMock = &newMock
-	return clientMock
-}
 
 const (
 	botUsername                  = "msteams"
@@ -209,8 +189,8 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	if os.Getenv("MM_MSTEAMSSYNC_MOCK_CLIENT") == "true" {
-		p.msteamsAppClient = getClientMock(p)
+	p.msteamsAppClient = getClientMock(p)
+	if p.msteamsAppClient != nil {
 		return nil
 	}
 
