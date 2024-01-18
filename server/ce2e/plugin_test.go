@@ -47,10 +47,10 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
-
-		_, err = store.GetPostInfoByMattermostID(newPost.Id)
-		require.Error(t, err)
+		require.Never(t, func() bool {
+			_, err = store.GetPostInfoByMattermostID(newPost.Id)
+			return err == nil
+		}, 1*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
