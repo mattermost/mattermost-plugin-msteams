@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
@@ -16,7 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+var buildPluginOnce sync.Once
+
+func buildPlugin(t *testing.T) {
 	cmd := exec.Command("make", "-C", "../../", "dist")
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DEFAULT_GOOS=linux")
@@ -25,6 +28,12 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	require.NoError(t, err)
+}
+
+func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+	buildPluginOnce.Do(func() {
+		buildPlugin(t)
+	})
 
 	ctx := context.Background()
 	matches, err := filepath.Glob("../../dist/*.tar.gz")
