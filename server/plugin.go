@@ -12,7 +12,6 @@ import (
 	"math"
 	"math/big"
 	"net/http"
-	"net/url"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -137,7 +136,10 @@ func (p *Plugin) GetURL() string {
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
-	return url.JoinPath(siteURL, "plugins", pluginID)
+	if strings.HasSuffix(siteURL, "/") {
+		return siteURL + "plugins/" + pluginID
+	}
+	return siteURL + "/plugins/" + pluginID
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
