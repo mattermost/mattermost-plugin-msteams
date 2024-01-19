@@ -136,10 +136,7 @@ func (p *Plugin) GetURL() string {
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
-	if strings.HasSuffix(siteURL, "/") {
-		return siteURL + "plugins/" + pluginID
-	}
-	return siteURL + "/plugins/" + pluginID
+	return url.JoinPath(siteURL, "plugins", pluginID)
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
