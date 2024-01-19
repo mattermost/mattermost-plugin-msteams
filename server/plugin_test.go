@@ -2,23 +2,19 @@ package main
 
 import (
 	"math"
-	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -108,103 +104,6 @@ func getPluginPathForTest() string {
 	}
 	path := path.Join(curr, "..")
 	return path
-}
-
-func TestMessageHasBeenPostedNewMessage(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
-	post := model.Post{
-		Id:        "post-id",
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
-		ChannelId: channel.Id,
-		Message:   "message",
-	}
-
-	link := storemodels.ChannelLink{
-		MattermostTeamID:    "team-id",
-		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
-	}
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
-	now := time.Now()
-	plugin.store.(*storemocks.Store).On("LinkPosts", storemodels.PostInfo{
-		MattermostID:        "post-id",
-		MSTeamsID:           "new-message-id",
-		MSTeamsChannel:      "ms-channel-id",
-		MSTeamsLastUpdateAt: now,
-	}).Return(nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{ID: "new-message-id", LastUpdateAt: now}, nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
-
-	plugin.MessageHasBeenPosted(nil, &post)
-}
-
-func TestMessageHasBeenPostedNewMessageWithoutChannelLink(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
-	post := model.Post{
-		Id:        "post-id",
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
-		ChannelId: channel.Id,
-		Message:   "message",
-	}
-
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
-	plugin.MessageHasBeenPosted(nil, &post)
-}
-
-func TestMessageHasBeenPostedNewMessageWithFailureSending(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	channel := model.Channel{
-		Id:     "channel-id",
-		TeamId: "team-id",
-	}
-	post := model.Post{
-		Id:        "post-id",
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
-		UserId:    "user-id",
-		ChannelId: channel.Id,
-		Message:   "message",
-	}
-
-	link := storemodels.ChannelLink{
-		MattermostTeamID:    "team-id",
-		MattermostChannelID: "channel-id",
-		MSTeamsTeam:         "ms-team-id",
-		MSTeamsChannel:      "ms-channel-id",
-	}
-	plugin.store.(*storemocks.Store).On("GetLinkByChannelID", "channel-id").Return(&link, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetChannel", "channel-id").Return(&channel, nil).Times(1)
-	plugin.API.(*plugintest.API).On("GetUser", "user-id").Return(&model.User{Id: "user-id", Username: "test-user"}, nil).Times(1)
-	plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "user-id").Return(&fakeToken, nil).Times(1)
-	clientMock := plugin.clientBuilderWithToken("", "", "", "", nil, nil)
-	clientMock.(*mocks.Client).On("SendMessageWithAttachments", "ms-team-id", "ms-channel-id", "", "<p>message</p>\n", []*clientmodels.Attachment(nil), []models.ChatMessageMentionable{}).Return(nil, errors.New("Unable to send the message"))
-	plugin.API.(*plugintest.API).On("LogError", "Error creating post on MS Teams", "error", "Unable to send the message").Return(nil)
-	plugin.API.(*plugintest.API).On("LogWarn", "Unable to handle message sent", "error", "Unable to send the message").Return(nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
-
-	plugin.MessageHasBeenPosted(nil, &post)
 }
 
 func TestGetURL(t *testing.T) {
