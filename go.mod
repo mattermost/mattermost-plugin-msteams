@@ -16,8 +16,8 @@ require (
 	github.com/mattermost/mattermost/server/public v0.0.12
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20231111015533-48bf4e9bd879
 	github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9
-	github.com/microsoft/kiota-abstractions-go v1.5.3
-	github.com/microsoftgraph/msgraph-sdk-go v1.26.0
+	github.com/microsoft/kiota-abstractions-go v1.5.4
+	github.com/microsoftgraph/msgraph-sdk-go v1.30.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -84,7 +84,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1 // indirect
 	github.com/microsoft/kiota-http-go v1.1.1 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v1.0.4 // indirect
+	github.com/microsoft/kiota-serialization-json-go v1.0.5 // indirect
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
@@ -109,7 +109,7 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/shirou/gopsutil/v3 v3.23.11 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.47 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.50 // indirect
 	github.com/stretchr/objx v0.5.1 // indirect
 	github.com/tinylib/msgp v1.1.9 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
