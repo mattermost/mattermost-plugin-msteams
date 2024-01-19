@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -15,6 +17,15 @@ import (
 )
 
 func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+	cmd := exec.Command("make", "-C", "../../", "dist")
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "DEFAULT_GOOS=linux")
+	cmd.Env = append(cmd.Env, "DEFAULT_GOARCH=amd64")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	require.NoError(t, err)
+
 	ctx := context.Background()
 	matches, err := filepath.Glob("../../dist/*.tar.gz")
 	if err != nil {

@@ -7,8 +7,8 @@ GO_TEST_FLAGS ?= -race
 GO_BUILD_FLAGS ?=
 MM_UTILITIES_DIR ?= ../mattermost-utilities
 DLV_DEBUG_PORT := 2346
-DEFAULT_GOOS := $(shell go env GOOS)
-DEFAULT_GOARCH := $(shell go env GOARCH)
+DEFAULT_GOOS ?= $(shell go env GOOS)
+DEFAULT_GOARCH ?= $(shell go env GOARCH)
 
 export GO111MODULE=on
 
@@ -83,7 +83,7 @@ endif
 	mkdir -p server/dist;
 ifneq ($(MM_SERVICESETTINGS_ENABLEDEVELOPER),)
 	@echo Building plugin only for $(DEFAULT_GOOS)-$(DEFAULT_GOARCH) because MM_SERVICESETTINGS_ENABLEDEVELOPER is enabled
-	cd server && env CGO_ENABLED=0 $(GO) build $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-$(DEFAULT_GOOS)-$(DEFAULT_GOARCH);
+	cd server && env CGO_ENABLED=0 GOOS=$(DEFAULT_GOOS) GOARCH=$(DEFAULT_GOARCH) $(GO) build $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-$(DEFAULT_GOOS)-$(DEFAULT_GOARCH);
 else
 	cd server && env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-linux-amd64;
 	cd server && env CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-linux-arm64;
