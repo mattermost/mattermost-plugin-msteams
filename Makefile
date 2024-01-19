@@ -39,12 +39,6 @@ else
 	GO_BUILD_GCFLAGS =
 endif
 
-ifeq ($(GITHUB_JOB),plugin-ci)
-	GO_BUILD_FLAGS = -tags clientMock
-else
-	GO_BUILD_FLAGS =
-endif
-
 ## Checks the code style, tests, builds and bundles the plugin.
 .PHONY: all
 all: check-style test dist
@@ -96,6 +90,12 @@ else
 endif
 endif
 
+## Builds the server, if it exists, for all supported architectures, unless MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
+.PHONY: server-ci
+server-ci:
+	cd server && env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags clientMock $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-linux-amd64;
+	cd server && env CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -tags clientMock $(GO_BUILD_FLAGS) $(GO_BUILD_GCFLAGS) -trimpath -o dist/plugin-linux-arm64;
+
 ## Ensures NPM dependencies are installed without having to run this all the time.
 webapp/node_modules: $(wildcard webapp/package.json)
 ifneq ($(HAS_WEBAPP),)
@@ -141,6 +141,10 @@ endif
 ## Builds and bundles the plugin.
 .PHONY: dist
 dist:	apply server webapp bundle
+
+## Builds and bundles the plugin for ci.
+.PHONY: dist-ci
+dist-ci:	apply server-ci webapp bundle
 
 ## Builds and installs the plugin to a server.
 .PHONY: deploy
@@ -214,7 +218,7 @@ endif
 ## Runs any lints and unit tests defined for the server and webapp, if they exist, optimized
 ## for a CI environment.
 .PHONY: test-ci
-test-ci: apply webapp/node_modules install-go-tools dist
+test-ci: apply webapp/node_modules install-go-tools dist-ci
 ifneq ($(HAS_SERVER),)
 	$(GOBIN)/gotestsum --format standard-verbose --junitfile report.xml -- ./...
 endif
