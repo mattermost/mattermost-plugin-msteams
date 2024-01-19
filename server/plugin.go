@@ -74,6 +74,7 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
 
@@ -83,8 +84,7 @@ type Plugin struct {
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	api := NewAPI(p, p.store)
-	api.ServeHTTP(w, r)
+	p.apiHandler.ServeHTTP(w, r)
 }
 
 func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -410,6 +410,8 @@ func (p *Plugin) OnActivate() error {
 			return err
 		}
 	}
+
+	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
