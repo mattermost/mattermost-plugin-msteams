@@ -35,11 +35,21 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
 	}
+
 	mattermost, err := mmcontainer.RunContainer(ctx,
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
+		mmcontainer.WithTestingLogConsumer(t),
 	)
 	require.NoError(t, err)
+
+	// TODO: This won't be required after jespino gets https://github.com/testcontainers/testcontainers-go/pull/2073 merged.
+	err = mattermost.StartLogProducer(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = mattermost.StopLogProducer()
+		require.NoError(t, err)
+	})
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
