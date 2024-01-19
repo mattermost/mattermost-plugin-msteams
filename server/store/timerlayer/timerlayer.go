@@ -7,7 +7,6 @@
 package timerlayer
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
@@ -358,10 +357,10 @@ func (s *TimerLayer) IsUserPresentInWhitelist(userID string) (bool, error) {
 	return result, err
 }
 
-func (s *TimerLayer) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
+func (s *TimerLayer) LinkPosts(postInfo storemodels.PostInfo) error {
 	start := time.Now()
 
-	err := s.Store.LinkPosts(tx, postInfo)
+	err := s.Store.LinkPosts(postInfo)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -470,34 +469,6 @@ func (s *TimerLayer) ListGlobalSubscriptionsToRefresh(certificate string) ([]*st
 	return result, err
 }
 
-func (s *TimerLayer) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
-	start := time.Now()
-
-	err := s.Store.LockPostByMMPostID(tx, messageID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.LockPostByMMPostID", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
-	start := time.Now()
-
-	err := s.Store.LockPostByMSTeamsPostID(tx, messageID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.LockPostByMSTeamsPostID", success, elapsed)
-	return err
-}
-
 func (s *TimerLayer) MattermostToTeamsUserID(userID string) (string, error) {
 	start := time.Now()
 
@@ -540,10 +511,10 @@ func (s *TimerLayer) RecoverPost(postID string) error {
 	return err
 }
 
-func (s *TimerLayer) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
+func (s *TimerLayer) SaveChannelSubscription(subscription storemodels.ChannelSubscription) error {
 	start := time.Now()
 
-	err := s.Store.SaveChannelSubscription(tx, subscription)
+	err := s.Store.SaveChannelSubscription(subscription)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -610,10 +581,10 @@ func (s *TimerLayer) SetJobStatus(jobName string, status bool) error {
 	return err
 }
 
-func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
+func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
 	start := time.Now()
 
-	err := s.Store.SetPostLastUpdateAtByMSTeamsID(tx, postID, lastUpdateAt)
+	err := s.Store.SetPostLastUpdateAtByMSTeamsID(postID, lastUpdateAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -624,10 +595,10 @@ func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, l
 	return err
 }
 
-func (s *TimerLayer) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
+func (s *TimerLayer) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
 	start := time.Now()
 
-	err := s.Store.SetPostLastUpdateAtByMattermostID(tx, postID, lastUpdateAt)
+	err := s.Store.SetPostLastUpdateAtByMattermostID(postID, lastUpdateAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

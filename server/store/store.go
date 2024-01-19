@@ -3,7 +3,6 @@
 package store
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
@@ -22,9 +21,9 @@ type Store interface {
 	StoreChannelLink(link *storemodels.ChannelLink) error
 	GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error)
 	GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error)
-	LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error
-	SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
-	SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error
+	LinkPosts(postInfo storemodels.PostInfo) error
+	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error
+	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error
 	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
@@ -39,7 +38,7 @@ type Store interface {
 	ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
-	SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error
+	SaveChannelSubscription(subscription storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error
 	GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error)
@@ -61,11 +60,6 @@ type Store interface {
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
-	LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error
-	LockPostByMMPostID(tx *sql.Tx, messageID string) error
-	BeginTx() (*sql.Tx, error)
-	RollbackTx(tx *sql.Tx) error
-	CommitTx(tx *sql.Tx) error
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error
 	UpdateSubscriptionData(subscriptionID string, newSubscriptionID, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error
