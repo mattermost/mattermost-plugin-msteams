@@ -60,7 +60,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
 	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
-			SELECT DISTINCT index_name FROM information_schema.statistics 
+			SELECT DISTINCT index_name FROM information_schema.statistics
 			WHERE table_schema = DATABASE()
 			AND table_name = 'tableName' AND index_name = 'indexName'
 		)`
@@ -177,7 +177,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 		}
 	} else {
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", tableName)); err != nil {
-			s.api.LogDebug("Error in dropping primary key", "error", err.Error())
+			s.api.LogError("Error in dropping primary key", "error", err.Error())
 		}
 
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {

@@ -148,7 +148,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 
 	if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
 		if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogDebug("Unable to refresh all chats subscription", "error", err.Error())
+			m.api.LogError("Unable to refresh all chats subscription", "error", err.Error())
 			if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
 				m.api.LogError("Unable to recreate all chats subscription", "error", err.Error())
 			}
