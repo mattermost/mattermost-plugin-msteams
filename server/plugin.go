@@ -133,10 +133,14 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 
 func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
-	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
-		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
+	siteURL := ""
+	if config.ServiceSettings.SiteURL != nil {
+		siteURL = *config.ServiceSettings.SiteURL
 	}
-	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
+	if strings.HasSuffix(siteURL, "/") {
+		return siteURL + "plugins/" + pluginID
+	}
+	return siteURL + "/plugins/" + pluginID
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
@@ -206,6 +210,11 @@ func (p *Plugin) connectTeamsAppClient() error {
 
 	// We don't currently support reconnecting with a new configuration: a plugin restart is
 	// required.
+	if p.msteamsAppClient != nil {
+		return nil
+	}
+
+	p.msteamsAppClient = getClientMock(p)
 	if p.msteamsAppClient != nil {
 		return nil
 	}
@@ -377,7 +386,13 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
-		p.clientBuilderWithToken = msteams.NewTokenClient
+		if getClientMock(p) != nil {
+			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+				return getClientMock(p)
+			}
+		} else {
+			p.clientBuilderWithToken = msteams.NewTokenClient
+		}
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {
