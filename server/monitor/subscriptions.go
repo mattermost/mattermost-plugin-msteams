@@ -211,28 +211,8 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}
 
-	tx, err := m.store.BeginTx()
-	if err != nil {
-		m.api.LogWarn("Unable to begin database transaction", "error", err.Error())
-		return
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := m.store.RollbackTx(tx); err != nil {
-				m.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
-			}
-			return
-		}
-
-		if err := m.store.CommitTx(tx); err != nil {
-			m.api.LogWarn("Unable to commit database transaction", "error", err.Error())
-		}
-	}()
-
-	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); txErr != nil {
-		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
+	if err = m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); err != nil {
+		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
 		return
 	}
 }

@@ -74,6 +74,7 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
 
@@ -83,8 +84,7 @@ type Plugin struct {
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	api := NewAPI(p, p.store)
-	api.ServeHTTP(w, r)
+	p.apiHandler.ServeHTTP(w, r)
 }
 
 func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -132,10 +132,14 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 
 func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
-	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
-		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
+	siteURL := ""
+	if config.ServiceSettings.SiteURL != nil {
+		siteURL = *config.ServiceSettings.SiteURL
 	}
-	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
+	if strings.HasSuffix(siteURL, "/") {
+		return siteURL + "plugins/" + pluginID
+	}
+	return siteURL + "/plugins/" + pluginID
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
@@ -182,6 +186,11 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
+	p.msteamsAppClient = getClientMock(p)
+	if p.msteamsAppClient != nil {
+		return nil
+	}
+
 	msteamsAppClient := msteams.NewApp(
 		p.getConfiguration().TenantID,
 		p.getConfiguration().ClientID,
@@ -206,6 +215,8 @@ func (p *Plugin) start(isRestart bool) {
 		p.runMetricsServer()
 		// run metrics updater recurring task
 		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
+
+		p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 	}
 
 	// We don't restart the activity handler since it's stateless.
@@ -347,7 +358,13 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
-		p.clientBuilderWithToken = msteams.NewTokenClient
+		if getClientMock(p) != nil {
+			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+				return getClientMock(p)
+			}
+		} else {
+			p.clientBuilderWithToken = msteams.NewTokenClient
+		}
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {
@@ -356,6 +373,7 @@ func (p *Plugin) OnActivate() error {
 
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
+		PluginVersion:  manifest.Version,
 	})
 	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
 
@@ -407,6 +425,8 @@ func (p *Plugin) OnActivate() error {
 			return err
 		}
 	}
+
+	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
@@ -478,6 +498,9 @@ func (p *Plugin) stopSyncUsersJob() {
 }
 
 func (p *Plugin) syncUsers() {
+	done := p.GetMetrics().ObserveWorker(metrics.WorkerSyncUsers)
+	defer done()
+
 	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogError("Unable to list MS Teams users during sync user job", "error", err.Error())

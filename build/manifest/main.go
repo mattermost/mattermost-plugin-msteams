@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -145,7 +146,10 @@ func findManifest() (*model.Manifest, error) {
 
 	// Update the release notes url to point at the latest tag, if present.
 	if BuildTagLatest != "" {
-		manifest.ReleaseNotesURL = manifest.HomepageURL + "releases/tag/" + BuildTagLatest
+		manifest.ReleaseNotesURL, err = url.JoinPath(manifest.HomepageURL, "releases/tag", BuildTagLatest)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build release notes url")
+		}
 	}
 
 	return &manifest, nil
