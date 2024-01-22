@@ -214,8 +214,9 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	p.msteamsAppClient = getClientMock(p)
-	if p.msteamsAppClient != nil {
+	clientMock := getClientMock(p)
+	if clientMock != nil {
+		p.msteamsAppClient = clientMock
 		return nil
 	}
 
