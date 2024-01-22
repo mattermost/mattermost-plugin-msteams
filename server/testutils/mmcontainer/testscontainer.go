@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,6 +45,7 @@ type MattermostContainerRequest struct {
 	teamDisplayName string
 	plugins         []plugin
 	config          *model.Config
+	logConsumer     testcontainers.LogConsumer
 }
 
 // MattermostContainer represents the mattermost container type used in the module
@@ -352,6 +354,21 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) Matter
 	}
 }
 
+type tLogConsumer struct {
+	t *testing.T
+}
+
+func (tlc *tLogConsumer) Accept(log testcontainers.Log) {
+	tlc.t.Log(string(log.Content))
+}
+
+// WithTestingLogConsumer pipes logs to the given testing instance.
+func WithTestingLogConsumer(t *testing.T) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
+		req.logConsumer = &tLogConsumer{t}
+	}
+}
+
 // runPostgresContainer creates a postgres container
 func runPostgresContainer(ctx context.Context, nw *testcontainers.DockerNetwork) (*postgres.PostgresContainer, error) {
 	return postgres.RunContainer(ctx,
@@ -387,14 +404,15 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 			ContainerRequest: testcontainers.ContainerRequest{
 				Image: defaultMattermostImage,
 				Env: map[string]string{
-					"MM_SQLSETTINGS_DATASOURCE":          dbconn,
-					"MM_SQLSETTINGS_DRIVERNAME":          "postgres",
-					"MM_SERVICESETTINGS_ENABLELOCALMODE": "true",
-					"MM_PASSWORDSETTINGS_MINIMUMLENGTH":  "5",
-					"MM_PLUGINSETTINGS_ENABLEUPLOADS":    "true",
-					"MM_FILESETTINGS_MAXFILESIZE":        "256000000",
-					"MM_LOGSETTINGS_CONSOLELEVEL":        "DEBUG",
-					"MM_LOGSETTINGS_FILELEVEL":           "DEBUG",
+					"MM_SQLSETTINGS_DATASOURCE":                     dbconn,
+					"MM_SQLSETTINGS_DRIVERNAME":                     "postgres",
+					"MM_SERVICESETTINGS_ENABLELOCALMODE":            "true",
+					"MM_PASSWORDSETTINGS_MINIMUMLENGTH":             "5",
+					"MM_PLUGINSETTINGS_ENABLEUPLOADS":               "true",
+					"MM_PLUGINSETTINGS_AUTOMATICPREPACKAGEDPLUGINS": "false",
+					"MM_FILESETTINGS_MAXFILESIZE":                   "256000000",
+					"MM_LOGSETTINGS_CONSOLELEVEL":                   "DEBUG",
+					"MM_LOGSETTINGS_ENABLEFILE":                     "true",
 				},
 				ExposedPorts: []string{"8065/tcp"},
 				Cmd:          []string{"mattermost", "server"},
@@ -426,6 +444,10 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
 		return nil, err
+	}
+
+	if req.logConsumer != nil {
+		container.FollowOutput(req.logConsumer)
 	}
 
 	mattermost := &MattermostContainer{
