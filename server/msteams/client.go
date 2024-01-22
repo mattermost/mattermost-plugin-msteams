@@ -1999,10 +1999,9 @@ func (tc *ClientImpl) OnChannelMessagesSince(teamID string, channelID string, si
 		return NormalizeGraphAPIError(err)
 	}
 
-	messages := []*clientmodels.Message{}
 	err = pageIterator.Iterate(context.Background(), func(m models.ChatMessageable) bool {
 		message := convertToMessage(m, teamID, channelID, "")
-		messages = append(messages, message)
+		callback(message)
 		for _, r := range m.GetReplies() {
 			message := convertToMessage(r, teamID, channelID, "")
 			callback(message)
