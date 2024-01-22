@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
@@ -14,7 +17,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var buildPluginOnce sync.Once
+
+func buildPlugin(t *testing.T) {
+	cmd := exec.Command("make", "-C", "../../", "dist")
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "DEFAULT_GOOS=linux")
+	cmd.Env = append(cmd.Env, "DEFAULT_GOARCH=amd64")
+	cmd.Env = append(cmd.Env, "GO_BUILD_TAGS=clientMock")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	require.NoError(t, err)
+}
+
 func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+	buildPluginOnce.Do(func() {
+		buildPlugin(t)
+	})
+
 	ctx := context.Background()
 	matches, err := filepath.Glob("../../dist/*.tar.gz")
 	if err != nil {
@@ -35,11 +56,21 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
 	}
+
 	mattermost, err := mmcontainer.RunContainer(ctx,
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
+		mmcontainer.WithTestingLogConsumer(t),
 	)
 	require.NoError(t, err)
+
+	// TODO: This won't be required after jespino gets https://github.com/testcontainers/testcontainers-go/pull/2073 merged.
+	err = mattermost.StartLogProducer(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = mattermost.StopLogProducer()
+		require.NoError(t, err)
+	})
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
