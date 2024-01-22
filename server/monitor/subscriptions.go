@@ -1,17 +1,24 @@
 package monitor
 
 import (
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 )
 
 func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	m.api.LogDebug("Checking for channels subscriptions")
 	links, err := m.store.ListChannelLinks()
 	if err != nil {
@@ -37,21 +44,31 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 		ws <- struct{}{}
 		wg.Add(1)
 
-		link := link
-		recovery.Go("check_channel_subscription", m.api.LogError, func() {
+		go func(link storemodels.ChannelLink) {
+			defer func() {
+				if r := recover(); r != nil {
+					m.metrics.ObserveGoroutineFailure()
+					m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+				}
+			}()
+
 			defer wg.Done()
 			mmSubscription, mmSubscriptionFound := channelSubscriptionsMap[link.MSTeamsTeam+link.MSTeamsChannel]
 			// Check if channel subscription is present for a link on Mattermost
 			if mmSubscriptionFound {
 				// Check if channel subscription is not present on MS Teams
-				if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
+				_, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]
+				switch {
+				case !msteamsSubscriptionFound:
 					// Create channel subscription for the linked channel
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, m.webhookSecret, false)
 					<-ws
 					return
-				} else if mmSubscription.Certificate != m.certificate {
+
+				case mmSubscription.Certificate != m.certificate:
 					m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
-				} else if time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute) {
+
+				case time.Until(mmSubscription.ExpiresOn) < (5 * time.Minute):
 					if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
 						m.api.LogDebug("Unable to refresh channel subscription", "error", err.Error())
 						m.recreateChannelSubscription(mmSubscription.SubscriptionID, mmSubscription.TeamID, mmSubscription.ChannelID, mmSubscription.Secret, true)
@@ -64,7 +81,7 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 				return
 			}
 			<-ws
-		})
+		}(link)
 	}
 	wg.Wait()
 }
@@ -194,28 +211,8 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 		}
 	}
 
-	tx, err := m.store.BeginTx()
-	if err != nil {
-		m.api.LogWarn("Unable to begin database transaction", "error", err.Error())
-		return
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := m.store.RollbackTx(tx); err != nil {
-				m.api.LogWarn("Unable to rollback database transaction", "error", err.Error())
-			}
-			return
-		}
-
-		if err := m.store.CommitTx(tx); err != nil {
-			m.api.LogWarn("Unable to commit database transaction", "error", err.Error())
-		}
-	}()
-
-	if txErr = m.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); txErr != nil {
-		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", txErr.Error())
+	if err = m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); err != nil {
+		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
 		return
 	}
 }

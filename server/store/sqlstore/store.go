@@ -12,8 +12,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
@@ -229,6 +229,10 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
+	if err := s.addColumn(subscriptionsTableName, "lastActivityAt", "BIGINT"); err != nil {
+		return err
+	}
+
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
 }
 
@@ -395,8 +399,8 @@ func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostIn
 	return &postInfo, nil
 }
 
-func (s *SQLStore) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, lastUpdateAt time.Time) error {
-	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID}).RunWith(tx)
+func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
+	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"mmPostID": postID})
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -404,8 +408,8 @@ func (s *SQLStore) SetPostLastUpdateAtByMattermostID(tx *sql.Tx, postID string, 
 	return nil
 }
 
-func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, msTeamsPostID string, lastUpdateAt time.Time) error {
-	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID}).RunWith(tx)
+func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpdateAt time.Time) error {
+	query := s.getQueryBuilder().Update(postsTableName).Set("msTeamsLastUpdateAt", lastUpdateAt.UnixMicro()).Where(sq.Eq{"msTeamsPostID": msTeamsPostID})
 	if _, err := query.Exec(); err != nil {
 		return err
 	}
@@ -413,7 +417,7 @@ func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(tx *sql.Tx, msTeamsPostID stri
 	return nil
 }
 
-func (s *SQLStore) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
+func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 	if s.driverName == "postgres" {
 		query := s.getQueryBuilder().Insert(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
 			postInfo.MattermostID,
@@ -421,14 +425,8 @@ func (s *SQLStore) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
 		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
-		if tx != nil {
-			if _, err := query.RunWith(tx).Exec(); err != nil {
-				return err
-			}
-		} else {
-			if _, err := query.Exec(); err != nil {
-				return err
-			}
+		if _, err := query.Exec(); err != nil {
+			return err
 		}
 	} else {
 		query := s.getQueryBuilder().Replace(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
@@ -437,14 +435,8 @@ func (s *SQLStore) LinkPosts(tx *sql.Tx, postInfo storemodels.PostInfo) error {
 			postInfo.MSTeamsChannel,
 			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
 		)
-		if tx != nil {
-			if _, err := query.RunWith(tx).Exec(); err != nil {
-				return err
-			}
-		} else {
-			if _, err := query.Exec(); err != nil {
-				return err
-			}
+		if _, err := query.Exec(); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -710,7 +702,15 @@ func (s *SQLStore) SaveChatSubscription(subscription storemodels.ChatSubscriptio
 	return nil
 }
 
-func (s *SQLStore) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.ChannelSubscription) error {
+func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
 	if _, err := s.getQueryBuilder().Delete(subscriptionsTableName).Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).RunWith(tx).Exec(); err != nil {
 		return err
 	}
@@ -718,7 +718,8 @@ func (s *SQLStore) SaveChannelSubscription(tx *sql.Tx, subscription storemodels.
 	if _, err := s.getQueryBuilder().Insert(subscriptionsTableName).Columns("subscriptionID, msTeamsTeamID, msTeamsChannelID, type, secret, expiresOn, certificate").Values(subscription.SubscriptionID, subscription.TeamID, subscription.ChannelID, subscriptionTypeChannel, subscription.Secret, subscription.ExpiresOn.UnixMicro(), subscription.Certificate).RunWith(tx).Exec(); err != nil {
 		return err
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
@@ -728,6 +729,47 @@ func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn 
 		return err
 	}
 	return nil
+}
+
+func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
+	query := s.getQueryBuilder().
+		Update(subscriptionsTableName).
+		Set("lastActivityAt", lastActivityAt.UnixMicro()).
+		Where(sq.And{
+			sq.Eq{"subscriptionID": subscriptionID},
+			sq.Or{sq.Lt{"lastActivityAt": lastActivityAt.UnixMicro()}, sq.Eq{"lastActivityAt": nil}},
+		})
+	_, err := query.Exec()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
+	query := s.getQueryBuilder().
+		Select("subscriptionID, lastActivityAt").
+		From(subscriptionsTableName).
+		Where(
+			sq.NotEq{"lastActivityAt": nil},
+			sq.NotEq{"lastActivityAt": 0},
+		)
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[string]time.Time{}
+	for rows.Next() {
+		var lastActivityAt int64
+		var subscriptionID string
+		if scanErr := rows.Scan(&subscriptionID, &lastActivityAt); scanErr != nil {
+			return nil, scanErr
+		}
+		result[subscriptionID] = time.UnixMicro(lastActivityAt)
+	}
+	return result, nil
 }
 
 func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
@@ -1083,36 +1125,6 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	}
 
 	return result != "", nil
-}
-
-func (s *SQLStore) LockPostByMSTeamsPostID(tx *sql.Tx, messageID string) error {
-	query := s.getQueryBuilder().Select("*").From(postsTableName).Where(sq.Eq{"msTeamsPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
-	if _, err := query.Exec(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) LockPostByMMPostID(tx *sql.Tx, messageID string) error {
-	query := s.getQueryBuilder().Select("*").From(postsTableName).Where(sq.Eq{"mmPostID": messageID}).Suffix("FOR UPDATE").RunWith(tx)
-	if _, err := query.Exec(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) BeginTx() (*sql.Tx, error) {
-	return s.db.Begin()
-}
-
-func (s *SQLStore) RollbackTx(tx *sql.Tx) error {
-	return tx.Rollback()
-}
-
-func (s *SQLStore) CommitTx(tx *sql.Tx) error {
-	return tx.Commit()
 }
 
 func hashKey(prefix, hashableKey string) string {

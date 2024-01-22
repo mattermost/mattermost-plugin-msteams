@@ -6,22 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var emojisReverseMap map[string]string
@@ -30,7 +27,6 @@ var attachRE = regexp.MustCompile(`<attachment id=.*?attachment>`)
 var imageRE = regexp.MustCompile(`<img .*?>`)
 
 const (
-	lastReceivedChangeKey       = "last_received_change"
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
 	msteamsUserTypeGuest        = "Guest"
@@ -57,8 +53,9 @@ type ActivityHandler struct {
 	plugin               PluginIface
 	queue                chan msteams.Activity
 	quit                 chan bool
-	quitting             atomic.Bool
+	workersWaitGroup     sync.WaitGroup
 	IgnorePluginHooksMap sync.Map
+	lastUpdateAtMap      sync.Map
 }
 
 func New(plugin PluginIface) *ActivityHandler {
@@ -83,7 +80,7 @@ func New(plugin PluginIface) *ActivityHandler {
 }
 
 func (ah *ActivityHandler) Start() {
-	ah.quitting.Store(false)
+	ah.quit = make(chan bool)
 
 	// This is constant for now, but report it as a metric to future proof dashboards.
 	ah.plugin.GetMetrics().ObserveChangeEventQueueCapacity(activityQueueSize)
@@ -102,25 +99,58 @@ func (ah *ActivityHandler) Start() {
 		}
 	}
 
+	// doQuit is called when the worker quits intentionally
+	doQuit := func() {
+		ah.workersWaitGroup.Done()
+	}
+
+	// doStart is the meat of the activity handler worker
+	doStartLastActivityAt := func() {
+		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
+			if time.Since(lastUpdateAt.(time.Time)) <= 5*time.Minute {
+				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
+					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscriptionID", subscriptionID.(string), "lastUpdateAt", lastUpdateAt.(time.Time))
+				}
+			}
+			return true
+		}
+		for {
+			timer := time.NewTimer(5 * time.Minute)
+			select {
+			case <-timer.C:
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
+			case <-ah.quit:
+				// we have received a signal to stop
+				timer.Stop()
+				ah.lastUpdateAtMap.Range(updateLastActivityAt)
+				return
+			}
+		}
+	}
+
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
-		return ah.quitting.Load()
+		select {
+		case <-ah.quit:
+			return true
+		default:
+			return false
+		}
 	}
 
 	logError := ah.plugin.GetAPI().LogError
 
 	for i := 0; i < numberOfWorkers; i++ {
-		recovery.GoWorker("activity handler worker", doStart, isQuitting, logError)
+		ah.workersWaitGroup.Add(1)
+		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart, doQuit)
 	}
+	ah.workersWaitGroup.Add(1)
+	startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStartLastActivityAt, doQuit)
 }
 
 func (ah *ActivityHandler) Stop() {
-	ah.quitting.Store(true)
-	go func() {
-		for i := 0; i < numberOfWorkers; i++ {
-			ah.quit <- true
-		}
-	}()
+	close(ah.quit)
+	ah.workersWaitGroup.Wait()
 }
 
 func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
@@ -176,6 +206,9 @@ func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 }
 
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
+	done := ah.plugin.GetMetrics().ObserveWorker(metrics.WorkerActivityHandler)
+	defer done()
+
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
 	if activityIds.ChatID == "" {
@@ -196,7 +229,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleCreatedActivity(msg, activityIds)
+		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "updated":
 		var msg *clientmodels.Message
 		if len(activity.Content) > 0 {
@@ -206,7 +239,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogDebug("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
-		discardedReason = ah.handleUpdatedActivity(msg, activityIds)
+		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
@@ -217,7 +250,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -240,7 +273,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
 		ah.plugin.GetAPI().LogDebug("duplicate post")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		ah.plugin.GetMetrics().ObserveConfirmedMessage(metrics.ActionSourceMattermost, isDirectMessage)
 		return metrics.DiscardedReasonDuplicatedPost
 	}
@@ -248,7 +280,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -324,16 +355,17 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, acti
 		})
 	}
 
-	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		if err := ah.plugin.GetStore().LinkPosts(nil, storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
+		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
 		}
 	}
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, activityIds clientmodels.ActivityIds) string {
+func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogError("Unable to get original message", "error", err.Error())
@@ -353,13 +385,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
 	if msg.UserID == msteamsUserID {
 		ah.plugin.GetAPI().LogDebug("Skipping messages from bot user")
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonIsBotUser
 	}
 
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo == nil {
-		ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 		return metrics.DiscardedReasonOther
 	}
 
@@ -431,8 +461,9 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, acti
 
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
-	ah.updateLastReceivedChangeDate(msg.LastUpdateAt)
 	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
+
+	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
@@ -528,13 +559,6 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
 
 	return metrics.DiscardedReasonNone
-}
-
-func (ah *ActivityHandler) updateLastReceivedChangeDate(t time.Time) {
-	err := ah.plugin.GetAPI().KVSet(lastReceivedChangeKey, []byte(strconv.FormatInt(t.UnixMicro(), 10)))
-	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to store properly the last received change")
-	}
 }
 
 func (ah *ActivityHandler) isActiveUser(userID string) bool {

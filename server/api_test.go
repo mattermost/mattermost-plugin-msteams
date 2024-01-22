@@ -20,14 +20,16 @@ import (
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
+
+var fakeToken = oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}
 
 func TestSubscriptionValidation(t *testing.T) {
 	plugin := newTestPlugin(t)
@@ -109,7 +111,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
 				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
@@ -128,7 +130,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
 				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
@@ -147,7 +149,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
 				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
 			},
 			http.StatusAccepted,
@@ -166,7 +168,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				},
 			},
 			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil).Times(1)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
 				plugin.API.(*plugintest.API).On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", "Invalid webhook secret").Return(nil).Times(1)
 			},
 			http.StatusBadRequest,
@@ -187,7 +189,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.configuration.CertificateKey = "test"
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
 				plugin.API.(*plugintest.API).On("LogError", "Invalid encrypted content", "error", "invalid certificate key").Return(nil)
 			},
 			http.StatusBadRequest,
@@ -207,7 +209,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.configuration.CertificateKey = "test"
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&oauth2.Token{}, nil)
+				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
 			},
 			http.StatusBadRequest,
 			"Not encrypted content for encrypted subscription\n",
@@ -588,7 +590,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				api.On("LogError", "Unable to get the MS Teams teams", "Error", "unable to get the teams list").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
@@ -604,7 +606,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				api.On("LogDebug", "Successfully fetched the list of teams", "Count", 2).Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListTeams").Return([]clientmodels.Team{
@@ -699,7 +701,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
@@ -716,7 +718,7 @@ func TestAutocompleteChannels(t *testing.T) {
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&oauth2.Token{}, nil).Times(1)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("ListChannels", "mockData-3").Return([]clientmodels.Channel{
@@ -912,7 +914,6 @@ func TestConnect(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
-
 			plugin.SetAPI(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)
@@ -1007,7 +1008,6 @@ func TestGetConnectedUsers(t *testing.T) {
 			mockAPI := &plugintest.API{}
 
 			plugin.SetAPI(mockAPI)
-
 			defer mockAPI.AssertExpectations(t)
 
 			test.SetupPlugin(mockAPI)
@@ -1098,7 +1098,6 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
-
 			plugin.SetAPI(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)

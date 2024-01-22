@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-api/experimental/command"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi/experimental/command"
 )
 
 const msteamsCommand = "msteams-sync"
@@ -198,7 +198,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
-	channelsSubscription, err := p.msteamsAppClient.SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
+	channelsSubscription, err := p.GetClientForApp().SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
 		p.API.LogDebug("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
@@ -210,35 +210,15 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	tx, err := p.store.BeginTx()
-	if err != nil {
-		p.API.LogError("Unable to begin the database transaction", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			if err := p.store.RollbackTx(tx); err != nil {
-				p.API.LogError("Unable to rollback database transaction", "error", err.Error())
-			}
-		}
-	}()
-
-	if txErr = p.store.SaveChannelSubscription(tx, storemodels.ChannelSubscription{
+	if err := p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		TeamID:         channelLink.MSTeamsTeam,
 		ChannelID:      channelLink.MSTeamsChannel,
 		ExpiresOn:      channelsSubscription.ExpiresOn,
 		Secret:         p.getConfiguration().WebhookSecret,
-	}); txErr != nil {
-		p.API.LogWarn("Unable to save the subscription in the DB", "error", txErr.Error())
+	}); err != nil {
+		p.API.LogWarn("Unable to save the subscription in the DB", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
-	}
-
-	if err := p.store.CommitTx(tx); err != nil {
-		p.API.LogError("Unable to commit database transaction", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
@@ -284,7 +264,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return &model.CommandResponse{}, nil
 	}
 
-	if err = p.msteamsAppClient.DeleteSubscription(subscription.SubscriptionID); err != nil {
+	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
 	}
 
@@ -297,12 +277,12 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		return p.cmdError(args.UserId, args.ChannelId, "Link doesn't exist.")
 	}
 
-	msteamsTeam, err := p.msteamsAppClient.GetTeam(link.MSTeamsTeam)
+	msteamsTeam, err := p.GetClientForApp().GetTeam(link.MSTeamsTeam)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams team information.")
 	}
 
-	msteamsChannel, err := p.msteamsAppClient.GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
+	msteamsChannel, err := p.GetClientForApp().GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the MS Teams channel information.")
 	}
@@ -333,13 +313,18 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
-	recovery.Go("send_links_with_details", p.API.LogError, func() {
-		p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
-	})
+	go p.SendLinksWithDetails(args.UserId, args.ChannelId, links)
 	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) SendLinksWithDetails(userID, channelID string, links []*storemodels.ChannelLink) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	var sb strings.Builder
 	sb.WriteString("| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|")
 	errorsFound := false
@@ -399,7 +384,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 
 	teamsQuery := msTeamsFilterQuery.String()
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
-	msTeamsTeams, err := p.msteamsAppClient.GetTeams(teamsQuery)
+	msTeamsTeams, err := p.GetClientForApp().GetTeams(teamsQuery)
 	if err != nil {
 		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
 		return true
@@ -415,7 +400,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQuery, msTeamsChannelIDsVsNames map[string]string) bool {
 	errorsFound := false
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
-		channels, err := p.msteamsAppClient.GetChannelsInTeam(teamID, channelsQuery+")")
+		channels, err := p.GetClientForApp().GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
 			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
 			errorsFound = true

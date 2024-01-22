@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"testing"
 	"time"
 
@@ -12,8 +11,8 @@ import (
 	mockStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
-	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
@@ -579,89 +578,9 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
-				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
-				s.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
-				s.On("CommitTx", &sql.Tx{}).Return(nil).Times(1)
-			},
-			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
-			},
-			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Error in beginning the database transaction",
-			parameters:  []string{testutils.GetTeamsUserID(), testutils.GetChannelID()},
-			args: &model.CommandArgs{
-				UserId:    testutils.GetUserID(),
-				TeamId:    testutils.GetTeamsUserID(),
-				ChannelId: testutils.GetChannelID(),
-			},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
-					Type: model.ChannelTypeOpen,
-				}, nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: model.NewString("/"),
-					},
-				}, nil).Times(2)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogError", "Unable to begin the database transaction", "error", "error in beginning the database transaction")
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
-				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
-				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
-				s.On("BeginTx").Return(nil, errors.New("error in beginning the database transaction")).Times(1)
-			},
-			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
-				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
-			},
-			setupMetrics: func(mockmetrics *mockMetrics.Metrics) {
-				mockmetrics.On("ObserveSubscription", metrics.SubscriptionConnected).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChannelInTeam", "true", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to commit the database transaction",
-			parameters:  []string{testutils.GetTeamsUserID(), testutils.GetChannelID()},
-			args: &model.CommandArgs{
-				UserId:    testutils.GetUserID(),
-				TeamId:    testutils.GetTeamsUserID(),
-				ChannelId: testutils.GetChannelID(),
-			},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
-					Type: model.ChannelTypeOpen,
-				}, nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: model.NewString("/"),
-					},
-				}, nil).Times(2)
-				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogError", "Unable to commit database transaction", "error", "error in committing transaction")
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
-				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
-				s.On("StoreChannelLink", mock.AnythingOfType("*storemodels.ChannelLink")).Return(nil).Times(1)
-				s.On("BeginTx").Return(&sql.Tx{}, nil).Times(1)
-				s.On("SaveChannelSubscription", &sql.Tx{}, mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
-				s.On("CommitTx", &sql.Tx{}).Return(errors.New("error in committing transaction")).Times(1)
+				s.On("SaveChannelSubscription", mock.AnythingOfType("storemodels.ChannelSubscription")).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&clientmodels.Channel{}, nil)
@@ -690,7 +609,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 				s.On("StoreChannelLink", mock.Anything).Return(nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
@@ -814,7 +733,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				s.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), "").Return(nil, nil).Times(1)
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Times(1)
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
 			},
 			setupClient: func(c *mockClient.Client, uc *mockClient.Client) {
 				uc.On("GetChannelInTeam", testutils.GetTeamsUserID(), "").Return(nil, errors.New("Error while getting the channel"))
@@ -850,7 +769,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "You are already connected to MS Teams. Please disconnect your account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Once()
 			},
 		},
 		{
@@ -981,7 +900,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", p.userID).Return(&oauth2.Token{}, nil).Once()
+				s.On("GetTokenForMattermostUser", p.userID).Return(&fakeToken, nil).Once()
 			},
 		},
 		{

@@ -57,7 +57,7 @@ export default function EnforceConnectedAccountModal() {
         <div className='EnforceConnectedAccountModal'>
             <img src={iconURL}/>
             <h1>{'Connect your Microsoft Teams Account'}</h1>
-            {!connecting && <p>{'For using this server you need to connect your Mattermost account with your MS Teams account, to procced just click in the button'}</p>}
+            {!connecting && <p>{'This server requires you to connect your Mattermost account with your Microsoft Teams account.'}</p>}
             {!connecting && (
                 <button
                     className='btn btn-primary'

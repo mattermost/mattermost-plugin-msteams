@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -330,6 +331,20 @@ func (c *ClientTimerLayer) GetUserAvatar(userID string) ([]byte, error) {
 	return result, err
 }
 
+func (c *ClientTimerLayer) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+	start := time.Now()
+
+	result, err := c.Client.ListChannelMessages(teamID, channelID, since)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannelMessages", success, elapsed)
+	return result, err
+}
+
 func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, error) {
 	start := time.Now()
 
@@ -341,6 +356,20 @@ func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, 
 		success = "true"
 	}
 	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannels", success, elapsed)
+	return result, err
+}
+
+func (c *ClientTimerLayer) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	start := time.Now()
+
+	result, err := c.Client.ListChatMessages(chatID, since)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChatMessages", success, elapsed)
 	return result, err
 }
 
@@ -397,6 +426,20 @@ func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Tim
 		success = "true"
 	}
 	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshSubscription", success, elapsed)
+	return result, err
+}
+
+func (c *ClientTimerLayer) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	start := time.Now()
+
+	result, err := c.Client.RefreshToken(token)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshToken", success, elapsed)
 	return result, err
 }
 

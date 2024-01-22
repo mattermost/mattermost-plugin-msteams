@@ -2,14 +2,15 @@ package monitor
 
 import (
 	"fmt"
+	"runtime/debug"
+	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-api/cluster"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/recovery"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-server/v6/plugin"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 )
 
 const monitoringSystemJobName = "monitoring_system"
@@ -61,6 +62,13 @@ func (m *Monitor) Start() error {
 
 func (m *Monitor) RunMonitoringSystemJob() {
 	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
 			m.api.LogDebug("Failed to set monitoring job running status to false.")
 		}
@@ -90,14 +98,23 @@ func (m *Monitor) Stop() {
 }
 
 func (m *Monitor) check() {
+	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
+	defer done()
+
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
 		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
-	recovery.Go("check_channels_subscriptions", m.api.LogError, func() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	})
+	}()
+
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+
+	wg.Wait()
 }
