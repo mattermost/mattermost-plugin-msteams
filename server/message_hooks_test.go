@@ -42,8 +42,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:  func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID",
@@ -57,8 +59,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
 				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2).Add(time.Hour*2), nil).Once()
 			},
-			SetupClient:  func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID and channel",
@@ -69,8 +73,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:  func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the post",
@@ -83,8 +89,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
 			},
-			SetupClient:  func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the reaction",
@@ -107,6 +115,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -131,6 +140,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -154,6 +164,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 	} {
@@ -189,8 +200,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the post",
@@ -203,8 +216,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					MattermostID: testutils.GetID(),
 				}, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID",
@@ -221,8 +236,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get source user ID")).Times(1)
 				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID and channel",
@@ -236,8 +253,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
+			},
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
@@ -268,6 +287,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -300,6 +320,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -331,6 +352,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 	} {
@@ -403,6 +425,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -415,8 +438,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
+			},
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel type is Open",
@@ -428,8 +453,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
+			},
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to get channel members",
@@ -442,8 +469,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
+			},
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
@@ -465,6 +494,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -487,6 +517,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -521,6 +552,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -556,6 +588,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 	} {

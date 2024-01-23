@@ -45,10 +45,12 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription on MS Teams", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
+				api.On("UnshareChannel", "Valid-MattermostChannelID").Return(true, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MSTeamsChannel: "Valid-MSTeamsChannel",
+					MattermostChannelID: "Valid-MattermostChannelID",
+					MSTeamsChannel:      "Valid-MSTeamsChannel",
 				}, nil).Once()
 				s.On("DeleteLinkByChannelID", testutils.GetChannelID()).Return(nil).Times(1)
 				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{
@@ -156,7 +158,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to get the subscription by MS Teams channel ID", "error", "unable to get the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -180,7 +181,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 					Type: model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("LogDebug", "Unable to delete the subscription from the DB", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -563,7 +563,9 @@ func TestExecuteLinkCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
-					Type: model.ChannelTypeOpen,
+					Id:     testutils.GetChannelID(),
+					TeamId: testutils.GetTeamID(),
+					Type:   model.ChannelTypeOpen,
 				}, nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{
 					ServiceSettings: model.ServiceSettings{
@@ -573,6 +575,15 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is now linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("ShareChannel", &model.SharedChannel{
+					ChannelId: testutils.GetChannelID(),
+					TeamId:    testutils.GetTeamID(),
+					Home:      true,
+					ReadOnly:  false,
+					CreatorId: "bot-user-id",
+					RemoteId:  p.remoteID,
+					ShareName: testutils.GetChannelID(),
+				}).Return(nil, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("CheckEnabledTeamByTeamID", testutils.GetTeamsUserID()).Return(true).Times(1)
