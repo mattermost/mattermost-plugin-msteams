@@ -123,6 +123,16 @@ func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage 
 	_m.Called(action, source, isDirectMessage)
 }
 
+// ObserveMessageHooksEvent provides a mock function with given fields: event
+func (_m *Metrics) ObserveMessageHooksEvent(event string) {
+	_m.Called(event)
+}
+
+// ObserveMessageSharedChannelsEvent provides a mock function with given fields: event
+func (_m *Metrics) ObserveMessageSharedChannelsEvent(event string) {
+	_m.Called(event)
+}
+
 // ObserveReaction provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveReaction(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
