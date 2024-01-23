@@ -64,15 +64,14 @@ func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		msTeamsMessages, err := msClient.ListChannelMessages(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, startTime)
-		require.NoError(t, err)
-
 		var msteamsNewMessage *clientmodels.Message
-		for _, msg := range msTeamsMessages {
+
+		err := msClient.OnChannelMessagesSince(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, startTime, func(msg *clientmodels.Message) {
 			if strings.Contains(msg.Text, generatedMessage) {
 				msteamsNewMessage = msg
 			}
-		}
+		})
+		require.NoError(t, err)
 
 		assert.NotNil(c, msteamsNewMessage)
 	}, 10*time.Second, 500*time.Millisecond)
@@ -88,19 +87,18 @@ func TestSendMessageAndReplyToMattermostLinkedChannel(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		msTeamsMessages, err := msClient.ListChannelMessages(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, startTime)
-		require.NoError(t, err)
-
 		var msteamsNewMessage *clientmodels.Message
 		var msteamsNewReply *clientmodels.Message
-		for _, msg := range msTeamsMessages {
+
+		err := msClient.OnChannelMessagesSince(testCfg.MSTeams.ConnectedChannelTeamID, testCfg.MSTeams.ConnectedChannelID, startTime, func(msg *clientmodels.Message) {
 			if strings.Contains(msg.Text, generatedMessage) {
 				msteamsNewMessage = msg
 			}
 			if strings.Contains(msg.Text, generatedReply) {
 				msteamsNewReply = msg
 			}
-		}
+		})
+		require.NoError(t, err)
 
 		assert.NotNil(c, msteamsNewMessage)
 		assert.NotNil(c, msteamsNewReply)

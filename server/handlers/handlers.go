@@ -588,3 +588,29 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 func IsDirectMessage(chatID string) bool {
 	return chatID != ""
 }
+
+func (ah *ActivityHandler) SyncChannelSince(subscriptionID, teamID, channelID string, syncSince time.Time) error {
+	return ah.plugin.GetClientForApp().OnChannelMessagesSince(teamID, channelID, syncSince, func(message *clientmodels.Message) {
+		isCreation := false
+		post, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID(message.ChatID+message.ChannelID, message.ID)
+		if err != nil || post == nil {
+			isCreation = true
+		}
+
+		if isCreation {
+			ah.handleCreatedActivity(message, subscriptionID, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		} else {
+			ah.handleUpdatedActivity(message, subscriptionID, clientmodels.ActivityIds{
+				TeamID:    teamID,
+				ChannelID: channelID,
+				MessageID: message.ID,
+				ReplyID:   message.ReplyToID,
+			})
+		}
+	})
+}

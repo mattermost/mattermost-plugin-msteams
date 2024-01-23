@@ -241,7 +241,7 @@ func TestExecuteShowCommand(t *testing.T) {
 			description: "Unable to get the link",
 			args:        &model.CommandArgs{},
 			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "Link doesn't exist.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", "", testutils.GetEphemeralPost("bot-user-id", "", "This channel is not linked to a MSTeams channel.")).Return(testutils.GetPost("", "", time.Now().UnixMicro())).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "").Return(nil, errors.New("Error while getting the link")).Times(1)
@@ -387,6 +387,169 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
 			_, _ = p.executeShowLinksCommand(testCase.args)
 			time.Sleep(1 * time.Second)
+		})
+	}
+}
+
+func TestExecuteSyncCommand(t *testing.T) {
+	for _, testCase := range []struct {
+		description string
+		params      []string
+		args        *model.CommandArgs
+		setupAPI    func(*plugintest.API)
+		setupStore  func(*mockStore.Store)
+		setupClient func(*mockClient.Client)
+	}{
+		{
+			description: "Successfully executed sync command",
+			params:      []string{},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 24 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization complete.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsTeam:    "Valid-MSTeamsTeam",
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
+				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
+			},
+		},
+		{
+			description: "Successfully executed sync command with defined number of hours",
+			params:      []string{"8"},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 8 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization complete.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsTeam:    "Valid-MSTeamsTeam",
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
+				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(nil).Times(1)
+			},
+		},
+		{
+			description: "Unable to get the link",
+			params:      []string{},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "This channel is not linked to a MSTeams channel.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, errors.New("Error while getting the link")).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {},
+		},
+		{
+			description: "Unable to get the MS Teams team information",
+			params:      []string{},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Unable to get the MS Teams team information.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+				api.On("LogWarn", "Unable to get the MS Teams team information.", "msteamsTeamID", "Invalid-MSTeamsTeam", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "error", mock.Anything).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsTeam: "Invalid-MSTeamsTeam",
+				}, nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", "Invalid-MSTeamsTeam").Return(nil, errors.New("Error while getting the MS Teams team information")).Times(1)
+			},
+		},
+		{
+			description: "Unable to get the MS Teams channel messages",
+			params:      []string{},
+			args: &model.CommandArgs{
+				UserId:    testutils.GetUserID(),
+				ChannelId: testutils.GetChannelID(),
+			},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSharedChannels).Return(true).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronizing last 24 hours of the channel...")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Synchronization failed.")).Return(testutils.GetPost(testutils.GetChannelID(), "bot-user-id", time.Now().UnixMicro())).Times(1)
+				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
+					Id:   testutils.GetChannelID(),
+					Type: model.ChannelTypeOpen,
+				}, nil).Times(1)
+
+				api.On("LogError", "Unable to sync channel messages", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.AnythingOfType("time.Time"), "error", mock.Anything).Times(1)
+				api.On("LogDebug", "Running synchronization for channel", "teamID", "Valid-MSTeamsTeam", "channelID", "Valid-MSTeamsChannel", "mattermostChannelID", testutils.GetChannelID(), "userID", testutils.GetUserID(), "since", mock.Anything).Times(1)
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("GetChannelSubscriptionByTeamsChannelID", "Valid-MSTeamsChannel").Return(&storemodels.ChannelSubscription{SubscriptionID: "testSubscriptionID"}, nil).Times(1)
+				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MSTeamsTeam:    "Valid-MSTeamsTeam",
+					MSTeamsChannel: "Valid-MSTeamsChannel",
+				}, nil).Times(1)
+			},
+			setupClient: func(c *mockClient.Client) {
+				c.On("GetTeam", "Valid-MSTeamsTeam").Return(&clientmodels.Team{}, nil).Times(1)
+				c.On("GetChannelInTeam", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&clientmodels.Channel{}, nil).Times(1)
+				c.On("OnChannelMessagesSince", "Valid-MSTeamsTeam", "Valid-MSTeamsChannel", mock.AnythingOfType("time.Time"), mock.Anything).Return(errors.New("unable to get channel messages")).Times(1)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			p := newTestPlugin(t)
+			mockAPI := &plugintest.API{}
+
+			testCase.setupAPI(mockAPI)
+			p.SetAPI(mockAPI)
+
+			testCase.setupStore(p.store.(*mockStore.Store))
+			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
+			_, _ = p.executeSyncCommand(testCase.args, testCase.params)
+			time.Sleep(10 * time.Millisecond)
+			mockAPI.AssertExpectations(t)
 		})
 	}
 }
@@ -1059,6 +1222,14 @@ func TestGetAutocompleteData(t *testing.T) {
 					{
 						Trigger:     "show",
 						HelpText:    "Show MS Teams linked channel",
+						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "sync",
+						Hint:        "[number-of-hours]",
+						HelpText:    "Sync the current channel with MS Teams channel (by default 24 hours)",
 						RoleID:      model.SystemUserRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
