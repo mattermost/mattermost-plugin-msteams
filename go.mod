@@ -2,10 +2,6 @@ module github.com/mattermost/mattermost-plugin-msteams-sync
 
 go 1.20
 
-replace github.com/mattermost/mattermost/server/public => ../mattermost-server/server/public
-
-replace github.com/mattermost/mattermost/server/v8 => ../mattermost-server/server
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
