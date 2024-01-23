@@ -129,10 +129,10 @@
             "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
             "default": false
         },{
-            "key": "useSharedChannelsInfrastructure",
-            "display_name": "Use Shared Channels Infrastructure",
+            "key": "metricsForSharedChannelsInfrastructure",
+            "display_name": "Add metrics Shared Channels Infrastructure (Not using it yet)",
             "type": "bool",
-            "help_text": "When true, the system use the Shared Channels Mattermost infrastructure to provide more reliability of messages delivery. When false, the system will use the regular mattermost message/reaction hooks.",
+            "help_text": "When true, the system collect metrics about Shared Channels infrastructure usage by the plugin without using it.",
             "default": false
         },{
             "key": "syntheticUserAuthService",

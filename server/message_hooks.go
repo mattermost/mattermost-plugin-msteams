@@ -38,9 +38,7 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	if p.configuration.UseSharedChannelsInfrastructure {
-		return
-	}
+	p.metricsService.ObserveMessageHooksEvent("message_create")
 	_ = p.syncMessage(post)
 }
 
@@ -90,9 +88,7 @@ func (p *Plugin) syncMessage(post *model.Post) error {
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
-	if p.configuration.UseSharedChannelsInfrastructure {
-		return
-	}
+	p.metricsService.ObserveMessageHooksEvent("reaction_added")
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
@@ -138,9 +134,7 @@ func (p *Plugin) syncReactionAdded(reaction *model.Reaction, updateRequired bool
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	if p.configuration.UseSharedChannelsInfrastructure {
-		return
-	}
+	p.metricsService.ObserveMessageHooksEvent("reaction_removed")
 	_ = p.syncReactionRemoved(reaction)
 }
 
@@ -188,9 +182,7 @@ func (p *Plugin) syncReactionRemoved(reaction *model.Reaction) error {
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
-	if p.configuration.UseSharedChannelsInfrastructure {
-		return
-	}
+	p.metricsService.ObserveMessageHooksEvent("message_update")
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))

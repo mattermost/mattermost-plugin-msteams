@@ -187,8 +187,9 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	p.msteamsAppClient = getClientMock(p)
-	if p.msteamsAppClient != nil {
+	clientMock := getClientMock(p)
+	if clientMock != nil {
+		p.msteamsAppClient = clientMock
 		return nil
 	}
 
@@ -796,21 +797,16 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
 	p.API.LogDebug("SyncMsg received", "msg", msg, "remote", rc.DisplayName, "pluginID", pluginID)
-	if !p.configuration.UseSharedChannelsInfrastructure {
+	if !p.configuration.MetricsForSharedChannelsInfrastructure {
 		return model.SyncResponse{}, nil
 	}
 	var resp model.SyncResponse
 	for _, post := range msg.Posts {
 		// TODO: Handle post deletions
-		postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
-		if err == nil && postInfo != nil {
-			if err := p.syncMessageUpdate(post, true); err != nil {
-				return resp, err
-			}
+		if post.CreateAt != post.UpdateAt {
+			p.metricsService.ObserveMessageSharedChannelsEvent("message_update")
 		} else {
-			if err := p.syncMessage(post); err != nil {
-				return resp, err
-			}
+			p.metricsService.ObserveMessageSharedChannelsEvent("message_create")
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
@@ -820,13 +816,9 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteClu
 	for _, reaction := range msg.Reactions {
 		reaction.ChannelId = msg.ChannelId
 		if reaction.DeleteAt > 0 {
-			if err := p.syncReactionRemoved(reaction); err != nil {
-				return resp, err
-			}
+			p.metricsService.ObserveMessageSharedChannelsEvent("reaction_removed")
 		} else {
-			if err := p.syncReactionAdded(reaction, true); err != nil {
-				return resp, err
-			}
+			p.metricsService.ObserveMessageSharedChannelsEvent("reaction_added")
 		}
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
 			resp.ReactionsLastUpdateAt = reaction.UpdateAt

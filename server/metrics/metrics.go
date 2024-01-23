@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	MetricsNamespace        = "msteams_connect"
-	MetricsSubsystemSystem  = "system"
-	MetricsSubsystemApp     = "app"
-	MetricsSubsystemHTTP    = "http"
-	MetricsSubsystemAPI     = "api"
-	MetricsSubsystemEvents  = "events"
-	MetricsSubsystemDB      = "db"
-	MetricsSubsystemMSGraph = "msgraph"
+	MetricsNamespace               = "msteams_connect"
+	MetricsSubsystemSystem         = "system"
+	MetricsSubsystemApp            = "app"
+	MetricsSubsystemHTTP           = "http"
+	MetricsSubsystemAPI            = "api"
+	MetricsSubsystemEvents         = "events"
+	MetricsSubsystemSharedChannels = "shared_channels"
+	MetricsSubsystemHooks          = "hooks"
+	MetricsSubsystemDB             = "db"
+	MetricsSubsystemMSGraph        = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
 	MetricsVersionLabel           = "version"
@@ -93,6 +95,9 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
+
+	ObserveMessageHooksEvent(event string)
+	ObserveMessageSharedChannelsEvent(event string)
 }
 
 type InstanceInfo struct {
@@ -117,13 +122,15 @@ type metrics struct {
 	httpRequestsTotal prometheus.Counter
 	httpErrorsTotal   prometheus.Counter
 
-	lifecycleEventsTotal   *prometheus.CounterVec
-	changeEventsTotal      *prometheus.CounterVec
-	messagesTotal          *prometheus.CounterVec
-	reactionsTotal         *prometheus.CounterVec
-	filesTotal             *prometheus.CounterVec
-	messagesConfirmedTotal *prometheus.CounterVec
-	subscriptionsTotal     *prometheus.CounterVec
+	lifecycleEventsTotal        *prometheus.CounterVec
+	changeEventsTotal           *prometheus.CounterVec
+	messagesTotal               *prometheus.CounterVec
+	reactionsTotal              *prometheus.CounterVec
+	filesTotal                  *prometheus.CounterVec
+	messagesConfirmedTotal      *prometheus.CounterVec
+	subscriptionsTotal          *prometheus.CounterVec
+	messageHooksEvents          *prometheus.CounterVec
+	messageSharedChannelsEvents *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -290,6 +297,24 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
+
+	m.messageHooksEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemHooks,
+		Name:        "events_total",
+		Help:        "The total number of message hooks events (message creation and update, reactions creation and update).",
+		ConstLabels: additionalLabels,
+	}, []string{"event"})
+	m.registry.MustRegister(m.messageHooksEvents)
+
+	m.messageSharedChannelsEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "events_total",
+		Help:        "The total number of message events through shared channels (message creation and update, reactions creation and update).",
+		ConstLabels: additionalLabels,
+	}, []string{"event"})
+	m.registry.MustRegister(m.messageSharedChannelsEvents)
 
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -552,6 +577,18 @@ func (m *metrics) DecrementActiveWorkers(worker string) {
 func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	if m != nil {
 		m.workersTime.With(prometheus.Labels{"worker": worker}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveMessageHooksEvent(event string) {
+	if m != nil {
+		m.messageHooksEvents.With(prometheus.Labels{"event": event}).Inc()
+	}
+}
+
+func (m *metrics) ObserveMessageSharedChannelsEvent(event string) {
+	if m != nil {
+		m.messageSharedChannelsEvents.With(prometheus.Labels{"event": event}).Inc()
 	}
 }
 
