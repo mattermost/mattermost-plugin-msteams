@@ -914,7 +914,6 @@ func TestConnect(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
-			mockAPI.On("GetBundlePath").Return("./dist", nil).Once()
 			plugin.SetAPI(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)
@@ -1009,7 +1008,6 @@ func TestGetConnectedUsers(t *testing.T) {
 			mockAPI := &plugintest.API{}
 
 			plugin.SetAPI(mockAPI)
-			mockAPI.On("GetBundlePath").Return("./dist", nil).Once()
 			defer mockAPI.AssertExpectations(t)
 
 			test.SetupPlugin(mockAPI)
@@ -1100,7 +1098,6 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
-			mockAPI.On("GetBundlePath").Return("./dist", nil).Once()
 			plugin.SetAPI(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)

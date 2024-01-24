@@ -64,11 +64,22 @@ func main() {
 		panic("failed to find manifest: " + err.Error())
 	}
 
+	// Don't use runtime.* directly, as we may target a different archtiecture for testing.
+	defaultGoOs := os.Getenv("DEFAULT_GOOS")
+	defaultGoArch := os.Getenv("DEFAULT_GOARCH")
+
+	if defaultGoOs == "" {
+		defaultGoOs = runtime.GOOS
+	}
+	if defaultGoArch == "" {
+		defaultGoArch = runtime.GOARCH
+	}
+
 	if manifest.HasServer() {
 		// Build only the current platform if MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
 		if isDeveloperBuild, _ := strconv.ParseBool(os.Getenv("MM_SERVICESETTINGS_ENABLEDEVELOPER")); isDeveloperBuild {
 			manifest.Server.Executables = nil
-			manifest.Server.Executable = fmt.Sprintf("server/dist/plugin-%s-%s", runtime.GOOS, runtime.GOARCH)
+			manifest.Server.Executable = fmt.Sprintf("server/dist/plugin-%s-%s", defaultGoOs, defaultGoArch)
 		}
 	}
 

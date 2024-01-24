@@ -23,6 +23,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_disconnectionlayer"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
@@ -74,6 +75,7 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
 
@@ -83,8 +85,7 @@ type Plugin struct {
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	api := NewAPI(p, p.store)
-	api.ServeHTTP(w, r)
+	p.apiHandler.ServeHTTP(w, r)
 }
 
 func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -132,10 +133,40 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 
 func (p *Plugin) GetURL() string {
 	config := p.API.GetConfig()
-	if strings.HasSuffix(*config.ServiceSettings.SiteURL, "/") {
-		return *config.ServiceSettings.SiteURL + "plugins/" + pluginID
+	siteURL := ""
+	if config.ServiceSettings.SiteURL != nil {
+		siteURL = *config.ServiceSettings.SiteURL
 	}
-	return *config.ServiceSettings.SiteURL + "/plugins/" + pluginID
+	if strings.HasSuffix(siteURL, "/") {
+		return siteURL + "plugins/" + pluginID
+	}
+	return siteURL + "/plugins/" + pluginID
+}
+
+func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
+	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
+	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
+	if err != nil {
+		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
+		return
+	}
+	if err2 := p.store.SetUserInfo(userID, teamsUserID, nil); err2 != nil {
+		p.API.LogWarn("Unable clean invalid token for the user", "userID", userID, "error", err2.Error())
+		return
+	}
+	channel, appErr := p.API.GetDirectChannel(userID, p.GetBotUserID())
+	if appErr != nil {
+		p.API.LogWarn("Unable to get direct channel for send message to user", "userID", userID, "error", appErr.Error())
+		return
+	}
+	_, appErr = p.API.CreatePost(&model.Post{
+		UserId:    p.GetBotUserID(),
+		ChannelId: channel.Id,
+		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams-sync connect` slash command in any Mattermost channel.",
+	})
+	if appErr != nil {
+		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", appErr.Error())
+	}
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
@@ -145,11 +176,15 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	}
 
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().ApplicationID, p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
-	timerClient := client_timerlayer.New(client, p.GetMetrics())
+	client = client_timerlayer.New(client, p.GetMetrics())
+	client = client_disconnectionlayer.New(client, userID, p.OnDisconnectedTokenHandler)
 
 	if token.Expiry.Before(time.Now()) {
-		newToken, err := timerClient.RefreshToken(token)
+		newToken, err := client.RefreshToken(token)
 		if err != nil {
+			if msteams.IsOAuthError(err) {
+				p.OnDisconnectedTokenHandler(userID)
+			}
 			return nil, err
 		}
 		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
@@ -160,7 +195,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 			return nil, err
 		}
 	}
-	return timerClient, nil
+	return client, nil
 }
 
 func (p *Plugin) GetClientForTeamsUser(teamsUserID string) (msteams.Client, error) {
@@ -179,6 +214,12 @@ func (p *Plugin) connectTeamsAppClient() error {
 	// We don't currently support reconnecting with a new configuration: a plugin restart is
 	// required.
 	if p.msteamsAppClient != nil {
+		return nil
+	}
+
+	clientMock := getClientMock(p)
+	if clientMock != nil {
+		p.msteamsAppClient = clientMock
 		return nil
 	}
 
@@ -350,7 +391,13 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
-		p.clientBuilderWithToken = msteams.NewTokenClient
+		if getClientMock(p) != nil {
+			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+				return getClientMock(p)
+			}
+		} else {
+			p.clientBuilderWithToken = msteams.NewTokenClient
+		}
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {
@@ -411,6 +458,8 @@ func (p *Plugin) OnActivate() error {
 			return err
 		}
 	}
+
+	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
