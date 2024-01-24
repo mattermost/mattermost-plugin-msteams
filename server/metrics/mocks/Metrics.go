@@ -58,11 +58,6 @@ func (_m *Metrics) IncrementHTTPRequests() {
 	_m.Called()
 }
 
-// IncrementOAuthTokenInvalidated provides a mock function with given fields:
-func (_m *Metrics) IncrementOAuthTokenInvalidated() {
-	_m.Called()
-}
-
 // ObserveAPIEndpointDuration provides a mock function with given fields: handler, method, statusCode, elapsed
 func (_m *Metrics) ObserveAPIEndpointDuration(handler string, method string, statusCode string, elapsed float64) {
 	_m.Called(handler, method, statusCode, elapsed)
@@ -126,6 +121,11 @@ func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success str
 // ObserveMessage provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
+}
+
+// ObserveOAuthTokenInvalidated provides a mock function with given fields:
+func (_m *Metrics) ObserveOAuthTokenInvalidated() {
+	_m.Called()
 }
 
 // ObserveReaction provides a mock function with given fields: action, source, isDirectMessage

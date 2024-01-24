@@ -63,7 +63,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
-	IncrementOAuthTokenInvalidated()
+	ObserveOAuthTokenInvalidated()
 	ObserveChangeEventQueueRejected()
 	ObserveWhitelistLimit(limit int)
 
@@ -512,7 +512,7 @@ func (m *metrics) IncrementHTTPErrors() {
 	}
 }
 
-func (m *metrics) IncrementOAuthTokenInvalidated() {
+func (m *metrics) ObserveOAuthTokenInvalidated() {
 	if m != nil {
 		m.oAuthTokenInvalidatedTotal.Inc()
 	}

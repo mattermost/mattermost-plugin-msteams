@@ -145,7 +145,7 @@ func (p *Plugin) GetURL() string {
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
-	p.metricsService.IncrementOAuthTokenInvalidated()
+	p.metricsService.ObserveOAuthTokenInvalidated()
 
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
