@@ -146,6 +146,7 @@ func (p *Plugin) GetURL() string {
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
 	p.metricsService.IncrementInvalidTokenDetected()
+
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
 		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
@@ -163,7 +164,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	_, appErr = p.API.CreatePost(&model.Post{
 		UserId:    p.GetBotUserID(),
 		ChannelId: channel.Id,
-		Message:   "Your connection to MS Teams has been lost. Please reconnect to using /msteams-sync connect slash command.",
+		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams-sync connect` slash command in any Mattermost channel.",
 	})
 	if appErr != nil {
 		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", appErr.Error())
@@ -183,6 +184,9 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token.Expiry.Before(time.Now()) {
 		newToken, err := client.RefreshToken(token)
 		if err != nil {
+			if msteams.IsOAuthError(err) {
+				p.OnDisconnectedTokenHandler(userID)
+			}
 			return nil, err
 		}
 		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
@@ -215,8 +219,9 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	p.msteamsAppClient = getClientMock(p)
-	if p.msteamsAppClient != nil {
+	clientMock := getClientMock(p)
+	if clientMock != nil {
+		p.msteamsAppClient = clientMock
 		return nil
 	}
 
