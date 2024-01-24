@@ -79,7 +79,7 @@ type Plugin struct {
 
 	activityHandler *handlers.ActivityHandler
 
-	clientBuilderWithToken func(string, string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
+	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
 	metricsServer          *metrics.Server
 }
@@ -175,7 +175,7 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 		return nil, errors.New("not connected user")
 	}
 
-	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().ApplicationID, p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
+	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)
 	client = client_timerlayer.New(client, p.GetMetrics())
 	client = client_disconnectionlayer.New(client, userID, p.OnDisconnectedTokenHandler)
 
@@ -224,7 +224,6 @@ func (p *Plugin) connectTeamsAppClient() error {
 	}
 
 	msteamsAppClient := msteams.NewApp(
-		p.getConfiguration().ApplicationID,
 		p.getConfiguration().TenantID,
 		p.getConfiguration().ClientID,
 		p.getConfiguration().ClientSecret,
@@ -262,7 +261,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.userID)
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.getConfiguration().ApplicationID)
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -392,7 +391,7 @@ func (p *Plugin) generatePluginSecrets() error {
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
 		if getClientMock(p) != nil {
-			p.clientBuilderWithToken = func(string, string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
 				return getClientMock(p)
 			}
 		} else {

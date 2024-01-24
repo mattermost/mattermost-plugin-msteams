@@ -80,8 +80,8 @@ func (c *ClientDisconnectionLayer) DeleteSubscription(subscriptionID string) err
 	return err
 }
 
-func (c *ClientDisconnectionLayer) GetAppCredentials() ([]clientmodels.Credential, error) {
-	result, err := c.Client.GetAppCredentials()
+func (c *ClientDisconnectionLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	result, err := c.Client.GetAppCredentials(applicationID)
 	if err != nil {
 		var graphErr *msteams.GraphAPIError
 		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {

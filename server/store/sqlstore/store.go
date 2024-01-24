@@ -1020,25 +1020,6 @@ func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
 	}, nil
 }
 
-func (s *SQLStore) GetMattermostAdminsIds() ([]string, error) {
-	query := s.getQueryBuilder().Select("id").From("users").Where(sq.Like{"roles": "%system_admin%"})
-	rows, err := query.Query()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var admins []string
-	for rows.Next() {
-		var adminID string
-		if err := rows.Scan(&adminID); err != nil {
-			return nil, err
-		}
-		admins = append(admins, adminID)
-	}
-	return admins, nil
-}
-
 func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error) {
 	query := s.getQueryBuilder().Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From(usersTableName).LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
 	rows, err := query.Query()

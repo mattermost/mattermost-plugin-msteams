@@ -93,10 +93,10 @@ func (c *ClientTimerLayer) DeleteSubscription(subscriptionID string) error {
 	return err
 }
 
-func (c *ClientTimerLayer) GetAppCredentials() ([]clientmodels.Credential, error) {
+func (c *ClientTimerLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
 	start := time.Now()
 
-	result, err := c.Client.GetAppCredentials()
+	result, err := c.Client.GetAppCredentials(applicationID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

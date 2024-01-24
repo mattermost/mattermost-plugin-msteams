@@ -231,20 +231,6 @@ func (s *TimerLayer) GetLinkByMSTeamsChannelID(teamID string, channelID string) 
 	return result, err
 }
 
-func (s *TimerLayer) GetMattermostAdminsIds() ([]string, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetMattermostAdminsIds()
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetMattermostAdminsIds", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
 	start := time.Now()
 

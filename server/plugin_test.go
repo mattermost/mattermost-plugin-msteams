@@ -44,7 +44,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
-		clientBuilderWithToken: func(redirectURL, applicationID, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
+		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
 	}
