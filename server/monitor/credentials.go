@@ -11,11 +11,6 @@ func (m *Monitor) checkCredentials(force bool) {
 		return
 	}
 
-	admins, err := m.store.GetMattermostAdminsIds()
-	if err != nil {
-		m.api.LogDebug("Unable to get the list of Mattermosta admins", "error", err.Error())
-		return
-	}
 	credentials, err := m.client.GetAppCredentials()
 	if err != nil {
 		m.api.LogDebug("Error getting client secret expire date", "error", err.Error())
@@ -25,6 +20,11 @@ func (m *Monitor) checkCredentials(force bool) {
 	for _, credential := range credentials {
 		m.metrics.ObserveClientSecretExpireDate(credential.ID, credential.ExpireDate)
 		if credential.ExpireDate.Before(time.Now().Add(-time.Hour * 24 * 7)) {
+			admins, err := m.store.GetMattermostAdminsIds()
+			if err != nil {
+				m.api.LogDebug("Unable to get the list of Mattermosta admins", "error", err.Error())
+				continue
+			}
 			for _, admin := range admins {
 				dm, err := m.api.GetDirectChannel(m.botUserID, admin)
 				if err != nil {
