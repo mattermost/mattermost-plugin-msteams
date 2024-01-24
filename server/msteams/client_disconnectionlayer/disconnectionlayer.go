@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -77,6 +78,17 @@ func (c *ClientDisconnectionLayer) DeleteSubscription(subscriptionID string) err
 		}
 	}
 	return err
+}
+
+func (c *ClientDisconnectionLayer) GetAppCredentials() ([]clientmodels.Credential, error) {
+	result, err := c.Client.GetAppCredentials()
+	if err != nil {
+		var graphErr *msteams.GraphAPIError
+		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {
+			c.onDisconnect(c.userID)
+		}
+	}
+	return result, err
 }
 
 func (c *ClientDisconnectionLayer) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {
@@ -323,6 +335,17 @@ func (c *ClientDisconnectionLayer) ListUsers() ([]clientmodels.User, error) {
 
 func (c *ClientDisconnectionLayer) RefreshSubscription(subscriptionID string) (*time.Time, error) {
 	result, err := c.Client.RefreshSubscription(subscriptionID)
+	if err != nil {
+		var graphErr *msteams.GraphAPIError
+		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {
+			c.onDisconnect(c.userID)
+		}
+	}
+	return result, err
+}
+
+func (c *ClientDisconnectionLayer) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	result, err := c.Client.RefreshToken(token)
 	if err != nil {
 		var graphErr *msteams.GraphAPIError
 		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {

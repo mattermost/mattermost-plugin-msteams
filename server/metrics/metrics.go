@@ -93,6 +93,7 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
+	ObserveClientSecretExpireDate(secretID string, expireDate time.Time)
 }
 
 type InstanceInfo struct {
@@ -134,6 +135,7 @@ type metrics struct {
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
 	activeWorkersTotal            *prometheus.GaugeVec
+	clientSecretsExpireDate       *prometheus.GaugeVec
 
 	storeTime   *prometheus.HistogramVec
 	workersTime *prometheus.HistogramVec
@@ -384,6 +386,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"worker"})
 	m.registry.MustRegister(m.activeWorkersTotal)
 
+	m.clientSecretsExpireDate = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemMSGraph,
+		Name:        "client_secrets_expire_date",
+		Help:        "The expire date of the current application client secrets.",
+		ConstLabels: additionalLabels,
+	}, []string{"secret_id"})
+	m.registry.MustRegister(m.clientSecretsExpireDate)
+
 	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -552,6 +563,12 @@ func (m *metrics) DecrementActiveWorkers(worker string) {
 func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	if m != nil {
 		m.workersTime.With(prometheus.Labels{"worker": worker}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveClientSecretExpireDate(secretID string, expireDate time.Time) {
+	if m != nil {
+		m.clientSecretsExpireDate.With(prometheus.Labels{"secret_id": secretID}).Set(float64(expireDate.UnixNano()) / 1e9)
 	}
 }
 

@@ -23,6 +23,7 @@ func (m *Monitor) checkCredentials() {
 	}
 
 	for _, credential := range credentials {
+		m.metrics.ObserveClientSecretExpireDate(credential.ID, credential.ExpireDate)
 		if credential.ExpireDate.After(time.Now().Add(-time.Hour * 24 * 7)) {
 			for _, admin := range admins {
 				dm, err := m.api.GetDirectChannel(m.botUserID, admin)

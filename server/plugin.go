@@ -392,7 +392,7 @@ func (p *Plugin) generatePluginSecrets() error {
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
 		if getClientMock(p) != nil {
-			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
+			p.clientBuilderWithToken = func(string, string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
 				return getClientMock(p)
 			}
 		} else {

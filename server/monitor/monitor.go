@@ -57,6 +57,7 @@ func (m *Monitor) Start() error {
 	if jobErr != nil {
 		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
 	}
+	m.checkCredentials()
 
 	m.job = job
 	return m.store.SetJobStatus(monitoringSystemJobName, false)

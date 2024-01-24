@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	time "time"
+
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -76,6 +78,11 @@ func (_m *Metrics) ObserveChangeEventQueueCapacity(count int64) {
 // ObserveChangeEventQueueRejected provides a mock function with given fields:
 func (_m *Metrics) ObserveChangeEventQueueRejected() {
 	_m.Called()
+}
+
+// ObserveClientSecretExpireDate provides a mock function with given fields: secretID, expireDate
+func (_m *Metrics) ObserveClientSecretExpireDate(secretID string, expireDate time.Time) {
+	_m.Called(secretID, expireDate)
 }
 
 // ObserveConfirmedMessage provides a mock function with given fields: source, isDirectMessage
