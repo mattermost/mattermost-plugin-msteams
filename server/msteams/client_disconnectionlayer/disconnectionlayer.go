@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
