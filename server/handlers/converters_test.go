@@ -53,6 +53,7 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetURL").Return("https://example.com/")
 				p.On("GetClientForApp").Return(client)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetAPI").Return(mockAPI).Once()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
