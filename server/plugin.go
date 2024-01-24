@@ -446,8 +446,7 @@ func (p *Plugin) OnActivate() error {
 	}
 	for _, linkedChannel := range linkedChannels {
 		p.API.LogDebug("LINKED CHANNEL", "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
-		// TODO: Handling error here or using a better policy about re-share channels
-		_, _ = p.API.ShareChannel(&model.SharedChannel{
+		_, err = p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: linkedChannel.MattermostChannelID,
 			TeamId:    linkedChannel.MattermostTeamID,
 			Home:      true,
@@ -456,6 +455,9 @@ func (p *Plugin) OnActivate() error {
 			RemoteId:  p.remoteID,
 			ShareName: linkedChannel.MattermostChannelID,
 		})
+		if err != nil {
+			p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+		}
 	}
 
 	p.apiHandler = NewAPI(p, p.store)
