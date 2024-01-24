@@ -184,9 +184,6 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token.Expiry.Before(time.Now()) {
 		newToken, err := client.RefreshToken(token)
 		if err != nil {
-			if msteams.IsOAuthError(err) {
-				p.OnDisconnectedTokenHandler(userID)
-			}
 			return nil, err
 		}
 		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
