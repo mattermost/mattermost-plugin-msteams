@@ -130,9 +130,9 @@
             "default": false
         },{
             "key": "metricsForSharedChannelsInfrastructure",
-            "display_name": "Add metrics Shared Channels Infrastructure (Not using it yet)",
+            "display_name": "Add metrics Shared Channels Service (Not used yet)",
             "type": "bool",
-            "help_text": "When true, the system collect metrics about Shared Channels infrastructure usage by the plugin without using it.",
+            "help_text": "When true, the system collect metrics about Shared Channels Service usage by the plugin without using it.",
             "default": false
         },{
             "key": "syntheticUserAuthService",
