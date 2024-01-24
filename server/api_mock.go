@@ -64,7 +64,7 @@ func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	methodName := params["method"]
 
-	mockClient := a.p.clientBuilderWithToken("", "", "", "", "", nil, nil).(*mocks.Client)
+	mockClient := a.p.clientBuilderWithToken("", "", "", "", nil, nil).(*mocks.Client)
 	method, found := reflect.TypeOf(mockClient).MethodByName(methodName)
 	if !found {
 		a.p.API.LogError("Unable to mock the method, method not found", "MethodName", methodName)
