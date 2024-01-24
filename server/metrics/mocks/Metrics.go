@@ -58,8 +58,8 @@ func (_m *Metrics) IncrementHTTPRequests() {
 	_m.Called()
 }
 
-// IncrementInvalidOAuthTokenInvalidated provides a mock function with given fields:
-func (_m *Metrics) IncrementInvalidOAuthTokenInvalidated() {
+// IncrementOAuthTokenInvalidated provides a mock function with given fields:
+func (_m *Metrics) IncrementOAuthTokenInvalidated() {
 	_m.Called()
 }
 

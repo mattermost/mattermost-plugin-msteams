@@ -63,7 +63,7 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
-	IncrementInvalidOAuthTokenInvalidated()
+	IncrementOAuthTokenInvalidated()
 	ObserveChangeEventQueueRejected()
 	ObserveWhitelistLimit(limit int)
 
@@ -115,9 +115,9 @@ type metrics struct {
 
 	msGraphClientTime *prometheus.HistogramVec
 
-	httpRequestsTotal                 prometheus.Counter
-	httpErrorsTotal                   prometheus.Counter
-	invalidOAuthTokenInvalidatedTotal prometheus.Counter
+	httpRequestsTotal          prometheus.Counter
+	httpErrorsTotal            prometheus.Counter
+	oAuthTokenInvalidatedTotal prometheus.Counter
 
 	lifecycleEventsTotal   *prometheus.CounterVec
 	changeEventsTotal      *prometheus.CounterVec
@@ -229,14 +229,14 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
 
-	m.invalidOAuthTokenInvalidatedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+	m.oAuthTokenInvalidatedTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemMSGraph,
-		Name:        "invalid_oauth_token_invalidated_total",
-		Help:        "The total number of times an invalid oAuth token has been invalidated.",
+		Name:        "oauth_token_invalidated_total",
+		Help:        "The total number of times an oAuth token has been invalidated.",
 		ConstLabels: additionalLabels,
 	})
-	m.registry.MustRegister(m.invalidOAuthTokenInvalidatedTotal)
+	m.registry.MustRegister(m.oAuthTokenInvalidatedTotal)
 
 	m.changeEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -512,9 +512,9 @@ func (m *metrics) IncrementHTTPErrors() {
 	}
 }
 
-func (m *metrics) IncrementInvalidOAuthTokenInvalidated() {
+func (m *metrics) IncrementOAuthTokenInvalidated() {
 	if m != nil {
-		m.invalidOAuthTokenInvalidatedTotal.Inc()
+		m.oAuthTokenInvalidatedTotal.Inc()
 	}
 }
 
