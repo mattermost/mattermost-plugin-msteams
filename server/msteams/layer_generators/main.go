@@ -30,6 +30,9 @@ func main() {
 	if err := buildTimerLayer(); err != nil {
 		log.Fatal(err)
 	}
+	if err := buildDisconnectionLayer(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func buildTimerLayer() error {
@@ -48,6 +51,24 @@ func buildTimerLayer() error {
 	}
 
 	return os.WriteFile(path.Join("client_timerlayer", "timerlayer.go"), formatedCode, 0600)
+}
+
+func buildDisconnectionLayer() error {
+	code, err := generateLayer("ClientDisconnectionLayer", "disconnection_layer.go.tmpl")
+	if err != nil {
+		return err
+	}
+
+	formatedCode, err := format.Source(code)
+	if err != nil {
+		return err
+	}
+
+	if err = os.MkdirAll("client_disconnectionlayer", 0700); err != nil {
+		return err
+	}
+
+	return os.WriteFile(path.Join("client_disconnectionlayer", "disconnectionlayer.go"), formatedCode, 0600)
 }
 
 type methodParam struct {
