@@ -171,10 +171,11 @@ func getClientMock(p *Plugin) *mocks.Client {
 	newMock.On("ClearSubscriptions").Return(nil)
 	newMock.On("RefreshToken", mock.Anything).Return(&oauth2.Token{}, nil)
 	newMock.On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
-	newMock.On("SubscribeToChannels", mock.Anything, p.configuration.WebhookSecret, "").Return("channel-subscription-id", nil)
-	newMock.On("SubscribeToChats", mock.Anything, p.configuration.WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
-	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.configuration.WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
+	newMock.On("SubscribeToChannels", mock.Anything, p.getConfiguration().WebhookSecret, "").Return("channel-subscription-id", nil)
+	newMock.On("SubscribeToChats", mock.Anything, p.getConfiguration().WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
+	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.getConfiguration().WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
 	newMock.On("ListSubscriptions").Return([]*clientmodels.Subscription{}, nil)
+	newMock.On("GetAppCredentials").Return([]clientmodels.Credential{}, nil)
 	clientMock = &newMock
 	return clientMock
 }

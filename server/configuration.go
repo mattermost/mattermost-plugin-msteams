@@ -56,9 +56,6 @@ func (c *configuration) ProcessConfiguration() {
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	configuration.ProcessConfiguration()
-	if configuration.ApplicationID == "" {
-		return errors.New("application ID should not be empty")
-	}
 	if configuration.TenantID == "" {
 		return errors.New("tenant ID should not be empty")
 	}
