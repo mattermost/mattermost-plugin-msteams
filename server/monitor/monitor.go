@@ -57,7 +57,7 @@ func (m *Monitor) Start() error {
 	if jobErr != nil {
 		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
 	}
-	m.checkCredentials()
+	m.checkCredentials(true)
 
 	m.job = job
 	return m.store.SetJobStatus(monitoringSystemJobName, false)
@@ -119,7 +119,7 @@ func (m *Monitor) check() {
 
 	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
 
-	m.checkCredentials()
+	m.checkCredentials(false)
 
 	wg.Wait()
 }

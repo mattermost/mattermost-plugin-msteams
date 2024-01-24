@@ -6,8 +6,8 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-func (m *Monitor) checkCredentials() {
-	if time.Now().Hour() != 0 || time.Now().Minute() != 0 {
+func (m *Monitor) checkCredentials(force bool) {
+	if !force && (time.Now().Hour() != 0 || time.Now().Minute() != 0) {
 		return
 	}
 
@@ -24,7 +24,7 @@ func (m *Monitor) checkCredentials() {
 
 	for _, credential := range credentials {
 		m.metrics.ObserveClientSecretExpireDate(credential.ID, credential.ExpireDate)
-		if credential.ExpireDate.After(time.Now().Add(-time.Hour * 24 * 7)) {
+		if credential.ExpireDate.Before(time.Now().Add(-time.Hour * 24 * 7)) {
 			for _, admin := range admins {
 				dm, err := m.api.GetDirectChannel(m.botUserID, admin)
 				if err != nil {
