@@ -162,7 +162,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	_, appErr = p.API.CreatePost(&model.Post{
 		UserId:    p.GetBotUserID(),
 		ChannelId: channel.Id,
-		Message:   "Your connection to MS Teams has been lost. Please reconnect to using '/msteams-sync connect' slash command.",
+		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams-sync connect` slash command in any Mattermost channel.",
 	})
 	if appErr != nil {
 		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", appErr.Error())
