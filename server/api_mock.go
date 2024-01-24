@@ -175,7 +175,7 @@ func getClientMock(p *Plugin) *mocks.Client {
 	newMock.On("SubscribeToChats", mock.Anything, p.getConfiguration().WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
 	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.getConfiguration().WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
 	newMock.On("ListSubscriptions").Return([]*clientmodels.Subscription{}, nil)
-	newMock.On("GetAppCredentials").Return([]clientmodels.Credential{}, nil)
+	newMock.On("GetAppCredentials", mock.Anything).Return([]clientmodels.Credential{}, nil)
 	clientMock = &newMock
 	return clientMock
 }

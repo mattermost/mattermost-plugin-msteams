@@ -354,7 +354,7 @@ func TestStart(t *testing.T) {
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(nil).Times(1)
-				client.On("GetAppCredentials").Return([]clientmodels.Credential{}, nil).Times(1)
+				client.On("GetAppCredentials", mock.Anything).Return([]clientmodels.Credential{}, nil).Times(1)
 			},
 			SetupStore: func(s *storemocks.Store) {
 				s.On("SetJobStatus", "monitoring_system", false).Return(errors.New("error in setting job status"))
@@ -376,7 +376,7 @@ func TestStart(t *testing.T) {
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(nil).Times(1)
-				client.On("GetAppCredentials").Return([]clientmodels.Credential{}, nil).Times(1)
+				client.On("GetAppCredentials", mock.Anything).Return([]clientmodels.Credential{}, nil).Times(1)
 			},
 			SetupStore: func(s *storemocks.Store) {
 				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
