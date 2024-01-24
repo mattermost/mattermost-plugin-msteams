@@ -795,6 +795,15 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 	return true
 }
 
+func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *model.Post, rc *model.RemoteCluster) error {
+	p.API.LogDebug("SyncMsg attachment", "fileInfo", fi, "post", post, "remote", rc.DisplayName, "pluginID", pluginID)
+	if !p.configuration.MetricsForSharedChannelsInfrastructure {
+		return nil
+	}
+	p.GetMetrics().ObserveMessageSharedChannelsEvent("attachment_created")
+	return nil
+}
+
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
 	p.API.LogDebug("SyncMsg received", "msg", msg, "remote", rc.DisplayName, "pluginID", pluginID)
 	if !p.configuration.MetricsForSharedChannelsInfrastructure {
@@ -804,9 +813,9 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteClu
 	for _, post := range msg.Posts {
 		// TODO: Handle post deletions
 		if post.CreateAt != post.UpdateAt {
-			p.metricsService.ObserveMessageSharedChannelsEvent("message_update")
+			p.GetMetrics().ObserveMessageSharedChannelsEvent("message_update")
 		} else {
-			p.metricsService.ObserveMessageSharedChannelsEvent("message_create")
+			p.GetMetrics().ObserveMessageSharedChannelsEvent("message_create")
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
@@ -816,9 +825,9 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteClu
 	for _, reaction := range msg.Reactions {
 		reaction.ChannelId = msg.ChannelId
 		if reaction.DeleteAt > 0 {
-			p.metricsService.ObserveMessageSharedChannelsEvent("reaction_removed")
+			p.GetMetrics().ObserveMessageSharedChannelsEvent("reaction_removed")
 		} else {
-			p.metricsService.ObserveMessageSharedChannelsEvent("reaction_added")
+			p.GetMetrics().ObserveMessageSharedChannelsEvent("reaction_added")
 		}
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
 			resp.ReactionsLastUpdateAt = reaction.UpdateAt

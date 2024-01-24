@@ -38,7 +38,7 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	p.metricsService.ObserveMessageHooksEvent("message_create")
+	p.GetMetrics().ObserveMessageHooksEvent("message_create")
 	_ = p.syncMessage(post)
 }
 
@@ -88,7 +88,7 @@ func (p *Plugin) syncMessage(post *model.Post) error {
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
-	p.metricsService.ObserveMessageHooksEvent("reaction_added")
+	p.GetMetrics().ObserveMessageHooksEvent("reaction_added")
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
@@ -134,7 +134,7 @@ func (p *Plugin) syncReactionAdded(reaction *model.Reaction, updateRequired bool
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	p.metricsService.ObserveMessageHooksEvent("reaction_removed")
+	p.GetMetrics().ObserveMessageHooksEvent("reaction_removed")
 	_ = p.syncReactionRemoved(reaction)
 }
 
@@ -182,7 +182,7 @@ func (p *Plugin) syncReactionRemoved(reaction *model.Reaction) error {
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
-	p.metricsService.ObserveMessageHooksEvent("message_update")
+	p.GetMetrics().ObserveMessageHooksEvent("message_update")
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
@@ -512,6 +512,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 			continue
 		}
 		attachments = append(attachments, attachment)
+		p.GetMetrics().ObserveMessageHooksEvent("attachment_created")
 		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
 	}
 
@@ -608,6 +609,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 		attachments = append(attachments, attachment)
+		p.GetMetrics().ObserveMessageHooksEvent("attachment_created")
 		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
 	}
 
