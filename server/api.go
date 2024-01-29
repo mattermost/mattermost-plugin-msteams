@@ -546,6 +546,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
 
+	a.p.updateAutomutingOnUserConnect(mmUserID)
+
 	// TODO: Remove the comment after the completion of other related tasks.
 	// bundlePath, err := a.p.API.GetBundlePath()
 	// if err != nil {

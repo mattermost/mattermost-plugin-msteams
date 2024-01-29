@@ -524,6 +524,8 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())
 	}
 
+	p.updateAutomutingOnUserDisconnect(args.UserId)
+
 	return &model.CommandResponse{}, nil
 }
 
