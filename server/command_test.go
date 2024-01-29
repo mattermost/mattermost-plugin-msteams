@@ -461,6 +461,8 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Your account has been disconnected.")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+
+				api.On("GetPreferenceForUser", testutils.GetUserID(), PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled).Return(model.Preference{}, &model.AppError{Message: "no preference found"})
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("MattermostToTeamsUserID", testutils.GetUserID()).Return(testutils.GetTeamsUserID(), nil).Times(1)

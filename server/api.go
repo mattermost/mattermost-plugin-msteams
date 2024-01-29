@@ -471,6 +471,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.updateAutomutingOnUserConnect(mmUserID)
+
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
 		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
