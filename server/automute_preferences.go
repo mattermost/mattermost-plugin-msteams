@@ -13,8 +13,17 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(c *plugin.Context, prefere
 	userIDsToEnable, userIDsToDisable := getUsersWhoChangedPlatform(preferences)
 
 	for _, userID := range userIDsToEnable {
-		_, err := p.tryEnableAutomute(userID, false, true)
-		if err != nil {
+		if connected, err := p.isUserConnected(userID); err != nil {
+			p.API.LogError(
+				"Unable to potentially enable automute for user",
+				"UserID", userID,
+				"Error", err.Error(),
+			)
+		} else if !connected {
+			continue
+		}
+
+		if _, err := p.enableAutomute(userID); err != nil {
 			p.API.LogError(
 				"Unable to mute channels for a user who set their primary platform to Teams",
 				"UserID", userID,
@@ -24,7 +33,7 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(c *plugin.Context, prefere
 	}
 
 	for _, userID := range userIDsToDisable {
-		_, err := p.tryDisableAutomute(userID)
+		_, err := p.disableAutomute(userID)
 		if err != nil {
 			p.API.LogError(
 				"Unable to unmute channels for a user who set their primary platform to Mattermost",

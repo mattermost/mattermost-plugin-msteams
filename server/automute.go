@@ -16,53 +16,16 @@ const (
 	PreferenceNameAutomuteEnabled = "automute_enabled"
 )
 
-func (p *Plugin) tryEnableAutomute(userID string, skipConnectedCheck, skipPrimaryPlatformCheck bool) (bool, error) {
-	enabled, err := p.shouldEnableAutomuteForUser(userID, skipConnectedCheck, skipPrimaryPlatformCheck)
-	if err != nil {
-		return false, err
-	} else if !enabled {
-		return false, nil
-	}
-
+// enableAutomute mutes all of the user's linked channels and DMs and sets a preference to track that automute is
+// enabled. It assumes that the caller has checked that the user is both connected and has their primary platform
+// set to MS Teams.
+func (p *Plugin) enableAutomute(userID string) (bool, error) {
 	return p.setAutomuteEnabledForUser(userID, true)
 }
 
-// shouldEnableAutomuteForUser returns true if the given user is both connected to Teams and has their primary platform
-// set to Teams.
-//
-// skipConnectedCheck and skipPrimaryPlatformCheck can be used to skip the respective checks if the calling code has
-// already performed those checks.
-func (p *Plugin) shouldEnableAutomuteForUser(userID string, skipConnectedCheck, skipPrimaryPlatformCheck bool) (bool, error) {
-	var connected bool
-	if skipConnectedCheck {
-		connected = true
-	} else {
-		var err error
-		connected, err = p.isUserConnected(userID)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	if !connected {
-		return false, nil
-	}
-
-	var teamsPrimary bool
-	if skipPrimaryPlatformCheck {
-		teamsPrimary = true
-	} else {
-		teamsPrimary = p.isUsersPrimaryPlatformTeams(userID)
-	}
-
-	if !teamsPrimary {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (p *Plugin) tryDisableAutomute(userID string) (bool, error) {
+// disableAutomute mutes all of the user's linked channels and DMs and sets a preference to track that automute is
+// disabled. It assumes that the user is either not connected to MS Teams or has their primary platform set to MM.
+func (p *Plugin) disableAutomute(userID string) (bool, error) {
 	return p.setAutomuteEnabledForUser(userID, false)
 }
 
