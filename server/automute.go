@@ -44,6 +44,10 @@ func (p *Plugin) shouldEnableAutomuteForUser(userID string, skipConnectedCheck, 
 		}
 	}
 
+	if !connected {
+		return false, nil
+	}
+
 	var teamsPrimary bool
 	if skipPrimaryPlatformCheck {
 		teamsPrimary = true
@@ -51,7 +55,7 @@ func (p *Plugin) shouldEnableAutomuteForUser(userID string, skipConnectedCheck, 
 		teamsPrimary = p.isUsersPrimaryPlatformTeams(userID)
 	}
 
-	if !connected || !teamsPrimary {
+	if !teamsPrimary {
 		return false, nil
 	}
 
