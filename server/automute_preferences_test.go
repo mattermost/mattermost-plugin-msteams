@@ -6,6 +6,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
@@ -17,15 +18,20 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		user := &model.User{Id: model.NewId()}
 		mockUserConnected(p, user.Id)
 
-		linkedChannel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		p.API.AddUserToChannel(linkedChannel.Id, user.Id, "")
+		linkedChannel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		require.Nil(t, appErr)
+		_, appErr = p.API.AddUserToChannel(linkedChannel.Id, user.Id, "")
+		require.Nil(t, appErr)
 		mockLinkedChannel(p, linkedChannel)
 
-		unlinkedChannel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, "")
+		unlinkedChannel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		require.Nil(t, appErr)
+		_, appErr = p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, "")
+		require.Nil(t, appErr)
 		mockUnlinkedChannel(p, unlinkedChannel)
 
-		dmChannel, _ := p.API.GetDirectChannel(user.Id, model.NewId())
+		dmChannel, appErr := p.API.GetDirectChannel(user.Id, model.NewId())
+		require.Nil(t, appErr)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -46,8 +52,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ := p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, user.Id)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -62,8 +67,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ = p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "true", pref.Value)
+		assertUserHasAutomuteEnabled(t, p, user.Id)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -82,8 +86,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ := p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "true", pref.Value)
+		assertUserHasAutomuteEnabled(t, p, user.Id)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -98,8 +101,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ = p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "false", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, user.Id)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -125,10 +127,13 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		unconnectedUser := &model.User{Id: model.NewId()}
 		mockUserNotConnected(p, unconnectedUser.Id)
 
-		p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, "")
-		p.API.AddUserToChannel(unlinkedChannel.Id, unconnectedUser.Id, "")
+		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, "")
+		require.Nil(t, appErr)
+		_, appErr = p.API.AddUserToChannel(unlinkedChannel.Id, unconnectedUser.Id, "")
+		require.Nil(t, appErr)
 
-		dmChannel, _ := p.API.GetDirectChannel(unconnectedUser.Id, model.NewId())
+		dmChannel, appErr := p.API.GetDirectChannel(unconnectedUser.Id, model.NewId())
+		require.Nil(t, appErr)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
@@ -139,8 +144,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ := p.API.GetPreferenceForUser(unconnectedUser.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, unconnectedUser.Id)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, unconnectedUser.Id)
@@ -153,14 +157,18 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		connectedUser := &model.User{Id: model.NewId()}
 		mockUserConnected(p, connectedUser.Id)
 
-		p.API.AddUserToChannel(linkedChannel.Id, connectedUser.Id, "")
-		p.API.AddUserToChannel(unlinkedChannel.Id, connectedUser.Id, "")
+		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, connectedUser.Id, "")
+		require.Nil(t, appErr)
+		_, appErr = p.API.AddUserToChannel(unlinkedChannel.Id, connectedUser.Id, "")
+		require.Nil(t, appErr)
 
 		unconnectedUser := &model.User{Id: model.NewId()}
 		mockUserNotConnected(p, unconnectedUser.Id)
 
-		p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, "")
-		p.API.AddUserToChannel(unlinkedChannel.Id, unconnectedUser.Id, "")
+		_, appErr = p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, "")
+		require.Nil(t, appErr)
+		_, appErr = p.API.AddUserToChannel(unlinkedChannel.Id, unconnectedUser.Id, "")
+		require.Nil(t, appErr)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
@@ -171,20 +179,17 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ := p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "true", pref.Value)
+		assertUserHasAutomuteEnabled(t, p, user.Id)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 
-		pref, _ = p.API.GetPreferenceForUser(connectedUser.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, connectedUser.Id)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, connectedUser.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, connectedUser.Id)
 
-		pref, _ = p.API.GetPreferenceForUser(unconnectedUser.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, unconnectedUser.Id)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, unconnectedUser.Id)
@@ -196,8 +201,11 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		numChannels := 1000
 		channels := make([]*model.Channel, numChannels)
 		for i := 0; i < numChannels; i++ {
-			channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-			p.API.AddUserToChannel(channel.Id, user.Id, "")
+			channel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+			require.Nil(t, appErr)
+			_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, "")
+			require.Nil(t, appErr)
+
 			mockLinkedChannel(p, channel)
 
 			channels[i] = channel
@@ -216,8 +224,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ := p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "true", pref.Value)
+		assertUserHasAutomuteEnabled(t, p, user.Id)
 
 		for _, channel := range channels {
 			assertChannelAutomuted(t, p, channel.Id, user.Id)
@@ -232,8 +239,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			},
 		})
 
-		pref, _ = p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
-		assert.Equal(t, "false", pref.Value)
+		assertUserHasAutomuteDisabled(t, p, user.Id)
 
 		for _, channel := range channels {
 			assertChannelNotAutomuted(t, p, channel.Id, user.Id)

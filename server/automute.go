@@ -37,18 +37,19 @@ func (p *Plugin) setAutomuteEnabledForUser(userID string, automuteEnabled bool) 
 
 	var membersToMute []*model.ChannelMemberIdentifier
 
-	if channels, appErr := p.API.GetChannelsForTeamForUser("", userID, true); appErr != nil {
+	channels, appErr := p.API.GetChannelsForTeamForUser("", userID, true)
+	if appErr != nil {
 		return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get channels for user %s to automute them", userID))
-	} else {
-		for _, channel := range channels {
-			if linked, err := p.canAutomuteChannel(channel); err != nil {
-				return false, err
-			} else if !linked {
-				continue
-			}
+	}
 
-			membersToMute = append(membersToMute, &model.ChannelMemberIdentifier{ChannelId: channel.Id, UserId: userID})
+	for _, channel := range channels {
+		if linked, err := p.canAutomuteChannel(channel); err != nil {
+			return false, err
+		} else if !linked {
+			continue
 		}
+
+		membersToMute = append(membersToMute, &model.ChannelMemberIdentifier{ChannelId: channel.Id, UserId: userID})
 	}
 
 	if err := p.setChannelMembersAutomuted(membersToMute, automuteEnabled); err != nil {
@@ -128,15 +129,15 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 	return nil
 }
 
-func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
-	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
-	if appErr != nil {
-		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
-		return false
-	}
+// func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
+// 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
+// 	if appErr != nil {
+// 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
+// 		return false
+// 	}
 
-	return pref.Value == PreferenceValuePlatformMSTeams
-}
+// 	return pref.Value == PreferenceValuePlatformMSTeams
+// }
 
 func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	token, err := p.store.GetTokenForMattermostUser(userID)
@@ -147,16 +148,16 @@ func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	return token != nil, nil
 }
 
-// canAutomuteChannel returns true if the channel with the given ID is either explicitly linked to a channel in
-// MS Teams or if it's a DM/GM channel that is implicitly linked to MS Teams.
-func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
-	channel, appErr := p.API.GetChannel(channelID)
-	if appErr != nil {
-		return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get channel %s to check if it's a DM/GM channel", channelID))
-	}
+// // canAutomuteChannelID returns true if the channel with the given ID is either explicitly linked to a channel in
+// // MS Teams or if it's a DM/GM channel that is implicitly linked to MS Teams.
+// func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
+// 	channel, appErr := p.API.GetChannel(channelID)
+// 	if appErr != nil {
+// 		return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get channel %s to check if it's a DM/GM channel", channelID))
+// 	}
 
-	return p.canAutomuteChannel(channel)
-}
+// 	return p.canAutomuteChannel(channel)
+// }
 
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.

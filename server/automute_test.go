@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type AutomuteAPIMock struct {
@@ -52,8 +53,12 @@ func (a *AutomuteAPIMock) GetDirectChannel(userID1, userID2 string) (*model.Chan
 		Id:   model.NewId(),
 		Type: model.ChannelTypeDirect,
 	})
-	a.AddUserToChannel(channel.Id, userID1, "")
-	a.AddUserToChannel(channel.Id, userID2, "")
+
+	_, appErr := a.AddUserToChannel(channel.Id, userID1, "")
+	require.Nil(a.t, appErr)
+	_, appErr = a.AddUserToChannel(channel.Id, userID2, "")
+	require.Nil(a.t, appErr)
+
 	return channel, nil
 }
 
@@ -137,9 +142,13 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 
 	user := &model.User{Id: model.NewId()}
 
-	channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-	p.API.AddUserToChannel(channel.Id, user.Id, "")
-	directChannel, _ := p.API.GetDirectChannel(user.Id, model.NewId())
+	channel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+	require.Nil(t, appErr)
+	_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, "")
+	require.Nil(t, appErr)
+
+	directChannel, appErr := p.API.GetDirectChannel(user.Id, model.NewId())
+	require.Nil(t, appErr)
 
 	mockLinkedChannel(p, channel)
 
@@ -216,11 +225,13 @@ func TestChannelsAutomutedPreference(t *testing.T) {
 
 	assert.False(t, plugin.getAutomuteIsEnabledForUser(user.Id))
 
-	plugin.setAutomuteIsEnabledForUser(user.Id, true)
+	err := plugin.setAutomuteIsEnabledForUser(user.Id, true)
+	require.Nil(t, err)
 
 	assert.True(t, plugin.getAutomuteIsEnabledForUser(user.Id))
 
-	plugin.setAutomuteIsEnabledForUser(user.Id, false)
+	err = plugin.setAutomuteIsEnabledForUser(user.Id, false)
+	require.Nil(t, err)
 
 	assert.False(t, plugin.getAutomuteIsEnabledForUser(user.Id))
 }
@@ -229,14 +240,16 @@ func TestCanAutomuteChannel(t *testing.T) {
 	t.Run("should return true for a linked channel", func(t *testing.T) {
 		p := newAutomuteTestPlugin(t)
 
-		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		channel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		require.Nil(t, appErr)
 		mockLinkedChannel(p, channel)
 
 		result, err := p.canAutomuteChannel(channel)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
 
-		channel, _ = p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypePrivate})
+		channel, appErr = p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypePrivate})
+		require.Nil(t, appErr)
 		mockLinkedChannel(p, channel)
 
 		result, err = p.canAutomuteChannel(channel)
@@ -247,7 +260,8 @@ func TestCanAutomuteChannel(t *testing.T) {
 	t.Run("should return true for a DM/GM channel", func(t *testing.T) {
 		p := newAutomuteTestPlugin(t)
 
-		channel, _ := p.API.GetDirectChannel(model.NewId(), model.NewId())
+		channel, appErr := p.API.GetDirectChannel(model.NewId(), model.NewId())
+		require.Nil(t, appErr)
 		mockUnlinkedChannel(p, channel)
 
 		result, err := p.canAutomuteChannel(channel)
@@ -268,7 +282,8 @@ func TestCanAutomuteChannel(t *testing.T) {
 	t.Run("should return false for an unlinked channel", func(t *testing.T) {
 		p := newAutomuteTestPlugin(t)
 
-		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		channel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
+		require.Nil(t, appErr)
 		mockUnlinkedChannel(p, channel)
 
 		result, err := p.canAutomuteChannel(channel)
@@ -277,10 +292,29 @@ func TestCanAutomuteChannel(t *testing.T) {
 	})
 }
 
+func assertUserHasAutomuteEnabled(t *testing.T, p *Plugin, userID string) {
+	t.Helper()
+
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
+
+	assert.Nil(t, appErr)
+	assert.Equal(t, "true", pref.Value)
+}
+
+func assertUserHasAutomuteDisabled(t *testing.T, p *Plugin, userID string) {
+	t.Helper()
+
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled)
+	if appErr == nil {
+		assert.Equal(t, "false", pref.Value)
+	}
+}
+
 func assertChannelAutomuted(t *testing.T, p *Plugin, channelID, userID string) {
 	t.Helper()
 
-	member, _ := p.API.GetChannelMember(channelID, userID)
+	member, appErr := p.API.GetChannelMember(channelID, userID)
+	require.Nil(t, appErr)
 
 	assert.Equal(t, "true", member.NotifyProps[NotifyPropAutomuted])
 	assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
@@ -289,7 +323,8 @@ func assertChannelAutomuted(t *testing.T, p *Plugin, channelID, userID string) {
 func assertChannelNotAutomuted(t *testing.T, p *Plugin, channelID, userID string) {
 	t.Helper()
 
-	member, _ := p.API.GetChannelMember(channelID, userID)
+	member, appErr := p.API.GetChannelMember(channelID, userID)
+	require.Nil(t, appErr)
 
 	if _, ok := member.NotifyProps[NotifyPropAutomuted]; ok {
 		assert.Equal(t, "false", member.NotifyProps[NotifyPropAutomuted])
@@ -305,14 +340,14 @@ func mockUserNotConnected(p *Plugin, userID string) {
 	p.store.(*storemocks.Store).On("GetTokenForMattermostUser", userID).Return(nil, sql.ErrNoRows)
 }
 
-func setPrimaryPlatform(p *Plugin, userID string, value string) {
-	p.API.UpdatePreferencesForUser(userID, []model.Preference{{
-		UserId:   userID,
-		Category: PreferenceCategoryPlugin,
-		Name:     PreferenceNamePlatform,
-		Value:    value,
-	}})
-}
+// func setPrimaryPlatform(p *Plugin, userID string, value string) {
+// 	_ = p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+// 		UserId:   userID,
+// 		Category: PreferenceCategoryPlugin,
+// 		Name:     PreferenceNamePlatform,
+// 		Value:    value,
+// 	}})
+// }
 
 func mockLinkedChannel(p *Plugin, channel *model.Channel) {
 	link := &storemodels.ChannelLink{
