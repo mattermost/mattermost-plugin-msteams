@@ -165,7 +165,7 @@ func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedC
 	hash := sha1.New() //nolint:gosec
 	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
 	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error(), "cipheredText", string(ciphertext))
+		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error())
 		return nil, err
 	}
 	return plaintext, nil
