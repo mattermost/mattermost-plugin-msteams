@@ -92,7 +92,7 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 		var err error
 		photo, err = a.p.GetClientForApp().GetUserAvatar(userID)
 		if err != nil {
-			a.p.API.LogWarn("Unable to get user avatar", "msteamsUserID", userID, "error", err.Error())
+			a.p.API.LogWarn("Unable to get user avatar", "teams_user_id", userID, "error", err.Error())
 			http.Error(w, "avatar not found", http.StatusNotFound)
 			return
 		}
@@ -282,7 +282,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogWarn("Unable to get the client for user", "MMUserID", userID, "error", err.Error())
+		a.p.API.LogWarn("Unable to get the client for user", "user_id", userID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -322,7 +322,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
-		a.p.API.LogWarn("Unable to get the client for user", "MMUserID", userID, "error", err.Error())
+		a.p.API.LogWarn("Unable to get the client for user", "user_id", userID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -331,7 +331,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	teamID := args[2]
 	channels, err := client.ListChannels(teamID)
 	if err != nil {
-		a.p.API.LogWarn("Unable to get the channels for MS Teams team", "TeamID", teamID, "error", err.Error())
+		a.p.API.LogWarn("Unable to get the channels for MS Teams team", "team_id", teamID, "error", err.Error())
 		data, _ := json.Marshal(out)
 		_, _ = w.Write(data)
 		return
@@ -440,7 +440,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
-		a.p.API.LogWarn("Unable to verify OAuth state", "MMUserID", mmUserID, "error", err.Error())
+		a.p.API.LogWarn("Unable to verify OAuth state", "user_id", mmUserID, "error", err.Error())
 		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
 		return
 	}
@@ -497,7 +497,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if storedToken != nil {
-		a.p.API.LogWarn("This Teams user is already connected to another user on Mattermost.", "MSTeamsUserID", msteamsUser.ID)
+		a.p.API.LogWarn("This Teams user is already connected to another user on Mattermost.", "teams_user_id", msteamsUser.ID)
 		http.Error(w, "This Teams user is already connected to another user on Mattermost.", http.StatusBadRequest)
 		return
 	}
@@ -519,16 +519,16 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogWarn("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
+			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
 		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
 		return
 	}
 
 	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
-		a.p.API.LogWarn("Unable to store the user in whitelist", "UserID", mmUserID, "error", err.Error())
+		a.p.API.LogWarn("Unable to store the user in whitelist", "user_id", mmUserID, "error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogWarn("Unable to delete the OAuth token for user", "UserID", mmUserID, "error", err.Error())
+			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
 
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
@@ -580,7 +580,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogWarn("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -620,7 +620,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogWarn("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -673,7 +673,7 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
 	if primaryPlatform != constants.PreferenceValuePlatformMM && primaryPlatform != constants.PreferenceValuePlatformMSTeams {
-		a.p.API.LogWarn("Invalid primary platform", "PrimaryPlatform", primaryPlatform)
+		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 		return
 	}

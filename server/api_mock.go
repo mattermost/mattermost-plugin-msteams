@@ -35,7 +35,7 @@ func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogWarn("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -56,7 +56,7 @@ func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogWarn("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}

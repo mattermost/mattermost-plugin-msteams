@@ -144,21 +144,21 @@ func (p *Plugin) GetURL() string {
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
-	p.API.LogInfo("Token for user disconnected", "userID", userID)
+	p.API.LogInfo("Token for user disconnected", "user_id", userID)
 	p.metricsService.ObserveOAuthTokenInvalidated()
 
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
-		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
+		p.API.LogWarn("Unable to get teams user id from mattermost to user", "user_id", userID, "error", err.Error())
 		return
 	}
 	if err2 := p.store.SetUserInfo(userID, teamsUserID, nil); err2 != nil {
-		p.API.LogWarn("Unable clean invalid token for the user", "userID", userID, "error", err2.Error())
+		p.API.LogWarn("Unable clean invalid token for the user", "user_id", userID, "error", err2.Error())
 		return
 	}
 	channel, appErr := p.API.GetDirectChannel(userID, p.GetBotUserID())
 	if appErr != nil {
-		p.API.LogWarn("Unable to get direct channel for send message to user", "userID", userID, "error", appErr.Error())
+		p.API.LogWarn("Unable to get direct channel for send message to user", "user_id", userID, "error", appErr.Error())
 		return
 	}
 	_, appErr = p.API.CreatePost(&model.Post{
@@ -167,7 +167,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams-sync connect` slash command in any Mattermost channel.",
 	})
 	if appErr != nil {
-		p.API.LogWarn("Unable to send direct message to user", "userID", userID, "error", appErr.Error())
+		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
 	}
 }
 
@@ -573,7 +573,7 @@ func (p *Plugin) syncUsers() {
 		if isUserPresent {
 			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
 				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
-					p.API.LogWarn("Unable to store Mattermost user ID vs Teams user ID in sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					p.API.LogWarn("Unable to store Mattermost user ID vs Teams user ID in sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 				}
 			}
 
@@ -581,17 +581,17 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogInfo("Activating the inactive user", "TeamsUserID", msUser.ID)
+						p.API.LogInfo("Activating the inactive user", "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
-							p.API.LogWarn("Unable to activate the user", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+							p.API.LogWarn("Unable to activate the user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
 					}
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogInfo("Deactivating the Mattermost user account", "TeamsUserID", msUser.ID)
+						p.API.LogInfo("Deactivating the Mattermost user account", "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-							p.API.LogWarn("Unable to deactivate the Mattermost user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+							p.API.LogWarn("Unable to deactivate the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
 					}
 
@@ -600,17 +600,17 @@ func (p *Plugin) syncUsers() {
 
 				user, err := p.API.GetUser(mmUser.Id)
 				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "MMUserID", mmUser.Id, "error", err.Error())
+					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "error", err.Error())
 					continue
 				}
 
 				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "MMUserID", mmUser.Id, "AuthService", configuration.SyntheticUserAuthService)
+					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "auth_service", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
 						AuthData:    &authData,
 					}); err != nil {
-						p.API.LogWarn("Unable to update user auth service during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+						p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					}
 				}
 			}
@@ -621,9 +621,9 @@ func (p *Plugin) syncUsers() {
 			if !syncGuestUsers {
 				if isUserPresent && isRemoteUser(mmUser) {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogInfo("Deactivating the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID)
+					p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogWarn("Unable to deactivate the guest user account", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+						p.API.LogWarn("Unable to deactivate the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					}
 				}
 
@@ -645,11 +645,11 @@ func (p *Plugin) syncUsers() {
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
-				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID, "AuthService", configuration.SyntheticUserAuthService)
+				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
 				newMMUser.AuthService = configuration.SyntheticUserAuthService
 				newMMUser.AuthData = &authData
 			} else {
-				p.API.LogInfo("Creating new synthetic user", "TeamsUserID", msUser.ID)
+				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID)
 				newMMUser.Password = p.GenerateRandomPassword()
 			}
 
@@ -666,7 +666,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogWarn("Unable to create new MM user during sync job", "TeamsUserID", msUser.ID, "error", appErr.Error())
+					p.API.LogWarn("Unable to create new MM user during sync job", "teams_user_id", msUser.ID, "error", appErr.Error())
 					break
 				}
 
@@ -684,11 +684,11 @@ func (p *Plugin) syncUsers() {
 				Value:    "0",
 			}}
 			if prefErr := p.API.UpdatePreferencesForUser(newUser.Id, preferences); prefErr != nil {
-				p.API.LogWarn("Unable to disable email notifications for new user", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", prefErr.Error())
+				p.API.LogWarn("Unable to disable email notifications for new user", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", prefErr.Error())
 			}
 
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
-				p.API.LogWarn("Unable to set user info during sync user job", "MMUserID", newUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+				p.API.LogWarn("Unable to set user info during sync user job", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 			}
 		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
 			mmUser.Username = username
@@ -702,7 +702,7 @@ func (p *Plugin) syncUsers() {
 						continue
 					}
 
-					p.API.LogWarn("Unable to update user during sync user job", "MMUserID", mmUser.Id, "TeamsUserID", msUser.ID, "error", err.Error())
+					p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					break
 				}
 

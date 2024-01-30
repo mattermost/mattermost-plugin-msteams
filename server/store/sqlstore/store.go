@@ -1062,7 +1062,7 @@ func (s *SQLStore) PrefillWhitelist() error {
 			}
 
 			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogError("Unable to store user in whitelist", "UserID", connectedUserID, "error", err.Error())
+				s.api.LogError("Unable to store user in whitelist", "user_id", connectedUserID, "error", err.Error())
 			}
 		}
 

@@ -95,13 +95,13 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "error", err.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user ID from Teams user ID", "teams_user_id", mention.UserID, "error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to get MM user details", "MMUserID", mmUserID, "error", getErr.DetailedError)
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user details", "user_id", mmUserID, "error", getErr.DetailedError)
 				continue
 			}
 
@@ -141,7 +141,7 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 			emojiData = emojiData[emojiIdx:] + "</emoji>"
 			doc, err := html.Parse(strings.NewReader(emojiData))
 			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "EmojiData", emojiData, "error", err.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "emoji_data", emojiData, "error", err.Error())
 				continue
 			}
 

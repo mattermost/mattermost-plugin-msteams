@@ -893,7 +893,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -901,7 +901,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
@@ -1352,7 +1352,7 @@ func (tc *ClientImpl) GetUser(userID string) (*clientmodels.User, error) {
 	}
 
 	if u.GetId() == nil {
-		tc.logService.Debug("Received empty user ID from MS Graph", "UserID", userID)
+		tc.logService.Debug("Received empty user ID from MS Graph", "user_id", userID)
 		return nil, errors.New("received empty user ID from MS Graph")
 	}
 	user := clientmodels.User{

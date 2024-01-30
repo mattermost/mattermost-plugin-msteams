@@ -122,7 +122,7 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 			m.CreateAndSaveChatSubscription(nil)
 		} else {
 			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret, Certificate: m.certificate}); err != nil {
-				m.api.LogWarn("Unable to store all chats subscription in store", "subscriptionID", allChatsSubscription.ID, "error", err.Error())
+				m.api.LogWarn("Unable to store all chats subscription in store", "subscription_id", allChatsSubscription.ID, "error", err.Error())
 			}
 		}
 
@@ -196,7 +196,7 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 
 	newSubscription, err := m.client.SubscribeToChannel(teamID, channelID, m.baseURL, m.webhookSecret, m.certificate)
 	if err != nil {
-		m.api.LogError("Unable to create new subscription for the channel", "channelID", channelID, "error", err.Error())
+		m.api.LogError("Unable to create new subscription for the channel", "channel_id", channelID, "error", err.Error())
 		return
 	}
 
@@ -204,12 +204,12 @@ func (m *Monitor) recreateChannelSubscription(subscriptionID, teamID, channelID,
 
 	if subscriptionID != "" {
 		if err = m.store.DeleteSubscription(subscriptionID); err != nil {
-			m.api.LogWarn("Unable to delete old channel subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+			m.api.LogWarn("Unable to delete old channel subscription from DB", "subscription_id", subscriptionID, "error", err.Error())
 		}
 	}
 
 	if err = m.store.SaveChannelSubscription(storemodels.ChannelSubscription{SubscriptionID: newSubscription.ID, TeamID: teamID, ChannelID: channelID, Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate}); err != nil {
-		m.api.LogError("Unable to store new subscription in DB", "subscriptionID", newSubscription.ID, "error", err.Error())
+		m.api.LogError("Unable to store new subscription in DB", "subscription_id", newSubscription.ID, "error", err.Error())
 		return
 	}
 }
@@ -227,7 +227,7 @@ func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) erro
 	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
 
 	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogWarn("Unable to delete old global subscription from DB", "subscriptionID", subscriptionID, "error", err.Error())
+		m.api.LogWarn("Unable to delete old global subscription from DB", "subscription_id", subscriptionID, "error", err.Error())
 	}
 	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: secret, ExpiresOn: newSubscription.ExpiresOn, Certificate: m.certificate})
 }

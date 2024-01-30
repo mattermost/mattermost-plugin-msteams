@@ -200,7 +200,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
 	channelsSubscription, err := p.GetClientForApp().SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
-		p.API.LogWarn("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
+		p.API.LogWarn("Unable to subscribe to the channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
@@ -260,12 +260,12 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 	}
 
 	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogWarn("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+		p.API.LogWarn("Unable to delete the subscription from the DB", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		return &model.CommandResponse{}, nil
 	}
 
 	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+		p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil
@@ -402,7 +402,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.GetClientForApp().GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogWarn("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "error", err.Error())
+			p.API.LogWarn("Unable to get the MS Teams channel information for the team", "team_id", teamID, "error", err.Error())
 			errorsFound = true
 		}
 
@@ -422,7 +422,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
-		p.API.LogWarn("Error in checking if a user is present in whitelist", "UserID", args.UserId, "error", err.Error())
+		p.API.LogWarn("Error in checking if a user is present in whitelist", "user_id", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
@@ -467,7 +467,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
-		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "error", err.Error())
+		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
@@ -521,7 +521,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogWarn("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "error", err.Error())
+		p.API.LogWarn("Unable to delete the last prompt timestamp for the user", "user_id", args.UserId, "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil

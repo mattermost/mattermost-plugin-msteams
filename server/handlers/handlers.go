@@ -109,7 +109,7 @@ func (ah *ActivityHandler) Start() {
 		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
 			if time.Since(lastUpdateAt.(time.Time)) <= 5*time.Minute {
 				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
-					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscriptionID", subscriptionID.(string), "lastUpdateAt", lastUpdateAt.(time.Time))
+					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscription_id", subscriptionID.(string), "last_update_at", lastUpdateAt.(time.Time))
 				}
 			}
 			return true
@@ -181,7 +181,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 
 		ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
 		if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to store the subscription new expiry date", "subscriptionID", event.SubscriptionID, "error", err.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to store the subscription new expiry date", "subscription_id", event.SubscriptionID, "error", err.Error())
 		}
 	}
 
@@ -191,7 +191,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
 	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
 	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get channel subscription", "subscriptionID", subscriptionID, "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get channel subscription", "subscription_id", subscriptionID, "error", err.Error())
 		return false
 	}
 
@@ -288,7 +288,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "MMUserID", mmUserID, "error", appErr.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "user_id", mmUserID, "error", appErr.Error())
 			}
 		}
 
@@ -405,12 +405,12 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		if postErr != nil {
 			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
 				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
-					ah.plugin.GetAPI().LogWarn("Unable to recover the post", "postID", postInfo.MattermostID, "error", err)
+					ah.plugin.GetAPI().LogWarn("Unable to recover the post", "post_id", postInfo.MattermostID, "error", err)
 					return metrics.DiscardedReasonOther
 				}
 				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 				if postErr != nil {
-					ah.plugin.GetAPI().LogWarn("Unable to find the original post after recovery", "postID", postInfo.MattermostID, "error", postErr.Error())
+					ah.plugin.GetAPI().LogWarn("Unable to find the original post after recovery", "post_id", postInfo.MattermostID, "error", postErr.Error())
 					return metrics.DiscardedReasonOther
 				}
 			} else {
@@ -438,11 +438,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
 		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
 			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to recover the post", "PostID", post.Id, "error", err)
+				ah.plugin.GetAPI().LogWarn("Unable to recover the post", "post_id", post.Id, "error", err)
 				return metrics.DiscardedReasonOther
 			}
 		} else {
-			ah.plugin.GetAPI().LogWarn("Unable to update post", "PostID", post.Id, "error", appErr)
+			ah.plugin.GetAPI().LogWarn("Unable to update post", "post_id", post.Id, "error", appErr)
 			return metrics.DiscardedReasonOther
 		}
 	}
@@ -537,7 +537,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 
 	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
 	if appErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "msgID", postInfo.MattermostID, "error", appErr)
+		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "post_id", postInfo.MattermostID, "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
 
@@ -549,7 +549,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 func (ah *ActivityHandler) isActiveUser(userID string) bool {
 	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
 	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "mmuserID", userID, "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "user_id", userID, "error", err.Error())
 		return false
 	}
 
@@ -563,7 +563,7 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	user, userErr := ah.plugin.GetAPI().GetUser(userID)
 	if userErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get MM user", "mmuserID", userID, "error", userErr.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to get MM user", "user_id", userID, "error", userErr.Error())
 		return false
 	}
 
