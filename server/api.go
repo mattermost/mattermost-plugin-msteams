@@ -112,20 +112,17 @@ func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
 func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
 	if err != nil {
-		a.p.API.LogWarn("Unable to decode encrypted data", "error", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to decode encrypted data")
 	}
 	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
 	if err != nil {
-		a.p.API.LogWarn("Unable to decode data signature", "error", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to decode data signature")
 	}
 
 	mac := hmac.New(sha256.New, key)
 	mac.Write(ciphertext)
 	expectedMac := mac.Sum(nil)
 	if !hmac.Equal(expectedMac, msDataSignature) {
-		a.p.API.LogWarn("Invalid data signature", "error", errors.New("The key signature doesn't match"))
 		return nil, errors.New("The key signature doesn't match")
 	}
 	block, err := aes.NewCipher(key)
@@ -153,20 +150,17 @@ func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.E
 func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
 	if err != nil {
-		a.p.API.LogWarn("Unable to decode key", "error", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to decode key")
 	}
 
 	key, err := a.p.getPrivateKey()
 	if err != nil {
-		a.p.API.LogWarn("Unable to get private key", "error", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to get private key")
 	}
 	hash := sha1.New() //nolint:gosec
 	plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, key, ciphertext, nil)
 	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to decrypt data")
 	}
 	return plaintext, nil
 }

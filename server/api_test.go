@@ -191,7 +191,7 @@ func TestSubscriptionNewMesage(t *testing.T) {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
 			},
 			http.StatusBadRequest,
-			"invalid certificate key\n\n",
+			"Unable to get private key: invalid certificate key\n\n",
 		},
 		{
 			"Non encrypted message on encrypted subscription",
