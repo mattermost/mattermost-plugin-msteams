@@ -9,9 +9,13 @@ func (m *Monitor) checkCredentials(force bool) {
 		return
 	}
 
+	if m.applicationID == "" {
+		return
+	}
+
 	credentials, err := m.client.GetAppCredentials(m.applicationID)
 	if err != nil {
-		m.api.LogDebug("Error getting client secret expire date", "error", err.Error())
+		m.api.LogWarn("Error getting client secret expire date", "error", err.Error())
 		return
 	}
 
