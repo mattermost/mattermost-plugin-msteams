@@ -80,8 +80,8 @@ func (_m *Metrics) ObserveChangeEventQueueRejected() {
 	_m.Called()
 }
 
-// ObserveClientSecretExpireDate provides a mock function with given fields: secretID, expireDate
-func (_m *Metrics) ObserveClientSecretExpireDate(secretID string, expireDate time.Time) {
+// ObserveClientSecretEndDateTime provides a mock function with given fields: secretID, expireDate
+func (_m *Metrics) ObserveClientSecretEndDateTime(secretID string, expireDate time.Time) {
 	_m.Called(secretID, expireDate)
 }
 
