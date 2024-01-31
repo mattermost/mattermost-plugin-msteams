@@ -133,6 +133,11 @@ func (_m *Metrics) ObserveMessageSharedChannelsEvent(event string) {
 	_m.Called(event)
 }
 
+// ObserveOAuthTokenInvalidated provides a mock function with given fields:
+func (_m *Metrics) ObserveOAuthTokenInvalidated() {
+	_m.Called()
+}
+
 // ObserveReaction provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveReaction(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
