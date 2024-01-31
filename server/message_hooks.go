@@ -39,7 +39,9 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	p.GetMetrics().ObserveMessageHooksEvent("message_create")
-	_ = p.syncMessage(post)
+	if err := p.syncMessage(post); err != nil {
+		p.API.LogWarn("Failed to handle MessageHasBeenPosted", "postID", post.ID, "error", err.Error())
+	}
 }
 
 func (p *Plugin) syncMessage(post *model.Post) error {

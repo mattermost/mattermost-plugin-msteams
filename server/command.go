@@ -233,7 +233,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		if err2 := p.store.DeleteSubscription(channelsSubscription.ID); err2 != nil {
 			p.API.LogDebug("Unable to rollback the subscription creation", "channelID", channelLink.MattermostChannelID, "error", err2.Error())
 		}
-		p.API.LogDebug("Unable to share the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
+		p.API.LogWarn("Unable to share the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to share the channel")
 	}
 
@@ -282,7 +282,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		if err2 := p.store.SaveChannelSubscription(*subscription); err2 != nil {
 			p.API.LogDebug("Unable to rollback the subscription deletion", "subscriptionID", subscription.SubscriptionID, "error", err2.Error())
 		}
-		p.API.LogDebug("Unable to unshare the channel", "channelID", link.MattermostChannelID, "error", err.Error())
+		p.API.LogWarn("Unable to unshare the channel", "channelID", link.MattermostChannelID, "error", err.Error())
 		return &model.CommandResponse{}, nil
 	}
 

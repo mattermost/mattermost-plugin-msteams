@@ -313,7 +313,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemHooks,
 		Name:        "events_total",
-		Help:        "The total number of message hooks events (message creation and update, reactions creation and update).",
+		Help:        "The total number of hook events related to message processing.",
 		ConstLabels: additionalLabels,
 	}, []string{"event"})
 	m.registry.MustRegister(m.messageHooksEvents)
@@ -322,7 +322,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemSharedChannels,
 		Name:        "events_total",
-		Help:        "The total number of message events through shared channels (message creation and update, reactions creation and update).",
+		Help: "The total number of shared channel events related to message processing.",
 		ConstLabels: additionalLabels,
 	}, []string{"event"})
 	m.registry.MustRegister(m.messageSharedChannelsEvents)

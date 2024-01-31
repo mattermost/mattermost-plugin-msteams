@@ -459,7 +459,7 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-		Displayname:  "ms_teams_connect",
+		Displayname: "MS Teams Plugin",
 		PluginID:     pluginID,
 		CreatorID:    botID,
 		AutoShareDMs: true,

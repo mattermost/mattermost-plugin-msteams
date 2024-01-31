@@ -130,10 +130,10 @@
             "default": false
         },{
             "key": "metricsForSharedChannelsInfrastructure",
-            "display_name": "Add metrics Shared Channels Service (Not used yet)",
+            "display_name": "Initialize and monitor the durable queue service",
             "type": "bool",
-            "help_text": "When true, the system collect metrics about Shared Channels Service usage by the plugin without using it.",
-            "default": false
+            "help_text": "When true, the the durable queue service is enabled with metrics to evaluate the overhead. Message delivery is unaffected.",
+            "default": true
         },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
