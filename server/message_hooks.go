@@ -79,9 +79,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message sent", "error", err.Error())
-		return
 	}
-	return
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
@@ -91,6 +89,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
 		updateRequired = !ignoreHookForReaction
 	}
+
 	p.API.LogDebug("Reaction added hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
@@ -121,9 +120,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName, updateRequired); err != nil {
 		p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
-		return
 	}
-	return
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
@@ -133,7 +130,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		p.API.LogInfo("Ignore reaction that has been triggered from the plugin handler")
 		return
 	}
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil || postInfo == nil {
 		p.API.LogDebug("Unable to find Teams post corresponding to MM post", "mmPostID", reaction.PostId)
@@ -156,7 +152,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
-				return
 			}
 		}
 		return
@@ -165,9 +160,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message reaction unset", "error", err.Error())
-		return
 	}
-	return
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
@@ -177,6 +170,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
 		updateRequired = !ignoreHook
 	}
+
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
 		return
@@ -226,9 +220,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
 		p.API.LogError("Unable to handle message update", "error", err.Error())
-		return
 	}
-	return
 }
 
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
