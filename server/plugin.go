@@ -145,6 +145,8 @@ func (p *Plugin) GetURL() string {
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	p.API.LogDebug("OnDisconnectedTokenHandler", "userID", userID)
+	p.metricsService.ObserveOAuthTokenInvalidated()
+
 	teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
 	if err != nil {
 		p.API.LogWarn("Unable to get teams user id from mattermost to user", "userID", userID, "error", err.Error())
@@ -182,9 +184,6 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	if token.Expiry.Before(time.Now()) {
 		newToken, err := client.RefreshToken(token)
 		if err != nil {
-			if msteams.IsOAuthError(err) {
-				p.OnDisconnectedTokenHandler(userID)
-			}
 			return nil, err
 		}
 		teamsUserID, err := p.store.MattermostToTeamsUserID(userID)

@@ -123,7 +123,7 @@ type ChatMessageAttachment struct {
 }
 
 func (e *GraphAPIError) Error() string {
-	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
+	return fmt.Sprintf("code: %s, status_code: %d, message: %s", e.Code, e.StatusCode, e.Message)
 }
 
 func IsOAuthError(err error) bool {

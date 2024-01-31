@@ -9,10 +9,11 @@ package client_disconnectionlayer
 import (
 	"errors"
 	"io"
+	"net/http"
 	"time"
-    "net/http"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -20,20 +21,20 @@ import (
 
 type {{.Name}} struct {
 	msteams.Client
-    userID string
-    onDisconnect func(userID string)
+	userID string
+	onDisconnect func(userID string)
 }
 
 {{range $index, $element := .Methods}}
 {{if $element.Results | errorPresent }}
 func (c *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$element.Results | joinResultsForSignature}} {
 	{{genResultsVars $element.Results false }} := c.Client.{{$index}}({{$element.Params | joinParams}})
-    if err != nil {
-        var graphErr *msteams.GraphAPIError
-		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {
-            c.onDisconnect(c.userID)
-        }
-    }
+	if err != nil {
+		var graphErr *msteams.GraphAPIError
+		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {
+			c.onDisconnect(c.userID)
+		}
+	}
 	{{ with (genResultsVars $element.Results false ) -}}
 	return {{ . }}
 	{{- end }}
@@ -44,7 +45,7 @@ func (c *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$ele
 func New(childClient msteams.Client, userID string, onDisconnect func(userID string)) *{{.Name}} {
 	return &{{.Name}}{
 		Client: childClient,
-        userID: userID,
-        onDisconnect: onDisconnect,
+		userID: userID,
+		onDisconnect: onDisconnect,
 	}
 }
