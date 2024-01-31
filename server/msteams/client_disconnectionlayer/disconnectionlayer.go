@@ -84,7 +84,7 @@ func (c *ClientDisconnectionLayer) GetAppCredentials(applicationID string) ([]cl
 	result, err := c.Client.GetAppCredentials(applicationID)
 	if err != nil {
 		var graphErr *msteams.GraphAPIError
-		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {
+		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {
 			c.onDisconnect(c.userID)
 		}
 	}
@@ -349,17 +349,6 @@ func (c *ClientDisconnectionLayer) RefreshToken(token *oauth2.Token) (*oauth2.To
 	if err != nil {
 		var graphErr *msteams.GraphAPIError
 		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {
-			c.onDisconnect(c.userID)
-		}
-	}
-	return result, err
-}
-
-func (c *ClientDisconnectionLayer) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
-	result, err := c.Client.RefreshToken(token)
-	if err != nil {
-		var graphErr *msteams.GraphAPIError
-		if errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized {
 			c.onDisconnect(c.userID)
 		}
 	}
