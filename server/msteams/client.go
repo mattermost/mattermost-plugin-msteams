@@ -289,9 +289,9 @@ func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Cr
 	credentialsList := application.GetPasswordCredentials()
 	for _, credential := range credentialsList {
 		credentials = append(credentials, clientmodels.Credential{
-			ID:         credential.GetKeyId().String(),
-			Name:       *credential.GetDisplayName(),
-			ExpireDate: *credential.GetEndDateTime(),
+			ID:          credential.GetKeyId().String(),
+			Name:        *credential.GetDisplayName(),
+			EndDateTime: *credential.GetEndDateTime(),
 		})
 	}
 	return credentials, nil

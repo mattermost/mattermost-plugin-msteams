@@ -16,6 +16,6 @@ func (m *Monitor) checkCredentials(force bool) {
 	}
 
 	for _, credential := range credentials {
-		m.metrics.ObserveClientSecretExpireDate(credential.ID, credential.ExpireDate)
+		m.metrics.ObserveClientSecretEndDateTime(credential.ID, credential.EndDateTime)
 	}
 }

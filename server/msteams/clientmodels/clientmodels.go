@@ -98,7 +98,7 @@ type ActivityIds struct {
 }
 
 type Credential struct {
-	Name       string
-	ID         string
-	ExpireDate time.Time
+	Name        string
+	ID          string
+	EndDateTime time.Time
 }

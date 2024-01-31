@@ -93,7 +93,7 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
-	ObserveClientSecretExpireDate(secretID string, expireDate time.Time)
+	ObserveClientSecretEndDateTime(secretID string, expireDate time.Time)
 }
 
 type InstanceInfo struct {
@@ -135,7 +135,7 @@ type metrics struct {
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
 	activeWorkersTotal            *prometheus.GaugeVec
-	clientSecretsExpireDate       *prometheus.GaugeVec
+	clientSecretsEndDateTime      *prometheus.GaugeVec
 
 	storeTime   *prometheus.HistogramVec
 	workersTime *prometheus.HistogramVec
@@ -386,14 +386,14 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"worker"})
 	m.registry.MustRegister(m.activeWorkersTotal)
 
-	m.clientSecretsExpireDate = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	m.clientSecretsEndDateTime = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemMSGraph,
-		Name:        "client_secrets_expire_date",
-		Help:        "The expire date of the current application client secrets.",
+		Name:        "client_secrets_end_date_time",
+		Help:        "The end date and time of the current application client secrets.",
 		ConstLabels: additionalLabels,
 	}, []string{"secret_id"})
-	m.registry.MustRegister(m.clientSecretsExpireDate)
+	m.registry.MustRegister(m.clientSecretsEndDateTime)
 
 	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
@@ -566,9 +566,9 @@ func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	}
 }
 
-func (m *metrics) ObserveClientSecretExpireDate(secretID string, expireDate time.Time) {
+func (m *metrics) ObserveClientSecretEndDateTime(secretID string, expireDate time.Time) {
 	if m != nil {
-		m.clientSecretsExpireDate.With(prometheus.Labels{"secret_id": secretID}).Set(float64(expireDate.UnixNano()) / 1e9)
+		m.clientSecretsEndDateTime.With(prometheus.Labels{"secret_id": secretID}).Set(float64(expireDate.UnixNano()) / 1e9)
 	}
 }
 
