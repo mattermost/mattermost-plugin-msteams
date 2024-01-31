@@ -459,7 +459,7 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-		Displayname: "MS Teams Plugin",
+		Displayname:  "MS Teams Plugin",
 		PluginID:     pluginID,
 		CreatorID:    botID,
 		AutoShareDMs: true,
@@ -828,7 +828,6 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 }
 
 func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *model.Post, rc *model.RemoteCluster) error {
-	p.API.LogDebug("SyncMsg attachment", "fileInfo", fi, "post", post, "remote", rc.DisplayName, "pluginID", pluginID)
 	if !p.configuration.MetricsForSharedChannelsInfrastructure {
 		return nil
 	}
@@ -837,7 +836,6 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *mod
 }
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
-	p.API.LogDebug("SyncMsg received", "msg", msg, "remote", rc.DisplayName, "pluginID", pluginID)
 	if !p.configuration.MetricsForSharedChannelsInfrastructure {
 		return model.SyncResponse{}, nil
 	}
