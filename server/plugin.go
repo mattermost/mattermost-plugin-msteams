@@ -458,35 +458,36 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
-	remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-		Displayname:  "MS Teams Plugin",
-		PluginID:     pluginID,
-		CreatorID:    botID,
-		AutoShareDMs: true,
-		AutoInvited:  true,
-	})
-	if err != nil {
-		return err
-	}
-	p.remoteID = remoteID
-
-	linkedChannels, err := p.store.ListChannelLinks()
-	if err != nil {
-		return err
-	}
-	for _, linkedChannel := range linkedChannels {
-		p.API.LogDebug("LINKED CHANNEL", "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
-		_, err = p.API.ShareChannel(&model.SharedChannel{
-			ChannelId: linkedChannel.MattermostChannelID,
-			TeamId:    linkedChannel.MattermostTeamID,
-			Home:      true,
-			ReadOnly:  false,
-			CreatorId: botID,
-			RemoteId:  p.remoteID,
-			ShareName: linkedChannel.MattermostChannelID,
+	if p.getConfiguration().MetricsForSharedChannelsInfrastructure {
+		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+			Displayname:  "MS Teams Plugin",
+			PluginID:     pluginID,
+			CreatorID:    botID,
+			AutoShareDMs: true,
+			AutoInvited:  true,
 		})
 		if err != nil {
-			p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+			return err
+		}
+		p.remoteID = remoteID
+
+		linkedChannels, err := p.store.ListChannelLinks()
+		if err != nil {
+			return err
+		}
+		for _, linkedChannel := range linkedChannels {
+			_, err = p.API.ShareChannel(&model.SharedChannel{
+				ChannelId: linkedChannel.MattermostChannelID,
+				TeamId:    linkedChannel.MattermostTeamID,
+				Home:      true,
+				ReadOnly:  false,
+				CreatorId: botID,
+				RemoteId:  p.remoteID,
+				ShareName: linkedChannel.MattermostChannelID,
+			})
+			if err != nil {
+				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+			}
 		}
 	}
 
