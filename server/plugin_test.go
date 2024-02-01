@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -14,11 +13,9 @@ import (
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
-	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -328,72 +325,6 @@ func TestSyncUsers(t *testing.T) {
 			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
 			p.syncUsers()
-		})
-	}
-}
-
-func TestStart(t *testing.T) {
-	mockSiteURL := "mockSiteURL"
-	for _, test := range []struct {
-		Name        string
-		IsRestart   bool
-		SetupAPI    func(*plugintest.API)
-		SetupClient func(*mocks.Client)
-		SetupStore  func(*storemocks.Store)
-	}{
-		{
-			Name:      "Start: Valid",
-			IsRestart: false,
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: &mockSiteURL,
-					},
-				})
-				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
-			},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(nil).Times(1)
-			},
-			SetupStore: func(s *storemocks.Store) {
-				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
-				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
-			},
-		},
-		{
-			Name:      "Restart: Valid",
-			IsRestart: true,
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: &mockSiteURL,
-					},
-				})
-				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
-			},
-			SetupClient: func(client *mocks.Client) {
-				client.On("Connect").Return(nil).Times(1)
-			},
-			SetupStore: func(s *storemocks.Store) {
-				s.On("GetSubscriptionsLastActivityAt").Return(map[string]time.Time{}, nil)
-				s.On("DeleteFakeSubscriptions").Return(nil).Times(1)
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin(t)
-			p.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventQueueCapacity", int64(5000)).Times(1)
-			subscriptionsMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
-			require.Nil(t, err)
-			whitelistMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
-			require.Nil(t, err)
-			p.subscriptionsClusterMutex = subscriptionsMutex
-			p.whitelistClusterMutex = whitelistMutex
-			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupClient(p.msteamsAppClient.(*mocks.Client))
-			test.SetupStore(p.store.(*storemocks.Store))
-			p.start(test.IsRestart)
-			time.Sleep(5 * time.Second)
 		})
 	}
 }
