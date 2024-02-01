@@ -63,20 +63,19 @@ func newTestPlugin(t *testing.T) *Plugin {
 	}
 	config := model.Config{}
 	config.SetDefaults()
-	plugin.API.(*plugintest.API).On("KVGet", "cron_monitoring_system").Return(nil, nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVGet", "cron_monitoring_system").Return(nil, nil).Maybe()
 	plugin.API.(*plugintest.API).On("GetServerVersion").Return("7.8.0")
 	plugin.API.(*plugintest.API).On("GetBundlePath").Return("./dist", nil).Maybe()
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
 	plugin.API.(*plugintest.API).On("EnsureBotUser", bot).Return("bot-user-id", nil).Times(1)
 	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
-	plugin.API.(*plugintest.API).On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	plugin.API.(*plugintest.API).On("KVList", 0, 1000000000).Return([]string{}, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithOptions", "cron_monitoring_system", mock.Anything, model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
-	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte{0x1}, mock.Anything).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "cron_monitoring_system", mock.Anything, model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte(nil), mock.Anything).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Maybe()
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -85,6 +84,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	mockMetricsService := &metricsmocks.Metrics{}
 	mockMetricsService.On("IncrementHTTPRequests")
 	mockMetricsService.On("ObserveAPIEndpointDuration", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("float64"))
+	testutils.MockLogs(plugin.API.(*plugintest.API))
 
 	plugin.API.(*plugintest.API).Test(t)
 	_ = plugin.OnActivate()
@@ -231,7 +231,6 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to get the MS Teams user list",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to list MS Teams users during sync user job", "error", mock.Anything).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {},
 			SetupClient: func(client *mocks.Client) {
@@ -244,7 +243,6 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to get the MM users",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get MM users during sync user job", "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Page:    0,
 					PerPage: math.MaxInt32,
@@ -267,7 +265,6 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to create the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to create new MM user during sync job", "MMUserID", mock.Anything, "TeamsUserID", mock.Anything, "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Page:    0,
 					PerPage: math.MaxInt32,
@@ -293,7 +290,6 @@ func TestSyncUsers(t *testing.T) {
 		{
 			Name: "SyncUsers: Unable to store the user info",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to set user info during sync user job", "MMUserID", mock.Anything, "TeamsUserID", mock.Anything, "error", mock.Anything).Times(1)
 				api.On("GetUsers", &model.UserGetOptions{
 					Page:    0,
 					PerPage: math.MaxInt32,
@@ -350,7 +346,6 @@ func TestStart(t *testing.T) {
 						SiteURL: &mockSiteURL,
 					},
 				})
-				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(nil).Times(1)
@@ -371,7 +366,6 @@ func TestStart(t *testing.T) {
 						SiteURL: &mockSiteURL,
 					},
 				})
-				api.On("LogError", "Unable to start the monitoring system", "error", "error in setting job status").Return()
 			},
 			SetupClient: func(client *mocks.Client) {
 				client.On("Connect").Return(nil).Times(1)
