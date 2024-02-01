@@ -439,6 +439,10 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	if p.store == nil {
+		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
+			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
+		}
+
 		db, dbErr := p.apiClient.Store.GetMasterDB()
 		if dbErr != nil {
 			return dbErr
@@ -446,7 +450,6 @@ func (p *Plugin) OnActivate() error {
 
 		store := sqlstore.New(
 			db,
-			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
