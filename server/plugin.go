@@ -489,6 +489,10 @@ func (p *Plugin) OnActivate() error {
 				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
 			}
 		}
+	} else {
+		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
+		}
 	}
 
 	p.apiHandler = NewAPI(p, p.store)
@@ -829,17 +833,11 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 }
 
 func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *model.Post, rc *model.RemoteCluster) error {
-	if !p.configuration.MetricsForSharedChannelsInfrastructure {
-		return nil
-	}
 	p.GetMetrics().ObserveMessageSharedChannelsEvent("attachment_created")
 	return nil
 }
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
-	if !p.configuration.MetricsForSharedChannelsInfrastructure {
-		return model.SyncResponse{}, nil
-	}
 	var resp model.SyncResponse
 	for _, post := range msg.Posts {
 		// TODO: Handle post deletions
