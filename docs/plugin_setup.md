@@ -24,5 +24,5 @@
     -**Synthetic User Auth Service**: This setting sets the authentication service to be used when creating or updating synthetic users. This should match the service used for member user access to Mattermost.
     -**Synthetic User Auth Data**: This setting sets the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID attribute.
 
-    ![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/100013900/9f0f4f29-f9a2-433b-b90c-444e292ca221)
+    ![image](https://github.com/mattermost/mattermost-plugin-msteams/assets/100013900/9f0f4f29-f9a2-433b-b90c-444e292ca221)
 

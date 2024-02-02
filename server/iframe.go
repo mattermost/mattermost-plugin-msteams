@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 )
 
 const (
@@ -159,7 +159,7 @@ var manifestJSON = `{
 	"packageName": "{{PACKAGE_NAME}}",
 	"developer": {
 	  "name": "Mattermost",
-	  "websiteUrl": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
+	  "websiteUrl": "https://github.com/mattermost/mattermost-plugin-msteams",
 	  "privacyUrl": "https://mattermost.com/privacy-policy/",
 	  "termsOfUseUrl": "https://mattermost.com/terms-of-use/"
 	},

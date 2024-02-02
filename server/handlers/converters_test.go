@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
-	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
+	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	mocksStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +62,7 @@ func TestMsgToPost(t *testing.T) {
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,
-					"override_icon_url":                    "https://example.com//public/msteams-sync-icon.svg",
+					"override_icon_url":                    "https://example.com//public/plugin-icon.svg",
 					"override_username":                    "mock-UserDisplayName",
 				},
 				FileIds:  model.StringArray{},

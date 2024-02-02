@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/mmcontainer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/testmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/testmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
 )

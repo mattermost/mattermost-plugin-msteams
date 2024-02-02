@@ -15,7 +15,7 @@ import {getServerRoute} from './selectors';
 function getSettings(serverRoute: string, disabled: boolean) {
     return {
         id: manifest.id,
-        icon: `${serverRoute}/plugins/${manifest.id}/public/msteams-sync-icon.svg`,
+        icon: `${serverRoute}/plugins/${manifest.id}/public/plugin-icon.svg`,
         uiName: manifest.name,
         action: disabled ?
             {
@@ -67,13 +67,13 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
 
         // TODO to uncomment when the feature is in.
-        // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+        // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
         // registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
         // this.removeStoreSubscription = store.subscribe(() => {
         //     const newState = store.getState();
         //     const newServerRoute = getServerRoute(newState);
-        //     const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+        //     const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
         //     if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
         //         serverRoute = newServerRoute;
         //         settingsEnabled = newSettingsEnabled;

@@ -9,7 +9,7 @@ export default function EnforceConnectedAccountModal() {
     const [open, setOpen] = useState(false);
     const [canSkip, setCanSkip] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    const iconURL = `/plugins/${pluginId}/public/msteams-sync-icon.svg`;
+    const iconURL = `/plugins/${pluginId}/public/plugin-icon.svg`;
 
     const skip = useCallback(() => {
         setOpen(false);

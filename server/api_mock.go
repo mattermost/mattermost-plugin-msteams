@@ -9,9 +9,9 @@ import (
 	"reflect"
 
 	"github.com/gorilla/mux"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/testmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/testmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"

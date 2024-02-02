@@ -3,7 +3,7 @@
 
 package main
 
-import "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
+import "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
 
 func getClientMock(p *Plugin) *mocks.Client {
 	return nil

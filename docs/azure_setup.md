@@ -18,7 +18,7 @@
 Replace `(MM_SITE_URL)` with your Mattermost server's Site URL. Select **Register** to submit the form.
 Select **Register** to submit the form.
 
-![image](https://github.com/mattermost/mattermost-plugin-msteams-sync/assets/77336594/8a9add4e-307f-4e27-a308-a86a87ebb8e0)
+![image](https://github.com/mattermost/mattermost-plugin-msteams/assets/77336594/8a9add4e-307f-4e27-a308-a86a87ebb8e0)
 
 5. Navigate to **Certificates & secrets** in the left pane.
 

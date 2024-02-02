@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/markdown"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/net/html"
 )
@@ -15,7 +15,7 @@ import (
 const hostedContentsStr = "hostedContents"
 
 func (ah *ActivityHandler) GetAvatarURL(userID string) string {
-	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
+	defaultAvatarURL := ah.plugin.GetURL() + "/public/plugin-icon.svg"
 	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get user avatar", "error", err.Error())

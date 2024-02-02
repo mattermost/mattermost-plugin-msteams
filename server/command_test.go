@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	mockMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	mockClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	mockStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	mockMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	mockClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	mockStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
@@ -1008,7 +1008,7 @@ func TestGetAutocompleteData(t *testing.T) {
 		{
 			description: "Successfully get all auto complete data",
 			autocompleteData: &model.AutocompleteData{
-				Trigger:   "msteams-sync",
+				Trigger:   "msteams",
 				Hint:      "[command]",
 				HelpText:  "Manage MS Teams linked channels",
 				RoleID:    model.SystemUserRoleId,
