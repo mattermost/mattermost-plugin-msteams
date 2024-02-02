@@ -13,10 +13,6 @@ class ClientClass {
         this.url = url + `/plugins/${pluginId}`;
     }
 
-    needsConnect = async () => {
-        return this.doGet(`${this.url}/needsConnect`);
-    };
-
     connect = async () => {
         return this.doGet(`${this.url}/connect`);
     };
