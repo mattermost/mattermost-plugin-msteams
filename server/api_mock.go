@@ -29,13 +29,13 @@ func (a *API) registerClientMock() {
 func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-Id")
 	if userID == "" {
-		a.p.API.LogError("Not authorized")
+		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -50,13 +50,13 @@ func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
 func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-Id")
 	if userID == "" {
-		a.p.API.LogError("Not authorized")
+		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -162,7 +162,7 @@ func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 }
 
 func getClientMock(p *Plugin) *mocks.Client {
-	p.API.LogDebug("Using mock client")
+	p.API.LogInfo("Using mock client")
 
 	if clientMock != nil {
 		return clientMock

@@ -44,7 +44,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogDebug", "Unable to delete the subscription on MS Teams", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
@@ -73,7 +72,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "Mock-ChannelID", "This Mattermost channel is not linked to any MS Teams channel.")).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogDebug", "Unable to get the link by channel ID", "error", "Error while getting link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, errors.New("Error while getting link")).Once()
@@ -93,7 +91,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), "Mock-ChannelID", model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "Mock-ChannelID", "Unable to delete link.")).Return(testutils.GetPost("Mock-ChannelID", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogDebug", "Unable to delete the link by channel ID", "error", "Error while deleting a link").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", "Mock-ChannelID").Return(nil, nil).Once()
@@ -157,7 +154,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogDebug", "Unable to get the subscription by MS Teams channel ID", "error", "unable to get the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
@@ -181,7 +177,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-				api.On("LogDebug", "Unable to delete the subscription from the DB", "subscriptionID", "testSubscriptionID", "error", "unable to delete the subscription").Return().Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
@@ -199,6 +194,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			defer mockAPI.AssertExpectations(t)
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client))
@@ -330,7 +326,6 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("LogDebug", "Unable to get links from store", "Error", "error in getting links").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "Something went wrong.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -362,9 +357,6 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
 
-				api.On("LogDebug", "Unable to get the MS Teams teams information", "Error", "error in getting teams info").Once()
-				api.On("LogDebug", "Unable to get the MS Teams channel information for the team", "TeamID", testutils.GetTeamsTeamID(), "Error", "error in getting channels info").Once()
-
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "| Mattermost Team | Mattermost Channel | MS Teams Team | MS Teams Channel | \n| :------|:--------|:-------|:-----------|\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\n|Test MM team|Test MM channel|||\nThere were some errors while fetching information. Please check the server logs.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
@@ -381,6 +373,7 @@ func TestExecuteShowLinksCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			defer mockAPI.AssertExpectations(t)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
@@ -408,8 +401,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", "", "Your account has been disconnected.")).Return(testutils.GetPost("", testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-
-				api.On("LogDebug", "Unable to delete the last prompt timestamp for the user", "MMUserID", testutils.GetUserID(), "Error", "error in deleting prompt time")
 
 				api.On("GetPreferenceForUser", testutils.GetUserID(), PreferenceCategoryPlugin, PreferenceNameAutomuteEnabled).Return(model.Preference{}, &model.AppError{Message: "no preference found"})
 				api.On("LogDebug", "User disconnected without automuting enabled", "UserID", testutils.GetUserID())
@@ -462,6 +453,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			_, _ = p.executeDisconnectCommand(testCase.args)
@@ -536,6 +528,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeDisconnectBotCommand(testCase.args)
@@ -749,6 +742,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*mockClient.Client))
@@ -778,7 +772,6 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "Error in checking if the user is present in whitelist",
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error in checking if a user is present in whitelist", "UserID", testutils.GetUserID(), "Error", "error in accessing whitelist").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
@@ -793,7 +786,6 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "Error in getting the size of whitelist",
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error in getting the size of whitelist", "Error", "unable to get size of whitelist").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
@@ -826,7 +818,6 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "Unable to store OAuth state",
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -870,6 +861,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectCommand(&model.CommandArgs{
@@ -910,7 +902,6 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Error in checking if the bot user is present in whitelist",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("LogError", "Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", "error in accessing whitelist").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
@@ -926,7 +917,6 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Error in getting the size of whitelist",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("LogError", "Error in getting the size of whitelist", "Error", "unable to get size of whitelist").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    p.userID,
 					ChannelId: testutils.GetChannelID(),
@@ -959,7 +949,6 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Unable to store OAuth state",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing oauth state")
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -1003,6 +992,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectBotCommand(&model.CommandArgs{

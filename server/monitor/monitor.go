@@ -41,7 +41,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 }
 
 func (m *Monitor) Start() error {
-	m.api.LogDebug("Starting the msteams sync monitoring system")
+	m.api.LogInfo("Starting the msteams sync monitoring system")
 
 	// Close the previous background job if exists.
 	m.Stop()
@@ -70,22 +70,21 @@ func (m *Monitor) RunMonitoringSystemJob() {
 
 	defer func() {
 		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-			m.api.LogDebug("Failed to set monitoring job running status to false.")
+			m.api.LogError("Failed to set monitoring job running status to false.")
 		}
 	}()
 
 	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
 	if sErr != nil {
-		m.api.LogError("Something went wrong while fetching monitoring job status", "Error", sErr.Error())
+		m.api.LogError("Something went wrong while fetching monitoring job status", "error", sErr.Error())
 		return
 	}
 
 	if !isStatusUpdated {
-		m.api.LogDebug("Monitoring job already running")
 		return
 	}
 
-	m.api.LogDebug("Running the Monitoring System Job")
+	m.api.LogInfo("Running the Monitoring System Job")
 	m.check()
 }
 
@@ -103,7 +102,7 @@ func (m *Monitor) check() {
 
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
-		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
+		m.api.LogWarn("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 

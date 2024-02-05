@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	avatarCacheTime              = 300
-	avatarKey                    = "avatar_"
 	connectionPromptKey          = "connect_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
 	maxLimitForLinks             = 100
@@ -60,7 +58,7 @@ func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []st
 func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
 	// TODO: Try to do this using only one query
 	query := `SELECT EXISTS(
-			SELECT DISTINCT index_name FROM information_schema.statistics 
+			SELECT DISTINCT index_name FROM information_schema.statistics
 			WHERE table_schema = DATABASE()
 			AND table_name = 'tableName' AND index_name = 'indexName'
 		)`
@@ -177,7 +175,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 		}
 	} else {
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", tableName)); err != nil {
-			s.api.LogDebug("Error in dropping primary key", "Error", err.Error())
+			s.api.LogError("Error in dropping primary key", "error", err.Error())
 		}
 
 		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
@@ -236,22 +234,6 @@ func (s *SQLStore) Init() error {
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
 }
 
-func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
-	data, appErr := s.api.KVGet(avatarKey + userID)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return data, nil
-}
-
-func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
-	appErr := s.api.KVSetWithExpiry(avatarKey+userID, photo, avatarCacheTime)
-	if appErr != nil {
-		return appErr
-	}
-	return nil
-}
-
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder().Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator, Teams.DisplayName, Channels.DisplayName").From(linksTableName).LeftJoin("Teams ON Teams.Id = msteamssync_links.mmTeamID").LeftJoin("Channels ON Channels.Id = msteamssync_links.mmChannelID").Limit(maxLimitForLinks)
 	rows, err := query.Query()
@@ -264,7 +246,7 @@ func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, erro
 	for rows.Next() {
 		link := &storemodels.ChannelLink{}
 		if err := rows.Scan(&link.MattermostChannelID, &link.MattermostTeamID, &link.MSTeamsChannel, &link.MSTeamsTeam, &link.Creator, &link.MattermostTeamName, &link.MattermostChannelName); err != nil {
-			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			s.api.LogError("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1032,7 +1014,7 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	for rows.Next() {
 		connectedUser := &storemodels.ConnectedUser{}
 		if err := rows.Scan(&connectedUser.MattermostUserID, &connectedUser.TeamsUserID, &connectedUser.FirstName, &connectedUser.LastName, &connectedUser.Email); err != nil {
-			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			s.api.LogError("Unable to scan the result", "error", err.Error())
 			continue
 		}
 
@@ -1057,12 +1039,12 @@ func (s *SQLStore) PrefillWhitelist() error {
 			count++
 			var connectedUserID string
 			if err := rows.Scan(&connectedUserID); err != nil {
-				s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+				s.api.LogError("Unable to scan the result", "error", err.Error())
 				continue
 			}
 
 			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
+				s.api.LogError("Unable to store user in whitelist", "user_id", connectedUserID, "error", err.Error())
 			}
 		}
 
@@ -1099,7 +1081,6 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
 	if _, err := query.Exec(); err != nil {
 		if isDuplicate(err) {
-			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
 			return nil
 		}
 

@@ -26,7 +26,7 @@ func (ah *ActivityHandler) getMessageFromChat(chat *clientmodels.Chat, messageID
 
 	msg, err := client.GetChatMessage(chat.ID, messageID)
 	if err != nil || msg == nil {
-		ah.plugin.GetAPI().LogError("Unable to get message from chat", "chatID", chat.ID, "messageID", messageID, "error", err)
+		ah.plugin.GetAPI().LogWarn("Unable to get message from chat", "chat_id", chat.ID, "message_id", messageID, "error", err)
 		return nil, err
 	}
 	return msg, nil
@@ -35,7 +35,7 @@ func (ah *ActivityHandler) getMessageFromChat(chat *clientmodels.Chat, messageID
 func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, replyID string) (*clientmodels.Message, error) {
 	msg, err := ah.plugin.GetClientForApp().GetReply(teamID, channelID, messageID, replyID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get reply from channel", "replyID", replyID, "error", err)
+		ah.plugin.GetAPI().LogWarn("Unable to get reply from channel", "reply_id", replyID, "error", err)
 		return nil, err
 	}
 	return msg, nil
@@ -44,7 +44,7 @@ func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, rep
 func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID string) (*clientmodels.Message, error) {
 	msg, err := ah.plugin.GetClientForApp().GetMessage(teamID, channelID, messageID)
 	if err != nil {
-		ah.plugin.GetAPI().LogError("Unable to get message from channel", "messageID", messageID, "error", err)
+		ah.plugin.GetAPI().LogWarn("Unable to get message from channel", "message_id", messageID, "error", err)
 		return nil, err
 	}
 	return msg, nil
@@ -62,7 +62,7 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(providedMsg *clientm
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
 		if err != nil || chat == nil {
-			ah.plugin.GetAPI().LogError("Unable to get original chat", "chatID", activityIds.ChatID, "error", err)
+			ah.plugin.GetAPI().LogWarn("Unable to get original chat", "chat_id", activityIds.ChatID, "error", err)
 			return nil, nil, err
 		}
 		if providedMsg != nil {
@@ -148,12 +148,12 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 			Value:    "0",
 		}}
 		if prefErr := ah.plugin.GetAPI().UpdatePreferencesForUser(u.Id, preferences); prefErr != nil {
-			ah.plugin.GetAPI().LogError("Unable to disable email notifications for new user", "mmuserID", u.Id, "error", prefErr.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to disable email notifications for new user", "user_id", u.Id, "error", prefErr.Error())
 		}
 	}
 
 	if err = ah.plugin.GetStore().SetUserInfo(u.Id, user.ID, nil); err != nil {
-		ah.plugin.GetAPI().LogError("Unable to link the new created mirror user", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Unable to link the new created mirror user", "error", err.Error())
 	}
 
 	return u.Id, err
@@ -164,18 +164,17 @@ func (ah *ActivityHandler) getChatChannelID(chat *clientmodels.Chat) (string, er
 	for _, member := range chat.Members {
 		msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(member.UserID)
 		if clientErr != nil {
-			ah.plugin.GetAPI().LogError("Unable to get the MS Teams user", "TeamsUserID", member.UserID, "error", clientErr.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to get the MS Teams user", "teams_user_id", member.UserID, "error", clientErr.Error())
 			continue
 		}
 
 		if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
 			if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
 				if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-					ah.plugin.GetAPI().LogDebug("Unable to deactivate user", "MMUserID", mmUserID, "TeamsUserID", msteamsUser.ID, "Error", appErr.Error())
+					ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "user_id", mmUserID, "teams_user_id", msteamsUser.ID, "error", appErr.Error())
 				}
 			}
 
-			ah.plugin.GetAPI().LogDebug("Skipping guest user while creating DM/GM", "TeamsUserID", msteamsUser.ID)
 			continue
 		}
 
