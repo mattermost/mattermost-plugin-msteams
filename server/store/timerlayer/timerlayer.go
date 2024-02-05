@@ -105,20 +105,6 @@ func (s *TimerLayer) DeleteUserInfo(mmUserID string) error {
 	return err
 }
 
-func (s *TimerLayer) GetAvatarCache(userID string) ([]byte, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetAvatarCache(userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetAvatarCache", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	start := time.Now()
 
@@ -564,20 +550,6 @@ func (s *TimerLayer) SaveGlobalSubscription(subscription storemodels.GlobalSubsc
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.SaveGlobalSubscription", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) SetAvatarCache(userID string, photo []byte) error {
-	start := time.Now()
-
-	err := s.Store.SetAvatarCache(userID, photo)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetAvatarCache", success, elapsed)
 	return err
 }
 

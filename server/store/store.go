@@ -11,8 +11,6 @@ import (
 
 type Store interface {
 	Init() error
-	GetAvatarCache(userID string) ([]byte, error)
-	SetAvatarCache(userID string, photo []byte) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
