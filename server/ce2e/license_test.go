@@ -2,6 +2,7 @@ package ce2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
@@ -24,11 +25,30 @@ func TestRequiresLicense(t *testing.T) {
 			require.NotEqual(t, "com.mattermost.msteams-sync", plugin.Manifest.Id)
 		}
 
+		found := false
 		for _, plugin := range plugins.Inactive {
 			if plugin.Manifest.Id == "com.mattermost.msteams-sync" {
-				return
+				found = true
+				break
 			}
 		}
-		require.Fail(t, "failed to find plugin status at all")
+		if !found {
+			require.Fail(t, "failed to find plugin status at all")
+		}
+
+		rawLogs, err := mattermost.GetLogs(context.Background(), 1000)
+		require.NoError(t, err)
+
+		found = false
+		logs := strings.Split(rawLogs, "\n")
+		for _, log := range logs {
+			if strings.Contains(log, "this plugin requires an enterprise license") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			require.Fail(t, "failed to find expected error log")
+		}
 	})
 }
