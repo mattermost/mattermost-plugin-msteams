@@ -49,7 +49,6 @@ func TestMsgToPost(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
-				p.On("GetURL").Return("https://example.com/")
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -63,8 +62,6 @@ func TestMsgToPost(t *testing.T) {
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,
-					"override_icon_url":                    "https://example.com//public/msteams-sync-icon.svg",
-					"override_username":                    "mock-UserDisplayName",
 				},
 				FileIds:  model.StringArray{},
 				CreateAt: mmCreateAtTime,

@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	avatarCacheTime              = 300
-	avatarKey                    = "avatar_"
 	connectionPromptKey          = "connect_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
 	maxLimitForLinks             = 100
@@ -234,22 +232,6 @@ func (s *SQLStore) Init() error {
 	}
 
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
-}
-
-func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
-	data, appErr := s.api.KVGet(avatarKey + userID)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return data, nil
-}
-
-func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
-	appErr := s.api.KVSetWithExpiry(avatarKey+userID, photo, avatarCacheTime)
-	if appErr != nil {
-		return appErr
-	}
-	return nil
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
