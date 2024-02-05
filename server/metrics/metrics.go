@@ -53,9 +53,10 @@ const (
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
 
-	WorkerMonitor         = "monitor"
-	WorkerSyncUsers       = "sync_users"
-	WorkerActivityHandler = "activity_handler"
+	WorkerMonitor          = "monitor"
+	WorkerSyncUsers        = "sync_users"
+	WorkerActivityHandler  = "activity_handler"
+	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 )
 
 type Metrics interface {

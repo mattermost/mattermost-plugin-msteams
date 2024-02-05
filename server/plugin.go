@@ -45,6 +45,7 @@ const (
 	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
+	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
 
 	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
@@ -75,6 +76,7 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
@@ -260,7 +262,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.getConfiguration().ApplicationID)
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -294,6 +296,18 @@ func (p *Plugin) start(isRestart bool) {
 			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
 		}
 	}
+
+	checkCredentialsJob, err := cluster.Schedule(
+		p.API,
+		checkCredentialsJobName,
+		cluster.MakeWaitForRoundedInterval(24*time.Hour),
+		p.checkCredentials,
+	)
+	if err != nil {
+		p.API.LogError("error in scheduling the check credentials job", "error", err)
+		return
+	}
+	p.checkCredentialsJob = checkCredentialsJob
 }
 
 func (p *Plugin) getBase64Certificate() string {
