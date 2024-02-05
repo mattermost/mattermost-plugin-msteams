@@ -48,13 +48,11 @@ func (p *Plugin) checkCredentials() {
 				p.API.LogWarn("Found more than one secret with same hint", "credential_id", credential.ID)
 			}
 
-			found = true
-
 			// Note that we keep going to log all the credentials found.
+			found = true
 		} else {
 			p.API.LogInfo("Found other credential", "credential_name", credential.Name, "credential_id", credential.ID, "credential_end_date_time", credential.EndDateTime)
 		}
-
 	}
 
 	if !found {
