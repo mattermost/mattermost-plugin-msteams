@@ -400,8 +400,8 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.clientSecretsEndDateTime = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemMSGraph,
-		Name:        "client_secrets_end_date_time",
-		Help:        "The end date and time of the current application client secrets.",
+		Name:        "client_secrets_end_date_timestamp_seconds",
+		Help:        "The time a given application credential expires.",
 		ConstLabels: additionalLabels,
 	}, []string{"secret_id"})
 	m.registry.MustRegister(m.clientSecretsEndDateTime)
