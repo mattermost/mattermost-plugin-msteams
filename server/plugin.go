@@ -308,6 +308,9 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 	p.checkCredentialsJob = checkCredentialsJob
+
+	// Run the job above right away so we immediately populate metrics.
+	p.checkCredentials()
 }
 
 func (p *Plugin) getBase64Certificate() string {
