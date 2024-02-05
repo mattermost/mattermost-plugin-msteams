@@ -25,10 +25,9 @@ type Monitor struct {
 	webhookSecret    string
 	certificate      string
 	useEvaluationAPI bool
-	applicationID    string
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, applicationID string) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
@@ -38,7 +37,6 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 		webhookSecret:    webhookSecret,
 		useEvaluationAPI: useEvaluationAPI,
 		certificate:      certificate,
-		applicationID:    applicationID,
 	}
 }
 

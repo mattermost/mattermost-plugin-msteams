@@ -14,17 +14,10 @@ func (p *Plugin) checkCredentials() {
 		}
 	}()
 
-	applicationID := p.getConfiguration().ApplicationID
-
-	if applicationID == "" {
-		p.API.LogDebug("Skipping credentials check since no application id configured.")
-		return
-	}
-
 	done := p.GetMetrics().ObserveWorker(metrics.WorkerCheckCredentials)
 	defer done()
 
-	credentials, err := p.GetClientForApp().GetAppCredentials(applicationID)
+	credentials, err := p.GetClientForApp().GetAppCredentials(p.GetConfiguration().ClientID)
 	if err != nil {
 		p.API.LogWarn("Failed to get app credentials", "error", err.Error())
 		return
