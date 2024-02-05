@@ -62,7 +62,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 		router.Use(api.metricsMiddleware)
 	}
 
-	router.HandleFunc("/avatar/{userId:.*}", api.getAvatar).Methods("GET")
 	router.HandleFunc("/changes", api.processActivity).Methods("POST")
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
@@ -80,32 +79,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	api.registerClientMock()
 
 	return api
-}
-
-// getAvatar returns the microsoft teams avatar
-func (a *API) getAvatar(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	userID := params["userId"]
-	photo, appErr := a.store.GetAvatarCache(userID)
-	if appErr != nil || len(photo) == 0 {
-		var err error
-		photo, err = a.p.GetClientForApp().GetUserAvatar(userID)
-		if err != nil {
-			a.p.API.LogWarn("Unable to get user avatar", "teams_user_id", userID, "error", err.Error())
-			http.Error(w, "avatar not found", http.StatusNotFound)
-			return
-		}
-
-		err = a.store.SetAvatarCache(userID, photo)
-		if err != nil {
-			a.p.API.LogWarn("Unable to cache the new avatar", "error", err.Error())
-			return
-		}
-	}
-
-	if _, err := w.Write(photo); err != nil {
-		a.p.API.LogWarn("Unable to write the response", "error", err.Error())
-	}
 }
 
 func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
