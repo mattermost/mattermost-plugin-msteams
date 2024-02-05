@@ -95,7 +95,7 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
-	ObserveClientSecretEndDateTime(secretID string, expireDate time.Time)
+	ObserveClientSecretEndDateTime(expireDate time.Time)
 }
 
 type InstanceInfo struct {
@@ -138,7 +138,7 @@ type metrics struct {
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
 	activeWorkersTotal            *prometheus.GaugeVec
-	clientSecretsEndDateTime      *prometheus.GaugeVec
+	clientSecretEndDateTime       prometheus.Gauge
 
 	storeTime   *prometheus.HistogramVec
 	workersTime *prometheus.HistogramVec
@@ -398,14 +398,14 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"worker"})
 	m.registry.MustRegister(m.activeWorkersTotal)
 
-	m.clientSecretsEndDateTime = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	m.clientSecretEndDateTime = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemMSGraph,
-		Name:        "client_secrets_end_date_timestamp_seconds",
-		Help:        "The time a given application credential expires.",
+		Name:        "client_secret_end_date_timestamp_seconds",
+		Help:        "The time the configured application credential expires.",
 		ConstLabels: additionalLabels,
-	}, []string{"secret_id"})
-	m.registry.MustRegister(m.clientSecretsEndDateTime)
+	})
+	m.registry.MustRegister(m.clientSecretEndDateTime)
 
 	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
@@ -584,9 +584,13 @@ func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	}
 }
 
-func (m *metrics) ObserveClientSecretEndDateTime(secretID string, expireDate time.Time) {
+func (m *metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
 	if m != nil {
-		m.clientSecretsEndDateTime.With(prometheus.Labels{"secret_id": secretID}).Set(float64(expireDate.UnixNano()) / 1e9)
+		if expireDate.IsZero() {
+			m.clientSecretEndDateTime.Set(0)
+		} else {
+			m.clientSecretEndDateTime.Set(float64(expireDate.UnixNano()) / 1e9)
+		}
 	}
 }
 

@@ -292,6 +292,7 @@ func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Cr
 			ID:          credential.GetKeyId().String(),
 			Name:        *credential.GetDisplayName(),
 			EndDateTime: *credential.GetEndDateTime(),
+			Hint:        *credential.GetHint(),
 		})
 	}
 	return credentials, nil

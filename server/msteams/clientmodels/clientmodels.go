@@ -101,4 +101,5 @@ type Credential struct {
 	Name        string
 	ID          string
 	EndDateTime time.Time
+	Hint        string
 }
