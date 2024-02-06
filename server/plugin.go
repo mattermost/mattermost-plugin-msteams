@@ -292,9 +292,6 @@ func (p *Plugin) start(isRestart bool) {
 		}
 
 		p.syncUserJob = job
-		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
-			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
-		}
 	}
 
 	checkCredentialsJob, err := cluster.Schedule(
@@ -524,22 +521,6 @@ func (p *Plugin) syncUsersPeriodically() {
 			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
-
-	defer func() {
-		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
-			p.API.LogError("Failed to set sync users job running status to false.", "error", sErr.Error())
-		}
-	}()
-
-	isStatusUpdated, sErr := p.store.CompareAndSetJobStatus(syncUsersJobName, false, true)
-	if sErr != nil {
-		p.API.LogError("Something went wrong while fetching sync users job status", "error", sErr.Error())
-		return
-	}
-
-	if !isStatusUpdated {
-		return
-	}
 
 	p.API.LogInfo("Running the Sync Users Job")
 	p.syncUsers()

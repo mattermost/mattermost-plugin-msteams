@@ -35,20 +35,6 @@ func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
 	return result
 }
 
-func (s *TimerLayer) CompareAndSetJobStatus(jobName string, oldStatus bool, newStatus bool) (bool, error) {
-	start := time.Now()
-
-	result, err := s.Store.CompareAndSetJobStatus(jobName, oldStatus, newStatus)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.CompareAndSetJobStatus", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) DeleteDMAndGMChannelPromptTime(userID string) error {
 	start := time.Now()
 
@@ -550,20 +536,6 @@ func (s *TimerLayer) SaveGlobalSubscription(subscription storemodels.GlobalSubsc
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.SaveGlobalSubscription", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) SetJobStatus(jobName string, status bool) error {
-	start := time.Now()
-
-	err := s.Store.SetJobStatus(jobName, status)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetJobStatus", success, elapsed)
 	return err
 }
 

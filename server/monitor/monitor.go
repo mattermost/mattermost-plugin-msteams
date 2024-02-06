@@ -57,35 +57,8 @@ func (m *Monitor) Start() error {
 	}
 
 	m.job = job
-	return m.store.SetJobStatus(monitoringSystemJobName, false)
-}
 
-func (m *Monitor) RunMonitoringSystemJob() {
-	defer func() {
-		if r := recover(); r != nil {
-			m.metrics.ObserveGoroutineFailure()
-			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
-		}
-	}()
-
-	defer func() {
-		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-			m.api.LogError("Failed to set monitoring job running status to false.")
-		}
-	}()
-
-	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
-	if sErr != nil {
-		m.api.LogError("Something went wrong while fetching monitoring job status", "error", sErr.Error())
-		return
-	}
-
-	if !isStatusUpdated {
-		return
-	}
-
-	m.api.LogInfo("Running the Monitoring System Job")
-	m.check()
+	return nil
 }
 
 func (m *Monitor) Stop() {
@@ -96,13 +69,22 @@ func (m *Monitor) Stop() {
 	}
 }
 
-func (m *Monitor) check() {
+func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	m.api.LogInfo("Running the Monitoring System Job")
+
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 
 	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
 	if err != nil {
-		m.api.LogWarn("Unable to fetch subscriptions from MS Teams", "error", err.Error())
+		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 

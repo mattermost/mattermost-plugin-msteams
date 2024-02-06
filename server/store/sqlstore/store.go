@@ -836,34 +836,6 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	return nil
 }
 
-func (s *SQLStore) SetJobStatus(key string, status bool) error {
-	bytes, err := json.Marshal(status)
-	if err != nil {
-		return err
-	}
-
-	if appErr := s.api.KVSet(hashKey(backgroundJobPrefix, key), bytes); appErr != nil {
-		return errors.New(appErr.Error())
-	}
-	return nil
-}
-
-func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error) {
-	oldDataBytes, err := json.Marshal(oldStatus)
-	if err != nil {
-		return false, err
-	}
-	newDatabytes, err := json.Marshal(newStatus)
-	if err != nil {
-		return false, err
-	}
-	isUpdated, appErr := s.api.KVCompareAndSet(hashKey(backgroundJobPrefix, jobName), oldDataBytes, newDatabytes)
-	if appErr != nil {
-		return false, errors.New(appErr.Error())
-	}
-	return isUpdated, nil
-}
-
 func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
 	query := s.getQueryBuilder().Select("count(mmChannelID)").From(linksTableName)
 	row := query.QueryRow()
