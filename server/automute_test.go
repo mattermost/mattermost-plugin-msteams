@@ -8,6 +8,7 @@ import (
 	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,8 @@ import (
 
 type AutomuteAPIMock struct {
 	*plugintest.API
+
+	plugin *Plugin
 
 	channels       map[string]*model.Channel
 	preferences    map[string]model.Preference
@@ -28,6 +31,8 @@ func (a *AutomuteAPIMock) key(parts ...string) string {
 }
 
 func (a *AutomuteAPIMock) GetPreferenceForUser(userID, category, name string) (model.Preference, *model.AppError) {
+	a.t.Helper()
+
 	preference, ok := a.preferences[a.key(userID, category, name)]
 	if !ok {
 		return model.Preference{}, &model.AppError{Message: "Preference not found"}
@@ -36,19 +41,27 @@ func (a *AutomuteAPIMock) GetPreferenceForUser(userID, category, name string) (m
 }
 
 func (a *AutomuteAPIMock) UpdatePreferencesForUser(userID string, preferences []model.Preference) *model.AppError {
+	a.t.Helper()
+
 	for _, preference := range preferences {
 		a.preferences[a.key(userID, preference.Category, preference.Name)] = preference
 	}
+
+	a.plugin.PreferencesHaveChanged(&plugin.Context{}, preferences)
 
 	return nil
 }
 
 func (a *AutomuteAPIMock) CreateChannel(channel *model.Channel) (*model.Channel, *model.AppError) {
+	a.t.Helper()
+
 	a.channels[channel.Id] = channel
 	return channel, nil
 }
 
 func (a *AutomuteAPIMock) GetDirectChannel(userID1, userID2 string) (*model.Channel, *model.AppError) {
+	a.t.Helper()
+
 	channel, _ := a.CreateChannel(&model.Channel{
 		Id:   model.NewId(),
 		Type: model.ChannelTypeDirect,
@@ -63,15 +76,24 @@ func (a *AutomuteAPIMock) GetDirectChannel(userID1, userID2 string) (*model.Chan
 }
 
 func (a *AutomuteAPIMock) AddUserToChannel(channelID, userID, asUserID string) (*model.ChannelMember, *model.AppError) {
-	a.channelMembers[a.key(channelID, userID)] = &model.ChannelMember{
+	a.t.Helper()
+
+	member := &model.ChannelMember{
 		UserId:      userID,
 		ChannelId:   channelID,
 		NotifyProps: model.GetDefaultChannelNotifyProps(),
 	}
-	return a.channelMembers[a.key(channelID, userID)], nil
+
+	a.channelMembers[a.key(channelID, userID)] = member
+
+	a.plugin.UserHasJoinedChannel(&plugin.Context{}, member, &model.User{Id: asUserID})
+
+	return member, nil
 }
 
 func (a *AutomuteAPIMock) GetChannelsForTeamForUser(teamID, userID string, includeDeleted bool) ([]*model.Channel, *model.AppError) {
+	a.t.Helper()
+
 	if teamID != "" || !includeDeleted {
 		panic("Not implemented")
 	}
@@ -88,6 +110,8 @@ func (a *AutomuteAPIMock) GetChannelsForTeamForUser(teamID, userID string, inclu
 }
 
 func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.ChannelMember, *model.AppError) {
+	a.t.Helper()
+
 	member, ok := a.channelMembers[a.key(channelID, userID)]
 	if !ok {
 		return nil, &model.AppError{Message: "Channel member not found"}
@@ -96,6 +120,8 @@ func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.Cha
 }
 
 func (a *AutomuteAPIMock) PatchChannelMembersNotifications(identifiers []*model.ChannelMemberIdentifier, notifyProps map[string]string) *model.AppError {
+	a.t.Helper()
+
 	for _, identifier := range identifiers {
 		for propKey, propValue := range notifyProps {
 			a.channelMembers[a.key(identifier.ChannelId, identifier.UserId)].NotifyProps[propKey] = propValue
@@ -133,6 +159,8 @@ func newAutomuteTestPlugin(t *testing.T) *Plugin {
 
 	p := newTestPlugin(t)
 	p.SetAPI(mockAPI)
+
+	mockAPI.plugin = p
 
 	return p
 }

@@ -16,6 +16,7 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 		p := newAutomuteTestPlugin(t)
 
 		user := &model.User{Id: model.NewId()}
+		mockUserNotConnected(p, user.Id)
 
 		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
 		_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, "")
