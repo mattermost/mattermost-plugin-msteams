@@ -5,7 +5,6 @@ import {GlobalState} from 'mattermost-redux/types/store';
 import manifest from './manifest';
 import Client from './client';
 import ListConnectedUsers from './components/getConnectedUsersSetting';
-import EnforceConnectedAccountModal from './components/enforceConnectedAccountModal';
 import MSTeamsAppManifestSetting from './components/appManifestSetting';
 
 // eslint-disable-next-line import/no-unresolved
@@ -52,16 +51,12 @@ function getSettings(serverRoute: string, disabled: boolean) {
 }
 
 export default class Plugin {
-    enforceConnectedAccountId = '';
     removeStoreSubscription?: () => void;
 
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         const state = store.getState();
         const serverRoute = getServerRoute(state);
         Client.setServerRoute(serverRoute);
-
-        // @see https://developers.mattermost.com/extend/plugins/webapp/reference/
-        this.enforceConnectedAccountId = registry.registerRootComponent(EnforceConnectedAccountModal);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);

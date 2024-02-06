@@ -30,8 +30,6 @@ type configuration struct {
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	EnforceConnectedUsers              bool   `json:"enforceconnectedusers"`
-	AllowSkipConnectUsers              bool   `json:"allowskipconnectusers"`
 	CertificatePublic                  string `json:"certificatepublic"`
 	CertificateKey                     string `json:"certificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`

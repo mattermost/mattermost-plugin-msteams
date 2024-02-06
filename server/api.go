@@ -66,7 +66,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
-	router.HandleFunc("/needsConnect", api.needsConnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
@@ -314,42 +313,6 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 		out = append(out, s)
 	}
 	data, _ := json.Marshal(out)
-	_, _ = w.Write(data)
-}
-
-func (a *API) needsConnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodOptions {
-		return
-	}
-
-	response := map[string]bool{
-		"canSkip":      a.p.getConfiguration().AllowSkipConnectUsers,
-		"needsConnect": false,
-	}
-
-	if a.p.getConfiguration().EnforceConnectedUsers {
-		userID := r.Header.Get("Mattermost-User-ID")
-		client, _ := a.p.GetClientForUser(userID)
-		if client == nil {
-			if a.p.getConfiguration().EnabledTeams == "" {
-				response["needsConnect"] = true
-			} else {
-				enabledTeams := strings.Split(a.p.getConfiguration().EnabledTeams, ",")
-
-				teams, _ := a.p.API.GetTeamsForUser(userID)
-				for _, enabledTeam := range enabledTeams {
-					for _, team := range teams {
-						if team.Id == enabledTeam {
-							response["needsConnect"] = true
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-
-	data, _ := json.Marshal(response)
 	_, _ = w.Write(data)
 }
 
