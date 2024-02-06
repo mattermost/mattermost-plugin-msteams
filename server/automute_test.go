@@ -55,6 +55,11 @@ func (a *AutomuteAPIMock) UpdatePreferencesForUser(userID string, preferences []
 func (a *AutomuteAPIMock) CreateChannel(channel *model.Channel) (*model.Channel, *model.AppError) {
 	a.t.Helper()
 
+	// This should be called for all channels, but due to MM-56776, it's currently not called for GM channels
+	if channel.Type != model.ChannelTypeGroup {
+		a.plugin.ChannelHasBeenCreated(&plugin.Context{}, channel)
+	}
+
 	a.channels[channel.Id] = channel
 	return channel, nil
 }
