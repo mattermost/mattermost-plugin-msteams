@@ -410,6 +410,12 @@ func (p *Plugin) OnActivate() error {
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
+	config := p.apiClient.Configuration.GetConfig()
+	license := p.apiClient.System.GetLicense()
+	if !pluginapi.IsE20LicensedOrDevelopment(config, license) {
+		return errors.New("this plugin requires an enterprise license")
+	}
+
 	p.activityHandler = handlers.New(p)
 
 	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
