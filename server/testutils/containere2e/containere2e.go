@@ -89,7 +89,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	require.NoError(t, err)
 
-	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	store := sqlstore.New(conn, nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	if err2 := store.Init(); err2 != nil {
 		_ = mattermost.Terminate(ctx)
 	}

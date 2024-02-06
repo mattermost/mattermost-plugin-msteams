@@ -51,6 +51,7 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
 			},
