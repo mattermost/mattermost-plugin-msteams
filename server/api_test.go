@@ -169,7 +169,6 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			},
 			func() {
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
-				plugin.API.(*plugintest.API).On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", "Invalid webhook secret").Return(nil).Times(1)
 			},
 			http.StatusBadRequest,
 			"Invalid webhook secret\n",
@@ -190,10 +189,9 @@ func TestSubscriptionNewMesage(t *testing.T) {
 			func() {
 				plugin.configuration.CertificateKey = "test"
 				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
-				plugin.API.(*plugintest.API).On("LogError", "Invalid encrypted content", "error", "invalid certificate key").Return(nil)
 			},
 			http.StatusBadRequest,
-			"invalid certificate key\n\n",
+			"Unable to get private key: invalid certificate key\n\n",
 		},
 		{
 			"Non encrypted message on encrypted subscription",
@@ -245,74 +243,6 @@ func TestSubscriptionNewMesage(t *testing.T) {
 	}
 }
 
-func TestGetAvatarFromCache(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 200, result.StatusCode)
-	assert.Equal(t, "fake-avatar", bodyString)
-}
-
-func TestGetAvatarFromServer(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
-	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return([]byte("fake-avatar"), nil).Times(1)
-	plugin.store.(*storemocks.Store).On("SetAvatarCache", "user-id", []byte("fake-avatar")).Return(nil).Times(1)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 200, result.StatusCode)
-	assert.Equal(t, "fake-avatar", bodyString)
-}
-
-func TestGetAvatarNotFound(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	plugin.store.(*storemocks.Store).On("GetAvatarCache", "user-id").Return(nil, &model.AppError{Message: "not-found"}).Times(1)
-	plugin.msteamsAppClient.(*clientmocks.Client).On("GetUserAvatar", "user-id").Return(nil, errors.New("not-found")).Times(1)
-	plugin.API.(*plugintest.API).On("LogError", "Unable to get user avatar", "msteamsUserID", "user-id", "error", "not-found").Return(nil)
-	plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/avatar/user-id", nil)
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 404, result.StatusCode)
-	assert.Equal(t, "avatar not found\n", bodyString)
-}
-
 func TestProcessActivity(t *testing.T) {
 	newTime := time.Now().Add(30 * time.Minute)
 	for _, test := range []struct {
@@ -346,7 +276,6 @@ func TestProcessActivity(t *testing.T) {
 		{
 			Name: "ProcessActivity: Valid body with invalid webhook secret",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to process created activity", "activity", mock.Anything, "error", mock.Anything).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:  func(store *storemocks.Store) {},
@@ -463,7 +392,6 @@ func TestProcessLifecycle(t *testing.T) {
 		{
 			Name: "ProcessLifecycle: Valid body with invalid webhook secret",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Invalid webhook secret received in lifecycle event").Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupStore:  func(store *storemocks.Store) {},
@@ -575,7 +503,6 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -587,7 +514,6 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Unable to get the teams list",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the MS Teams teams", "Error", "unable to get the teams list").Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
@@ -603,7 +529,6 @@ func TestAutocompleteTeams(t *testing.T) {
 		{
 			Name: "AutocompleteTeams: Valid",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Successfully fetched the list of teams", "Count", 2).Once()
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
@@ -684,7 +609,6 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Unable to get client for the user",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the client for user", "MMUserID", testutils.GetID(), "Error", "not connected user").Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
@@ -697,7 +621,6 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Unable to get the channels list",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogError", "Unable to get the channels for MS Teams team", "TeamID", "mockData-3", "Error", "unable to get the channels list").Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
@@ -714,7 +637,6 @@ func TestAutocompleteChannels(t *testing.T) {
 		{
 			Name: "AutocompleteChannels: Valid",
 			SetupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Successfully fetched the list of channels for MS Teams team", "TeamID", "mockData-3", "Count", 2).Once()
 			},
 			QueryParams: "mockData-1 mockData-2 mockData-3",
 			SetupStore: func(store *storemocks.Store) {
@@ -782,85 +704,6 @@ func TestAutocompleteChannels(t *testing.T) {
 	}
 }
 
-func TestNeedsConnect(t *testing.T) {
-	for _, test := range []struct {
-		Name                  string
-		SetupPlugin           func(*plugintest.API)
-		SetupStore            func(*storemocks.Store)
-		EnforceConnectedUsers bool
-		EnabledTeams          string
-		ExpectedResult        string
-	}{
-		{
-			Name:           "NeedsConnect: EnforceConnectedUsers is false",
-			SetupPlugin:    func(api *plugintest.API) {},
-			SetupStore:     func(store *storemocks.Store) {},
-			ExpectedResult: "{\"canSkip\":false,\"needsConnect\":false}",
-		},
-		{
-			Name:        "NeedsConnect: Unable to get the client",
-			SetupPlugin: func(api *plugintest.API) {},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			EnforceConnectedUsers: true,
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
-		},
-		{
-			Name: "NeedsConnect: Enabled teams is non empty and not matches with the team",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetTeamsForUser", testutils.GetID()).Return([]*model.Team{
-					{
-						Id: "mockTeam",
-					},
-				}, nil)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			EnforceConnectedUsers: true,
-			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":false}",
-		},
-		{
-			Name: "NeedsConnect: Enabled teams is non empty and matches with the team",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetTeamsForUser", testutils.GetID()).Return([]*model.Team{
-					{
-						Id: "mockTeamID",
-					},
-				}, nil)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			EnforceConnectedUsers: true,
-			EnabledTeams:          "mockTeamID",
-			ExpectedResult:        "{\"canSkip\":false,\"needsConnect\":true}",
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			plugin.configuration.EnforceConnectedUsers = test.EnforceConnectedUsers
-			plugin.configuration.EnabledTeams = test.EnabledTeams
-			test.SetupPlugin(plugin.API.(*plugintest.API))
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/needsConnect", nil)
-			r.Header.Add("Mattermost-User-ID", testutils.GetID())
-			plugin.ServeHTTP(nil, w, r)
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
-
-			bodyBytes, _ := io.ReadAll(result.Body)
-			bodyString := string(bodyBytes)
-			assert.Equal(test.ExpectedResult, bodyString)
-		})
-	}
-}
-
 func TestConnect(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
@@ -883,7 +726,6 @@ func TestConnect(t *testing.T) {
 		{
 			Name: "connect: Error in storing the OAuth state",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "Error in storing the OAuth state", "error", "error in storing the oauth state").Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
@@ -894,7 +736,6 @@ func TestConnect(t *testing.T) {
 		{
 			Name: "connect: Error in storing the code verifier",
 			SetupPlugin: func(api *plugintest.API) {
-				api.On("LogError", "Error in storing the code verifier", "error", "error in storing the code verifier").Return(nil).Times(1)
 				api.On("KVSet", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(&model.AppError{
 					Message: "error in storing the code verifier",
 				}).Times(1)
@@ -914,6 +755,7 @@ func TestConnect(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
+			testutils.MockLogs(mockAPI)
 			plugin.SetAPI(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)
@@ -953,7 +795,6 @@ func TestGetConnectedUsers(t *testing.T) {
 			Name: "getConnectedUsers: Insufficient permissions for the user",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-				api.On("LogError", "Insufficient permissions", "UserID", testutils.GetUserID()).Return(nil).Times(1)
 			},
 			SetupStore:         func(store *storemocks.Store) {},
 			ExpectedStatusCode: http.StatusForbidden,
@@ -963,7 +804,6 @@ func TestGetConnectedUsers(t *testing.T) {
 			Name: "getConnectedUsers: Unable to get the list of connected users from the store",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-				api.On("LogError", "Unable to get connected users list", "Error", ("unable to get the list of connected users from the store")).Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
@@ -1006,6 +846,7 @@ func TestGetConnectedUsers(t *testing.T) {
 			}
 
 			mockAPI := &plugintest.API{}
+			testutils.MockLogs(mockAPI)
 
 			plugin.SetAPI(mockAPI)
 			defer mockAPI.AssertExpectations(t)
@@ -1045,7 +886,6 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			Name: "getConnectedUsers: Insufficient permissions for the user",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-				api.On("LogError", "Insufficient permissions", "UserID", testutils.GetUserID()).Return(nil).Times(1)
 			},
 			SetupStore:         func(store *storemocks.Store) {},
 			ExpectedStatusCode: http.StatusForbidden,
@@ -1055,7 +895,6 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			Name: "getConnectedUsers: Unable to get the list of connected users from the store",
 			SetupPlugin: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-				api.On("LogError", "Unable to get connected users list", "Error", ("unable to get the list of connected users from the store")).Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
@@ -1099,6 +938,7 @@ func TestGetConnectedUsersFile(t *testing.T) {
 
 			mockAPI := &plugintest.API{}
 			plugin.SetAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 
 			defer mockAPI.AssertExpectations(t)
 

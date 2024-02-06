@@ -41,7 +41,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 }
 
 func (m *Monitor) Start() error {
-	m.api.LogDebug("Starting the msteams sync monitoring system")
+	m.api.LogInfo("Starting the msteams sync monitoring system")
 
 	// Close the previous background job if exists.
 	m.Stop()
@@ -57,36 +57,8 @@ func (m *Monitor) Start() error {
 	}
 
 	m.job = job
-	return m.store.SetJobStatus(monitoringSystemJobName, false)
-}
 
-func (m *Monitor) RunMonitoringSystemJob() {
-	defer func() {
-		if r := recover(); r != nil {
-			m.metrics.ObserveGoroutineFailure()
-			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
-		}
-	}()
-
-	defer func() {
-		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-			m.api.LogDebug("Failed to set monitoring job running status to false.")
-		}
-	}()
-
-	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
-	if sErr != nil {
-		m.api.LogError("Something went wrong while fetching monitoring job status", "Error", sErr.Error())
-		return
-	}
-
-	if !isStatusUpdated {
-		m.api.LogDebug("Monitoring job already running")
-		return
-	}
-
-	m.api.LogDebug("Running the Monitoring System Job")
-	m.check()
+	return nil
 }
 
 func (m *Monitor) Stop() {
@@ -97,7 +69,16 @@ func (m *Monitor) Stop() {
 	}
 }
 
-func (m *Monitor) check() {
+func (m *Monitor) RunMonitoringSystemJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	m.api.LogInfo("Running the Monitoring System Job")
+
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 

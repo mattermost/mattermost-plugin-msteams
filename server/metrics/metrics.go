@@ -55,9 +55,10 @@ const (
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
 
-	WorkerMonitor         = "monitor"
-	WorkerSyncUsers       = "sync_users"
-	WorkerActivityHandler = "activity_handler"
+	WorkerMonitor          = "monitor"
+	WorkerSyncUsers        = "sync_users"
+	WorkerActivityHandler  = "activity_handler"
+	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 )
 
 type Metrics interface {
@@ -96,7 +97,7 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
-
+	ObserveClientSecretEndDateTime(expireDate time.Time)
 	ObserveMessageHooksEvent(event string)
 	ObserveMessageSharedChannelsEvent(event string)
 }
@@ -143,6 +144,7 @@ type metrics struct {
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
 	activeWorkersTotal            *prometheus.GaugeVec
+	clientSecretEndDateTime       prometheus.Gauge
 
 	storeTime   *prometheus.HistogramVec
 	workersTime *prometheus.HistogramVec
@@ -322,7 +324,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemSharedChannels,
 		Name:        "events_total",
-		Help: "The total number of shared channel events related to message processing.",
+		Help:        "The total number of shared channel events related to message processing.",
 		ConstLabels: additionalLabels,
 	}, []string{"event"})
 	m.registry.MustRegister(m.messageSharedChannelsEvents)
@@ -419,6 +421,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"worker"})
 	m.registry.MustRegister(m.activeWorkersTotal)
+
+	m.clientSecretEndDateTime = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemMSGraph,
+		Name:        "client_secret_end_date_timestamp_seconds",
+		Help:        "The time the configured application credential expires.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.clientSecretEndDateTime)
 
 	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
@@ -594,6 +605,16 @@ func (m *metrics) DecrementActiveWorkers(worker string) {
 func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	if m != nil {
 		m.workersTime.With(prometheus.Labels{"worker": worker}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
+	if m != nil {
+		if expireDate.IsZero() {
+			m.clientSecretEndDateTime.Set(0)
+		} else {
+			m.clientSecretEndDateTime.Set(float64(expireDate.UnixNano()) / 1e9)
+		}
 	}
 }
 

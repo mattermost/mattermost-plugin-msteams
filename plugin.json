@@ -63,18 +63,6 @@
           "help_text": "The evaluation API pay model only allows you to get a limited number of change notifications. Be sure your system keeps them low if you enable this setting",
           "default": false
         },{
-          "key": "enforceConnectedUsers",
-          "display_name": "Enforce connected accounts",
-          "type": "bool",
-          "help_text": "Mattermost will ask the users to connect their account if it is not connected yet",
-          "default": false
-        },{
-          "key": "allowSkipConnectUsers",
-          "display_name": "Allow to temporarily skip connect user",
-          "type": "bool",
-          "help_text": "Mattermost will allow to skip temporarily the account connection, but will prompt it again in the next refresh of the browser",
-          "default": false
-        },{
           "key": "syncUsers",
           "display_name": "Sync users",
           "type": "number",

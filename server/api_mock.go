@@ -29,13 +29,13 @@ func (a *API) registerClientMock() {
 func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-Id")
 	if userID == "" {
-		a.p.API.LogError("Not authorized")
+		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -50,13 +50,13 @@ func (a *API) resetMSTeamsClientMocks(w http.ResponseWriter, r *http.Request) {
 func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-Id")
 	if userID == "" {
-		a.p.API.LogError("Not authorized")
+		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-		a.p.API.LogError("Insufficient permissions", "UserID", userID)
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
 		http.Error(w, "not able to authorize the user", http.StatusForbidden)
 		return
 	}
@@ -162,7 +162,7 @@ func (a *API) addMSTeamsClientMock(w http.ResponseWriter, r *http.Request) {
 }
 
 func getClientMock(p *Plugin) *mocks.Client {
-	p.API.LogDebug("Using mock client")
+	p.API.LogInfo("Using mock client")
 
 	if clientMock != nil {
 		return clientMock
@@ -171,10 +171,11 @@ func getClientMock(p *Plugin) *mocks.Client {
 	newMock.On("ClearSubscriptions").Return(nil)
 	newMock.On("RefreshToken", mock.Anything).Return(&oauth2.Token{}, nil)
 	newMock.On("RefreshSubscriptionsPeriodically", mock.Anything, mock.Anything).Return(nil)
-	newMock.On("SubscribeToChannels", mock.Anything, p.configuration.WebhookSecret, "").Return("channel-subscription-id", nil)
-	newMock.On("SubscribeToChats", mock.Anything, p.configuration.WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
-	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.configuration.WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
+	newMock.On("SubscribeToChannels", mock.Anything, p.getConfiguration().WebhookSecret, "").Return("channel-subscription-id", nil)
+	newMock.On("SubscribeToChats", mock.Anything, p.getConfiguration().WebhookSecret, true, "").Return(&clientmodels.Subscription{ID: "chats-subscription-id"}, nil)
+	newMock.On("SubscribeToChannel", mock.Anything, mock.Anything, mock.Anything, p.getConfiguration().WebhookSecret, "").Return(&clientmodels.Subscription{ID: "channel-subscription-id"}, nil)
 	newMock.On("ListSubscriptions").Return([]*clientmodels.Subscription{}, nil)
+	newMock.On("GetAppCredentials", mock.Anything).Return([]clientmodels.Credential{}, nil)
 	clientMock = &newMock
 	return clientMock
 }

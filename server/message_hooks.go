@@ -24,14 +24,13 @@ import (
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	if user.RemoteId != nil && *user.RemoteId != "" && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
-		p.API.LogDebug("Promoting synthetic user", "UserID", user.Id)
 		*user.RemoteId = ""
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
-			p.API.LogError("Unable to promote synthetic user", "UserID", user.Id)
+			p.API.LogWarn("Unable to promote synthetic user", "user_id", user.Id, "error", appErr.Error())
 			return "Unable to promote synthetic user"
 		}
 
-		p.API.LogDebug("Promoted synthetic user", "UserID", user.Id)
+		p.API.LogInfo("Promoted synthetic user", "user_id", user.Id)
 	}
 
 	return ""
@@ -45,7 +44,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if post.IsSystemMessage() {
-		p.API.LogDebug("Skipping system message post", "PostID", post.Id)
 		return
 	}
 
@@ -90,10 +88,10 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		updateRequired = !ignoreHookForReaction
 	}
 
-	p.API.LogDebug("Reaction added hook", "reaction", reaction)
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
-	if err != nil || postInfo == nil {
-		p.API.LogDebug("Unable to find Teams post corresponding to MM post", "mmPostID", reaction.PostId)
+	if err != nil {
+		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+	} else if postInfo == nil {
 		return
 	}
 
@@ -117,7 +115,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
-		p.API.LogError("Unable to get the post from the reaction", "reaction", reaction, "error", appErr)
+		p.API.LogWarn("Unable to get the post from the reaction", "reaction", reaction, "error", appErr)
 		return
 	}
 
@@ -127,20 +125,19 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	p.API.LogDebug("Removing reaction hook", "reaction", reaction)
 	if reaction.ChannelId == "removedfromplugin" {
-		p.API.LogInfo("Ignore reaction that has been triggered from the plugin handler")
 		return
 	}
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
-	if err != nil || postInfo == nil {
-		p.API.LogDebug("Unable to find Teams post corresponding to MM post", "mmPostID", reaction.PostId)
+	if err != nil {
+		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+	} else if postInfo == nil {
 		return
 	}
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
-		p.API.LogError("Unable to get the post from the reaction", "reaction", reaction, "error", appErr.DetailedError)
+		p.API.LogWarn("Unable to get the post from the reaction", "reaction", reaction, "error", appErr.DetailedError)
 		return
 	}
 
@@ -211,12 +208,12 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		var chat *clientmodels.Chat
 		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
-			p.API.LogError("Unable to create or get chat for users", "error", err.Error())
+			p.API.LogWarn("Unable to create or get chat for users", "error", err.Error())
 			return
 		}
 		err = p.UpdateChat(chat.ID, user, newPost, updateRequired)
 		if err != nil {
-			p.API.LogError("Unable to handle message update", "error", err.Error())
+			p.API.LogWarn("Unable to handle message update", "error", err.Error())
 		}
 		return
 	}
@@ -224,13 +221,11 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 
 	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
-		p.API.LogError("Unable to handle message update", "error", err.Error())
+		p.API.LogWarn("Unable to handle message update", "error", err.Error())
 	}
 }
 
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
-	p.API.LogDebug("Setting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
-
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, channelID)
@@ -260,7 +255,7 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 	if updateRequired {
 		teamsMessage, err = client.SetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 		if err != nil {
-			p.API.LogError("Error creating post reaction", "error", err.Error())
+			p.API.LogWarn("Error creating post reaction", "error", err.Error())
 			return err
 		}
 
@@ -281,8 +276,6 @@ func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName s
 }
 
 func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post, emojiName string, updateRequired bool) error {
-	p.API.LogDebug("Setting reaction", "teamID", teamID, "channelID", channelID, "PostID", post.Id, "emojiName", emojiName)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
@@ -318,7 +311,7 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 		teamsUserID, _ := p.store.MattermostToTeamsUserID(userID)
 		teamsMessage, err = client.SetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
 		if err != nil {
-			p.API.LogError("Error setting reaction", "error", err.Error())
+			p.API.LogWarn("Error setting reaction", "error", err.Error())
 			return err
 		}
 
@@ -339,8 +332,6 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 }
 
 func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
-	p.API.LogDebug("Unsetting chat reaction", "srcUser", srcUser, "emojiName", emojiName, "channelID", channelID)
-
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, channelID)
@@ -367,7 +358,7 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 
 	teamsMessage, err := client.UnsetChatReaction(chatID, teamsMessageID, srcUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogError("Error in removing the chat reaction", "emojiName", emojiName, "error", err.Error())
+		p.API.LogWarn("Error in removing the chat reaction", "emoji_name", emojiName, "error", err.Error())
 		return err
 	}
 
@@ -380,8 +371,6 @@ func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, em
 }
 
 func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Post, emojiName string) error {
-	p.API.LogDebug("Unsetting reaction", "teamID", teamID, "channelID", channelID, "PostID", post.Id, "emojiName", emojiName)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
 		return err
@@ -415,7 +404,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 
 	teamsMessage, err := client.UnsetReaction(teamID, channelID, parentID, postInfo.MSTeamsID, teamsUserID, emoji.Parse(":"+emojiName+":"))
 	if err != nil {
-		p.API.LogError("Error in removing the reaction", "emojiName", emojiName, "error", err.Error())
+		p.API.LogWarn("Error in removing the reaction", "emoji_name", emojiName, "error", err.Error())
 		return err
 	}
 
@@ -428,8 +417,6 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 }
 
 func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
-	p.API.LogDebug("Sending direct message to MS Teams", "SrcUser", srcUser, "UsersIDs", usersIDs, "PostID", post.Id)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -438,7 +425,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		}
 	}
 
-	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
+	_, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
 		p.handlePromptForConnection(srcUser, post.ChannelId)
 		return "", err
@@ -455,18 +442,17 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 		var teamsUserID string
 		teamsUserID, err = p.store.MattermostToTeamsUserID(userID)
 		if err != nil {
-			p.API.LogDebug("Unable to get Teams user ID corresponding to MM user ID", "mmUserID", userID)
+			p.API.LogWarn("Unable to get Teams user ID corresponding to MM user ID", "user_id", userID, "error", err)
 			return "", err
 		}
 		teamsUsersIDs[idx] = teamsUserID
 	}
 
-	p.API.LogDebug("Sending direct message to MS Teams", "SrcUserID", srcUserID, "TeamsUsersIDs", teamsUsersIDs, "PostID", post.Id)
 	text := post.Message
 
 	chat, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
-		p.API.LogError("Failed to create or get the chat", "error", err)
+		p.API.LogWarn("Failed to create or get the chat", "error", err)
 		return "", err
 	}
 
@@ -513,7 +499,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	newMessage, err := client.SendChat(chat.ID, content, parentMessage, attachments, mentions)
 	if err != nil {
-		p.API.LogError("Error creating post on MS Teams", "error", err.Error())
+		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
 
@@ -534,21 +520,19 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 
 	timestamp, err := p.store.GetDMAndGMChannelPromptTime(channelID, userID)
 	if err != nil {
-		p.API.LogDebug("Unable to get the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
+		p.API.LogWarn("Unable to get the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())
 	}
 
 	if time.Until(timestamp) < -time.Hour*time.Duration(promptInterval) {
 		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
 
 		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
-			p.API.LogDebug("Unable to store the last prompt timestamp for the channel", "ChannelID", channelID, "Error", err.Error())
+			p.API.LogWarn("Unable to store the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())
 		}
 	}
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
-	p.API.LogDebug("Sending message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "PostID", post.Id)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -602,7 +586,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, content, attachments, mentions)
 	if err != nil {
-		p.API.LogError("Error creating post on MS Teams", "error", err.Error())
+		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
 		return "", err
 	}
 
@@ -616,8 +600,6 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 }
 
 func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting message from MS Teams", "teamID", teamID, "channelID", channelID)
-
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -636,17 +618,17 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
-		p.API.LogError("Error getting post info", "error", err)
+		p.API.LogWarn("Error getting post info", "error", err)
 		return err
 	}
 
 	if postInfo == nil {
-		p.API.LogError("Error deleting post, post not found.")
+		p.API.LogWarn("Error deleting post, post not found.")
 		return errors.New("post not found")
 	}
 
 	if err := client.DeleteMessage(teamID, channelID, parentID, postInfo.MSTeamsID); err != nil {
-		p.API.LogError("Error deleting post from MS Teams", "error", err)
+		p.API.LogWarn("Error deleting post from MS Teams", "error", err)
 		return err
 	}
 
@@ -655,8 +637,6 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 }
 
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
-	p.API.LogDebug("Deleting direct message from MS Teams", "ChatID", chatID, "PostID", post.Id)
-
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
 		p.handlePromptForConnection(user.Id, post.ChannelId)
@@ -665,17 +645,17 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(post.Id)
 	if err != nil {
-		p.API.LogError("Error getting post info", "error", err)
+		p.API.LogWarn("Error getting post info", "error", err)
 		return err
 	}
 
 	if postInfo == nil {
-		p.API.LogError("Error deleting post, post not found.")
+		p.API.LogWarn("Error deleting post, post not found.")
 		return errors.New("post not found")
 	}
 
 	if err := client.DeleteChatMessage(chatID, postInfo.MSTeamsID); err != nil {
-		p.API.LogError("Error deleting post from MS Teams", "error", err)
+		p.API.LogWarn("Error deleting post from MS Teams", "error", err)
 		return err
 	}
 
@@ -684,8 +664,6 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 }
 
 func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *model.Post, updateRequired bool) error {
-	p.API.LogDebug("Updating message to MS Teams", "TeamID", teamID, "ChannelID", channelID, "NewPostID", newPost.Id)
-
 	parentID := ""
 	if newPost.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(newPost.RootId)
@@ -707,11 +685,11 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *mod
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
-		p.API.LogError("Error getting post info", "error", err)
+		p.API.LogWarn("Error getting post info", "error", err)
 		return err
 	}
 	if postInfo == nil {
-		p.API.LogError("Error updating post, post not found.")
+		p.API.LogWarn("Error updating post, post not found.")
 		return errors.New("post not found")
 	}
 
@@ -756,15 +734,13 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *mod
 }
 
 func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post, updateRequired bool) error {
-	p.API.LogDebug("Updating direct message to MS Teams", "ChatID", chatID, "NewPostID", newPost.Id)
-
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
-		p.API.LogError("Error getting post info", "error", err)
+		p.API.LogWarn("Error getting post info", "error", err)
 		return err
 	}
 	if postInfo == nil {
-		p.API.LogError("Error updating post, post not found.")
+		p.API.LogWarn("Error updating post, post not found.")
 		return errors.New("post not found")
 	}
 
@@ -811,7 +787,7 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post
 func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (string, error) {
 	channel, appErr := p.API.GetChannel(channelID)
 	if appErr != nil {
-		p.API.LogError("Unable to get MM channel", "channelID", channelID, "error", appErr.DetailedError)
+		p.API.LogWarn("Unable to get MM channel", "channel_id", channelID, "error", appErr.DetailedError)
 		return "", appErr
 	}
 	if channel.Type != model.ChannelTypeDirect && channel.Type != model.ChannelTypeGroup {
@@ -820,7 +796,7 @@ func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (s
 
 	members, appErr := p.API.GetChannelMembers(channelID, 0, math.MaxInt32)
 	if appErr != nil {
-		p.API.LogError("Unable to get MM channel members", "channelID", channelID, "error", appErr.DetailedError)
+		p.API.LogWarn("Unable to get MM channel members", "channel_id", channelID, "error", appErr.DetailedError)
 		return "", appErr
 	}
 
@@ -835,7 +811,7 @@ func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (s
 
 	chat, err := client.CreateOrGetChatForUsers(teamsUsersIDs)
 	if err != nil {
-		p.API.LogError("Unable to create or get chat for users", "error", err.Error())
+		p.API.LogWarn("Unable to create or get chat for users", "error", err.Error())
 		return "", err
 	}
 
@@ -869,7 +845,7 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 			if chatID != "" {
 				chat, err := client.GetChat(chatID)
 				if err != nil {
-					p.API.LogDebug("Unable to get MS Teams chat", "Error", err.Error())
+					p.API.LogWarn("Unable to get MS Teams chat", "error", err.Error())
 				} else {
 					if chat.Type == "G" {
 						mentionedText = "Everyone"
@@ -882,7 +858,7 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 			} else {
 				msChannel, err := client.GetChannelInTeam(teamID, channelID)
 				if err != nil {
-					p.API.LogDebug("Unable to get MS Teams channel", "Error", err.Error())
+					p.API.LogWarn("Unable to get MS Teams channel", "error", err.Error())
 				} else {
 					mentionedText = msChannel.DisplayName
 				}
@@ -898,19 +874,19 @@ func (p *Plugin) getMentionsData(message, teamID, channelID, chatID string, clie
 		} else {
 			mmUser, err := p.API.GetUserByUsername(username)
 			if err != nil {
-				p.API.LogDebug("Unable to get user by username", "Error", err.Error())
+				p.API.LogWarn("Unable to get user by username", "error", err.Error())
 				continue
 			}
 
 			msteamsUserID, getErr := p.store.MattermostToTeamsUserID(mmUser.Id)
 			if getErr != nil {
-				p.API.LogDebug("Unable to get MS Teams user ID", "Error", getErr.Error())
+				p.API.LogWarn("Unable to get MS Teams user ID", "error", getErr.Error())
 				continue
 			}
 
 			msteamsUser, getErr := client.GetUser(msteamsUserID)
 			if getErr != nil {
-				p.API.LogDebug("Unable to get MS Teams user", "MSTeamsUserID", msteamsUserID, "Error", getErr.Error())
+				p.API.LogWarn("Unable to get MS Teams user", "teams_user_id", msteamsUserID, "error", getErr.Error())
 				continue
 			}
 
