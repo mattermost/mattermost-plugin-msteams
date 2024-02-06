@@ -280,6 +280,24 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	return conf.TokenSource(context.Background(), token).Token()
 }
 
+func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	application, err := tc.client.ApplicationsWithAppId(&applicationID).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	credentials := []clientmodels.Credential{}
+	credentialsList := application.GetPasswordCredentials()
+	for _, credential := range credentialsList {
+		credentials = append(credentials, clientmodels.Credential{
+			ID:          credential.GetKeyId().String(),
+			Name:        *credential.GetDisplayName(),
+			EndDateTime: *credential.GetEndDateTime(),
+			Hint:        *credential.GetHint(),
+		})
+	}
+	return credentials, nil
+}
+
 func (tc *ClientImpl) Connect() error {
 	var cred azcore.TokenCredential
 	switch tc.clientType {

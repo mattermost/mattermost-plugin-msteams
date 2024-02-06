@@ -50,8 +50,6 @@ type Store interface {
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
-	SetJobStatus(jobName string, status bool) error
-	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*storemodels.Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error
