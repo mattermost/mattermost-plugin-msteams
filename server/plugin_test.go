@@ -75,6 +75,10 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_subscriptions_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Maybe()
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_mmi_bot_ensure", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
+	plugin.API.(*plugintest.API).On("KVGet", "cron_check_credentials").Return(nil, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_check_credentials", mock.Anything, mock.Anything).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("KVSetWithOptions", "cron_check_credentials", mock.Anything, model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Maybe()
+	plugin.API.(*plugintest.API).On("GetLicense").Return(&model.License{SkuShortName: "enterprise"}).Maybe()
 	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
 	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
 	// TODO: Add separate mocks for each test later.

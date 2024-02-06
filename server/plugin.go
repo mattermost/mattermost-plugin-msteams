@@ -46,6 +46,7 @@ const (
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 	metricsJobName               = "metrics"
+	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
 )
@@ -75,6 +76,7 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
@@ -297,6 +299,21 @@ func (p *Plugin) start(isRestart bool) {
 
 		p.syncUserJob = job
 	}
+
+	checkCredentialsJob, err := cluster.Schedule(
+		p.API,
+		checkCredentialsJobName,
+		cluster.MakeWaitForRoundedInterval(24*time.Hour),
+		p.checkCredentials,
+	)
+	if err != nil {
+		p.API.LogError("error in scheduling the check credentials job", "error", err)
+		return
+	}
+	p.checkCredentialsJob = checkCredentialsJob
+
+	// Run the job above right away so we immediately populate metrics.
+	p.checkCredentials()
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -418,6 +435,12 @@ func (p *Plugin) OnActivate() error {
 	p.metricsHandler = metrics.NewMetricsHandler(p.GetMetrics())
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
+
+	config := p.apiClient.Configuration.GetConfig()
+	license := p.apiClient.System.GetLicense()
+	if !pluginapi.IsE20LicensedOrDevelopment(config, license) {
+		return errors.New("this plugin requires an enterprise license")
+	}
 
 	p.activityHandler = handlers.New(p)
 

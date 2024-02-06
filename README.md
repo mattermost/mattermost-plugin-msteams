@@ -44,7 +44,7 @@ This plugin supports the following features:
 
 ## Installation
 
-These installation instructions assume you already have a [Mattermost instance](https://mattermost.com/download/) running [PostgreSQL](https://www.postgresql.org/):
+These installation instructions assume you already have a [Mattermost instance](https://mattermost.com/download/) running [PostgreSQL](https://www.postgresql.org/). Note that this plugin does not support MySQL.
 
 1. Go to the releases page of this GitHub repository and download the latest release for your Mattermost server: https://github.com/mattermost/mattermost-plugin-msteams-sync/releases
 2. Upload this file on the Mattermost **System Console > Plugins > Management** page to install the plugin. To learn more about how to upload a plugin, [see the documentation](https://docs.mattermost.com/administration/plugins.html#plugin-uploads).
