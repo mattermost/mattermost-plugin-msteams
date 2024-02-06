@@ -28,7 +28,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.27.0
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
 	golang.org/x/net v0.20.0
-	golang.org/x/oauth2 v0.15.0
+	golang.org/x/oauth2 v0.16.0
 )
 
 require (
