@@ -18,7 +18,8 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 		user := &model.User{Id: model.NewId()}
 
 		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		p.API.AddUserToChannel(channel.Id, user.Id, "")
+		_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, "")
+		require.Nil(t, appErr)
 		mockLinkedChannel(p, channel)
 
 		assertChannelNotAutomuted(t, p, channel.Id, user.Id)
@@ -43,12 +44,13 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 	t.Run("should do nothing when a user connects with their primary platform set to MM", func(t *testing.T) {
 		p, user, channel := setup(t)
 
-		p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
+		appErr := p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
 			UserId:   user.Id,
 			Category: PreferenceCategoryPlugin,
 			Name:     PreferenceNamePlatform,
 			Value:    PreferenceValuePlatformMM,
 		}})
+		require.Nil(t, appErr)
 
 		automuteEnabled, err := p.updateAutomutingOnUserConnect(user.Id)
 		require.NoError(t, err)
@@ -64,12 +66,13 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 	t.Run("should enable automute when a user connects with their primary platform set to Teams", func(t *testing.T) {
 		p, user, channel := setup(t)
 
-		p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
+		appErr := p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
 			UserId:   user.Id,
 			Category: PreferenceCategoryPlugin,
 			Name:     PreferenceNamePlatform,
 			Value:    PreferenceValuePlatformMSTeams,
 		}})
+		require.Nil(t, appErr)
 
 		automuteEnabled, err := p.updateAutomutingOnUserConnect(user.Id)
 		require.NoError(t, err)
@@ -85,7 +88,7 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 	t.Run("should do nothing if somehow called twice in a row", func(t *testing.T) {
 		p, user, channel := setup(t)
 
-		p.API.UpdatePreferencesForUser(user.Id, []model.Preference{
+		appErr := p.API.UpdatePreferencesForUser(user.Id, []model.Preference{
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
@@ -99,6 +102,7 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 				Value:    "true",
 			},
 		})
+		require.Nil(t, appErr)
 
 		automuteEnabled, err := p.updateAutomutingOnUserConnect(user.Id)
 		require.NoError(t, err)
@@ -122,7 +126,8 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 		mockUserConnected(p, user.Id)
 
 		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		p.API.AddUserToChannel(channel.Id, user.Id, "")
+		_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, "")
+		require.Nil(t, appErr)
 		mockLinkedChannel(p, channel)
 
 		return p, user, channel
@@ -194,7 +199,8 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 		p, user, _ := setup(t)
 
 		unlinkedChannel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, "")
+		_, appErr := p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, "")
+		require.Nil(t, appErr)
 		mockUnlinkedChannel(p, unlinkedChannel)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
