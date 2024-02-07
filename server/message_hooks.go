@@ -54,8 +54,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			p.GetMetrics().ObserveMessageHooksEvent("message_create")
-
 			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 			if appErr != nil {
 				return
@@ -71,7 +69,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		}
 		return
 	}
-	p.GetMetrics().ObserveMessageHooksEvent("message_create")
 
 	user, _ := p.API.GetUser(post.UserId)
 
@@ -102,7 +99,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			p.GetMetrics().ObserveMessageHooksEvent("reaction_added")
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
@@ -110,8 +106,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		}
 		return
 	}
-
-	p.GetMetrics().ObserveMessageHooksEvent("reaction_added")
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
@@ -148,7 +142,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 			return
 		}
 		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			p.GetMetrics().ObserveMessageHooksEvent("reaction_removed")
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
@@ -156,7 +149,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		}
 		return
 	}
-	p.GetMetrics().ObserveMessageHooksEvent("reaction_removed")
 
 	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName)
 	if err != nil {
@@ -190,7 +182,6 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		if !p.getConfiguration().SyncDirectMessages {
 			return
 		}
-		p.GetMetrics().ObserveMessageHooksEvent("message_update")
 
 		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
@@ -217,7 +208,6 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		}
 		return
 	}
-	p.GetMetrics().ObserveMessageHooksEvent("message_update")
 
 	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
@@ -480,7 +470,6 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.GetMetrics().ObserveMessageHooksEvent("attachment_created")
 		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
 	}
 
@@ -575,7 +564,6 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			continue
 		}
 		attachments = append(attachments, attachment)
-		p.GetMetrics().ObserveMessageHooksEvent("attachment_created")
 		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
 	}
 

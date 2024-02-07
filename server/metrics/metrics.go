@@ -17,7 +17,6 @@ const (
 	MetricsSubsystemAPI            = "api"
 	MetricsSubsystemEvents         = "events"
 	MetricsSubsystemSharedChannels = "shared_channels"
-	MetricsSubsystemHooks          = "hooks"
 	MetricsSubsystemDB             = "db"
 	MetricsSubsystemMSGraph        = "msgraph"
 
@@ -98,7 +97,6 @@ type Metrics interface {
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
 	ObserveClientSecretEndDateTime(expireDate time.Time)
-	ObserveMessageHooksEvent(event string)
 	ObserveMessageSharedChannelsEvent(event string)
 }
 
@@ -132,7 +130,6 @@ type metrics struct {
 	filesTotal                  *prometheus.CounterVec
 	messagesConfirmedTotal      *prometheus.CounterVec
 	subscriptionsTotal          *prometheus.CounterVec
-	messageHooksEvents          *prometheus.CounterVec
 	messageSharedChannelsEvents *prometheus.CounterVec
 
 	connectedUsers prometheus.Gauge
@@ -310,15 +307,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
-
-	m.messageHooksEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemHooks,
-		Name:        "events_total",
-		Help:        "The total number of hook events related to message processing.",
-		ConstLabels: additionalLabels,
-	}, []string{"event"})
-	m.registry.MustRegister(m.messageHooksEvents)
 
 	m.messageSharedChannelsEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -615,12 +603,6 @@ func (m *metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
 		} else {
 			m.clientSecretEndDateTime.Set(float64(expireDate.UnixNano()) / 1e9)
 		}
-	}
-}
-
-func (m *metrics) ObserveMessageHooksEvent(event string) {
-	if m != nil {
-		m.messageHooksEvents.With(prometheus.Labels{"event": event}).Inc()
 	}
 }
 

@@ -44,7 +44,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -60,7 +59,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -74,7 +72,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -89,7 +86,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -111,7 +107,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "false", mock.AnythingOfType("float64")).Once()
-				metrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -135,7 +130,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 		{
@@ -159,7 +153,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_added").Times(1)
 			},
 		},
 	} {
@@ -197,7 +190,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -212,7 +204,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -231,7 +222,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -248,7 +238,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -277,7 +266,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "false", mock.AnythingOfType("float64")).Once()
-				metrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -308,7 +296,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 		{
@@ -339,7 +326,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UnsetReaction", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "reaction_removed").Times(1)
 			},
 		},
 	} {
@@ -412,7 +398,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -427,7 +412,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -442,7 +426,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -458,7 +441,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -479,7 +461,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
-				metrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -501,7 +482,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "false", mock.AnythingOfType("float64")).Once()
-				metrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -535,7 +515,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 		{
@@ -568,7 +547,6 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "message_update").Times(1)
 			},
 		},
 	} {
@@ -1204,7 +1182,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "false", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedError: "unable to send the chat",
 		},
@@ -1243,7 +1220,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1286,7 +1262,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "false", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1318,7 +1293,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1351,7 +1325,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1400,7 +1373,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "false", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1439,7 +1411,6 @@ func TestSendChat(t *testing.T) {
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1562,7 +1533,6 @@ func TestSend(t *testing.T) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedError: "unable to send message with attachments",
 		},
@@ -1597,7 +1567,6 @@ func TestSend(t *testing.T) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
@@ -1632,7 +1601,6 @@ func TestSend(t *testing.T) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMessageHooksEvent", "attachment_created").Times(1)
 			},
 			ExpectedMessage: "mockMessageID",
 		},
