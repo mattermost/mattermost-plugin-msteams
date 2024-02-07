@@ -506,8 +506,11 @@ func (p *Plugin) OnActivate() error {
 		}
 		p.remoteID = remoteID
 
+		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
+
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
+			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
 			return err
 		}
 		for _, linkedChannel := range linkedChannels {
@@ -523,6 +526,8 @@ func (p *Plugin) OnActivate() error {
 			if err != nil {
 				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
 			}
+
+			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
 		}
 	} else {
 		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {

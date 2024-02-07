@@ -232,6 +232,8 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 			ShareName: channelLink.MattermostChannelID,
 		}); err != nil {
 			p.API.LogWarn("Failed to share channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
 		}
 	}
 
@@ -281,6 +283,8 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 	if !p.getConfiguration().DisableSyncMsg {
 		if _, err = p.API.UnshareChannel(link.MattermostChannelID); err != nil {
 			p.API.LogWarn("Failed to unshare channel", "channel_id", link.MattermostChannelID, "subscription_id", subscription.SubscriptionID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Unshared channel", "channel_id", link.MattermostChannelID)
 		}
 	}
 
