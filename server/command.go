@@ -221,7 +221,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 
-	if p.getConfiguration().MetricsForSharedChannelsInfrastructure {
+	if !p.getConfiguration().DisableSyncMsg {
 		if _, err = p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: channelLink.MattermostChannelID,
 			TeamId:    channelLink.MattermostTeamID,
@@ -278,7 +278,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return &model.CommandResponse{}, nil
 	}
 
-	if p.getConfiguration().MetricsForSharedChannelsInfrastructure {
+	if !p.getConfiguration().DisableSyncMsg {
 		if _, err = p.API.UnshareChannel(link.MattermostChannelID); err != nil {
 			p.API.LogWarn("Failed to unshare channel", "channel_id", link.MattermostChannelID, "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		}

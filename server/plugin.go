@@ -493,7 +493,7 @@ func (p *Plugin) OnActivate() error {
 		}
 	}
 
-	if p.getConfiguration().MetricsForSharedChannelsInfrastructure {
+	if !p.getConfiguration().DisableSyncMsg {
 		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  "MS Teams Plugin",
 			PluginID:     pluginID,
@@ -822,34 +822,61 @@ func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
 }
 
 func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *model.Post, rc *model.RemoteCluster) error {
-	p.GetMetrics().ObserveMessageSharedChannelsEvent("attachment_created")
+	now := model.GetMillis()
+
+	isUpdate := fi.CreateAt != fi.UpdateAt
+	isDelete := fi.DeleteAt != 0
+	switch {
+	case !isUpdate && !isDelete:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionCreated, now-fi.CreateAt)
+	case isUpdate && !isDelete:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionUpdated, now-fi.UpdateAt)
+	default:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionDeleted, now-fi.DeleteAt)
+	}
+
 	return nil
 }
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
+	now := model.GetMillis()
+
 	var resp model.SyncResponse
 	for _, post := range msg.Posts {
-		// TODO: Handle post deletions
-		if post.CreateAt != post.UpdateAt {
-			p.GetMetrics().ObserveMessageSharedChannelsEvent("message_update")
-		} else {
-			p.GetMetrics().ObserveMessageSharedChannelsEvent("message_create")
+		isUpdate := post.CreateAt != post.UpdateAt
+		isDelete := post.DeleteAt != 0
+
+		switch {
+		case !isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionCreated, now-post.CreateAt)
+		case isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionUpdated, now-post.UpdateAt)
+		default:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionDeleted, now-post.DeleteAt)
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
 			resp.PostsLastUpdateAt = post.UpdateAt
 		}
 	}
+
 	for _, reaction := range msg.Reactions {
-		reaction.ChannelId = msg.ChannelId
-		if reaction.DeleteAt > 0 {
-			p.GetMetrics().ObserveMessageSharedChannelsEvent("reaction_removed")
-		} else {
-			p.GetMetrics().ObserveMessageSharedChannelsEvent("reaction_added")
+		isUpdate := reaction.CreateAt != reaction.UpdateAt
+		isDelete := reaction.DeleteAt != 0
+
+		switch {
+		case !isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionCreated, now-reaction.CreateAt)
+		case isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionUpdated, now-reaction.UpdateAt)
+		default:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionDeleted, now-reaction.DeleteAt)
 		}
+
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
 			resp.ReactionsLastUpdateAt = reaction.UpdateAt
 		}
 	}
+
 	return resp, nil
 }

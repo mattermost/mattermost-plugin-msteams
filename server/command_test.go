@@ -36,6 +36,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -61,13 +62,13 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			},
 		},
 		{
-			description: "Successfully executed unlinked command, shared channels enabled",
+			description: "Successfully executed unlinked command, sync msg enabled",
 			args: &model.CommandArgs{
 				UserId:    testutils.GetUserID(),
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
-				p.configuration.MetricsForSharedChannelsInfrastructure = true
+				p.configuration.DisableSyncMsg = false
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -100,6 +101,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
@@ -121,6 +123,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: "Mock-ChannelID",
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "Mock-ChannelID").Return(&model.Channel{
@@ -140,6 +143,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 			description: "Unable to get the current channel",
 			args:        &model.CommandArgs{},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Once()
@@ -155,6 +159,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -174,6 +179,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -192,6 +198,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -217,6 +224,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -607,6 +615,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -640,7 +649,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			},
 		},
 		{
-			description: "Successfully executed link command, shared channels enabled",
+			description: "Successfully executed link command, sync msg enabled",
 			parameters:  []string{testutils.GetTeamsUserID(), testutils.GetChannelID()},
 			args: &model.CommandArgs{
 				UserId:    testutils.GetUserID(),
@@ -648,7 +657,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
-				p.configuration.MetricsForSharedChannelsInfrastructure = true
+				p.configuration.DisableSyncMsg = false
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -691,6 +700,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -721,6 +731,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -738,6 +749,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			parameters:  []string{"", ""},
 			args:        &model.CommandArgs{},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "").Return(&model.Channel{
@@ -759,6 +771,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				TeamId: testutils.GetTeamsUserID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", "").Return(nil, testutils.GetInternalServerAppError("Error while getting the current channel.")).Times(1)
@@ -778,6 +791,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -800,6 +814,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{
@@ -822,6 +837,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 			},
 			setupPlugin: func(p *Plugin) {
+				p.configuration.DisableSyncMsg = true
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(&model.Channel{

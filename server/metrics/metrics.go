@@ -16,9 +16,9 @@ const (
 	MetricsSubsystemHTTP           = "http"
 	MetricsSubsystemAPI            = "api"
 	MetricsSubsystemEvents         = "events"
-	MetricsSubsystemSharedChannels = "shared_channels"
 	MetricsSubsystemDB             = "db"
 	MetricsSubsystemMSGraph        = "msgraph"
+	MetricsSubsystemSharedChannels = "shared_channels"
 
 	MetricsCloudInstallationLabel = "installationId"
 	MetricsVersionLabel           = "version"
@@ -97,7 +97,9 @@ type Metrics interface {
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
 	ObserveClientSecretEndDateTime(expireDate time.Time)
-	ObserveMessageSharedChannelsEvent(event string)
+	ObserveSyncMsgPostDelay(action string, delayMillis int64)
+	ObserveSyncMsgReactionDelay(action string, delayMillis int64)
+	ObserveSyncMsgFileDelay(action string, delayMillis int64)
 }
 
 type InstanceInfo struct {
@@ -123,14 +125,16 @@ type metrics struct {
 	httpErrorsTotal            prometheus.Counter
 	oAuthTokenInvalidatedTotal prometheus.Counter
 
-	lifecycleEventsTotal        *prometheus.CounterVec
-	changeEventsTotal           *prometheus.CounterVec
-	messagesTotal               *prometheus.CounterVec
-	reactionsTotal              *prometheus.CounterVec
-	filesTotal                  *prometheus.CounterVec
-	messagesConfirmedTotal      *prometheus.CounterVec
-	subscriptionsTotal          *prometheus.CounterVec
-	messageSharedChannelsEvents *prometheus.CounterVec
+	lifecycleEventsTotal     *prometheus.CounterVec
+	changeEventsTotal        *prometheus.CounterVec
+	messagesTotal            *prometheus.CounterVec
+	reactionsTotal           *prometheus.CounterVec
+	filesTotal               *prometheus.CounterVec
+	messagesConfirmedTotal   *prometheus.CounterVec
+	subscriptionsTotal       *prometheus.CounterVec
+	syncMsgPostDelayTime     *prometheus.HistogramVec
+	syncMsgReactionDelayTime *prometheus.HistogramVec
+	syncMsgFileDelayTime     *prometheus.HistogramVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -308,14 +312,32 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
 
-	m.messageSharedChannelsEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
+	m.syncMsgPostDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "events_total",
-		Help:        "The total number of shared channel events related to message processing.",
+		Name:        "sync_msg_post_delay_seconds",
+		Help:        "The delay between a post event and when that event is relayed to the plugin.",
 		ConstLabels: additionalLabels,
-	}, []string{"event"})
-	m.registry.MustRegister(m.messageSharedChannelsEvents)
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgPostDelayTime)
+
+	m.syncMsgReactionDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "sync_msg_reaction_delay_seconds",
+		Help:        "The delay between a reaction event and when that event is relayed to the plugin.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgReactionDelayTime)
+
+	m.syncMsgFileDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "sync_msg_file_delay_seconds",
+		Help:        "The delay between a file event and when that event is relayed to the plugin.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgFileDelayTime)
 
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -606,9 +628,21 @@ func (m *metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
 	}
 }
 
-func (m *metrics) ObserveMessageSharedChannelsEvent(event string) {
+func (m *metrics) ObserveSyncMsgPostDelay(action string, delayMillis int64) {
 	if m != nil {
-		m.messageSharedChannelsEvents.With(prometheus.Labels{"event": event}).Inc()
+		m.syncMsgPostDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
+	}
+}
+
+func (m *metrics) ObserveSyncMsgReactionDelay(action string, delayMillis int64) {
+	if m != nil {
+		m.syncMsgReactionDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
+	}
+}
+
+func (m *metrics) ObserveSyncMsgFileDelay(action string, delayMillis int64) {
+	if m != nil {
+		m.syncMsgFileDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
 	}
 }
 
