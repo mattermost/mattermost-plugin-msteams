@@ -818,7 +818,6 @@ func (p *Plugin) updateMetrics() {
 }
 
 func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
-	p.API.LogDebug("Ping received", "remote", rc.DisplayName, "pluginID", pluginID)
 	return true
 }
 
