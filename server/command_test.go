@@ -453,6 +453,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 			testCase.setupAPI(mockAPI)
 			p.SetAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
+			defer mockAPI.AssertExpectations(t)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			_, _ = p.executeDisconnectCommand(testCase.args)
@@ -528,6 +529,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
+			defer mockAPI.AssertExpectations(t)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeDisconnectBotCommand(testCase.args)
@@ -566,7 +568,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ServiceSettings: model.ServiceSettings{
 						SiteURL: model.NewString("/"),
 					},
-				}, nil).Times(2)
+				}, nil).Maybe()
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is now linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
@@ -731,7 +733,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 					ServiceSettings: model.ServiceSettings{
 						SiteURL: model.NewString("/"),
 					},
-				}, nil).Times(1)
+				}, nil).Maybe()
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "MS Teams channel not found or you don't have the permissions to access it.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
@@ -753,6 +755,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
+			defer mockAPI.AssertExpectations(t)
 
 			testCase.setupStore(p.store.(*mockStore.Store))
 			testCase.setupClient(p.msteamsAppClient.(*mockClient.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*mockClient.Client))
@@ -816,8 +819,6 @@ func TestExecuteConnectCommand(t *testing.T) {
 					ChannelId: testutils.GetChannelID(),
 					Message:   "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
@@ -839,10 +840,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "Unable to set in KV store",
 			setupAPI: func(api *plugintest.API) {
-				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte(nil), model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_whitelist_cluster_mutex", []byte{0x1}, model.PluginKVSetOptions{Atomic: true, ExpireInSeconds: 15}).Return(true, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -853,13 +851,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 		{
 			description: "Successful execution of the command",
 			setupAPI: func(api *plugintest.API) {
-				api.On("KVSet", "_code_verifier_"+testutils.GetUserID(), mock.Anything).Return(nil).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: model.NewString("/"),
-					},
-				}, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
@@ -872,6 +864,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
+			defer mockAPI.AssertExpectations(t)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectCommand(&model.CommandArgs{
@@ -971,7 +964,6 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Unable to set in KV store",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(testutils.GetInternalServerAppError("unable to set in KV store")).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the bot account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -984,13 +976,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			description: "Successful execution of the command",
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Once()
-				api.On("KVSet", "_code_verifier_"+p.userID, mock.Anything).Return(nil).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: model.NewString("/"),
-					},
-				}, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", p.userID).Return(nil, errors.New("token not found")).Once()
@@ -1003,6 +989,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			p.SetAPI(mockAPI)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
+			defer mockAPI.AssertExpectations(t)
 			testCase.setupStore(p.store.(*mockStore.Store))
 
 			_, _ = p.executeConnectBotCommand(&model.CommandArgs{
