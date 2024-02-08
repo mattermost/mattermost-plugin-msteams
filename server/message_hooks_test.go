@@ -31,13 +31,30 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
 		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			Name:     "ReactionHasBeenAdded: Unable to get the post info",
+			Name: "ReactionHasBeenAdded: disabled by configuration",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = false
+			},
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+			},
+			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+		},
+		{
+			Name: "ReactionHasBeenAdded: Unable to get the post info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
@@ -47,6 +64,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 			},
@@ -61,6 +82,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
@@ -73,6 +98,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
@@ -86,6 +115,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the reaction",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -107,6 +140,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the post last updateAt time",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -130,6 +167,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Valid",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -154,7 +195,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
@@ -173,13 +214,30 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
 		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			Name:     "ReactionHasBeenRemoved: Unable to get the post info",
+			Name: "ReactionHasBeenRemoved: disabled by configuration",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = false
+			},
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+			},
+			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+		},
+		{
+			Name: "ReactionHasBeenRemoved: Unable to get the post info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
@@ -189,6 +247,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
 			},
@@ -202,6 +264,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -219,6 +285,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
@@ -234,6 +304,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -262,6 +336,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to set the post last updateAt time",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -292,6 +370,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Valid",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -323,7 +405,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))

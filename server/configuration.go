@@ -28,6 +28,7 @@ type configuration struct {
 	WebhookSecret                      string `json:"webhooksecret"`
 	EnabledTeams                       string `json:"enabledteams"`
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
+	SyncReactions                      bool   `json:"syncreactions"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
 	CertificatePublic                  string `json:"certificatepublic"`

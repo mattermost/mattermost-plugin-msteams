@@ -27,6 +27,7 @@ type pluginMock struct {
 	api                        plugin.API
 	store                      store.Store
 	syncDirectMessages         bool
+	syncReactions              bool
 	syncGuestUsers             bool
 	maxSizeForCompleteDownload int
 	bufferSizeForStreaming     int
@@ -41,6 +42,7 @@ type pluginMock struct {
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
 func (pm *pluginMock) GetStore() store.Store                           { return pm.store }
 func (pm *pluginMock) GetSyncDirectMessages() bool                     { return pm.syncDirectMessages }
+func (pm *pluginMock) GetSyncReactions() bool                          { return pm.syncReactions }
 func (pm *pluginMock) GetSyncGuestUsers() bool                         { return pm.syncGuestUsers }
 func (pm *pluginMock) GetMaxSizeForCompleteDownload() int              { return pm.maxSizeForCompleteDownload }
 func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return pm.bufferSizeForStreaming }

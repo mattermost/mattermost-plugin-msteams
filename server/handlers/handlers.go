@@ -38,6 +38,7 @@ type PluginIface interface {
 	GetStore() store.Store
 	GetMetrics() metrics.Metrics
 	GetSyncDirectMessages() bool
+	GetSyncReactions() bool
 	GetSyncGuestUsers() bool
 	GetMaxSizeForCompleteDownload() int
 	GetBufferSizeForStreaming() int
@@ -456,6 +457,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []clientmodels.Reaction) {
+	if !ah.plugin.GetSyncReactions() {
+		return
+	}
+
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
 		return

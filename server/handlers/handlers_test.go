@@ -546,6 +546,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				ChatID: "invalid-ChatID",
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
@@ -564,6 +565,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
@@ -591,6 +593,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -618,6 +621,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -654,6 +658,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetStore").Return(store).Maybe()
@@ -691,6 +696,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -736,6 +742,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -784,6 +791,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(2)
 				p.On("GetAPI").Return(mockAPI).Maybe()
@@ -839,6 +847,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetStore").Return(store).Maybe()
@@ -1006,9 +1015,21 @@ func TestHandleReactions(t *testing.T) {
 		setupMetrics func(*mocksMetrics.Metrics)
 	}{
 		{
+			description: "Disabled by configuration",
+			reactions:   []clientmodels.Reaction{},
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(false).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+			},
+			setupStore:   func(store *mocksStore.Store) {},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
+		},
+		{
 			description: "Reactions list is empty",
 			reactions:   []clientmodels.Reaction{},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Once()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -1026,6 +1047,7 @@ func TestHandleReactions(t *testing.T) {
 				},
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Once()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -1043,6 +1065,7 @@ func TestHandleReactions(t *testing.T) {
 				},
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Once()
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
@@ -1079,6 +1102,7 @@ func TestHandleReactions(t *testing.T) {
 				},
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncReactions").Return(true).Once()
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()

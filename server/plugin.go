@@ -111,6 +111,10 @@ func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
 }
 
+func (p *Plugin) GetSyncReactions() bool {
+	return p.getConfiguration().SyncReactions
+}
+
 func (p *Plugin) GetSyncGuestUsers() bool {
 	return p.getConfiguration().SyncGuestUsers
 }

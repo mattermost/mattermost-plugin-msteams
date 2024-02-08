@@ -212,6 +212,20 @@ func (_m *PluginIface) GetSyncGuestUsers() bool {
 	return r0
 }
 
+// GetSyncReactions provides a mock function with given fields:
+func (_m *PluginIface) GetSyncReactions() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetURL provides a mock function with given fields:
 func (_m *PluginIface) GetURL() string {
 	ret := _m.Called()
