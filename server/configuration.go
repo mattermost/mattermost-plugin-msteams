@@ -29,6 +29,7 @@ type configuration struct {
 	EnabledTeams                       string `json:"enabledteams"`
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
 	SyncReactions                      bool   `json:"syncreactions"`
+	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
 	CertificatePublic                  string `json:"certificatepublic"`

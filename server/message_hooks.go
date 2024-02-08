@@ -456,6 +456,10 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
+		if !p.GetSyncFileAttachments() {
+			continue
+		}
+
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
@@ -550,6 +554,10 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
+		if !p.GetSyncFileAttachments() {
+			continue
+		}
+
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)

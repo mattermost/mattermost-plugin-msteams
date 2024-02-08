@@ -39,6 +39,7 @@ type PluginIface interface {
 	GetMetrics() metrics.Metrics
 	GetSyncDirectMessages() bool
 	GetSyncReactions() bool
+	GetSyncFileAttachments() bool
 	GetSyncGuestUsers() bool
 	GetMaxSizeForCompleteDownload() int
 	GetBufferSizeForStreaming() int
