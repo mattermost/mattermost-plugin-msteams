@@ -160,7 +160,7 @@ func (p *Plugin) isUserConnected(userID string) (bool, error) {
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 	// Automute all DM/GM channels
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return true, nil
 	}
 
