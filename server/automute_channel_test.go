@@ -247,3 +247,251 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
 	})
 }
+
+func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
+	const (
+		NotMuted = iota
+		ManuallyMuted
+		Automuted
+	)
+
+	for name, testCase := range map[string]struct {
+		connected       bool
+		automuteEnabled bool
+		manuallyMuted   bool
+
+		expect int
+	}{
+		"should not mute the channel for an unconnected user": {
+			connected:     false,
+			manuallyMuted: false,
+			expect:        NotMuted,
+		},
+		"should leave the channel muted for an unconnected user": {
+			connected:     false,
+			manuallyMuted: true,
+			expect:        ManuallyMuted,
+		},
+		"should not mute the channel for a connected user with automute disabled": {
+			connected:       true,
+			automuteEnabled: false,
+			manuallyMuted:   false,
+			expect:          NotMuted,
+		},
+		"should leave the channel muted for a connected user with automute disabled": {
+			connected:       true,
+			automuteEnabled: false,
+			manuallyMuted:   true,
+			expect:          ManuallyMuted,
+		},
+		"should mute the channel for a connected user with automute enabled": {
+			connected:       true,
+			automuteEnabled: true,
+			manuallyMuted:   false,
+			expect:          Automuted,
+		},
+		"should mute the channel for a connected user with automute enabled, overwriting manual muting": {
+			connected:       true,
+			automuteEnabled: true,
+			manuallyMuted:   true,
+			expect:          Automuted,
+		},
+	} {
+		t.Run("when a channel is linked, "+name, func(t *testing.T) {
+			p := newAutomuteTestPlugin(t)
+
+			channel := &model.Channel{
+				Id:   model.NewId(),
+				Type: model.ChannelTypeOpen,
+			}
+
+			mockUnlinkedChannel(p, channel)
+
+			user := &model.User{Id: model.NewId()}
+
+			if testCase.connected {
+				mockUserConnected(p, user.Id)
+			} else {
+				mockUserNotConnected(p, user.Id)
+			}
+
+			if testCase.automuteEnabled {
+				err := p.setAutomuteIsEnabledForUser(user.Id, true)
+				require.NoError(t, err)
+			}
+
+			_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			require.Nil(t, appErr)
+
+			if testCase.manuallyMuted {
+				appErr = p.API.PatchChannelMembersNotifications(
+					[]*model.ChannelMemberIdentifier{
+						{
+							ChannelId: channel.Id,
+							UserId:    user.Id,
+						},
+					},
+					map[string]string{
+						model.MarkUnreadNotifyProp: model.ChannelMarkUnreadMention,
+					},
+				)
+				require.Nil(t, appErr)
+			}
+
+			// Ensure the channel starts correctly muted
+			member, appErr := p.API.GetChannelMember(channel.Id, user.Id)
+			require.Nil(t, appErr)
+
+			if testCase.manuallyMuted {
+				require.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+			} else {
+				require.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+			}
+
+			err := p.updateAutomutingOnChannelLinked(channel.Id)
+			require.NoError(t, err)
+
+			// Confirm the channel was correctly muted or not
+			switch testCase.expect {
+			case NotMuted:
+				assertChannelNotAutomuted(t, p, channel.Id, user.Id)
+
+			case ManuallyMuted:
+				member, appErr = p.API.GetChannelMember(channel.Id, user.Id)
+				require.Nil(t, appErr)
+
+				assert.Equal(t, "", member.NotifyProps[NotifyPropAutomuted])
+				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+
+			case Automuted:
+				assertChannelAutomuted(t, p, channel.Id, user.Id)
+				assert.Equal(t, "true", member.NotifyProps[NotifyPropAutomuted])
+				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+			}
+		})
+	}
+}
+
+func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
+	const (
+		NotMuted = iota
+		ManuallyMuted
+		Automuted
+	)
+
+	for name, testCase := range map[string]struct {
+		connected       bool
+		automuteEnabled bool
+		manuallyMuted   bool
+
+		expect int
+	}{
+		"should not mute the channel for an unconnected user": {
+			connected:     false,
+			manuallyMuted: false,
+			expect:        NotMuted,
+		},
+		"should leave the channel muted for an unconnected user": {
+			connected:     false,
+			manuallyMuted: true,
+			expect:        ManuallyMuted,
+		},
+		"should not mute the channel for a connected user with automute disabled": {
+			connected:       true,
+			automuteEnabled: false,
+			manuallyMuted:   false,
+			expect:          NotMuted,
+		},
+		"should leave the channel muted for a connected user with automute disabled": {
+			connected:       true,
+			automuteEnabled: false,
+			manuallyMuted:   true,
+			expect:          ManuallyMuted,
+		},
+		"should unmute the channel for a connected user with automute enabled": {
+			connected:       true,
+			automuteEnabled: true,
+			manuallyMuted:   false,
+			expect:          NotMuted,
+		},
+		"should unmute the channel for a connected user with automute enabled, overwriting manual muting": {
+			connected:       true,
+			automuteEnabled: true,
+			manuallyMuted:   true,
+			expect:          NotMuted,
+		},
+	} {
+		t.Run("when a channel is unlinked, "+name, func(t *testing.T) {
+			p := newAutomuteTestPlugin(t)
+
+			channel := &model.Channel{
+				Id:   model.NewId(),
+				Type: model.ChannelTypeOpen,
+			}
+
+			mockLinkedChannel(p, channel)
+
+			user := &model.User{Id: model.NewId()}
+
+			if testCase.connected {
+				mockUserConnected(p, user.Id)
+			} else {
+				mockUserNotConnected(p, user.Id)
+			}
+
+			if testCase.automuteEnabled {
+				err := p.setAutomuteIsEnabledForUser(user.Id, true)
+				require.NoError(t, err)
+			}
+
+			_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			require.Nil(t, appErr)
+
+			if testCase.manuallyMuted {
+				appErr = p.API.PatchChannelMembersNotifications(
+					[]*model.ChannelMemberIdentifier{
+						{
+							ChannelId: channel.Id,
+							UserId:    user.Id,
+						},
+					},
+					map[string]string{
+						model.MarkUnreadNotifyProp: model.ChannelMarkUnreadMention,
+					},
+				)
+				require.Nil(t, appErr)
+			}
+
+			// Ensure the channel starts correctly muted
+			member, appErr := p.API.GetChannelMember(channel.Id, user.Id)
+			require.Nil(t, appErr)
+
+			if testCase.automuteEnabled {
+				assertChannelAutomuted(t, p, channel.Id, user.Id)
+			} else if testCase.manuallyMuted {
+				require.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+			} else {
+				require.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+			}
+
+			err := p.updateAutomutingOnChannelUnlinked(channel.Id)
+			require.NoError(t, err)
+
+			// Confirm the channel was correctly unmuted or not
+			member, appErr = p.API.GetChannelMember(channel.Id, user.Id)
+			require.Nil(t, appErr)
+
+			switch testCase.expect {
+			case NotMuted:
+				assertChannelNotAutomuted(t, p, channel.Id, user.Id)
+
+			case ManuallyMuted:
+				assert.Equal(t, "", member.NotifyProps[NotifyPropAutomuted])
+				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+
+			case Automuted:
+				assertChannelAutomuted(t, p, channel.Id, user.Id)
+			}
+		})
+	}
+}
