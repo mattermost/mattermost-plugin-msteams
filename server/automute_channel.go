@@ -45,23 +45,48 @@ func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error 
 		return nil
 	}
 
-	var membersToMute []*model.ChannelMemberIdentifier
+	return p.updateAutomutingForChannelMembers(channel.Id, true)
+}
 
-	// Only get a single page of channel members since DMs/GMs can never have that many members
-	members, appErr := p.API.GetChannelMembers(channel.Id, 0, 200)
-	if appErr != nil {
-		return errors.Wrap(appErr, fmt.Sprintf("Unable to get members of channel %s to automute them", channel.Id))
-	}
+func (p *Plugin) updateAutomutingOnChannelLinked(channelID string) error {
+	// This simply mutes the channel for all users with automuting enabled, regardless of their settings before. It
+	// doesn't pay attention to if the user manually muted the channel beforehand.
+	return p.updateAutomutingForChannelMembers(channelID, true)
+}
 
-	for _, member := range members {
-		if p.getAutomuteIsEnabledForUser(member.UserId) {
-			membersToMute = append(membersToMute, &model.ChannelMemberIdentifier{ChannelId: channel.Id, UserId: member.UserId})
+func (p *Plugin) updateAutomutingOnChannelUnlinked(channelID string) error {
+	// This simply unmutes the channel for all users with automuting enabled, regardless of their settings before. It
+	// doesn't pay attention to if the user manually muted the channel beforehand to keep it muted.
+	return p.updateAutomutingForChannelMembers(channelID, false)
+}
+
+func (p *Plugin) updateAutomutingForChannelMembers(channelID string, enableAutomute bool) error {
+	var membersToUpdate []*model.ChannelMemberIdentifier
+
+	page := 0
+	perPage := 200
+	for {
+		members, appErr := p.API.GetChannelMembers(channelID, page, 200)
+		if appErr != nil {
+			return errors.Wrap(appErr, fmt.Sprintf("Unable to get all members of channel %s to update automuting", channelID))
 		}
+
+		for _, member := range members {
+			if p.getAutomuteIsEnabledForUser(member.UserId) {
+				membersToUpdate = append(membersToUpdate, &model.ChannelMemberIdentifier{ChannelId: channelID, UserId: member.UserId})
+			}
+		}
+
+		if len(members) < perPage {
+			break
+		}
+
+		page += 1
 	}
 
-	if len(membersToMute) > 0 {
-		if err := p.setChannelMembersAutomuted(membersToMute, true); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Unable to mute members for newly created channel %s", channel.Id))
+	if len(membersToUpdate) > 0 {
+		if err := p.setChannelMembersAutomuted(membersToUpdate, enableAutomute); err != nil {
+			return err
 		}
 	}
 

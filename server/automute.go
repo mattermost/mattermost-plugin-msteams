@@ -148,17 +148,6 @@ func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	return token != nil, nil
 }
 
-// // canAutomuteChannelID returns true if the channel with the given ID is either explicitly linked to a channel in
-// // MS Teams or if it's a DM/GM channel that is implicitly linked to MS Teams.
-// func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
-// 	channel, appErr := p.API.GetChannel(channelID)
-// 	if appErr != nil {
-// 		return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get channel %s to check if it's a DM/GM channel", channelID))
-// 	}
-
-// 	return p.canAutomuteChannel(channel)
-// }
-
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {

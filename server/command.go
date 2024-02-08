@@ -221,6 +221,10 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 
+	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
+	}
+
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }
@@ -266,6 +270,10 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 
 	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
+	}
+
+	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil
