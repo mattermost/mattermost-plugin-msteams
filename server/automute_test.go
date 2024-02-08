@@ -83,6 +83,14 @@ func (a *AutomuteAPIMock) GetDirectChannel(userID1, userID2 string) (*model.Chan
 func (a *AutomuteAPIMock) AddUserToChannel(channelID, userID, asUserID string) (*model.ChannelMember, *model.AppError) {
 	a.t.Helper()
 
+	member := a.addMockChannelMember(channelID, userID)
+
+	a.plugin.UserHasJoinedChannel(&plugin.Context{}, member, &model.User{Id: asUserID})
+
+	return member, nil
+}
+
+func (a *AutomuteAPIMock) addMockChannelMember(channelID, userID string) *model.ChannelMember {
 	member := &model.ChannelMember{
 		UserId:      userID,
 		ChannelId:   channelID,
@@ -91,9 +99,7 @@ func (a *AutomuteAPIMock) AddUserToChannel(channelID, userID, asUserID string) (
 
 	a.channelMembers[a.key(channelID, userID)] = member
 
-	a.plugin.UserHasJoinedChannel(&plugin.Context{}, member, &model.User{Id: asUserID})
-
-	return member, nil
+	return member
 }
 
 func (a *AutomuteAPIMock) GetChannelsForTeamForUser(teamID, userID string, includeDeleted bool) ([]*model.Channel, *model.AppError) {
@@ -122,6 +128,29 @@ func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.Cha
 		return nil, &model.AppError{Message: "Channel member not found"}
 	}
 	return member, nil
+}
+
+func (a *AutomuteAPIMock) GetChannelMembers(channelID string, page, perPage int) (model.ChannelMembers, *model.AppError) {
+	a.t.Helper()
+
+	var members []model.ChannelMember
+	for _, member := range a.channelMembers {
+		if member.ChannelId == channelID {
+			members = append(members, *member)
+		}
+	}
+
+	if page*perPage > len(members) {
+		members = nil
+	} else {
+		members = members[page*perPage:]
+	}
+
+	if len(members) > perPage {
+		members = members[:perPage]
+	}
+
+	return members, nil
 }
 
 func (a *AutomuteAPIMock) PatchChannelMembersNotifications(identifiers []*model.ChannelMemberIdentifier, notifyProps map[string]string) *model.AppError {

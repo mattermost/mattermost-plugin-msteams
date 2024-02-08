@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -135,6 +136,113 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
 
 		unconnectedMember, appErr := p.API.GetChannelMember(linkedChannel.Id, unconnectedUser.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+	})
+}
+
+func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
+	t.Run("when a DM is created, should mute it for users with automuting enabled", func(t *testing.T) {
+		p := newAutomuteTestPlugin(t)
+
+		channel := &model.Channel{
+			Id:   model.NewId(),
+			Type: model.ChannelTypeDirect,
+		}
+
+		connectedUser := &model.User{Id: model.NewId()}
+		mockUserConnected(p, connectedUser.Id)
+		unconnectedUser := &model.User{Id: model.NewId()}
+		mockUserNotConnected(p, unconnectedUser.Id)
+
+		err := p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		require.NoError(t, err)
+
+		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
+		mockAPI := p.API.(*AutomuteAPIMock)
+		mockAPI.addMockChannelMember(channel.Id, connectedUser.Id)
+		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+
+		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
+
+		connectedMember, appErr := p.API.GetChannelMember(channel.Id, connectedUser.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadMention, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+
+		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+	})
+
+	t.Run("when a GM is created, should mute it for users with automuting enabled", func(t *testing.T) {
+		t.Skip("not working due to MM-56776")
+
+		p := newAutomuteTestPlugin(t)
+
+		channel := &model.Channel{
+			Id:   model.NewId(),
+			Type: model.ChannelTypeGroup,
+		}
+
+		connectedUserWithAutomute := &model.User{Id: model.NewId()}
+		mockUserConnected(p, connectedUserWithAutomute.Id)
+		connectedUserWithoutAutomute := &model.User{Id: model.NewId()}
+		mockUserConnected(p, connectedUserWithoutAutomute.Id)
+		unconnectedUser := &model.User{Id: model.NewId()}
+		mockUserNotConnected(p, unconnectedUser.Id)
+
+		err := p.setAutomuteIsEnabledForUser(connectedUserWithAutomute.Id, true)
+		require.NoError(t, err)
+
+		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
+		mockAPI := p.API.(*AutomuteAPIMock)
+		mockAPI.addMockChannelMember(channel.Id, connectedUserWithAutomute.Id)
+		mockAPI.addMockChannelMember(channel.Id, connectedUserWithoutAutomute.Id)
+		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+
+		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
+
+		connectedMemberWithAutomute, appErr := p.API.GetChannelMember(channel.Id, connectedUserWithAutomute.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadMention, connectedMemberWithAutomute.NotifyProps[model.MarkUnreadNotifyProp])
+
+		connectedMemberWithoutAutomute, appErr := p.API.GetChannelMember(channel.Id, connectedUserWithoutAutomute.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMemberWithoutAutomute.NotifyProps[model.MarkUnreadNotifyProp])
+
+		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+	})
+
+	t.Run("when a regular channel is created, should do nothing", func(t *testing.T) {
+		p := newAutomuteTestPlugin(t)
+
+		channel := &model.Channel{
+			Id:   model.NewId(),
+			Type: model.ChannelTypePrivate,
+		}
+
+		connectedUser := &model.User{Id: model.NewId()}
+		mockUserConnected(p, connectedUser.Id)
+		unconnectedUser := &model.User{Id: model.NewId()}
+		mockUserNotConnected(p, unconnectedUser.Id)
+
+		err := p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		require.NoError(t, err)
+
+		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
+		mockAPI := p.API.(*AutomuteAPIMock)
+		mockAPI.addMockChannelMember(channel.Id, connectedUser.Id)
+		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+
+		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
+
+		connectedMember, appErr := p.API.GetChannelMember(channel.Id, connectedUser.Id)
+		require.Nil(t, appErr)
+		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+
+		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
 		require.Nil(t, appErr)
 		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
 	})

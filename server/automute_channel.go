@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 
@@ -34,5 +36,34 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID s
 }
 
 func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
-	// TODO MM-56499
+	_ = p.updateAutomutingOnChannelCreated(channel)
+}
+
+func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error {
+	if !channel.IsGroupOrDirect() {
+		// Assume that newly created channels can never be linked by the time this is called
+		return nil
+	}
+
+	var membersToMute []*model.ChannelMemberIdentifier
+
+	// Only get a single page of channel members since DMs/GMs can never have that many members
+	members, appErr := p.API.GetChannelMembers(channel.Id, 0, 200)
+	if appErr != nil {
+		return errors.Wrap(appErr, fmt.Sprintf("Unable to get members of channel %s to automute them", channel.Id))
+	}
+
+	for _, member := range members {
+		if p.getAutomuteIsEnabledForUser(member.UserId) {
+			membersToMute = append(membersToMute, &model.ChannelMemberIdentifier{ChannelId: channel.Id, UserId: member.UserId})
+		}
+	}
+
+	if len(membersToMute) > 0 {
+		if err := p.setChannelMembersAutomuted(membersToMute, true); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Unable to mute members for newly created channel %s", channel.Id))
+		}
+	}
+
+	return nil
 }
