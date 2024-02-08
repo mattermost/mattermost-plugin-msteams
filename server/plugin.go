@@ -495,7 +495,7 @@ func (p *Plugin) OnActivate() error {
 
 	if !p.getConfiguration().DisableSyncMsg {
 		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-			Displayname:  "MS Teams Plugin",
+			Displayname:  pluginID,
 			PluginID:     pluginID,
 			CreatorID:    botID,
 			AutoShareDMs: true,
