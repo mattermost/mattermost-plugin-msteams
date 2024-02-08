@@ -16,7 +16,7 @@ import (
 const msteamsCommand = "msteams-sync"
 const commandWaitingMessage = "Please wait while your request is being processed."
 
-func (p *Plugin) createMsteamsSyncCommand() *model.Command {
+func (p *Plugin) createMsteamsSyncCommand(syncLinkedChannels bool) *model.Command {
 	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
 	if err != nil {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
@@ -29,7 +29,7 @@ func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
-		AutocompleteData:     getAutocompleteData(),
+		AutocompleteData:     getAutocompleteData(syncLinkedChannels),
 		AutocompleteIconData: iconData,
 	}
 }
@@ -51,23 +51,25 @@ func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
 	})
 }
 
-func getAutocompleteData() *model.AutocompleteData {
+func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	cmd := model.NewAutocompleteData(msteamsCommand, "[command]", "Manage MS Teams linked channels")
 
-	link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
-	link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
-	link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
-	cmd.AddCommand(link)
+	if syncLinkedChannels {
+		link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
+		link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
+		link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
+		cmd.AddCommand(link)
 
-	unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
-	cmd.AddCommand(unlink)
+		unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
+		cmd.AddCommand(unlink)
 
-	show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
-	cmd.AddCommand(show)
+		show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
+		cmd.AddCommand(show)
 
-	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
-	showLinks.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(showLinks)
+		showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
+		showLinks.RoleID = model.SystemAdminRoleId
+		cmd.AddCommand(showLinks)
+	}
 
 	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
 	cmd.AddCommand(connect)
@@ -108,20 +110,22 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return &model.CommandResponse{}, nil
 	}
 
-	if action == "link" {
-		return p.executeLinkCommand(args, parameters)
-	}
+	if p.getConfiguration().SyncLinkedChannels {
+		if action == "link" {
+			return p.executeLinkCommand(args, parameters)
+		}
 
-	if action == "unlink" {
-		return p.executeUnlinkCommand(args)
-	}
+		if action == "unlink" {
+			return p.executeUnlinkCommand(args)
+		}
 
-	if action == "show" {
-		return p.executeShowCommand(args)
-	}
+		if action == "show" {
+			return p.executeShowCommand(args)
+		}
 
-	if action == "show-links" {
-		return p.executeShowLinksCommand(args)
+		if action == "show-links" {
+			return p.executeShowLinksCommand(args)
+		}
 	}
 
 	if action == "connect" {

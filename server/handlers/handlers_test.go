@@ -449,6 +449,45 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 		},
 		{
+			description: "Valid: sync linked channels disabled",
+			activityIds: clientmodels.ActivityIds{
+				TeamID:    "mockTeamID",
+				ChannelID: testutils.GetChannelID(),
+				MessageID: testutils.GetMessageID(),
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncLinkedChannels").Return(false).Times(1)
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
+				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
+					ID:              testutils.GetMessageID(),
+					UserID:          testutils.GetSenderID(),
+					TeamID:          "mockTeamID",
+					ChannelID:       testutils.GetChannelID(),
+					UserDisplayName: "mockUserDisplayName",
+					Text:            "mockText",
+					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
+				}, nil).Times(1)
+				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+			},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+			},
+		},
+		{
 			description: "Valid: channel message",
 			activityIds: clientmodels.ActivityIds{
 				TeamID:    "mockTeamID",
@@ -456,6 +495,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncLinkedChannels").Return(true).Times(1)
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetStore").Return(store).Maybe()
@@ -840,6 +880,48 @@ func TestHandleUpdatedActivity(t *testing.T) {
 			},
 		},
 		{
+			description: "Valid: sync linked channels disabled",
+			activityIds: clientmodels.ActivityIds{
+				TeamID:    "mockTeamID",
+				ChannelID: testutils.GetChannelID(),
+				MessageID: testutils.GetMessageID(),
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncLinkedChannels").Return(false).Once()
+				p.On("GetSyncReactions").Return(true).Maybe()
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
+				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
+					ID:              testutils.GetMessageID(),
+					UserID:          testutils.GetSenderID(),
+					TeamID:          "mockTeamID",
+					ChannelID:       testutils.GetChannelID(),
+					UserDisplayName: "mockUserDisplayName",
+					Text:            "mockText",
+					LastUpdateAt:    msTeamsLastUpdateAtTime,
+				}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
+				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+			},
+			setupStore: func(store *mocksStore.Store) {
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
+					MSTeamsLastUpdateAt: time.Now(),
+					MattermostID:        "mockMattermostID",
+				}, nil).Times(1)
+			},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+			},
+		},
+		{
 			description: "Valid: channel message",
 			activityIds: clientmodels.ActivityIds{
 				TeamID:    "mockTeamID",
@@ -847,6 +929,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				MessageID: testutils.GetMessageID(),
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncLinkedChannels").Return(true).Once()
 				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()

@@ -437,6 +437,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
@@ -444,6 +445,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	}{
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -476,6 +481,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
@@ -489,6 +498,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel type is Open",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeOpen), nil).Times(1)
@@ -502,6 +515,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to get channel members",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -516,6 +533,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -536,6 +557,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to create or get chat for users",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -557,6 +582,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Able to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -590,6 +619,46 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Able to get the link by channel ID but unable to update post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeamID:    "mockMattermostTeamID",
+					MattermostChannelID: "mockMattermostChannelID",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
+				}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(2)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsChannel: "mockTeamsChannelID",
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
+			},
+		},
+		{
+			Name: "MessageHasBeenUpdated: Sync linked channels disabled",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = false
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -623,7 +692,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
