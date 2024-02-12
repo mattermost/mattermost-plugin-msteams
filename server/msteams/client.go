@@ -101,8 +101,9 @@ type AccessToken struct {
 }
 
 type GraphAPIError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code       string `json:"code"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
 }
 
 type ChatMessageAttachmentUser struct {
@@ -122,7 +123,11 @@ type ChatMessageAttachment struct {
 }
 
 func (e *GraphAPIError) Error() string {
-	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
+	return fmt.Sprintf("code: %s, status_code: %d, message: %s", e.Code, e.StatusCode, e.Message)
+}
+
+func IsOAuthError(err error) bool {
+	return strings.HasPrefix(err.Error(), "oauth2: ")
 }
 
 func NormalizeGraphAPIError(err error) error {
@@ -141,14 +146,20 @@ func NormalizeGraphAPIError(err error) error {
 				message = *terr.GetMessage()
 			}
 			return &GraphAPIError{
-				Code:    code,
-				Message: message,
+				Code:       code,
+				Message:    message,
+				StatusCode: e.ResponseStatusCode,
 			}
 		}
 	default:
+		statusCode := 0
+		if IsOAuthError(err) {
+			statusCode = 401
+		}
 		return &GraphAPIError{
-			Code:    "",
-			Message: err.Error(),
+			Code:       "",
+			Message:    err.Error(),
+			StatusCode: statusCode,
 		}
 	}
 
@@ -269,6 +280,24 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	return conf.TokenSource(context.Background(), token).Token()
 }
 
+func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	application, err := tc.client.ApplicationsWithAppId(&applicationID).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	credentials := []clientmodels.Credential{}
+	credentialsList := application.GetPasswordCredentials()
+	for _, credential := range credentialsList {
+		credentials = append(credentials, clientmodels.Credential{
+			ID:          credential.GetKeyId().String(),
+			Name:        *credential.GetDisplayName(),
+			EndDateTime: *credential.GetEndDateTime(),
+			Hint:        *credential.GetHint(),
+		})
+	}
+	return credentials, nil
+}
+
 func (tc *ClientImpl) Connect() error {
 	var cred azcore.TokenCredential
 	switch tc.clientType {
@@ -383,7 +412,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 
@@ -474,7 +503,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *clientmode
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 
@@ -882,7 +911,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -890,7 +919,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
@@ -1341,7 +1370,7 @@ func (tc *ClientImpl) GetUser(userID string) (*clientmodels.User, error) {
 	}
 
 	if u.GetId() == nil {
-		tc.logService.Debug("Received empty user ID from MS Graph", "UserID", userID)
+		tc.logService.Debug("Received empty user ID from MS Graph", "user_id", userID)
 		return nil, errors.New("received empty user ID from MS Graph")
 	}
 	user := clientmodels.User{
