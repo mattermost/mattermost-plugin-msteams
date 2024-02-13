@@ -21,9 +21,9 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID s
 	if canAutomute, err := p.canAutomuteChannelID(channelID); err != nil {
 		p.API.LogError(
 			"Unable to check if channel is linked to update automuting when a user has joined the channel",
-			"UserID", userID,
-			"ChannelID", channelID,
-			"Error", err.Error(),
+			"user_id", userID,
+			"channel_id", channelID,
+			"error", err.Error(),
 		)
 		return false, errors.Wrap(err, "Unable to update automuting when a user has joined a channel")
 	} else if !canAutomute {
@@ -66,7 +66,7 @@ func (p *Plugin) updateAutomutingForChannelMembers(channelID string, enableAutom
 	page := 0
 	perPage := 200
 	for {
-		members, appErr := p.API.GetChannelMembers(channelID, page, 200)
+		members, appErr := p.API.GetChannelMembers(channelID, page, perPage)
 		if appErr != nil {
 			return errors.Wrap(appErr, fmt.Sprintf("Unable to get all members of channel %s to update automuting", channelID))
 		}
