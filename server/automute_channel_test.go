@@ -300,10 +300,11 @@ func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
 		t.Run("when a channel is linked, "+name, func(t *testing.T) {
 			p := newAutomuteTestPlugin(t)
 
-			channel := &model.Channel{
+			channel, appErr := p.API.CreateChannel(&model.Channel{
 				Id:   model.NewId(),
 				Type: model.ChannelTypeOpen,
-			}
+			})
+			require.Nil(t, appErr)
 
 			mockUnlinkedChannel(p, channel)
 
@@ -320,7 +321,7 @@ func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
 			require.Nil(t, appErr)
 
 			if testCase.manuallyMuted {
@@ -424,10 +425,11 @@ func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
 		t.Run("when a channel is unlinked, "+name, func(t *testing.T) {
 			p := newAutomuteTestPlugin(t)
 
-			channel := &model.Channel{
+			channel, appErr := p.API.CreateChannel(&model.Channel{
 				Id:   model.NewId(),
 				Type: model.ChannelTypeOpen,
-			}
+			})
+			require.Nil(t, appErr)
 
 			mockLinkedChannel(p, channel)
 
@@ -444,7 +446,7 @@ func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
 			require.Nil(t, appErr)
 
 			if testCase.manuallyMuted {
