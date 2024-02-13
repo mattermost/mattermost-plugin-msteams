@@ -55,31 +55,30 @@ export default class Plugin {
 
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         const state = store.getState();
-        const serverRoute = getServerRoute(state);
+        let serverRoute = getServerRoute(state);
         Client.setServerRoute(serverRoute);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
 
-        // TODO to uncomment when the feature is in.
-        // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
-        // registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
+        let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+        registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
-        // this.removeStoreSubscription = store.subscribe(() => {
-        //     const newState = store.getState();
-        //     const newServerRoute = getServerRoute(newState);
-        //     const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
-        //     if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
-        //         serverRoute = newServerRoute;
-        //         settingsEnabled = newSettingsEnabled;
-        //         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
-        //     }
-        // });
+        this.removeStoreSubscription = store.subscribe(() => {
+            const newState = store.getState();
+            const newServerRoute = getServerRoute(newState);
+            const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+            if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
+                serverRoute = newServerRoute;
+                settingsEnabled = newSettingsEnabled;
+                registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
+            }
+        });
     }
 
-    // uninitialize() {
-    //     this.removeStoreSubscription?.();
-    // }
+    uninitialize() {
+        this.removeStoreSubscription?.();
+    }
 }
 
 declare global {
