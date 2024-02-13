@@ -84,7 +84,7 @@
           "key": "syncLinkedChannels",
           "display_name": "Sync linked channels",
           "type": "bool",
-          "help_text": "Sync messages from channels linked between Matteromst and MS Teams",
+          "help_text": "Sync messages from channels linked between Mattermost and MS Teams",
           "default": false
         },{
           "key": "syncReactions",
