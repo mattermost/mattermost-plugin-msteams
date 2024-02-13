@@ -35,7 +35,7 @@ func (a *AutomuteAPIMock) GetPreferenceForUser(userID, category, name string) (m
 
 	preference, ok := a.preferences[a.key(userID, category, name)]
 	if !ok {
-		return model.Preference{}, &model.AppError{Message: "Preference not found"}
+		return model.Preference{}, &model.AppError{Message: "AutomuteAPIMock: Preference not found"}
 	}
 	return preference, nil
 }
@@ -55,27 +55,42 @@ func (a *AutomuteAPIMock) UpdatePreferencesForUser(userID string, preferences []
 func (a *AutomuteAPIMock) CreateChannel(channel *model.Channel) (*model.Channel, *model.AppError) {
 	a.t.Helper()
 
+	a.channels[channel.Id] = channel
+
 	// This should be called for all channels, but due to MM-56776, it's currently not called for GM channels
 	if channel.Type != model.ChannelTypeGroup {
 		a.plugin.ChannelHasBeenCreated(&plugin.Context{}, channel)
 	}
 
-	a.channels[channel.Id] = channel
 	return channel, nil
 }
 
 func (a *AutomuteAPIMock) GetDirectChannel(userID1, userID2 string) (*model.Channel, *model.AppError) {
 	a.t.Helper()
 
-	channel, _ := a.CreateChannel(&model.Channel{
+	channel := &model.Channel{
 		Id:   model.NewId(),
 		Type: model.ChannelTypeDirect,
-	})
+	}
+	a.channels[channel.Id] = channel
 
 	_, appErr := a.AddUserToChannel(channel.Id, userID1, "")
 	require.Nil(a.t, appErr)
 	_, appErr = a.AddUserToChannel(channel.Id, userID2, "")
 	require.Nil(a.t, appErr)
+
+	a.plugin.ChannelHasBeenCreated(&plugin.Context{}, channel)
+
+	return channel, nil
+}
+
+func (a *AutomuteAPIMock) GetChannel(channelID string) (*model.Channel, *model.AppError) {
+	a.t.Helper()
+
+	channel, ok := a.channels[channelID]
+	if !ok {
+		return nil, &model.AppError{Message: "AutomuteAPIMock: Channel not found"}
+	}
 
 	return channel, nil
 }
@@ -125,7 +140,7 @@ func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.Cha
 
 	member, ok := a.channelMembers[a.key(channelID, userID)]
 	if !ok {
-		return nil, &model.AppError{Message: "Channel member not found"}
+		return nil, &model.AppError{Message: "AutomuteAPIMock: Channel member not found"}
 	}
 	return member, nil
 }

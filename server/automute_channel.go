@@ -18,7 +18,7 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID s
 		return false, nil
 	}
 
-	if canAutomute, err := p.isChannelLinked(channelID); err != nil {
+	if canAutomute, err := p.canAutomuteChannelID(channelID); err != nil {
 		p.API.LogError(
 			"Unable to check if channel is linked to update automuting when a user has joined the channel",
 			"UserID", userID,
