@@ -456,7 +456,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to store the user in whitelist", "user_id", mmUserID, "error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
