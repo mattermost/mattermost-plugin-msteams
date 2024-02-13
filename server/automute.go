@@ -23,7 +23,7 @@ func (p *Plugin) enableAutomute(userID string) (bool, error) {
 	return p.setAutomuteEnabledForUser(userID, true)
 }
 
-// disableAutomute mutes all of the user's linked channels and DMs and sets a preference to track that automute is
+// disableAutomute unmutes all of the user's linked channels and DMs and sets a preference to track that automute is
 // disabled. It assumes that the user is either not connected to MS Teams or has their primary platform set to MM.
 func (p *Plugin) disableAutomute(userID string) (bool, error) {
 	return p.setAutomuteEnabledForUser(userID, false)
@@ -66,9 +66,8 @@ func (p *Plugin) setAutomuteEnabledForUser(userID string, automuteEnabled bool) 
 func (p *Plugin) setChannelMembersAutomuted(members []*model.ChannelMemberIdentifier, automuteEnabled bool) error {
 	notifyProps := getNotifyPropsForAutomute(automuteEnabled)
 
-	i := 0
 	perPage := 200
-	for i < len(members) {
+	for i := 0; i < len(members); i += perPage {
 		start := i
 		end := i + perPage
 		if end > len(members) {
@@ -80,8 +79,6 @@ func (p *Plugin) setChannelMembersAutomuted(members []*model.ChannelMemberIdenti
 		if appErr := p.API.PatchChannelMembersNotifications(page, notifyProps); appErr != nil {
 			return errors.Wrap(appErr, "Unable to patch notify props for automuting")
 		}
-
-		i += perPage
 	}
 
 	return nil
