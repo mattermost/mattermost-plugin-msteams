@@ -135,6 +135,12 @@
             "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
             "default": false
         },{
+            "key": "disableSyncMsg",
+            "display_name": "Disable using the sync msg infrastructure for tracking message changes",
+            "type": "bool",
+            "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
+            "default": false
+        },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",

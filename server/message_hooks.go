@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+	"gitlab.com/golang-commonmark/markdown"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -17,9 +21,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-	"gitlab.com/golang-commonmark/markdown"
 )
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
@@ -176,7 +177,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	}
 }
 
-func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
+func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
@@ -222,7 +223,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 			p.API.LogWarn("Unable to create or get chat for users", "error", err.Error())
 			return
 		}
-		err = p.UpdateChat(chat.ID, user, newPost, oldPost, updateRequired)
+		err = p.UpdateChat(chat.ID, user, newPost, updateRequired)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message update", "error", err.Error())
 		}
@@ -233,7 +234,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		return
 	}
 
-	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost, updateRequired)
+	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message update", "error", err.Error())
 	}
@@ -683,9 +684,9 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 	return nil
 }
 
-func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
+func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *model.Post, updateRequired bool) error {
 	parentID := ""
-	if oldPost.RootId != "" {
+	if newPost.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(newPost.RootId)
 		if parentInfo != nil {
 			parentID = parentInfo.MSTeamsID
@@ -753,7 +754,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	return nil
 }
 
-func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
+func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post, updateRequired bool) error {
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
 		p.API.LogWarn("Error getting post info", "error", err)
