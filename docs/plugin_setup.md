@@ -22,6 +22,7 @@ Maximum size of attachments to support complete one time download (in MB) | This
 Buffer size for streaming files (in MB) | This setting is for configuring the buffer size for streaming files from MS Teams to Mattermost.
 Max Connected Users | This setting sets the maximum number of users that may connect to their MS Teams account. Once connected, the user is added to a whitelist and may disconnect and reconnect at any time.
 Automatically Promote Synthetic Users | This setting is for enabling the auto-promotion of synthetic users when they log in for the first time.
+Disable using the sync msg infrastructure for tracking message changes | When true, the plugin will not enable any sync msg infrastructure.
 Synthetic User Auth Service | This setting sets the authentication service to be used when creating or updating synthetic users. This should match the service used for member user access to Mattermost.
 Synthetic User Auth Data | This setting sets the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID attribute.
 
