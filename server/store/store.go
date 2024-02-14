@@ -11,8 +11,6 @@ import (
 
 type Store interface {
 	Init() error
-	GetAvatarCache(userID string) ([]byte, error)
-	SetAvatarCache(userID string, photo []byte) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
@@ -52,8 +50,6 @@ type Store interface {
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
-	SetJobStatus(jobName string, status bool) error
-	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*storemodels.Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error

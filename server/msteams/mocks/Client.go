@@ -100,6 +100,29 @@ func (_m *Client) DeleteSubscription(subscriptionID string) error {
 	return r0
 }
 
+// GetAppCredentials provides a mock function with given fields: applicationID
+func (_m *Client) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	ret := _m.Called(applicationID)
+
+	var r0 []clientmodels.Credential
+	if rf, ok := ret.Get(0).(func(string) []clientmodels.Credential); ok {
+		r0 = rf(applicationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]clientmodels.Credential)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(applicationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetChannelInTeam provides a mock function with given fields: teamID, channelID
 func (_m *Client) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {
 	ret := _m.Called(teamID, channelID)

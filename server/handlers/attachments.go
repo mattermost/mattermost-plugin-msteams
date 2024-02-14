@@ -145,6 +145,10 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
+		if !ah.plugin.GetSyncFileAttachments() {
+			continue
+		}
+
 		// handle the download
 		var attachmentData []byte
 		var err error

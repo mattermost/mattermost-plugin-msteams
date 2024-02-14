@@ -267,8 +267,35 @@ func TestHandleAttachments(t *testing.T) {
 		expectedError              bool
 	}{
 		{
+			description: "File attachments disabled by configuration",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(false).Maybe()
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetConfig").Return(&model.Config{
+					FileSettings: model.FileSettings{
+						MaxFileSize: model.NewInt64(5),
+					},
+				})
+				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{
+					Id: testutils.GetID(),
+				}, nil)
+			},
+			setupClient: func(client *mocksClient.Client) {
+			},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+			},
+			attachments:                []clientmodels.Attachment{},
+			expectedText:               "mock-text",
+			expectedAttachmentIDsCount: 0,
+		},
+		{
 			description: "Successfully handled attachments",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
@@ -302,6 +329,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Client is nil",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetClientForApp").Return(nil)
 				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
@@ -318,6 +346,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Error uploading the file",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
@@ -348,6 +377,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Number of attachments are greater than 10",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(10)
@@ -378,6 +408,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Attachment type code snippet",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 			},
@@ -405,6 +436,7 @@ func TestHandleAttachments(t *testing.T) {
 		{
 			description: "Attachment type message reference",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetStore").Return(store, nil)

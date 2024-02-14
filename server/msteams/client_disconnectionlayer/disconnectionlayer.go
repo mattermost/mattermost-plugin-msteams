@@ -80,6 +80,17 @@ func (c *ClientDisconnectionLayer) DeleteSubscription(subscriptionID string) err
 	return err
 }
 
+func (c *ClientDisconnectionLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	result, err := c.Client.GetAppCredentials(applicationID)
+	if err != nil {
+		var graphErr *msteams.GraphAPIError
+		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {
+			c.onDisconnect(c.userID)
+		}
+	}
+	return result, err
+}
+
 func (c *ClientDisconnectionLayer) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {
 	result, err := c.Client.GetChannelInTeam(teamID, channelID)
 	if err != nil {

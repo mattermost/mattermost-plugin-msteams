@@ -31,7 +31,15 @@ func buildPlugin(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+type Option func(*mmcontainer.MattermostContainer)
+
+func WithoutLicense() mmcontainer.MattermostCustomizeRequestOption {
+	return func(req *mmcontainer.MattermostContainerRequest) {
+		mmcontainer.WithEnv("MM_LICENSE", "")(req)
+	}
+}
+
+func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustomizeRequestOption) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
 	buildPluginOnce.Do(func() {
 		buildPlugin(t)
 	})
@@ -55,13 +63,17 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 		"maxsizeforcompletedownload": 20,
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
+		"synclinkedchannels":         true,
 	}
 
-	mattermost, err := mmcontainer.RunContainer(ctx,
+	options := []mmcontainer.MattermostCustomizeRequestOption{
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
 		mmcontainer.WithTestingLogConsumer(t),
-	)
+	}
+	options = append(options, extraOptions...)
+
+	mattermost, err := mmcontainer.RunContainer(ctx, options...)
 	require.NoError(t, err)
 
 	// TODO: This won't be required after jespino gets https://github.com/testcontainers/testcontainers-go/pull/2073 merged.
@@ -78,7 +90,7 @@ func NewE2ETestPlugin(t *testing.T) (*mmcontainer.MattermostContainer, *sqlstore
 	}
 	require.NoError(t, err)
 
-	store := sqlstore.New(conn, "postgres", nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	store := sqlstore.New(conn, nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	if err2 := store.Init(); err2 != nil {
 		_ = mattermost.Terminate(ctx)
 	}

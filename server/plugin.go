@@ -45,8 +45,9 @@ const (
 	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
+	metricsJobName               = "metrics"
+	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
 
-	metricsExposePort          = ":9094"
 	updateMetricsTaskFrequency = 15 * time.Minute
 )
 
@@ -75,13 +76,15 @@ type Plugin struct {
 	whitelistClusterMutex     *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
+	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
 	activityHandler *handlers.ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
-	metricsServer          *metrics.Server
+	metricsHandler         http.Handler
+	metricsJob             *cluster.Job
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -89,7 +92,7 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Req
 }
 
 func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	p.metricsServer.Handler.ServeHTTP(w, r)
+	p.metricsHandler.ServeHTTP(w, r)
 }
 
 func (p *Plugin) GetAPI() plugin.API {
@@ -106,6 +109,18 @@ func (p *Plugin) GetStore() store.Store {
 
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
+}
+
+func (p *Plugin) GetSyncLinkedChannels() bool {
+	return p.getConfiguration().SyncLinkedChannels
+}
+
+func (p *Plugin) GetSyncReactions() bool {
+	return p.getConfiguration().SyncReactions
+}
+
+func (p *Plugin) GetSyncFileAttachments() bool {
+	return p.getConfiguration().SyncFileAttachments
 }
 
 func (p *Plugin) GetSyncGuestUsers() bool {
@@ -239,28 +254,33 @@ func (p *Plugin) connectTeamsAppClient() error {
 }
 
 func (p *Plugin) start(isRestart bool) {
-	enableMetrics := p.API.GetConfig().MetricsSettings.Enable
+	var err error
 
-	if enableMetrics != nil && *enableMetrics {
-		// run metrics server to expose data
-		p.runMetricsServer()
-		// run metrics updater recurring task
-		p.runMetricsUpdaterTask(p.store, updateMetricsTaskFrequency)
-
-		p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
+	if !isRestart {
+		p.metricsJob, err = cluster.Schedule(
+			p.API,
+			metricsJobName,
+			cluster.MakeWaitForRoundedInterval(updateMetricsTaskFrequency),
+			p.updateMetrics,
+		)
+		if err != nil {
+			p.API.LogError("failed to start metrics job", "error", err)
+		}
 	}
+
+	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 
 	// We don't restart the activity handler since it's stateless.
 	if !isRestart {
 		p.activityHandler.Start()
 	}
 
-	err := p.connectTeamsAppClient()
+	err = p.connectTeamsAppClient()
 	if err != nil {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncDirectMessages())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -290,9 +310,29 @@ func (p *Plugin) start(isRestart bool) {
 		}
 
 		p.syncUserJob = job
-		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
-			p.API.LogError("error in setting the sync users job status", "error", sErr.Error())
-		}
+	}
+
+	checkCredentialsJob, err := cluster.Schedule(
+		p.API,
+		checkCredentialsJobName,
+		cluster.MakeWaitForRoundedInterval(24*time.Hour),
+		p.checkCredentials,
+	)
+	if err != nil {
+		p.API.LogError("error in scheduling the check credentials job", "error", err)
+		return
+	}
+	p.checkCredentialsJob = checkCredentialsJob
+
+	// Run the job above right away so we immediately populate metrics.
+	p.checkCredentials()
+
+	// Unregister and re-register slash command to reflect any configuration changes.
+	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
+		p.API.LogWarn("Failed to unregister command", "error", err)
+	}
+	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+		p.API.LogError("Failed to register command", "error", err)
 	}
 }
 
@@ -348,6 +388,12 @@ func (p *Plugin) stop(isRestart bool) {
 	}
 
 	p.stopSyncUsersJob()
+
+	if !isRestart && p.metricsJob != nil {
+		if err := p.metricsJob.Close(); err != nil {
+			p.API.LogError("failed to close metrics job", "error", err)
+		}
+	}
 }
 
 func (p *Plugin) restart() {
@@ -406,9 +452,15 @@ func (p *Plugin) OnActivate() error {
 		InstallationID: os.Getenv("MM_CLOUD_INSTALLATION_ID"),
 		PluginVersion:  manifest.Version,
 	})
-	p.metricsServer = metrics.NewMetricsServer(metricsExposePort, p.GetMetrics())
+	p.metricsHandler = metrics.NewMetricsHandler(p.GetMetrics())
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
+
+	config := p.apiClient.Configuration.GetConfig()
+	license := p.apiClient.System.GetLicense()
+	if !pluginapi.IsE20LicensedOrDevelopment(config, license) {
+		return errors.New("this plugin requires an enterprise license")
+	}
 
 	p.activityHandler = handlers.New(p)
 
@@ -434,11 +486,11 @@ func (p *Plugin) OnActivate() error {
 	}
 	p.userID = botID
 
-	if err = p.API.RegisterCommand(p.createMSTeamsCommand()); err != nil {
-		return err
-	}
-
 	if p.store == nil {
+		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
+			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
+		}
+
 		db, dbErr := p.apiClient.Store.GetMasterDB()
 		if dbErr != nil {
 			return dbErr
@@ -446,7 +498,6 @@ func (p *Plugin) OnActivate() error {
 
 		store := sqlstore.New(
 			db,
-			p.apiClient.Store.DriverName(),
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
@@ -483,10 +534,6 @@ func (p *Plugin) OnActivate() error {
 }
 
 func (p *Plugin) OnDeactivate() error {
-	if err := p.metricsServer.Shutdown(); err != nil {
-		p.API.LogWarn("Error shutting down metrics server", "error", err)
-	}
-
 	p.stop(false)
 	return nil
 }
@@ -498,22 +545,6 @@ func (p *Plugin) syncUsersPeriodically() {
 			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
-
-	defer func() {
-		if sErr := p.store.SetJobStatus(syncUsersJobName, false); sErr != nil {
-			p.API.LogError("Failed to set sync users job running status to false.", "error", sErr.Error())
-		}
-	}()
-
-	isStatusUpdated, sErr := p.store.CompareAndSetJobStatus(syncUsersJobName, false, true)
-	if sErr != nil {
-		p.API.LogError("Something went wrong while fetching sync users job status", "error", sErr.Error())
-		return
-	}
-
-	if !isStatusUpdated {
-		return
-	}
 
 	p.API.LogInfo("Running the Sync Users Job")
 	p.syncUsers()
@@ -754,36 +785,12 @@ func isRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }
 
-func (p *Plugin) runMetricsServer() {
-	p.API.LogInfo("Starting metrics server", "port", metricsExposePort)
-
-	// Run server to expose metrics
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.GetMetrics().ObserveGoroutineFailure()
-				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
-			}
-		}()
-
-		err := p.metricsServer.Run()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			p.API.LogError("Metrics server could not be started", "error", err)
-		}
-	}()
-}
-
-func (p *Plugin) runMetricsUpdaterTask(store store.Store, updateMetricsTaskFrequency time.Duration) {
-	metricsUpdater := func() {
-		stats, err := store.GetStats()
-		if err != nil {
-			p.API.LogWarn("failed to update computed metrics", "error", err)
-		}
-		p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
-		p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
-		p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+func (p *Plugin) updateMetrics() {
+	stats, err := p.store.GetStats()
+	if err != nil {
+		p.API.LogWarn("failed to update computed metrics", "error", err)
 	}
-
-	metricsUpdater()
-	model.CreateRecurringTask("metricsUpdater", metricsUpdater, updateMetricsTaskFrequency)
+	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
+	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
+	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 }

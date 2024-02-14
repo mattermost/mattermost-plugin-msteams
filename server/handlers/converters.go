@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -13,25 +12,6 @@ import (
 )
 
 const hostedContentsStr = "hostedContents"
-
-func (ah *ActivityHandler) GetAvatarURL(userID string) string {
-	defaultAvatarURL := ah.plugin.GetURL() + "/public/plugin-icon.svg"
-	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get user avatar", "error", err.Error())
-		return defaultAvatarURL
-	}
-
-	if resp.Body != nil {
-		defer resp.Body.Close()
-	}
-
-	if strings.Contains(resp.Header.Get("Content-Type"), "image") {
-		return ah.plugin.GetURL() + "/avatar/" + userID
-	}
-
-	return defaultAvatarURL
-}
 
 func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool) {
 	text := ah.handleMentions(msg)
@@ -67,9 +47,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
 
 	if senderID == ah.plugin.GetBotUserID() {
-		post.AddProp("override_username", msg.UserDisplayName)
 		post.AddProp("from_webhook", "true")
-		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
 	return post, errorFound
 }

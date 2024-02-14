@@ -61,6 +61,7 @@ Select **Register** to submit the form.
 - `Group.Read.All`
 - `Team.ReadBasic.All`
 - `User.Read.All`
+- `Application.ReadWrite.OwnedBy` or `Application.Read.All`
 
 13. Click on **Add permissions** to submit the form.
 

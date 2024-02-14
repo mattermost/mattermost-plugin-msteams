@@ -1002,11 +1002,13 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 
 func TestGetAutocompleteData(t *testing.T) {
 	for _, testCase := range []struct {
-		description      string
-		autocompleteData *model.AutocompleteData
+		description        string
+		syncLinkedChannels bool
+		autocompleteData   *model.AutocompleteData
 	}{
 		{
-			description: "Successfully get all auto complete data",
+			description:        "Successfully get all auto complete data",
+			syncLinkedChannels: true,
 			autocompleteData: &model.AutocompleteData{
 				Trigger:   "msteams",
 				Hint:      "[command]",
@@ -1117,9 +1119,76 @@ func TestGetAutocompleteData(t *testing.T) {
 				},
 			},
 		},
+		{
+			description:        "Successfully get all auto complete data",
+			syncLinkedChannels: false,
+			autocompleteData: &model.AutocompleteData{
+				Trigger:   "msteams",
+				Hint:      "[command]",
+				HelpText:  "Manage MS Teams linked channels",
+				RoleID:    model.SystemUserRoleId,
+				Arguments: []*model.AutocompleteArg{},
+				SubCommands: []*model.AutocompleteData{
+					{
+						Trigger:     "connect",
+						HelpText:    "Connect your Mattermost account to your MS Teams account",
+						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "disconnect",
+						HelpText:    "Disconnect your Mattermost account from your MS Teams account",
+						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "connect-bot",
+						HelpText:    "Connect the bot account (only system admins can do this)",
+						RoleID:      model.SystemAdminRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "disconnect-bot",
+						HelpText:    "Disconnect the bot account (only system admins can do this)",
+						RoleID:      model.SystemAdminRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:  "promote",
+						HelpText: "Promote a user from synthetic user account to regular mattermost account",
+						RoleID:   model.SystemAdminRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								HelpText: "Username of the existing mattermost user",
+								Type:     "TextInput",
+								Required: true,
+								Data: &model.AutocompleteTextArg{
+									Hint:    "username",
+									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+							{
+								HelpText: "The new username after the user is promoted",
+								Type:     "TextInput",
+								Required: true,
+								Data: &model.AutocompleteTextArg{
+									Hint:    "new username",
+									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
+				},
+			},
+		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			autocompleteData := getAutocompleteData()
+			autocompleteData := getAutocompleteData(testCase.syncLinkedChannels)
 			assert.Equal(t, testCase.autocompleteData, autocompleteData)
 		})
 	}
