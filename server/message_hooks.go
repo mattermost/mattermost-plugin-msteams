@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+	"gitlab.com/golang-commonmark/markdown"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -17,9 +21,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-	"gitlab.com/golang-commonmark/markdown"
 )
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
@@ -233,7 +234,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 		return
 	}
 
-	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost, updateRequired)
+	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message update", "error", err.Error())
 	}
