@@ -7,10 +7,10 @@ func (p *Plugin) updateAutomutingOnUserConnect(userID string) (bool, error) {
 
 	automuteEnabled, err := p.enableAutomute(userID)
 	if err != nil {
-		p.API.LogError(
+		p.API.LogWarn(
 			"Unable to enable automuting for user on connect",
-			"UserID", userID,
-			"Error", err,
+			"user_id", userID,
+			"error", err,
 		)
 	} else {
 		var message string
@@ -20,9 +20,9 @@ func (p *Plugin) updateAutomutingOnUserConnect(userID string) (bool, error) {
 			message = "Not enabling automute for user on connect"
 		}
 
-		p.API.LogDebug(
+		p.API.LogInfo(
 			message,
-			"UserID", userID,
+			"user_id", userID,
 		)
 	}
 
@@ -32,24 +32,26 @@ func (p *Plugin) updateAutomutingOnUserConnect(userID string) (bool, error) {
 func (p *Plugin) updateAutomutingOnUserDisconnect(userID string) (bool, error) {
 	automuteDisabled, err := p.disableAutomute(userID)
 	if err != nil {
-		p.API.LogError(
+		p.API.LogWarn(
 			"Unable to disable automuting for user on disconnect",
-			"UserID", userID,
-			"Error", err,
+			"user_id", userID,
+			"error", err,
 		)
-	} else {
-		var message string
-		if automuteDisabled {
-			message = "Disabled automuting for user on disconnect"
-		} else {
-			message = "User disconnected without automuting enabled"
-		}
 
-		p.API.LogDebug(
-			message,
-			"UserID", userID,
-		)
+		return false, err
 	}
+
+	var message string
+	if automuteDisabled {
+		message = "Disabled automuting for user on disconnect"
+	} else {
+		message = "User disconnected without automuting enabled"
+	}
+
+	p.API.LogInfo(
+		message,
+		"user_id", userID,
+	)
 
 	return automuteDisabled, err
 }
