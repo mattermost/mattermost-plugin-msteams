@@ -19,6 +19,10 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
@@ -32,9 +36,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -838,11 +839,11 @@ func (p *Plugin) updateMetrics() {
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 }
 
-func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
+func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
 	return true
 }
 
-func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *model.Post, rc *model.RemoteCluster) error {
+func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.Post, _ *model.RemoteCluster) error {
 	now := model.GetMillis()
 
 	isUpdate := fi.CreateAt != fi.UpdateAt
@@ -859,7 +860,7 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, post *mod
 	return nil
 }
 
-func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, rc *model.RemoteCluster) (model.SyncResponse, error) {
+func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
 	now := model.GetMillis()
 
 	var resp model.SyncResponse

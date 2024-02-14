@@ -39,7 +39,7 @@ const (
 	DiscardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 	DiscardedReasonInvalidChangeType         = "invalid_change_type"
 	DiscardedReasonIsBotUser                 = "is_bot_user"
-	DiscardedReasonUnableToGetTeamsData      = "unable_to_get_teams_data"
+	DiscardedReasonUnableToGetTeamsData      = "unable_to_get_teams_data" // #nosec  false positive
 	DiscardedReasonNotUserEvent              = "no_user_event"
 	DiscardedReasonOther                     = "other"
 	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
