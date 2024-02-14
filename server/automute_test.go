@@ -57,10 +57,7 @@ func (a *AutomuteAPIMock) CreateChannel(channel *model.Channel) (*model.Channel,
 
 	a.channels[channel.Id] = channel
 
-	// This should be called for all channels, but due to MM-56776, it's currently not called for GM channels
-	if channel.Type != model.ChannelTypeGroup {
-		a.plugin.ChannelHasBeenCreated(&plugin.Context{}, channel)
-	}
+	a.plugin.ChannelHasBeenCreated(&plugin.Context{}, channel)
 
 	return channel, nil
 }
