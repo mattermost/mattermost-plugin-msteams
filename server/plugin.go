@@ -111,6 +111,18 @@ func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
 }
 
+func (p *Plugin) GetSyncLinkedChannels() bool {
+	return p.getConfiguration().SyncLinkedChannels
+}
+
+func (p *Plugin) GetSyncReactions() bool {
+	return p.getConfiguration().SyncReactions
+}
+
+func (p *Plugin) GetSyncFileAttachments() bool {
+	return p.getConfiguration().SyncFileAttachments
+}
+
 func (p *Plugin) GetSyncGuestUsers() bool {
 	return p.getConfiguration().SyncGuestUsers
 }
@@ -314,6 +326,14 @@ func (p *Plugin) start(isRestart bool) {
 
 	// Run the job above right away so we immediately populate metrics.
 	p.checkCredentials()
+
+	// Unregister and re-register slash command to reflect any configuration changes.
+	if err = p.API.UnregisterCommand("", "msteams-sync"); err != nil {
+		p.API.LogWarn("Failed to unregister command", "error", err)
+	}
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+		p.API.LogError("Failed to register command", "error", err)
+	}
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -465,10 +485,6 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.userID = botID
-
-	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
-		return err
-	}
 
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {

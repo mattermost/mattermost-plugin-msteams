@@ -38,6 +38,9 @@ type PluginIface interface {
 	GetStore() store.Store
 	GetMetrics() metrics.Metrics
 	GetSyncDirectMessages() bool
+	GetSyncLinkedChannels() bool
+	GetSyncReactions() bool
+	GetSyncFileAttachments() bool
 	GetSyncGuestUsers() bool
 	GetMaxSizeForCompleteDownload() int
 	GetBufferSizeForStreaming() int
@@ -310,6 +313,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		}
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
+		if !ah.plugin.GetSyncLinkedChannels() {
+			// Skipping because linked channels are disabled
+			return metrics.DiscardedReasonLinkedChannelsDisabled
+		}
+
 		senderID, _ = ah.getOrCreateSyntheticUser(msteamsUser, true)
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
@@ -389,6 +397,11 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 
 	channelID := ""
 	if chat == nil {
+		if !ah.plugin.GetSyncLinkedChannels() {
+			// Skipping because linked channels are disabled
+			return metrics.DiscardedReasonLinkedChannelsDisabled
+		}
+
 		var channelLink *storemodels.ChannelLink
 		channelLink, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if err != nil || channelLink == nil {
@@ -456,6 +469,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []clientmodels.Reaction) {
+	if !ah.plugin.GetSyncReactions() {
+		return
+	}
+
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
 		return
