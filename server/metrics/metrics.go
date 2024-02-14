@@ -43,6 +43,7 @@ const (
 	DiscardedReasonNotUserEvent              = "no_user_event"
 	DiscardedReasonOther                     = "other"
 	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
+	DiscardedReasonLinkedChannelsDisabled    = "linked_channels_disabled"
 	DiscardedReasonInactiveUser              = "inactive_user"
 	DiscardedReasonDuplicatedPost            = "duplicated_post"
 	DiscardedReasonAlreadyAppliedChange      = "already_applied_change"

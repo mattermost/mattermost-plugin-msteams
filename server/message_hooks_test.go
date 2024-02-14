@@ -31,13 +31,30 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
 		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			Name:     "ReactionHasBeenAdded: Unable to get the post info",
+			Name: "ReactionHasBeenAdded: disabled by configuration",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = false
+			},
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+			},
+			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+		},
+		{
+			Name: "ReactionHasBeenAdded: Unable to get the post info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
@@ -48,6 +65,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 			},
@@ -63,6 +84,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
 			},
@@ -76,6 +101,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to get the post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
@@ -90,6 +119,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the reaction",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -111,6 +144,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Unable to set the post last updateAt time",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -134,6 +171,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenAdded: Valid",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -158,7 +199,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
@@ -177,13 +218,30 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
 		SetupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			Name:     "ReactionHasBeenRemoved: Unable to get the post info",
+			Name: "ReactionHasBeenRemoved: disabled by configuration",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = false
+			},
+			SetupAPI: func(api *plugintest.API) {},
+			SetupStore: func(store *storemocks.Store) {
+			},
+			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
+		},
+		{
+			Name: "ReactionHasBeenRemoved: Unable to get the post info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
@@ -194,6 +252,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
 			},
@@ -208,6 +270,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -226,6 +292,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
@@ -242,6 +312,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to remove the reaction",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -270,6 +344,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Unable to set the post last updateAt time",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -300,6 +378,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		},
 		{
 			Name: "ReactionHasBeenRemoved: Valid",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncReactions = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
@@ -331,7 +413,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
@@ -363,6 +445,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name         string
+		SetupPlugin  func(*Plugin)
 		SetupAPI     func(*plugintest.API)
 		SetupStore   func(*storemocks.Store)
 		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
@@ -370,6 +453,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	}{
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -402,6 +489,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
@@ -416,6 +507,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel type is Open",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeOpen), nil).Times(1)
@@ -430,6 +525,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to get channel members",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -445,6 +544,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -465,6 +568,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to create or get chat for users",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
@@ -486,6 +593,10 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Able to get the link by channel ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -519,6 +630,46 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		},
 		{
 			Name: "MessageHasBeenUpdated: Able to get the link by channel ID but unable to update post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = true
+			},
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
+				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
+				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
+					MattermostTeamID:    "mockMattermostTeamID",
+					MattermostChannelID: "mockMattermostChannelID",
+					MSTeamsTeam:         "mockTeamsTeamID",
+					MSTeamsChannel:      "mockTeamsChannelID",
+				}, nil).Times(1)
+				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
+					MattermostID: testutils.GetID(),
+				}, nil).Times(2)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockTeamsTeamID",
+					MSTeamsChannel: "mockTeamsChannelID",
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
+			},
+		},
+		{
+			Name: "MessageHasBeenUpdated: Sync linked channels disabled",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncDirectMessages = true
+				p.configuration.SyncLinkedChannels = false
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -552,7 +703,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = true
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
@@ -1099,6 +1250,7 @@ func TestSendChat(t *testing.T) {
 	}
 	for _, test := range []struct {
 		Name            string
+		SetupPlugin     func(*Plugin)
 		SetupAPI        func(*plugintest.API)
 		SetupStore      func(*storemocks.Store)
 		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
@@ -1107,7 +1259,10 @@ func TestSendChat(t *testing.T) {
 		ExpectedError   string
 	}{
 		{
-			Name:     "SendChat: Unable to get the source user ID",
+			Name: "SendChat: Unable to get the source user ID",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1120,6 +1275,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to get the client",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
@@ -1140,6 +1298,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to create or get the chat",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1157,6 +1318,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to send the chat",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1187,6 +1351,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Able to send the chat and not able to store the post",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1225,6 +1392,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to get the parent message",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1266,7 +1436,42 @@ func TestSendChat(t *testing.T) {
 			ExpectedMessage: "mockMessageID",
 		},
 		{
+			Name: "SendChat: File attachments disabled",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = false
+			},
+			SetupAPI: func(api *plugintest.API) {
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsChannel: testutils.GetChatID(),
+					MSTeamsID:      "mockMessageID",
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
+				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+		{
 			Name: "SendChat: Unable to get the file info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
 			},
@@ -1298,6 +1503,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to get the file attachment from Mattermost",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the file attachment from Mattermost")).Times(1)
@@ -1330,6 +1538,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Unable to upload the attachments",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1378,6 +1589,9 @@ func TestSendChat(t *testing.T) {
 		},
 		{
 			Name: "SendChat: Valid",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1418,6 +1632,7 @@ func TestSendChat(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			p := newTestPlugin(t)
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
@@ -1440,6 +1655,7 @@ func TestSendChat(t *testing.T) {
 func TestSend(t *testing.T) {
 	for _, test := range []struct {
 		Name            string
+		SetupPlugin     func(*Plugin)
 		SetupAPI        func(*plugintest.API)
 		SetupStore      func(*storemocks.Store)
 		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
@@ -1448,7 +1664,10 @@ func TestSend(t *testing.T) {
 		ExpectedError   string
 	}{
 		{
-			Name:     "Send: Unable to get the client",
+			Name: "Send: Unable to get the client",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -1459,7 +1678,36 @@ func TestSend(t *testing.T) {
 			ExpectedError: "not connected user",
 		},
 		{
+			Name: "Send: File attachments disabled",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = false
+			},
+			SetupAPI: func(api *plugintest.API) {
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
+				store.On("LinkPosts", storemodels.PostInfo{
+					MattermostID:   testutils.GetID(),
+					MSTeamsID:      "mockMessageID",
+					MSTeamsChannel: testutils.GetChannelID(),
+				}).Return(nil).Times(1)
+			},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+					ID: "mockMessageID",
+				}, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
+			},
+			ExpectedMessage: "mockMessageID",
+		},
+		{
 			Name: "Send: Unable to get the file info",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
 			},
@@ -1485,6 +1733,9 @@ func TestSend(t *testing.T) {
 		},
 		{
 			Name: "Send: Unable to get file attachment from Mattermost",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the file attachment from Mattermost")).Times(1)
@@ -1511,6 +1762,9 @@ func TestSend(t *testing.T) {
 		},
 		{
 			Name: "Send: Unable to send message with attachments",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1538,6 +1792,9 @@ func TestSend(t *testing.T) {
 		},
 		{
 			Name: "Send: Able to send message with attachments but unable to store posts",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1572,6 +1829,9 @@ func TestSend(t *testing.T) {
 		},
 		{
 			Name: "Send: Able to send message with attachments with no error",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
 				api.On("GetFile", testutils.GetID()).Return([]byte("mockData"), nil).Times(1)
@@ -1608,6 +1868,7 @@ func TestSend(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			p := newTestPlugin(t)
+			test.SetupPlugin(p)
 			test.SetupAPI(p.API.(*plugintest.API))
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))

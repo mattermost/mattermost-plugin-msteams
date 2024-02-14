@@ -16,27 +16,29 @@ import (
 const monitoringSystemJobName = "monitoring_system"
 
 type Monitor struct {
-	client           msteams.Client
-	store            store.Store
-	api              plugin.API
-	metrics          metrics.Metrics
-	job              *cluster.Job
-	baseURL          string
-	webhookSecret    string
-	certificate      string
-	useEvaluationAPI bool
+	client             msteams.Client
+	store              store.Store
+	api                plugin.API
+	metrics            metrics.Metrics
+	job                *cluster.Job
+	baseURL            string
+	webhookSecret      string
+	certificate        string
+	useEvaluationAPI   bool
+	syncDirectMessages bool
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncDirectMessages bool) *Monitor {
 	return &Monitor{
-		client:           client,
-		store:            store,
-		api:              api,
-		metrics:          metrics,
-		baseURL:          baseURL,
-		webhookSecret:    webhookSecret,
-		useEvaluationAPI: useEvaluationAPI,
-		certificate:      certificate,
+		client:             client,
+		store:              store,
+		api:                api,
+		metrics:            metrics,
+		baseURL:            baseURL,
+		webhookSecret:      webhookSecret,
+		useEvaluationAPI:   useEvaluationAPI,
+		certificate:        certificate,
+		syncDirectMessages: syncDirectMessages,
 	}
 }
 
@@ -95,7 +97,7 @@ func (m *Monitor) RunMonitoringSystemJob() {
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	}()
 
-	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+	m.checkGlobalChatsSubscription(msteamsSubscriptionsMap, allChatsSubscription)
 
 	wg.Wait()
 }
