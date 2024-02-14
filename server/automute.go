@@ -126,15 +126,15 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 	return nil
 }
 
-// func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
-// 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
-// 	if appErr != nil {
-// 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
-// 		return false
-// 	}
+func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
+	if appErr != nil && errors.Is(appErr.Unwrap(), sql.ErrNoRows) {
+		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
+		return false
+	}
 
-// 	return pref.Value == PreferenceValuePlatformMSTeams
-// }
+	return pref.Value == PreferenceValuePlatformMSTeams
+}
 
 func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	token, err := p.store.GetTokenForMattermostUser(userID)
