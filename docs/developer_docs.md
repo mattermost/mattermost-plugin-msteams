@@ -101,6 +101,12 @@ Make sure you have the following components installed:
 
 - Make
 
+You also want to have the environment variable `MM_SERVICESETTINGS_ENABLEDEVELOPER="true"` set if you are not working on linux. Without this, the plugin will be built excusively for linux.
+
+In your mattermost config, make sure that `PluginSettings.EnableUploads` is true, and `FileSettings.MaxFileSize` is large enough to accept the plugin file size (eg `256000000`)
+
+```bash
+
 ### Building the plugin
 
 Run the following command in the plugin repo to prepare a compiled, distributable plugin zip:
