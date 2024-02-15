@@ -35,7 +35,7 @@ func (a *AutomuteAPIMock) GetPreferenceForUser(userID, category, name string) (m
 
 	preference, ok := a.preferences[a.key(userID, category, name)]
 	if !ok {
-		return model.Preference{}, &model.AppError{Message: "Preference not found"}
+		return model.Preference{}, &model.AppError{Message: "AutomuteAPIMock: Preference not found"}
 	}
 	return preference, nil
 }
@@ -89,8 +89,7 @@ func (a *AutomuteAPIMock) GetChannel(channelID string) (*model.Channel, *model.A
 
 	channel, ok := a.channels[channelID]
 	if !ok {
-		appErr := &model.AppError{Message: "AutomuteAPIMock: Channel not found"}
-		return nil, appErr.Wrap(errors.Wrap(sql.ErrNoRows, appErr.Message))
+		return nil, &model.AppError{Message: "AutomuteAPIMock: Channel not found"}
 	}
 
 	return channel, nil
@@ -141,7 +140,7 @@ func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.Cha
 
 	member, ok := a.channelMembers[a.key(channelID, userID)]
 	if !ok {
-		return nil, &model.AppError{Message: "Channel member not found"}
+		return nil, &model.AppError{Message: "AutomuteAPIMock: Channel member not found"}
 	}
 	return member, nil
 }
