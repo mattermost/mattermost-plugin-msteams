@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+	"gitlab.com/golang-commonmark/markdown"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -17,9 +21,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-	"gitlab.com/golang-commonmark/markdown"
 )
 
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
@@ -37,6 +38,13 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return
+	}
+
+	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
+
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -47,38 +55,47 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	link, err := p.store.GetLinkByChannelID(post.ChannelId)
-	if err != nil || link == nil {
-		channel, appErr := p.API.GetChannel(post.ChannelId)
+	if isDirectOrGroupMessage {
+		if !p.getConfiguration().SyncDirectMessages {
+			return
+		}
+
+		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
-			members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
-			if appErr != nil {
-				return
-			}
-			dstUsers := []string{}
-			for _, m := range members {
-				dstUsers = append(dstUsers, m.UserId)
-			}
-			_, err = p.SendChat(post.UserId, dstUsers, post)
-			if err != nil {
-				p.API.LogWarn("Unable to handle message sent", "error", err.Error())
-			}
+		dstUsers := []string{}
+		for _, m := range members {
+			dstUsers = append(dstUsers, m.UserId)
 		}
-		return
-	}
+		_, err := p.SendChat(post.UserId, dstUsers, post)
+		if err != nil {
+			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+		}
+	} else {
+		link, err := p.store.GetLinkByChannelID(post.ChannelId)
+		if err != nil || link == nil {
+			return
+		}
 
-	user, _ := p.API.GetUser(post.UserId)
+		if !p.getConfiguration().SyncLinkedChannels {
+			return
+		}
 
-	_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
-	if err != nil {
-		p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+		user, _ := p.API.GetUser(post.UserId)
+
+		_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
+		if err != nil {
+			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+		}
 	}
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+	if !p.getConfiguration().SyncReactions {
+		return
+	}
+
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
@@ -119,6 +136,10 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
+	if !p.getConfiguration().SyncReactions {
+		return
+	}
+
 	if reaction.ChannelId == "removedfromplugin" {
 		return
 	}
@@ -156,7 +177,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	}
 }
 
-func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *model.Post) {
+func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
@@ -202,14 +223,18 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, oldPost *mode
 			p.API.LogWarn("Unable to create or get chat for users", "error", err.Error())
 			return
 		}
-		err = p.UpdateChat(chat.ID, user, newPost, oldPost, updateRequired)
+		err = p.UpdateChat(chat.ID, user, newPost, updateRequired)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message update", "error", err.Error())
 		}
 		return
 	}
 
-	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, oldPost, updateRequired)
+	if !p.getConfiguration().SyncLinkedChannels {
+		return
+	}
+
+	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message update", "error", err.Error())
 	}
@@ -448,6 +473,10 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
+		if !p.GetSyncFileAttachments() {
+			continue
+		}
+
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
@@ -542,6 +571,10 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	var attachments []*clientmodels.Attachment
 	for _, fileID := range post.FileIds {
+		if !p.GetSyncFileAttachments() {
+			continue
+		}
+
 		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
 			p.API.LogWarn("Unable to get file info", "error", appErr)
@@ -651,9 +684,9 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 	return nil
 }
 
-func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
+func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *model.Post, updateRequired bool) error {
 	parentID := ""
-	if oldPost.RootId != "" {
+	if newPost.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(newPost.RootId)
 		if parentInfo != nil {
 			parentID = parentInfo.MSTeamsID
@@ -721,7 +754,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost, old
 	return nil
 }
 
-func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost, oldPost *model.Post, updateRequired bool) error {
+func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post, updateRequired bool) error {
 	postInfo, err := p.store.GetPostInfoByMattermostID(newPost.Id)
 	if err != nil {
 		p.API.LogWarn("Error getting post info", "error", err)

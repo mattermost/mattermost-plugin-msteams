@@ -5,7 +5,7 @@ package main
 
 import "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
 
-func getClientMock(p *Plugin) *mocks.Client {
+func getClientMock(_ *Plugin) *mocks.Client {
 	return nil
 }
 

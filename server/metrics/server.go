@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,17 +20,11 @@ func (el *ErrorLoggerWrapper) Println(v ...interface{}) {
 	logrus.Warn("metric server error", v)
 }
 
-// NewMetricsServer factory method to create a new prometheus server.
-func NewMetricsServer(address string, metricsService Metrics) *Server {
-	return &Server{
-		&http.Server{
-			ReadTimeout: 30 * time.Second,
-			Addr:        address,
-			Handler: promhttp.HandlerFor(metricsService.GetRegistry(), promhttp.HandlerOpts{
-				ErrorLog: &ErrorLoggerWrapper{},
-			}),
-		},
-	}
+// NewMetricsHandler creates an HTTP handler to expose metrics.
+func NewMetricsHandler(metricsService Metrics) http.Handler {
+	return promhttp.HandlerFor(metricsService.GetRegistry(), promhttp.HandlerOpts{
+		ErrorLog: &ErrorLoggerWrapper{},
+	})
 }
 
 // Run will start the prometheus server.

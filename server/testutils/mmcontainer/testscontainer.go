@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 const (
@@ -191,11 +192,7 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 		return err
 	}
 
-	if err = c.SetConfig(ctx, "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int())); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SetConfig(ctx, "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int()))
 }
 
 // UpdateConfig updates the config to be used for the mattermost instance
@@ -413,6 +410,8 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 					"MM_FILESETTINGS_MAXFILESIZE":                   "256000000",
 					"MM_LOGSETTINGS_CONSOLELEVEL":                   "DEBUG",
 					"MM_LOGSETTINGS_ENABLEFILE":                     "true",
+					"MM_SERVICEENVIRONMENT":                         model.ServiceEnvironmentTest,
+					"MM_LICENSE":                                    "eyJpZCI6InVjR1kycGNmcjVGSzgwTko5SGVuemhmWDZmIiwiaXNzdWVkX2F0IjoxNzA2OTAyMTE1NTU2LCJzdGFydHNfYXQiOjE3MDY5MDIxMTU1NTYsImV4cGlyZXNfYXQiOjE3NzAwMDg0MDAwMDAsInNrdV9uYW1lIjoiRW50ZXJwcmlzZSIsInNrdV9zaG9ydF9uYW1lIjoiZW50ZXJwcmlzZSIsImN1c3RvbWVyIjp7ImlkIjoicDl1bjM2OWE2N2hpbWo0eWQ2aTZpYjM5YmgiLCJuYW1lIjoiTWF0dGVybW9zdCBFMkUgVGVzdHMiLCJlbWFpbCI6Implc3NlQG1hdHRlcm1vc3QuY29tIiwiY29tcGFueSI6Ik1hdHRlcm1vc3QgRTJFIFRlc3RzIn0sImZlYXR1cmVzIjp7InVzZXJzIjoxMDAsImxkYXAiOnRydWUsImxkYXBfZ3JvdXBzIjp0cnVlLCJtZmEiOnRydWUsImdvb2dsZV9vYXV0aCI6dHJ1ZSwib2ZmaWNlMzY1X29hdXRoIjp0cnVlLCJjb21wbGlhbmNlIjp0cnVlLCJjbHVzdGVyIjp0cnVlLCJtZXRyaWNzIjp0cnVlLCJtaHBucyI6dHJ1ZSwic2FtbCI6dHJ1ZSwiZWxhc3RpY19zZWFyY2giOnRydWUsImFubm91bmNlbWVudCI6dHJ1ZSwidGhlbWVfbWFuYWdlbWVudCI6dHJ1ZSwiZW1haWxfbm90aWZpY2F0aW9uX2NvbnRlbnRzIjp0cnVlLCJkYXRhX3JldGVudGlvbiI6dHJ1ZSwibWVzc2FnZV9leHBvcnQiOnRydWUsImN1c3RvbV9wZXJtaXNzaW9uc19zY2hlbWVzIjp0cnVlLCJjdXN0b21fdGVybXNfb2Zfc2VydmljZSI6dHJ1ZSwiZ3Vlc3RfYWNjb3VudHMiOnRydWUsImd1ZXN0X2FjY291bnRzX3Blcm1pc3Npb25zIjp0cnVlLCJpZF9sb2FkZWQiOnRydWUsImxvY2tfdGVhbW1hdGVfbmFtZV9kaXNwbGF5Ijp0cnVlLCJjbG91ZCI6ZmFsc2UsInNoYXJlZF9jaGFubmVscyI6dHJ1ZSwicmVtb3RlX2NsdXN0ZXJfc2VydmljZSI6dHJ1ZSwib3BlbmlkIjp0cnVlLCJlbnRlcnByaXNlX3BsdWdpbnMiOnRydWUsImFkdmFuY2VkX2xvZ2dpbmciOnRydWUsImZ1dHVyZV9mZWF0dXJlcyI6dHJ1ZX0sImlzX3RyaWFsIjpmYWxzZSwiaXNfZ292X3NrdSI6ZmFsc2V9IMay/e4rVqZ1yEluKxCtWQJK8iWdpADuWyETHJcCDMV8ouQK3n/ocJsg1y7INrbSPZDw6quohjblLN5MqHLQi0c+5yRYwzBhisJD6MFWxFCSg99eSXqIeudAfKVU+WOdZxWhyLzob14hOEfjvN/2hNSNyTV4hqhzk62L9vHzzZsgrFu+zYu4pA6Y4yzZF9FyVvHW241BkGq7ZecmyS6NQsq1jlAhkoBpdW9PCvFDfYS3+CwKtWNfebItc4e9JTbVpo75n++59WV2faQDfiMBf2bYwe6OxzJIZ258r8C2KMFD1uqpQohIoDS9ziygAu2voqgsQqm1Btf1hMtgFAOW7w==",
 				},
 				ExposedPorts: []string{"8065/tcp"},
 				Cmd:          []string{"mattermost", "server"},
