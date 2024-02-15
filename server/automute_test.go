@@ -89,8 +89,7 @@ func (a *AutomuteAPIMock) GetChannel(channelID string) (*model.Channel, *model.A
 
 	channel, ok := a.channels[channelID]
 	if !ok {
-		appErr := &model.AppError{Message: "AutomuteAPIMock: Channel not found"}
-		return nil, appErr.Wrap(errors.Wrap(sql.ErrNoRows, appErr.Message))
+		return nil, &model.AppError{Message: "AutomuteAPIMock: Channel not found"}
 	}
 
 	return channel, nil
