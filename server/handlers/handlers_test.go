@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
@@ -16,8 +19,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
@@ -293,6 +294,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -344,6 +346,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -403,6 +406,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -501,6 +505,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
@@ -840,6 +845,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetSyncDirectMessages").Return(true).Once()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -937,6 +943,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{

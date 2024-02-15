@@ -48,6 +48,10 @@ func GetPostID() string {
 	return "qwifdnaootmgkerodfdmwo"
 }
 
+func GetRemoteID() string {
+	return "edfscfghjiugddetrfsswe"
+}
+
 func GetInternalServerAppError(errorMsg string) *model.AppError {
 	return &model.AppError{
 		StatusCode:    http.StatusInternalServerError,
@@ -165,7 +169,8 @@ func GetPostFromTeamsMessage(createAt int64) *model.Post {
 		Props: model.StringInterface{
 			"msteams_sync_mock-BotUserID": true,
 		},
-		FileIds: model.StringArray{},
+		FileIds:  model.StringArray{},
+		RemoteId: model.NewString(GetRemoteID()),
 	}
 }
 
