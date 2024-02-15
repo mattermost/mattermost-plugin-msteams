@@ -105,8 +105,6 @@ You also want to have the environment variable `MM_SERVICESETTINGS_ENABLEDEVELOP
 
 In your mattermost config, make sure that `PluginSettings.EnableUploads` is `true`, and `FileSettings.MaxFileSize` is large enough to accept the plugin bundle (eg `256000000`)
 
-```bash
-
 ### Building the plugin
 
 Run the following command in the plugin repo to prepare a compiled, distributable plugin zip:
