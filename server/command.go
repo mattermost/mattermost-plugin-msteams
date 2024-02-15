@@ -214,7 +214,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	if err := p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+	if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		TeamID:         channelLink.MSTeamsTeam,
 		ChannelID:      channelLink.MSTeamsChannel,
@@ -223,6 +223,22 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}); err != nil {
 		p.API.LogWarn("Unable to save the subscription in the DB", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
+	}
+
+	if !p.getConfiguration().DisableSyncMsg {
+		if _, err = p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: channelLink.MattermostChannelID,
+			TeamId:    channelLink.MattermostTeamID,
+			Home:      true,
+			ReadOnly:  false,
+			CreatorId: p.userID,
+			RemoteId:  p.remoteID,
+			ShareName: channelLink.MattermostChannelID,
+		}); err != nil {
+			p.API.LogWarn("Failed to share channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
+		}
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
@@ -266,6 +282,14 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogWarn("Unable to delete the subscription from the DB", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		return &model.CommandResponse{}, nil
+	}
+
+	if !p.getConfiguration().DisableSyncMsg {
+		if _, err = p.API.UnshareChannel(link.MattermostChannelID); err != nil {
+			p.API.LogWarn("Failed to unshare channel", "channel_id", link.MattermostChannelID, "subscription_id", subscription.SubscriptionID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Unshared channel", "channel_id", link.MattermostChannelID)
+		}
 	}
 
 	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
