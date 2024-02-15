@@ -5,10 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/html"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
-	"golang.org/x/net/html"
 )
 
 const hostedContentsStr = "hostedContents"
@@ -22,6 +23,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 	text = markdown.ConvertToMD(text)
 	props := make(map[string]interface{})
 	rootID := ""
+	remoteID := ah.plugin.GetRemoteID()
 
 	if msg.ReplyToID != "" {
 		rootInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ReplyToID)
@@ -40,7 +42,15 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 		text = "## " + msg.Subject + "\n" + text
 	}
 
-	post := &model.Post{UserId: senderID, ChannelId: channelID, Message: text, Props: props, RootId: rootID, CreateAt: msg.CreateAt.UnixNano() / int64(time.Millisecond)}
+	post := &model.Post{
+		UserId:    senderID,
+		ChannelId: channelID,
+		Message:   text,
+		Props:     props,
+		RootId:    rootID,
+		RemoteId:  &remoteID,
+		CreateAt:  msg.CreateAt.UnixNano() / int64(time.Millisecond),
+	}
 	if !isUpdatedActivity {
 		post.FileIds = attachments
 	}

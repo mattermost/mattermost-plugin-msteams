@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/enescakir/emoji"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -50,6 +51,7 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
+	GetRemoteID() string
 }
 
 type ActivityHandler struct {

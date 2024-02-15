@@ -6,6 +6,10 @@ import (
 	"testing"
 
 	"github.com/gosimple/slug"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/oauth2"
+
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
@@ -18,9 +22,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"golang.org/x/oauth2"
 )
 
 type pluginMock struct {
@@ -34,6 +35,7 @@ type pluginMock struct {
 	maxSizeForCompleteDownload int
 	bufferSizeForStreaming     int
 	botUserID                  string
+	remoteID                   string
 	url                        string
 	appClient                  msteams.Client
 	userClient                 msteams.Client
@@ -51,6 +53,7 @@ func (pm *pluginMock) GetSyncGuestUsers() bool                         { return 
 func (pm *pluginMock) GetMaxSizeForCompleteDownload() int              { return pm.maxSizeForCompleteDownload }
 func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return pm.bufferSizeForStreaming }
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
+func (pm *pluginMock) GetRemoteID() string                             { return pm.remoteID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
 func (pm *pluginMock) GetMetrics() metrics.Metrics                     { return pm.metrics }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
@@ -70,6 +73,7 @@ func newTestHandler() *ActivityHandler {
 		store:                      &storemocks.Store{},
 		api:                        &plugintest.API{},
 		botUserID:                  "bot-user-id",
+		remoteID:                   "mock-remote-id",
 		url:                        "fake-url",
 		syncDirectMessages:         false,
 		syncGuestUsers:             false,

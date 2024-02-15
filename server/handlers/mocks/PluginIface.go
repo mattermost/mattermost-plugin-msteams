@@ -168,6 +168,20 @@ func (_m *PluginIface) GetMetrics() metrics.Metrics {
 	return r0
 }
 
+// GetRemoteID provides a mock function with given fields:
+func (_m *PluginIface) GetRemoteID() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // GetStore provides a mock function with given fields:
 func (_m *PluginIface) GetStore() store.Store {
 	ret := _m.Called()

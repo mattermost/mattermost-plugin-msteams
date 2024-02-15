@@ -141,6 +141,10 @@ func (p *Plugin) GetBotUserID() string {
 	return p.userID
 }
 
+func (p *Plugin) GetRemoteID() string {
+	return p.remoteID
+}
+
 func (p *Plugin) GetClientForApp() msteams.Client {
 	p.msteamsAppClientMutex.RLock()
 	defer p.msteamsAppClientMutex.RUnlock()
