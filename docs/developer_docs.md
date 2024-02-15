@@ -103,7 +103,7 @@ Make sure you have the following components installed:
 
 You also want to have the environment variable `MM_SERVICESETTINGS_ENABLEDEVELOPER="true"` set if you are not working on linux. Without this, the plugin will be built excusively for linux.
 
-In your mattermost config, make sure that `PluginSettings.EnableUploads` is true, and `FileSettings.MaxFileSize` is large enough to accept the plugin file size (eg `256000000`)
+In your mattermost config, make sure that `PluginSettings.EnableUploads` is `true`, and `FileSettings.MaxFileSize` is large enough to accept the plugin bundle (eg `256000000`)
 
 ```bash
 
