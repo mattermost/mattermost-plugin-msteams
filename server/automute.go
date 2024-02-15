@@ -128,7 +128,7 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 
 func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
-	if appErr != nil && errors.Is(appErr.Unwrap(), sql.ErrNoRows) {
+	if appErr != nil {
 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
 		return false
 	}

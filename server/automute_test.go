@@ -10,7 +10,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,8 +35,7 @@ func (a *AutomuteAPIMock) GetPreferenceForUser(userID, category, name string) (m
 
 	preference, ok := a.preferences[a.key(userID, category, name)]
 	if !ok {
-		appErr := &model.AppError{Message: "AutomuteAPIMock: Preference not found"}
-		return model.Preference{}, appErr.Wrap(errors.Wrap(sql.ErrNoRows, appErr.Message))
+		return model.Preference{}, &model.AppError{Message: "Preference not found"}
 	}
 	return preference, nil
 }
@@ -143,8 +141,7 @@ func (a *AutomuteAPIMock) GetChannelMember(channelID, userID string) (*model.Cha
 
 	member, ok := a.channelMembers[a.key(channelID, userID)]
 	if !ok {
-		appErr := &model.AppError{Message: "AutomuteAPIMock: Channel member not found"}
-		return nil, appErr.Wrap(errors.Wrap(sql.ErrNoRows, appErr.Message))
+		return nil, &model.AppError{Message: "Channel member not found"}
 	}
 	return member, nil
 }
