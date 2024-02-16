@@ -144,7 +144,7 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	if err := s.addColumn(subscriptionsTableName, "syncNeeded", "BOOLEAN"); err != nil {
+	if err := s.addColumn(subscriptionsTableName, "syncNeeded", "BOOLEAN NOT NULL DEFAULT False"); err != nil {
 		return err
 	}
 
