@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
@@ -14,7 +16,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/stretchr/testify/assert"
 )
 
 type FakeHTTPTransport struct{}
@@ -52,6 +53,7 @@ func TestMsgToPost(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetRemoteID").Return(testutils.GetRemoteID())
 			},
 			setupAPI: func(api *plugintest.API) {
 			},
@@ -65,6 +67,7 @@ func TestMsgToPost(t *testing.T) {
 				},
 				FileIds:  model.StringArray{},
 				CreateAt: mmCreateAtTime,
+				RemoteId: model.NewString(testutils.GetRemoteID()),
 			},
 		},
 	} {
