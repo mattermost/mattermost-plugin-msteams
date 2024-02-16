@@ -225,8 +225,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 
-	err = p.store.UpdateSubscriptionSyncNeeded(channelsSubscription.ID, false)
-	if err != nil {
+	if err = p.store.UpdateSubscriptionSyncNeeded(channelsSubscription.ID, false); err != nil {
 		p.API.LogWarn("Unable to mark the subscription as no sync needed", "subscriptionID", channelsSubscription.ID, "error", err.Error())
 	}
 
