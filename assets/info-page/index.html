@@ -50,9 +50,9 @@
       function choosePrimaryPlatform() {
         const serverURL = "{{.ServerURL}}";
         const apiEndpoint = "{{.APIEndPoint}}";
-        const queryParam = "{{.QueryParamPrimaryPlatform}}";        
+        const queryParam = "{{.QueryParamPrimaryPlatform}}";
         fetch(`${serverURL}${apiEndpoint}?${queryParam}=${primaryPlatform}`)
-        .then(() => window.close());
+        .then(closeInfoPage());
       }
     </script>
     <style>
@@ -218,7 +218,7 @@
           width: 49%;
           cursor: pointer;
         }
-                
+
         .card__heading {
           display: flex;
           padding: 16px 24px;
@@ -259,7 +259,7 @@
         .list {
           list-style: none;
           padding: 0;
-        }        
+        }
 
         .list-item {
           display: flex;
@@ -450,10 +450,10 @@
         </div>
         <div class="button__container">
           <div class="selection-button" onclick="closeInfoPage()">
-            <a class="button__text skip-button__text">Skip for now</a>   
+            <a class="button__text skip-button__text">Skip for now</a>
           </div>
           <div class="selection-button" onclick="choosePrimaryPlatform()">
-            <a class="button__text selection-button__text">Continue <img src="static/trailing-icon.svg" alt="trailing-icon"/></a>   
+            <a class="button__text selection-button__text">Continue <img src="static/trailing-icon.svg" alt="trailing-icon"/></a>
           </div>
         </div>
         <div class="footer">
