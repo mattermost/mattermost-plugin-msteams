@@ -110,13 +110,33 @@ func (m *Monitor) checkChannelsSubscriptions(msteamsSubscriptionsMap map[string]
 // 	}
 // }
 
-func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
+func (m *Monitor) checkGlobalChatsSubscription(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
 	subscriptions, err := m.store.ListGlobalSubscriptions()
 	if err != nil {
 		m.api.LogWarn("Unable to get the chat subscriptions from store", "error", err.Error())
 		return
 	}
 
+	// Clean up if we're not syncing direct messages.
+	if !m.syncDirectMessages {
+		// Delete any MS Teams subscription for the global chats, if present.
+		if allChatsSubscription != nil {
+			if err := m.client.DeleteSubscription(allChatsSubscription.ID); err != nil {
+				m.api.LogWarn("Failed to delete old global chats subscriptions", "error", err.Error())
+			}
+		}
+
+		// Delete any global subscriptions (assume at most one here).
+		if len(subscriptions) > 0 {
+			if err := m.store.DeleteSubscription(subscriptions[0].SubscriptionID); err != nil {
+				m.api.LogWarn("Unable to delete the old all chats subscription", "error", err.Error())
+			}
+		}
+
+		return
+	}
+
+	// Create or save a global subscription if we have none.
 	if len(subscriptions) == 0 {
 		if allChatsSubscription == nil {
 			m.CreateAndSaveChatSubscription(nil)
@@ -129,7 +149,10 @@ func (m *Monitor) checkGlobalSubscriptions(msteamsSubscriptionsMap map[string]*c
 		return
 	}
 
+	// We only support one global subscription right now, and it's assumed to be the global
+	// chats subscription.
 	mmSubscription := subscriptions[0]
+
 	// Check if all chats subscription is not present on MS Teams
 	if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
 		// Create all chats subscription on MS Teams

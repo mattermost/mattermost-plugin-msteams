@@ -45,7 +45,7 @@ require (
 	github.com/containerd/containerd v1.7.11 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v24.0.7+incompatible // indirect
@@ -68,7 +68,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.2 // indirect
 	github.com/hashicorp/go-plugin v1.6.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/klauspost/compress v1.16.6 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect

@@ -126,14 +126,14 @@ func TestMonitorCheckGlobalSubscriptions(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
 
-			monitor.checkGlobalSubscriptions(testCase.msteamsSubscriptionMap, testCase.allChatsSubscription)
+			monitor.checkGlobalChatsSubscription(testCase.msteamsSubscriptionMap, testCase.allChatsSubscription)
 			store.AssertExpectations(t)
 			mockAPI.AssertExpectations(t)
 			client.AssertExpectations(t)
@@ -270,7 +270,7 @@ func TestMonitorCheckChannelSubscriptions(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
@@ -477,7 +477,7 @@ func TestMonitorRecreateGlobalSubscription(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
@@ -625,7 +625,7 @@ func TestRecreateChannelSubscription(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
@@ -732,7 +732,7 @@ func TestMonitorRecreateChatSubscription(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)
@@ -809,7 +809,7 @@ func TestMonitorRefreshSubscription(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			client := mocksClient.NewClient(t)
 			mockmetrics := mocksMetrics.NewMetrics(t)
-			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "")
+			monitor := New(client, store, mockAPI, mockmetrics, "base-url", "webhook-secret", false, "", true)
 			testCase.setupClient(client)
 			testCase.setupAPI(mockAPI)
 			testutils.MockLogs(mockAPI)

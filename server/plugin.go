@@ -19,6 +19,10 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
@@ -32,9 +36,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -69,6 +70,7 @@ type Plugin struct {
 	stopContext       context.Context
 
 	userID    string
+	remoteID  string
 	apiClient *pluginapi.Client
 
 	store                     store.Store
@@ -109,6 +111,18 @@ func (p *Plugin) GetStore() store.Store {
 
 func (p *Plugin) GetSyncDirectMessages() bool {
 	return p.getConfiguration().SyncDirectMessages
+}
+
+func (p *Plugin) GetSyncLinkedChannels() bool {
+	return p.getConfiguration().SyncLinkedChannels
+}
+
+func (p *Plugin) GetSyncReactions() bool {
+	return p.getConfiguration().SyncReactions
+}
+
+func (p *Plugin) GetSyncFileAttachments() bool {
+	return p.getConfiguration().SyncFileAttachments
 }
 
 func (p *Plugin) GetSyncGuestUsers() bool {
@@ -268,7 +282,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncDirectMessages())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -314,6 +328,14 @@ func (p *Plugin) start(isRestart bool) {
 
 	// Run the job above right away so we immediately populate metrics.
 	p.checkCredentials()
+
+	// Unregister and re-register slash command to reflect any configuration changes.
+	if err = p.API.UnregisterCommand("", "msteams-sync"); err != nil {
+		p.API.LogWarn("Failed to unregister command", "error", err)
+	}
+	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+		p.API.LogError("Failed to register command", "error", err)
+	}
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -466,10 +488,6 @@ func (p *Plugin) OnActivate() error {
 	}
 	p.userID = botID
 
-	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand()); err != nil {
-		return err
-	}
-
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
 			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
@@ -489,6 +507,48 @@ func (p *Plugin) OnActivate() error {
 		p.store = timerlayer.New(store, p.GetMetrics())
 		if err = p.store.Init(); err != nil {
 			return err
+		}
+	}
+
+	if !p.getConfiguration().DisableSyncMsg {
+		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+			Displayname:  pluginID,
+			PluginID:     pluginID,
+			CreatorID:    botID,
+			AutoShareDMs: true,
+			AutoInvited:  true,
+		})
+		if err != nil {
+			return err
+		}
+		p.remoteID = remoteID
+
+		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
+
+		linkedChannels, err := p.store.ListChannelLinks()
+		if err != nil {
+			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
+			return err
+		}
+		for _, linkedChannel := range linkedChannels {
+			_, err = p.API.ShareChannel(&model.SharedChannel{
+				ChannelId: linkedChannel.MattermostChannelID,
+				TeamId:    linkedChannel.MattermostTeamID,
+				Home:      true,
+				ReadOnly:  false,
+				CreatorId: botID,
+				RemoteId:  p.remoteID,
+				ShareName: linkedChannel.MattermostChannelID,
+			})
+			if err != nil {
+				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+			}
+
+			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
+		}
+	} else {
+		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
 	}
 
@@ -596,7 +656,7 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogInfo("Activating the inactive user", "teams_user_id", msUser.ID)
+						p.API.LogInfo("Activating the inactive user", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
 							p.API.LogWarn("Unable to activate the user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -604,7 +664,7 @@ func (p *Plugin) syncUsers() {
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogInfo("Deactivating the Mattermost user account", "teams_user_id", msUser.ID)
+						p.API.LogInfo("Deactivating the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogWarn("Unable to deactivate the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -615,12 +675,12 @@ func (p *Plugin) syncUsers() {
 
 				user, err := p.API.GetUser(mmUser.Id)
 				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "error", err.Error())
+					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					continue
 				}
 
 				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "auth_service", configuration.SyntheticUserAuthService)
+					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
 						AuthData:    &authData,
@@ -691,6 +751,8 @@ func (p *Plugin) syncUsers() {
 			if newUser == nil || newUser.Id == "" {
 				continue
 			}
+
+			p.API.LogInfo("Created new synthetic user", "user_id", newUser.Id, "teams_user_id", msUser.ID)
 
 			preferences := model.Preferences{model.Preference{
 				UserId:   newUser.Id,
@@ -777,4 +839,68 @@ func (p *Plugin) updateMetrics() {
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+}
+
+func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
+	return true
+}
+
+func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.Post, _ *model.RemoteCluster) error {
+	now := model.GetMillis()
+
+	isUpdate := fi.CreateAt != fi.UpdateAt
+	isDelete := fi.DeleteAt != 0
+	switch {
+	case !isUpdate && !isDelete:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionCreated, now-fi.CreateAt)
+	case isUpdate && !isDelete:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionUpdated, now-fi.UpdateAt)
+	default:
+		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionDeleted, now-fi.DeleteAt)
+	}
+
+	return nil
+}
+
+func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
+	now := model.GetMillis()
+
+	var resp model.SyncResponse
+	for _, post := range msg.Posts {
+		isUpdate := post.CreateAt != post.UpdateAt
+		isDelete := post.DeleteAt != 0
+
+		switch {
+		case !isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionCreated, now-post.CreateAt)
+		case isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionUpdated, now-post.UpdateAt)
+		default:
+			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionDeleted, now-post.DeleteAt)
+		}
+
+		if resp.PostsLastUpdateAt < post.UpdateAt {
+			resp.PostsLastUpdateAt = post.UpdateAt
+		}
+	}
+
+	for _, reaction := range msg.Reactions {
+		isUpdate := reaction.CreateAt != reaction.UpdateAt
+		isDelete := reaction.DeleteAt != 0
+
+		switch {
+		case !isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionCreated, now-reaction.CreateAt)
+		case isUpdate && !isDelete:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionUpdated, now-reaction.UpdateAt)
+		default:
+			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionDeleted, now-reaction.DeleteAt)
+		}
+
+		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
+			resp.ReactionsLastUpdateAt = reaction.UpdateAt
+		}
+	}
+
+	return resp, nil
 }

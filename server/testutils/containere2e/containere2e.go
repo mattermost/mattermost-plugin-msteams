@@ -63,6 +63,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"maxsizeforcompletedownload": 20,
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
+		"synclinkedchannels":         true,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{

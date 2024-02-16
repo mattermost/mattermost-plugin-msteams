@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
 var db *sql.DB
@@ -61,7 +62,7 @@ func createTestDB() (*sql.DB, func()) {
 	return conn.DB, tearDownContainer
 }
 
-func setupTestStore(t *testing.T) (*SQLStore, *plugintest.API) {
+func setupTestStore(_ *testing.T) (*SQLStore, *plugintest.API) {
 	api := &plugintest.API{}
 
 	store := &SQLStore{}

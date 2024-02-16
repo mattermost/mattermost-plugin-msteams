@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 const (
@@ -191,11 +192,7 @@ func (c *MattermostContainer) setSiteURL(ctx context.Context) error {
 		return err
 	}
 
-	if err = c.SetConfig(ctx, "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int())); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SetConfig(ctx, "ServiceSettings.ListenAddress", fmt.Sprintf(":%d", containerPort.Int()))
 }
 
 // UpdateConfig updates the config to be used for the mattermost instance
