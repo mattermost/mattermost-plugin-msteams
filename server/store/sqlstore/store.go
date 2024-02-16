@@ -618,15 +618,6 @@ func (s *SQLStore) UpdateSubscriptionData(subscriptionID string, newSubscription
 	return nil
 }
 
-func (s *SQLStore) UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error {
-	query := s.getQueryBuilder().Update(subscriptionsTableName).Set("syncNeeded", syncNeeded).Where(sq.Eq{"subscriptionID": subscriptionID})
-	_, err := query.Exec()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	query := s.getQueryBuilder().Update(subscriptionsTableName).Set("expiresOn", expiresOn.UnixMicro()).Where(sq.Eq{"subscriptionID": subscriptionID})
 	_, err := query.Exec()

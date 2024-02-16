@@ -57,6 +57,5 @@ type Store interface {
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
-	UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error
 	UpdateSubscriptionData(subscriptionID string, newSubscriptionID, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error
 }

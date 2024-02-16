@@ -679,20 +679,6 @@ func (s *TimerLayer) UpdateSubscriptionLastActivityAt(subscriptionID string, las
 	return err
 }
 
-func (s *TimerLayer) UpdateSubscriptionSyncNeeded(subscriptionID string, syncNeeded bool) error {
-	start := time.Now()
-
-	err := s.Store.UpdateSubscriptionSyncNeeded(subscriptionID, syncNeeded)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionSyncNeeded", success, elapsed)
-	return err
-}
-
 func (s *TimerLayer) VerifyOAuth2State(state string) error {
 	start := time.Now()
 
