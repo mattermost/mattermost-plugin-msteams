@@ -78,6 +78,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 				}, nil).Times(1)
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is no longer linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 200).Return(model.ChannelMembers(nil), (*model.AppError)(nil)).Times(1)
 				api.On("UnshareChannel", "Valid-MattermostChannelID").Return(true, nil).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -677,6 +678,7 @@ func TestExecuteLinkCommand(t *testing.T) {
 				api.On("HasPermissionToChannel", testutils.GetUserID(), testutils.GetChannelID(), model.PermissionManageChannelRoles).Return(true).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), commandWaitingMessage)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost("bot-user-id", testutils.GetChannelID(), "The MS Teams channel is now linked to this Mattermost channel.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("GetChannelMembers", testutils.GetChannelID(), 0, 200).Return(model.ChannelMembers(nil), (*model.AppError)(nil)).Times(1)
 				api.On("ShareChannel", mock.AnythingOfType("*model.SharedChannel")).Return(nil, nil).Times(1)
 			},
 			setupStore: func(s *mockStore.Store) {
