@@ -64,6 +64,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
 		"synclinkedchannels":         true,
+		"syncdirectmessages":         true,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{
@@ -94,6 +95,9 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	if err2 := store.Init(); err2 != nil {
 		_ = mattermost.Terminate(ctx)
 	}
+	require.NoError(t, err)
+
+	err = mattermost.CreateUser(context.Background(), "regularuser@regularuser.com", "regularuser", "regularuser")
 	require.NoError(t, err)
 
 	tearDown := func() {

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
+func TestMessageHasBeenPostedNewMessageInChanneE2E(t *testing.T) {
 	t.Parallel()
 	mattermost, store, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
@@ -82,6 +82,87 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		containere2e.ResetMSTeamsClientMock(t, client)
 		containere2e.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
 		containere2e.MockMSTeamsClient(t, client, "SendMessageWithAttachments", "Message", nil, "Unable to send the message")
+
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
+		require.NoError(t, err)
+
+		newPost, _, err := client.CreatePost(context.Background(), &post)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			var logs string
+			logs, err = mattermost.GetLogs(context.Background(), 10)
+			if err != nil {
+				return false
+			}
+			if strings.Contains(logs, "Error creating post on MS Teams") && strings.Contains(logs, "Unable to send the message") {
+				return true
+			}
+			return false
+		}, 1*time.Second, 50*time.Millisecond)
+
+		_, err = store.GetPostInfoByMattermostID(newPost.Id)
+		require.Error(t, err)
+	})
+}
+
+func TestMessageHasBeenPostedNewMessageInDirectMessageE2E(t *testing.T) {
+	t.Parallel()
+	mattermost, store, tearDown := containere2e.NewE2ETestPlugin(t)
+	defer tearDown()
+
+	client, err := mattermost.GetAdminClient(context.Background())
+	require.NoError(t, err)
+
+	user, _, err := client.GetMe(context.Background(), "")
+	require.NoError(t, err)
+
+	user2, _, err := client.GetUserByUsername(context.Background(), "regularuser", "")
+	require.NoError(t, err)
+
+	channel, _, err := client.CreateDirectChannel(context.Background(), user.Id, user2.Id)
+	require.NoError(t, err)
+
+	post := model.Post{
+		CreateAt:  model.GetMillis(),
+		UpdateAt:  model.GetMillis(),
+		UserId:    user.Id,
+		ChannelId: channel.Id,
+		Message:   "message",
+	}
+
+	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{})
+	require.NoError(t, err)
+	err = store.SetUserInfo(user2.Id, "ms-user2-id", &oauth2.Token{})
+	require.NoError(t, err)
+
+	t.Run("Everything OK", func(t *testing.T) {
+		containere2e.ResetMSTeamsClientMock(t, client)
+		containere2e.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
+		containere2e.MockMSTeamsClient(t, client, "CreateOrGetChatForUsers", "Chat", clientmodels.Chat{ID: "ms-dm-id"}, "")
+		containere2e.MockMSTeamsClient(t, client, "SendChat", "Message", clientmodels.Message{ID: "ms-post-id", LastUpdateAt: time.Now()}, "")
+
+		newPost, _, err := client.CreatePost(context.Background(), &post)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			var postInfo *storemodels.PostInfo
+			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
+			if err != nil {
+				return false
+			}
+			if postInfo.MSTeamsID == "ms-post-id" {
+				return true
+			}
+			return false
+		}, 1*time.Second, 50*time.Millisecond)
+	})
+
+	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
+		containere2e.ResetMSTeamsClientMock(t, client)
+		containere2e.MockMSTeamsClient(t, client, "GetChannelInTeam", "Channel", clientmodels.Channel{ID: "ms-channel-id"}, "")
+		containere2e.MockMSTeamsClient(t, client, "CreateOrGetChatForUsers", "Chat", clientmodels.Chat{ID: "ms-dm-id"}, "")
+		containere2e.MockMSTeamsClient(t, client, "SendChat", "Message", nil, "Unable to send the message")
 
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
 		require.NoError(t, err)
