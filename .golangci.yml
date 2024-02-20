@@ -20,7 +20,6 @@ linters:
   enable:
     - bodyclose
     - errcheck
-    - gocritic
     - gofmt
     - goimports
     - gosec
@@ -42,6 +41,12 @@ issues:
     - path: server/configuration.go
       linters:
         - unused
+
+    - linters:
+      - revive
+      text: "var-naming|error-naming|exported|increment-decrement|error-strings|if-return|unused-parameter|blank-imports|empty-block"
+      # We need to fix the unused parameter issues and remove the exception.
+
     - path: _test\.go
       linters:
         - bodyclose

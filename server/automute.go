@@ -126,15 +126,15 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 	return nil
 }
 
-// func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
-// 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
-// 	if appErr != nil {
-// 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
-// 		return false
-// 	}
+func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
+	if appErr != nil {
+		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
+		return false
+	}
 
-// 	return pref.Value == PreferenceValuePlatformMSTeams
-// }
+	return pref.Value == PreferenceValuePlatformMSTeams
+}
 
 func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	token, err := p.store.GetTokenForMattermostUser(userID)
@@ -145,33 +145,28 @@ func (p *Plugin) isUserConnected(userID string) (bool, error) {
 	return token != nil, nil
 }
 
-// // canAutomuteChannelID returns true if the channel with the given ID is either explicitly linked to a channel in
-// // MS Teams or if it's a DM/GM channel that is implicitly linked to MS Teams.
-// func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
-// 	channel, appErr := p.API.GetChannel(channelID)
-// 	if appErr != nil {
-// 		return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get channel %s to check if it's a DM/GM channel", channelID))
-// 	}
+// canAutomuteChannelID returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
+// DM/GM channel that is implicitly linked to MS Teams.
+func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
+	channel, err := p.API.GetChannel(channelID)
+	if err != nil {
+		return false, errors.Wrap(err, fmt.Sprintf("Unable to get channel %s to determine if it can be automuted", channelID))
+	}
 
-// 	return p.canAutomuteChannel(channel)
-// }
+	return p.canAutomuteChannel(channel)
+}
 
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 	// Automute all DM/GM channels
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return true, nil
 	}
 
-	return p.isChannelLinked(channel.Id)
-}
-
-// isChannelLinked returns true if the channel is explicitly linked to a channel in MS Teams.
-func (p *Plugin) isChannelLinked(channelID string) (bool, error) {
-	link, err := p.store.GetLinkByChannelID(channelID)
+	link, err := p.store.GetLinkByChannelID(channel.Id)
 	if err != nil && err != sql.ErrNoRows {
-		return false, errors.Wrap(err, fmt.Sprintf("Unable to determine if channel %s is linked to MS Teams", channelID))
+		return false, errors.Wrap(err, fmt.Sprintf("Unable to determine if channel %s is linked to MS Teams", channel.Id))
 	}
 
 	// The channel is linked as long as a ChannelLink exists
