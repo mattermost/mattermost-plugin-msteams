@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 

@@ -5,19 +5,19 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/experimental/command"
 )
 
-const msteamsCommand = "msteams-sync"
+const msteamsCommand = "msteams"
 const commandWaitingMessage = "Please wait while your request is being processed."
 
-func (p *Plugin) createMsteamsSyncCommand(syncLinkedChannels bool) *model.Command {
-	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
+func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
+	iconData, err := command.GetIconData(p.API, "assets/plugin-icon.svg")
 	if err != nil {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}

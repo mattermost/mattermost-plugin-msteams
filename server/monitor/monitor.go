@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 )

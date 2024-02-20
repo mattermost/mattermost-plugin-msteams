@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	metricsmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	clientmocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
@@ -1282,7 +1282,7 @@ func TestSendChat(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.",
+					Message:   "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams connect` slash command.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {

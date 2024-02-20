@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/stretchr/testify/require"
 )
 

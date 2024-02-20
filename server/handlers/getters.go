@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/gosimple/slug"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"

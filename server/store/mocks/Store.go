@@ -6,7 +6,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
-	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	storemodels "github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	time "time"
 )

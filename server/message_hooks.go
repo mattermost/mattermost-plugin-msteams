@@ -14,10 +14,10 @@ import (
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
@@ -542,7 +542,7 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 	}
 
 	if time.Until(timestamp) < -time.Hour*time.Duration(promptInterval) {
-		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams-sync connect` slash command.")
+		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams connect` slash command.")
 
 		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
 			p.API.LogWarn("Unable to store the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())

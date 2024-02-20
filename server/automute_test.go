@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	storemocks "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
