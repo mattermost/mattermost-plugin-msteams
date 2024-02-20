@@ -17,9 +17,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/gorilla/mux"
-	"github.com/mattermost/mattermost-plugin-msteams/server/constants"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
@@ -454,7 +454,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to store the user in whitelist", "user_id", mmUserID, "error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
@@ -465,39 +465,37 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	connectionMessage := "Your account has been connected"
 	if mmUser.Id == a.p.GetBotUserID() {
-		connectionMessage = "The bot account has been connected"
+		connectionMessage := "The bot account has been connected"
+		_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+		return
 	}
 
-	_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+	bundlePath, err := a.p.API.GetBundlePath()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
+		return
+	}
 
-	// TODO: Remove the comment after the completion of other related tasks.
-	// bundlePath, err := a.p.API.GetBundlePath()
-	// if err != nil {
-	// 	a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
-	// 	return
-	// }
+	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
+	if err != nil {
+		a.p.API.LogError("unable to parse the template", "error", err.Error())
+		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	}
 
-	// t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
-	// if err != nil {
-	// 	a.p.API.LogError("unable to parse the template", "error", err.Error())
-	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	// }
-
-	// err = t.Execute(w, struct {
-	// 	ServerURL string
-	// 	APIEndPoint string
-	// 	QueryParamPrimaryPlatform string
-	// } {
-	// 	ServerURL: a.p.GetURL(),
-	// 	APIEndPoint: APIChoosePrimaryPlatform,
-	// 	QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
-	// })
-	// if err != nil {
-	// 	a.p.API.LogError("unable to execute the template", "error", err.Error())
-	// 	http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	// }
+	err = t.Execute(w, struct {
+		ServerURL                 string
+		APIEndPoint               string
+		QueryParamPrimaryPlatform string
+	}{
+		ServerURL:                 a.p.GetURL(),
+		APIEndPoint:               APIChoosePrimaryPlatform,
+		QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
+	})
+	if err != nil {
+		a.p.API.LogError("unable to execute the template", "error", err.Error())
+		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	}
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
@@ -601,7 +599,7 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 	}
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
-	if primaryPlatform != constants.PreferenceValuePlatformMM && primaryPlatform != constants.PreferenceValuePlatformMSTeams {
+	if primaryPlatform != PreferenceValuePlatformMM && primaryPlatform != PreferenceValuePlatformMSTeams {
 		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 		return
@@ -609,8 +607,8 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 
 	err := a.p.API.UpdatePreferencesForUser(userID, []model.Preference{{
 		UserId:   userID,
-		Category: getPreferenceCategoryName(),
-		Name:     constants.PreferenceNamePlatform,
+		Category: PreferenceCategoryPlugin,
+		Name:     PreferenceNamePlatform,
 		Value:    primaryPlatform,
 	}})
 

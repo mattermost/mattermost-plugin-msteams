@@ -1110,6 +1110,14 @@ func (tc *ClientImpl) GetChat(chatID string) (*clientmodels.Chat, error) {
 		})
 	}
 
+	if len(members) == 1 {
+		// messages with yourself are
+		// MS Teams - group messages
+		// Mattermost - direct messages
+		members = append(members, members[0])
+		chatType = "D"
+	}
+
 	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType}, nil
 }
 

@@ -656,7 +656,7 @@ func (p *Plugin) syncUsers() {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogInfo("Activating the inactive user", "teams_user_id", msUser.ID)
+						p.API.LogInfo("Activating the inactive user", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
 							p.API.LogWarn("Unable to activate the user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -664,7 +664,7 @@ func (p *Plugin) syncUsers() {
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogInfo("Deactivating the Mattermost user account", "teams_user_id", msUser.ID)
+						p.API.LogInfo("Deactivating the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogWarn("Unable to deactivate the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -675,12 +675,12 @@ func (p *Plugin) syncUsers() {
 
 				user, err := p.API.GetUser(mmUser.Id)
 				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "error", err.Error())
+					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					continue
 				}
 
 				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "auth_service", configuration.SyntheticUserAuthService)
+					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
 						AuthService: configuration.SyntheticUserAuthService,
 						AuthData:    &authData,
@@ -751,6 +751,8 @@ func (p *Plugin) syncUsers() {
 			if newUser == nil || newUser.Id == "" {
 				continue
 			}
+
+			p.API.LogInfo("Created new synthetic user", "user_id", newUser.Id, "teams_user_id", msUser.ID)
 
 			preferences := model.Preferences{model.Preference{
 				UserId:   newUser.Id,
