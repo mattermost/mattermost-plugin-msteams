@@ -14,7 +14,7 @@ import {getServerRoute} from './selectors';
 function getSettings(serverRoute: string, disabled: boolean) {
     return {
         id: manifest.id,
-        icon: `${serverRoute}/plugins/${manifest.id}/public/plugin-icon.svg`,
+        icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
         uiName: manifest.name,
         action: disabled ?
             {

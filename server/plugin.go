@@ -482,7 +482,7 @@ func (p *Plugin) OnActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/plugin-icon.png"))
+	}, pluginapi.ProfileImagePath("assets/icon.png"))
 	if err != nil {
 		return err
 	}

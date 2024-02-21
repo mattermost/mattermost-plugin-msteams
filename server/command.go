@@ -17,7 +17,7 @@ const msteamsCommand = "msteams"
 const commandWaitingMessage = "Please wait while your request is being processed."
 
 func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
-	iconData, err := command.GetIconData(p.API, "assets/plugin-icon.svg")
+	iconData, err := command.GetIconData(p.API, "assets/icon.svg")
 	if err != nil {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
