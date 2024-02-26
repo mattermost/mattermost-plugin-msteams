@@ -32,12 +32,12 @@ function getSettings(serverRoute: string, disabled: boolean) {
                     {
                         text: 'Mattermost',
                         value: 'mattermost',
-                        helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](http://google.com)**',
+                        helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
                     },
                     {
                         text: 'Microsoft Teams',
                         value: 'msteams',
-                        helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](http://google.com)**',
+                        helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
                     },
                 ],
                 type: 'radio' as const,
