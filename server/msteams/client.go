@@ -26,7 +26,6 @@ import (
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"github.com/microsoftgraph/msgraph-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -202,7 +201,7 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 	}
 
 	// Create an HTTP client with the middleware
-	httpClient := getHttpClient()
+	httpClient := getHTTPClient()
 
 	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
 		TenantID: tenantID,
@@ -220,7 +219,7 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 		return nil
 	}
 
-	authProvider, err := authentication.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
+	authProvider, err := a.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		fmt.Printf("Error creating credentials: %v\n", err)
 		return nil
@@ -261,7 +260,7 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		RedirectURL: redirectURL,
 	}
 
-	httpClient := getHttpClient()
+	httpClient := getHTTPClient()
 
 	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
 
@@ -346,9 +345,9 @@ func (tc *ClientImpl) Connect() error {
 		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
-	httpClient := getHttpClient()
+	httpClient := getHTTPClient()
 
-	auth, err := authentication.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		return err
 	}

@@ -160,9 +160,11 @@ func (m *MockClient) Mock(method string, url string, statusCode int, body map[st
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if _, err = http.DefaultClient.Do(req); err != nil {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	return nil
 }
 
@@ -172,9 +174,11 @@ func (m *MockClient) Reset() error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if _, err = http.DefaultClient.Do(req); err != nil {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return m.init()
 }

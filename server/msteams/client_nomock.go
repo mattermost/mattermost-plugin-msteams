@@ -15,7 +15,7 @@ func getAuthClient() *http.Client {
 	return http.DefaultClient
 }
 
-func getHttpClient() *http.Client {
+func getHTTPClient() *http.Client {
 	defaultClientOptions := msgraphsdk.GetDefaultClientOptions()
 	defaultMiddleWare := msgraphcore.GetDefaultMiddlewaresWithOptions(&defaultClientOptions)
 

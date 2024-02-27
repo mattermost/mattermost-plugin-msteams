@@ -26,7 +26,7 @@ func getAuthClient() *http.Client {
 	return authClient
 }
 
-func getHttpClient() *http.Client {
+func getHTTPClient() *http.Client {
 	proxyAddress := "http://mockserver:1080"
 	proxyUrl, _ := url.Parse(proxyAddress)
 

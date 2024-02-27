@@ -71,6 +71,11 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	filename := matches[0]
 
 	mockserverContainer, err := mockserver.RunContainer(context.Background(), network.WithNetwork([]string{"mockserver"}, newNetwork))
+	if err != nil {
+		_ = newNetwork.Remove(context.Background())
+		t.Fatal(err)
+	}
+
 	mockAPIURL, err := mockserverContainer.URL(context.Background())
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
