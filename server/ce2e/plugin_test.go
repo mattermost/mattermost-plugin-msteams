@@ -14,6 +14,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var fakeToken = oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"}
+
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
@@ -38,7 +40,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		Message:   "message",
 	}
 
-	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"})
+	err = store.SetUserInfo(user.Id, "ms-user-id", &fakeToken)
 	require.NoError(t, err)
 
 	t.Run("Without Channel Link", func(t *testing.T) {
@@ -178,7 +180,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		Message:   "message",
 	}
 
-	err = store.SetUserInfo(user.Id, "ms-user-id", &oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"})
+	err = store.SetUserInfo(user.Id, "ms-user-id", &fakeToken)
 	require.NoError(t, err)
 	err = store.SetUserInfo(otherUser.Id, "ms-otheruser-id", nil)
 	require.NoError(t, err)

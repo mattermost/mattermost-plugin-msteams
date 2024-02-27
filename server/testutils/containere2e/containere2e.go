@@ -2,8 +2,6 @@ package containere2e
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +11,6 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/testmodels"
-	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mockserver"
@@ -83,7 +79,6 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		_ = mockserverContainer.Terminate(context.Background())
 		t.Fatal(err)
 	}
-	t.Log("MOCKSERVER DASHBOARD:", mockAPIURL+"/mockserver/dashboard")
 
 	pluginConfig := map[string]any{
 		"clientid":                   "client-id",
@@ -133,20 +128,4 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 
 	return mattermost, store, mockClient, tearDown
-}
-
-func MockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {
-	mockStruct := testmodels.MockCallReturns{ReturnType: returnType, Returns: returns, Err: returnErr}
-	mockData, err := json.Marshal(mockStruct)
-	require.NoError(t, err)
-
-	resp, err := client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/add-mock/"+method, string(mockData), "")
-	require.NoError(t, err)
-	resp.Body.Close()
-}
-
-func ResetMSTeamsClientMock(t *testing.T, client *model.Client4) {
-	resp, err := client.DoAPIRequest(context.Background(), http.MethodPost, client.URL+"/plugins/com.mattermost.msteams-sync/reset-mocks", "", "")
-	require.NoError(t, err)
-	resp.Body.Close()
 }

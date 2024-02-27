@@ -232,6 +232,8 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 		return nil
 	}
 
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
 	c.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 	return c
 }
