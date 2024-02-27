@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 )
 
 func TestIFrame(t *testing.T) {

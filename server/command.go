@@ -5,19 +5,19 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/experimental/command"
 )
 
-const msteamsCommand = "msteams-sync"
+const msteamsCommand = "msteams"
 const commandWaitingMessage = "Please wait while your request is being processed."
 
-func (p *Plugin) createMsteamsSyncCommand(syncLinkedChannels bool) *model.Command {
-	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
+func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
+	iconData, err := command.GetIconData(p.API, "assets/icon.svg")
 	if err != nil {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
@@ -241,6 +241,10 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		}
 	}
 
+	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
+	}
+
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }
@@ -294,6 +298,10 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 
 	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 		p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
+	}
+
+	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil
@@ -551,6 +559,8 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
 		p.API.LogWarn("Unable to delete the last prompt timestamp for the user", "user_id", args.UserId, "error", err.Error())
 	}
+
+	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
 	return &model.CommandResponse{}, nil
 }

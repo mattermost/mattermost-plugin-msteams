@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -93,8 +93,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		_, _, err := client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
-
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 		require.NoError(t, err)
 
 		var newPost *model.Post
@@ -129,7 +128,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		err = mockClient.MockError(http.MethodPost, "/v1.0/teams/ms-team-id/channels/ms-channel-id/messages")
 		require.NoError(t, err)
 
-		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams-sync link ms-team-id ms-channel-id")
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 		require.NoError(t, err)
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)

@@ -5,7 +5,7 @@ package store
 import (
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"golang.org/x/oauth2"
 )
 

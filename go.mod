@@ -1,4 +1,4 @@
-module github.com/mattermost/mattermost-plugin-msteams-sync
+module github.com/mattermost/mattermost-plugin-msteams
 
 go 1.20
 

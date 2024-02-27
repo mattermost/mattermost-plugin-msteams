@@ -23,15 +23,15 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/monitor"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_disconnectionlayer"
-	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/client_timerlayer"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	sqlstore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/sqlstore"
-	timerlayer "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/timerlayer"
+	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_disconnectionlayer"
+	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store"
+	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
+	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -181,7 +181,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 	_, appErr = p.API.CreatePost(&model.Post{
 		UserId:    p.GetBotUserID(),
 		ChannelId: channel.Id,
-		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams-sync connect` slash command in any Mattermost channel.",
+		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams connect` slash command in any Mattermost channel.",
 	})
 	if appErr != nil {
 		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
@@ -324,10 +324,10 @@ func (p *Plugin) start(isRestart bool) {
 	p.checkCredentials()
 
 	// Unregister and re-register slash command to reflect any configuration changes.
-	if err = p.API.UnregisterCommand("", "msteams-sync"); err != nil {
+	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
 		p.API.LogWarn("Failed to unregister command", "error", err)
 	}
-	if err = p.API.RegisterCommand(p.createMsteamsSyncCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
 }
@@ -470,7 +470,7 @@ func (p *Plugin) OnActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/msteams-sync-icon.png"))
+	}, pluginapi.ProfileImagePath("assets/icon.png"))
 	if err != nil {
 		return err
 	}

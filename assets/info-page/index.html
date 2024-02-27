@@ -50,9 +50,9 @@
       function choosePrimaryPlatform() {
         const serverURL = "{{.ServerURL}}";
         const apiEndpoint = "{{.APIEndPoint}}";
-        const queryParam = "{{.QueryParamPrimaryPlatform}}";        
+        const queryParam = "{{.QueryParamPrimaryPlatform}}";
         fetch(`${serverURL}${apiEndpoint}?${queryParam}=${primaryPlatform}`)
-        .then(() => window.close());
+        .then(closeInfoPage);
       }
     </script>
     <style>
@@ -218,7 +218,7 @@
           width: 49%;
           cursor: pointer;
         }
-                
+
         .card__heading {
           display: flex;
           padding: 16px 24px;
@@ -259,7 +259,7 @@
         .list {
           list-style: none;
           padding: 0;
-        }        
+        }
 
         .list-item {
           display: flex;
@@ -420,7 +420,7 @@
                   <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">You receive notifications in Mattermost.
                 </li>
                 <li class="list-item">
-                  <img src="static/list-icon-warn.svg" alt="list-icon" class="list-icon">You must disable notifications in Microsoft Teams to avoid duplicate notifications. <a href="https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more" class="list-link">Learn more</a>
+                  <img src="static/list-icon-warn.svg" alt="list-icon" class="list-icon">You must disable notifications in Microsoft Teams to avoid duplicate notifications. <a href="https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more" target="_blank" class="list-link">Learn more</a>
                 </li>
               </ul>
             </div>
@@ -442,7 +442,7 @@
                   <img src="static/list-icon-info.png" alt="list-icon" class="list-icon">You see messages from Mattermost in Microsoft Teams.
                 </li>
                 <li class="list-item">
-                  <img src="static/list-icon-warn.svg" alt="list-icon" class="list-icon">Notifications in Mattermost are automatically muted to prevent duplicate notifications. <a href="https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more" class="list-link">Learn more</a>
+                  <img src="static/list-icon-warn.svg" alt="list-icon" class="list-icon">Notifications in Mattermost are automatically muted to prevent duplicate notifications. <a href="https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more" target="_blank" class="list-link">Learn more</a>
                 </li>
               </ul>
             </div>
@@ -450,10 +450,10 @@
         </div>
         <div class="button__container">
           <div class="selection-button" onclick="closeInfoPage()">
-            <a class="button__text skip-button__text">Skip for now</a>   
+            <a class="button__text skip-button__text">Skip for now</a>
           </div>
           <div class="selection-button" onclick="choosePrimaryPlatform()">
-            <a class="button__text selection-button__text">Continue <img src="static/trailing-icon.svg" alt="trailing-icon"/></a>   
+            <a class="button__text selection-button__text">Continue <img src="static/trailing-icon.svg" alt="trailing-icon"/></a>
           </div>
         </div>
         <div class="footer">

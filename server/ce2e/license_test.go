@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRequiresLicense(t *testing.T) {
 	t.Parallel()
-	mattermost, _, tearDown := containere2e.NewE2ETestPlugin(t, containere2e.WithoutLicense())
+	mattermost, _, _, tearDown := containere2e.NewE2ETestPlugin(t, containere2e.WithoutLicense())
 	defer tearDown()
 
 	client, err := mattermost.GetAdminClient(context.Background())

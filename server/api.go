@@ -20,10 +20,10 @@ import (
 	"text/template"
 
 	"github.com/gorilla/mux"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
@@ -468,6 +468,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
 		return
 	}
+
+	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
 
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {

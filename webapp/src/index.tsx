@@ -14,7 +14,7 @@ import {getServerRoute} from './selectors';
 function getSettings(serverRoute: string, disabled: boolean) {
     return {
         id: manifest.id,
-        icon: `${serverRoute}/plugins/${manifest.id}/public/msteams-sync-icon.svg`,
+        icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
         uiName: manifest.name,
         action: disabled ?
             {
@@ -32,12 +32,12 @@ function getSettings(serverRoute: string, disabled: boolean) {
                     {
                         text: 'Mattermost',
                         value: 'mattermost',
-                        helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](http://google.com)**',
+                        helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
                     },
                     {
                         text: 'Microsoft Teams',
                         value: 'msteams',
-                        helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](http://google.com)**',
+                        helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
                     },
                 ],
                 type: 'radio' as const,
@@ -61,13 +61,16 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
 
-        let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+        // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
+        let settingsEnabled = true;
         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
             const newState = store.getState();
             const newServerRoute = getServerRoute(newState);
-            const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams-sync/pull/438
+
+            // const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
+            const newSettingsEnabled = true;
             if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;

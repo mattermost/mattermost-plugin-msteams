@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 )
 
 func (p *Plugin) checkCredentials() {

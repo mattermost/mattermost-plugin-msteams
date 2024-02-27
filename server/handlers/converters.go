@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/markdown"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/net/html"
 )

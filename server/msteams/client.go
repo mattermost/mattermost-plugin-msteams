@@ -20,7 +20,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -1135,6 +1135,14 @@ func (tc *ClientImpl) GetChat(chatID string) (*clientmodels.Chat, error) {
 			UserID:      *(userID.(*string)),
 			Email:       *(email.(*string)),
 		})
+	}
+
+	if len(members) == 1 {
+		// messages with yourself are
+		// MS Teams - group messages
+		// Mattermost - direct messages
+		members = append(members, members[0])
+		chatType = "D"
 	}
 
 	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType}, nil
