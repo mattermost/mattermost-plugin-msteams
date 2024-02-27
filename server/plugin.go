@@ -233,12 +233,6 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	clientMock := getClientMock(p)
-	if clientMock != nil {
-		p.msteamsAppClient = clientMock
-		return nil
-	}
-
 	msteamsAppClient := msteams.NewApp(
 		p.getConfiguration().TenantID,
 		p.getConfiguration().ClientID,
@@ -437,13 +431,7 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() error {
 	if p.clientBuilderWithToken == nil {
-		if getClientMock(p) != nil {
-			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
-				return getClientMock(p)
-			}
-		} else {
-			p.clientBuilderWithToken = msteams.NewTokenClient
-		}
+		p.clientBuilderWithToken = msteams.NewTokenClient
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {

@@ -26,6 +26,7 @@ import (
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"github.com/microsoftgraph/msgraph-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -200,6 +201,9 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 		client:     nil,
 	}
 
+	// Create an HTTP client with the middleware
+	httpClient := getHttpClient()
+
 	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
 		TenantID: tenantID,
 		ClientID: clientID,
@@ -207,18 +211,28 @@ func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService
 			fmt.Println(message.Message)
 			return nil
 		},
+		ClientOptions: policy.ClientOptions{
+			Transport: getAuthClient(),
+		},
 	})
 	if err != nil {
 		fmt.Printf("Error creating credentials: %v\n", err)
 		return nil
 	}
 
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	authProvider, err := authentication.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
+		fmt.Printf("Error creating credentials: %v\n", err)
 		return nil
 	}
-	c.client = client
+
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(authProvider, nil, nil, httpClient)
+	if err != nil {
+		fmt.Printf("Error creating credentials: %v\n", err)
+		return nil
+	}
+
+	c.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 	return c
 }
 
@@ -245,6 +259,8 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		RedirectURL: redirectURL,
 	}
 
+	httpClient := getHttpClient()
+
 	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
 
 	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
@@ -253,7 +269,7 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		return nil
 	}
 
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
@@ -316,6 +332,7 @@ func (tc *ClientImpl) Connect() error {
 						RetryDelay:    4 * time.Second,
 						MaxRetryDelay: 120 * time.Second,
 					},
+					Transport: getAuthClient(),
 				},
 			},
 		)
@@ -327,11 +344,21 @@ func (tc *ClientImpl) Connect() error {
 		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	httpClient := getHttpClient()
+
+	auth, err := authentication.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(teamsDefaultScopes, "offline_access"))
 	if err != nil {
 		return err
 	}
-	tc.client = client
+
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
+	if err != nil {
+		return err
+	}
+
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	tc.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return nil
 }

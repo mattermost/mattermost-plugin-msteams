@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,7 +16,18 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/testmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mockserver"
+	"github.com/testcontainers/testcontainers-go/network"
 )
+
+type tLogConsumer struct {
+	t *testing.T
+}
+
+func (tlc *tLogConsumer) Accept(log testcontainers.Log) {
+	tlc.t.Log(strings.TrimSpace(string(log.Content)))
+}
 
 var buildPluginOnce sync.Once
 
@@ -24,7 +36,8 @@ func buildPlugin(t *testing.T) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DEFAULT_GOOS=linux")
 	cmd.Env = append(cmd.Env, "DEFAULT_GOARCH=amd64")
-	cmd.Env = append(cmd.Env, "GO_BUILD_TAGS=clientMock")
+	cmd.Env = append(cmd.Env, "MM_SERVICESETTINGS_ENABLEDEVELOPER=true")
+	cmd.Env = append(cmd.Env, "GO_BUILD_TAGS=msteamsMock")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
@@ -39,10 +52,15 @@ func WithoutLicense() mmcontainer.MattermostCustomizeRequestOption {
 	}
 }
 
-func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustomizeRequestOption) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, func()) {
+func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustomizeRequestOption) (*mmcontainer.MattermostContainer, *sqlstore.SQLStore, *MockClient, func()) {
 	buildPluginOnce.Do(func() {
 		buildPlugin(t)
 	})
+
+	newNetwork, err := network.New(context.Background(), network.WithCheckDuplicate())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	matches, err := filepath.Glob("../../dist/*.tar.gz")
@@ -54,6 +72,19 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	filename := matches[0]
 
+	mockserverContainer, err := mockserver.RunContainer(context.Background(), network.WithNetwork([]string{"mockserver"}, newNetwork))
+	mockAPIURL, err := mockserverContainer.URL(context.Background())
+	if err != nil {
+		_ = mockserverContainer.Terminate(context.Background())
+		t.Fatal(err)
+	}
+	mockClient, err := NewMockClient(mockAPIURL)
+	if err != nil {
+		_ = mockserverContainer.Terminate(context.Background())
+		t.Fatal(err)
+	}
+	t.Log("MOCKSERVER DASHBOARD:", mockAPIURL+"/mockserver/dashboard")
+
 	pluginConfig := map[string]any{
 		"clientid":                   "client-id",
 		"clientsecret":               "client-secret",
@@ -63,44 +94,45 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"maxsizeforcompletedownload": 20,
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
+		"syncdirectmessages":         true,
 		"synclinkedchannels":         true,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
-		mmcontainer.WithEnv("MM_MSTEAMSSYNC_MOCK_CLIENT", "true"),
-		mmcontainer.WithTestingLogConsumer(t),
+		mmcontainer.WithLogConsumers(&tLogConsumer{t: t}),
+		mmcontainer.WithNetwork(newNetwork),
 	}
 	options = append(options, extraOptions...)
-
 	mattermost, err := mmcontainer.RunContainer(ctx, options...)
-	require.NoError(t, err)
 
-	// TODO: This won't be required after jespino gets https://github.com/testcontainers/testcontainers-go/pull/2073 merged.
-	err = mattermost.StartLogProducer(ctx)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = mattermost.StopLogProducer()
-		require.NoError(t, err)
-	})
+	if err != nil {
+		_ = mockserverContainer.Terminate(context.Background())
+		_ = mattermost.Terminate(ctx)
+		t.Fatal(err)
+	}
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
+		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)
 	}
 	require.NoError(t, err)
 
 	store := sqlstore.New(conn, nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	if err2 := store.Init(); err2 != nil {
+		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)
 	}
 	require.NoError(t, err)
 
 	tearDown := func() {
+		require.NoError(t, mockserverContainer.Terminate(context.Background()))
 		require.NoError(t, mattermost.Terminate(context.Background()))
 	}
 
-	return mattermost, store, tearDown
+	return mattermost, store, mockClient, tearDown
 }
 
 func MockMSTeamsClient(t *testing.T, client *model.Client4, method string, returnType string, returns interface{}, returnErr string) {

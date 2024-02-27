@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,7 +45,7 @@ type MattermostContainerRequest struct {
 	teamDisplayName string
 	plugins         []plugin
 	config          *model.Config
-	logConsumer     testcontainers.LogConsumer
+	network         *testcontainers.DockerNetwork
 }
 
 // MattermostContainer represents the mattermost container type used in the module
@@ -331,6 +330,15 @@ func WithTeam(teamName, teamDisplayName string) MattermostCustomizeRequestOption
 	}
 }
 
+// WithNetwork sets the network for the mattermost instance
+func WithNetwork(nw *testcontainers.DockerNetwork) MattermostCustomizeRequestOption {
+	return func(req *MattermostContainerRequest) {
+		req.Networks = []string{nw.Name}
+		req.NetworkAliases = map[string][]string{nw.Name: {"mattermost"}}
+		req.network = nw
+	}
+}
+
 // WithPlugin sets the plugin to be installed in the mattermost instance
 func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
@@ -351,18 +359,14 @@ func WithPlugin(pluginPath, pluginID string, pluginConfig map[string]any) Matter
 	}
 }
 
-type tLogConsumer struct {
-	t *testing.T
-}
-
-func (tlc *tLogConsumer) Accept(log testcontainers.Log) {
-	tlc.t.Log(string(log.Content))
-}
-
-// WithTestingLogConsumer pipes logs to the given testing instance.
-func WithTestingLogConsumer(t *testing.T) MattermostCustomizeRequestOption {
+// WithLogConsumers sets the log consumers for a container
+func WithLogConsumers(consumer ...testcontainers.LogConsumer) MattermostCustomizeRequestOption {
 	return func(req *MattermostContainerRequest) {
-		req.logConsumer = &tLogConsumer{t}
+		if req.LogConsumerCfg == nil {
+			req.LogConsumerCfg = &testcontainers.LogConsumerConfig{}
+		}
+
+		req.LogConsumerCfg.Consumers = consumer
 	}
 }
 
@@ -383,19 +387,6 @@ func runPostgresContainer(ctx context.Context, nw *testcontainers.DockerNetwork)
 
 // RunContainer creates an instance of the mattermost container type
 func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption) (*MattermostContainer, error) {
-	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
-	if err != nil {
-		return nil, err
-	}
-
-	postgresContainer, err := runPostgresContainer(ctx, newNetwork)
-	if err != nil {
-		if err2 := newNetwork.Remove(ctx); err2 != nil {
-			err = fmt.Errorf("%w + %w", err, err2)
-		}
-		return nil, err
-	}
-
 	req := MattermostContainerRequest{
 		GenericContainerRequest: testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
@@ -418,8 +409,6 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 				WaitingFor: wait.ForAll(
 					wait.ForLog("Server is listening on"),
 				).WithDeadline(30 * time.Second),
-				Networks:       []string{newNetwork.Name},
-				NetworkAliases: map[string][]string{newNetwork.Name: {"mattermost"}},
 			},
 			Started: true,
 		},
@@ -434,25 +423,37 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 		opt(&req)
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, req.GenericContainerRequest)
-	if err != nil {
-		if err2 := postgresContainer.Terminate(ctx); err2 != nil {
-			err = fmt.Errorf("%w + %w", err, err2)
+	if req.network == nil {
+		newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
+		if err != nil {
+			return nil, err
 		}
-		if err2 := newNetwork.Remove(ctx); err2 != nil {
+		req.network = newNetwork
+	}
+
+	postgresContainer, err := runPostgresContainer(ctx, req.network)
+	if err != nil {
+		if err2 := req.network.Remove(ctx); err2 != nil {
 			err = fmt.Errorf("%w + %w", err, err2)
 		}
 		return nil, err
 	}
 
-	if req.logConsumer != nil {
-		container.FollowOutput(req.logConsumer)
+	container, err := testcontainers.GenericContainer(ctx, req.GenericContainerRequest)
+	if err != nil {
+		if err2 := postgresContainer.Terminate(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		if err2 := req.network.Remove(ctx); err2 != nil {
+			err = fmt.Errorf("%w + %w", err, err2)
+		}
+		return nil, err
 	}
 
 	mattermost := &MattermostContainer{
 		Container:   container,
 		pgContainer: postgresContainer,
-		network:     newNetwork,
+		network:     req.network,
 		username:    req.username,
 		password:    req.password,
 	}
