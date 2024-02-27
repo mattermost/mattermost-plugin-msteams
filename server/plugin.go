@@ -694,7 +694,7 @@ func (p *Plugin) syncUsers() {
 		if msUser.Type == msteamsUserTypeGuest {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
-				if isUserPresent && isRemoteUser(mmUser) {
+				if isUserPresent && isRemoteUser(mmUser) && mmUser.DeleteAt == 0 {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
@@ -707,6 +707,7 @@ func (p *Plugin) syncUsers() {
 		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
+		mmUsername := mmUser.Username // temporarily store the original username
 		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
@@ -774,9 +775,15 @@ func (p *Plugin) syncUsers() {
 				_, err := p.API.UpdateUser(mmUser)
 				if err != nil {
 					if err.Id == "app.user.save.username_exists.app_error" {
-						mmUser.Username += "-" + fmt.Sprint(userSuffixID)
-						userSuffixID++
-						continue
+						mmUser.Username = mmUsername               // assign the original username
+						username += "-" + fmt.Sprint(userSuffixID) // add the sufix before checking again
+						if mmUser.Username != username {
+							mmUser.Username = username
+							userSuffixID++
+							continue
+						}
+
+						break
 					}
 
 					p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
