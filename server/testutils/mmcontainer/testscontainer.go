@@ -46,15 +46,17 @@ type MattermostContainerRequest struct {
 	plugins         []plugin
 	config          *model.Config
 	network         *testcontainers.DockerNetwork
+	customNetwork   bool
 }
 
 // MattermostContainer represents the mattermost container type used in the module
 type MattermostContainer struct {
 	testcontainers.Container
-	pgContainer *postgres.PostgresContainer
-	network     *testcontainers.DockerNetwork
-	username    string
-	password    string
+	pgContainer   *postgres.PostgresContainer
+	network       *testcontainers.DockerNetwork
+	customNetwork bool
+	username      string
+	password      string
 }
 
 // URL returns the url of the mattermost instance
@@ -126,8 +128,10 @@ func (c *MattermostContainer) Terminate(ctx context.Context) error {
 		errors = fmt.Errorf("%w + %w", errors, err)
 	}
 
-	if err := c.network.Remove(ctx); err != nil {
-		errors = fmt.Errorf("%w + %w", errors, err)
+	if !c.customNetwork {
+		if err := c.network.Remove(ctx); err != nil {
+			errors = fmt.Errorf("%w + %w", errors, err)
+		}
 	}
 
 	return errors
@@ -336,6 +340,7 @@ func WithNetwork(nw *testcontainers.DockerNetwork) MattermostCustomizeRequestOpt
 		req.Networks = []string{nw.Name}
 		req.NetworkAliases = map[string][]string{nw.Name: {"mattermost"}}
 		req.network = nw
+		req.customNetwork = true
 	}
 }
 
@@ -451,11 +456,12 @@ func RunContainer(ctx context.Context, opts ...MattermostCustomizeRequestOption)
 	}
 
 	mattermost := &MattermostContainer{
-		Container:   container,
-		pgContainer: postgresContainer,
-		network:     req.network,
-		username:    req.username,
-		password:    req.password,
+		Container:     container,
+		pgContainer:   postgresContainer,
+		network:       req.network,
+		customNetwork: req.customNetwork,
+		username:      req.username,
+		password:      req.password,
 	}
 
 	if err := mattermost.init(ctx, req); err != nil {

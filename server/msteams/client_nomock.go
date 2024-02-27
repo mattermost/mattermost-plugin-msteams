@@ -1,4 +1,5 @@
 //go:build !msteamsMock
+// +build !msteamsMock
 
 package msteams
 

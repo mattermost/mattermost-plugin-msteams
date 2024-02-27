@@ -1,4 +1,6 @@
-// go:build msteamsMock
+//go:build msteamsMock
+// +build msteamsMock
+
 package msteams
 
 import (

@@ -61,9 +61,11 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	ctx := context.Background()
 	matches, err := filepath.Glob("../../dist/*.tar.gz")
 	if err != nil {
+		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
 	if len(matches) == 0 {
+		_ = newNetwork.Remove(context.Background())
 		t.Fatal("Unable to find plugin tar.gz file")
 	}
 	filename := matches[0]
@@ -72,11 +74,13 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	mockAPIURL, err := mockserverContainer.URL(context.Background())
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
+		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
 	mockClient, err := NewMockClient(mockAPIURL)
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
+		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
 
@@ -105,6 +109,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
 		_ = mattermost.Terminate(ctx)
+		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
 
@@ -112,6 +117,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	if err != nil {
 		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)
+		_ = newNetwork.Remove(context.Background())
 	}
 	require.NoError(t, err)
 
@@ -119,12 +125,14 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	if err2 := store.Init(); err2 != nil {
 		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)
+		_ = newNetwork.Remove(context.Background())
 	}
 	require.NoError(t, err)
 
 	tearDown := func() {
 		require.NoError(t, mockserverContainer.Terminate(context.Background()))
 		require.NoError(t, mattermost.Terminate(context.Background()))
+		require.NoError(t, newNetwork.Remove(context.Background()))
 	}
 
 	return mattermost, store, mockClient, tearDown
