@@ -313,7 +313,6 @@ func (p *Plugin) start(isRestart bool) {
 		p.API.LogWarn("Failed to unregister command", "error", err)
 	}
 
-	p.API.LogError("Registering command 5", "command", p.createCommand(p.getConfiguration().SyncLinkedChannels), "trigger", p.createCommand(p.getConfiguration().SyncLinkedChannels).Trigger)
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}

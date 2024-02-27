@@ -97,6 +97,14 @@ func (m *MockClient) init() error {
 		return err
 	}
 
+	err = m.Get("/v1.0/applications(appId='client-id')", map[string]any{
+		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications/$entity",
+		"id":             "client-id",
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
