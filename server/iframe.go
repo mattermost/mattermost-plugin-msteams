@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
-
-	"github.com/mattermost/mattermost-plugin-msteams/assets"
 )
 
 const (
@@ -81,10 +81,31 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 	manifest = strings.ReplaceAll(manifest, "{{TAB_APP_URI}}", tabURI)
 	manifest = strings.ReplaceAll(manifest, "{{PLUGIN_ID}}", pluginID)
 
+	bundlePath, err := a.p.API.GetBundlePath()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get bundle path", "error", err.Error())
+		http.Error(w, "Error generating app manifest", http.StatusInternalServerError)
+		return
+	}
+
+	logoColorData, err := os.ReadFile(filepath.Join(bundlePath, "assets/mm-logo-color.png"))
+	if err != nil {
+		a.p.API.LogWarn("Failed to get logo color data", "error", err.Error())
+		http.Error(w, "Error generating app manifest", http.StatusInternalServerError)
+		return
+	}
+
+	logoOutlineData, err := os.ReadFile(filepath.Join(bundlePath, "assets/mm-logo-outline.png"))
+	if err != nil {
+		a.p.API.LogWarn("Failed to get logo outline data", "error", err.Error())
+		http.Error(w, "Error generating app manifest", http.StatusInternalServerError)
+		return
+	}
+
 	bufReader, err := createManifestZip(
 		zipFile{name: ManifestName, data: []byte(manifest)},
-		zipFile{name: LogoColorFilename, data: assets.LogoColorData},
-		zipFile{name: LogoOutlineFilename, data: assets.LogoOutlineData},
+		zipFile{name: LogoColorFilename, data: logoColorData},
+		zipFile{name: LogoOutlineFilename, data: logoOutlineData},
 	)
 	if err != nil {
 		a.p.API.LogWarn("Error generating app manifest", "error", err.Error())
