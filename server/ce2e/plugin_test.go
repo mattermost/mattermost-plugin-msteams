@@ -56,11 +56,9 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
-		defer func() {
-			if err = mockClient.Reset(); err != nil {
-				t.Log(err)
-			}
-		}()
+		if err = mockClient.Reset(); err != nil {
+			t.Log(err)
+		}
 
 		err = mockClient.Get("/v1.0/teams/ms-team-id/channels/ms-channel-id", map[string]any{
 			"id":              "ms-channel-id",
@@ -121,11 +119,9 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
-		defer func() {
-			if err = mockClient.Reset(); err != nil {
-				t.Log(err)
-			}
-		}()
+		if err = mockClient.Reset(); err != nil {
+			t.Log(err)
+		}
 
 		err = mockClient.Get("/v1.0/teams/ms-team-id/channels/ms-channel-id", map[string]any{
 			"id":              "ms-channel-id",
@@ -196,11 +192,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Everything OK", func(t *testing.T) {
-		defer func() {
-			if err = mockClient.Reset(); err != nil {
-				t.Log(err)
-			}
-		}()
+		if err = mockClient.Reset(); err != nil {
+			t.Log(err)
+		}
 
 		err = mockClient.Post("/v1.0/chats", map[string]any{
 			"id":              "ms-dm-id",
@@ -266,11 +260,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
-		defer func() {
-			if err = mockClient.Reset(); err != nil {
-				t.Log(err)
-			}
-		}()
+		if err = mockClient.Reset(); err != nil {
+			t.Log(err)
+		}
 
 		err = mockClient.Post("/v1.0/chats", map[string]any{
 			"id":              "ms-dm-id",
