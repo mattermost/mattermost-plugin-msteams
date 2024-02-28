@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 )
 
@@ -73,9 +74,9 @@ func TestIFrame(t *testing.T) {
 				assert.Contains(t, string(buf), "manifestVersion")
 				assert.Contains(t, string(buf), url)
 			case "mm-logo-color.png":
-				assert.NotEmpty(t, buf)
+				assert.Equal(t, assets.LogoColorData, buf)
 			case "mm-logo-outline.png":
-				assert.NotEmpty(t, buf)
+				assert.Equal(t, assets.LogoOutlineData, buf)
 			default:
 				assert.Fail(t, "invalid file in zip: %s", zipFile.Name)
 			}
