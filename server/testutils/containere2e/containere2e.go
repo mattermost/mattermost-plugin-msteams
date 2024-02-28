@@ -42,6 +42,12 @@ func buildPlugin(t *testing.T) {
 
 type Option func(*mmcontainer.MattermostContainer)
 
+func WithEnv(key string, value string) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) {
+		req.Env[key] = value
+	}
+}
+
 func WithoutLicense() mmcontainer.MattermostCustomizeRequestOption {
 	return func(req *mmcontainer.MattermostContainerRequest) {
 		mmcontainer.WithEnv("MM_LICENSE", "")(req)
@@ -70,7 +76,11 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	filename := matches[0]
 
-	mockserverContainer, err := mockserver.RunContainer(context.Background(), network.WithNetwork([]string{"mockserver"}, newNetwork))
+	mockserverContainer, err := mockserver.RunContainer(
+		context.Background(),
+		network.WithNetwork([]string{"mockserver"}, newNetwork),
+		WithEnv("MOCKSERVER_ATTEMPT_TO_PROXY_IF_NO_MATCHING_EXPECTATION", "false"),
+	)
 	if err != nil {
 		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
