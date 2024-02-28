@@ -542,9 +542,10 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 	}
 
 	if time.Until(timestamp) < -time.Hour*time.Duration(promptInterval) {
-		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams connect` slash command.")
-
-		if err = p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
+		connectURL := p.GetURL() + "/reconnect"
+		message := fmt.Sprintf("[Click here to re-connect your account](%s)", connectURL)
+		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. "+message)
+		if err := p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
 			p.API.LogWarn("Unable to store the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())
 		}
 	}

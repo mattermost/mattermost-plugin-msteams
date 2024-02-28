@@ -66,6 +66,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/reconnect", api.reconnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
@@ -316,8 +317,23 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
+	connectURL := a.getConnectURL(w, r)
+	if connectURL != "" {
+		data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
+		_, _ = w.Write(data)
+	}
+}
+
+func (a *API) reconnect(w http.ResponseWriter, r *http.Request) {
+	connectURL := a.getConnectURL(w, r)
+	if connectURL != "" {
+		http.Redirect(w, r, connectURL, http.StatusSeeOther)
+	}
+}
+
+func (a *API) getConnectURL(w http.ResponseWriter, r *http.Request) string {
 	if r.Method == http.MethodOptions {
-		return
+		return ""
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
 
@@ -325,20 +341,17 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
-		return
+		return ""
 	}
 
 	codeVerifier := model.NewId()
 	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
 		a.p.API.LogWarn("Error in storing the code verifier", "error", appErr.Message)
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
-		return
+		return ""
 	}
 
-	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
-
-	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
-	_, _ = w.Write(data)
+	return msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 }
 
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
