@@ -707,7 +707,6 @@ func (p *Plugin) syncUsers() {
 		}
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
-		mmUsername := mmUser.Username // temporarily store the original username
 		if !isUserPresent {
 			userUUID := uuid.Parse(msUser.ID)
 			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
@@ -768,29 +767,34 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogWarn("Unable to set user info during sync user job", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 			}
-		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
-			mmUser.Username = username
-			mmUser.FirstName = msUser.DisplayName
-			for {
-				_, err := p.API.UpdateUser(mmUser)
-				if err != nil {
-					if err.Id == "app.user.save.username_exists.app_error" {
-						mmUser.Username = mmUsername               // assign the original username
-						username += "-" + fmt.Sprint(userSuffixID) // add the sufix before checking again
-						if mmUser.Username != username {
-							mmUser.Username = username
+		} else if mmUser.RemoteId != nil {
+			shouldUpdate := false
+			if !strings.HasPrefix(mmUser.Username, "msteams_") && username != mmUser.Username {
+				mmUser.Username = username
+				shouldUpdate = true
+			}
+
+			if mmUser.FirstName != msUser.DisplayName {
+				mmUser.FirstName = msUser.DisplayName
+				shouldUpdate = true
+			}
+
+			if shouldUpdate {
+				for {
+					_, err := p.API.UpdateUser(mmUser)
+					if err != nil {
+						if err.Id == "app.user.save.username_exists.app_error" {
+							mmUser.Username = username + "-" + fmt.Sprint(userSuffixID)
 							userSuffixID++
 							continue
 						}
 
+						p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						break
 					}
 
-					p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					break
 				}
-
-				break
 			}
 		}
 	}
