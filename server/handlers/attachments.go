@@ -94,7 +94,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -123,6 +123,14 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		isDirectMessage = true
 	}
 
+	fileInfos := []*model.FileInfo{}
+	for _, fID := range existingFileIDs {
+		fileInfo, appErr := ah.plugin.GetAPI().GetFileInfo(fID)
+		if appErr == nil {
+			// do nothing on error, allow file to re-download
+			fileInfos = append(fileInfos, fileInfo)
+		}
+	}
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -141,14 +149,21 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		if isUpdatedActivity {
-			continue
-		}
-
 		if !ah.plugin.GetSyncFileAttachments() {
 			continue
 		}
 
+		exists := false
+		for _, fInfo := range fileInfos {
+			if fInfo.Name == a.Name {
+				attachments = append(attachments, fInfo.Id)
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
 		// handle the download
 		var attachmentData []byte
 		var err error
