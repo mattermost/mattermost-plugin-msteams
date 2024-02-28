@@ -32,7 +32,6 @@ func buildPlugin(t *testing.T) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DEFAULT_GOOS=linux")
 	cmd.Env = append(cmd.Env, "DEFAULT_GOARCH=amd64")
-	cmd.Env = append(cmd.Env, "MM_SERVICESETTINGS_ENABLEDEVELOPER=true")
 	cmd.Env = append(cmd.Env, "GO_BUILD_TAGS=msteamsMock")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

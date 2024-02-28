@@ -308,15 +308,6 @@ func (p *Plugin) start(isRestart bool) {
 		p.syncUserJob = job
 	}
 
-	// Unregister and re-register slash command to reflect any configuration changes.
-	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
-		p.API.LogWarn("Failed to unregister command", "error", err)
-	}
-
-	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
-		p.API.LogError("Failed to register command", "error", err)
-	}
-
 	checkCredentialsJob, err := cluster.Schedule(
 		p.API,
 		checkCredentialsJobName,
@@ -331,6 +322,14 @@ func (p *Plugin) start(isRestart bool) {
 
 	// Run the job above right away so we immediately populate metrics.
 	p.checkCredentials()
+
+	// Unregister and re-register slash command to reflect any configuration changes.
+	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
+		p.API.LogWarn("Failed to unregister command", "error", err)
+	}
+	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+		p.API.LogError("Failed to register command", "error", err)
+	}
 }
 
 func (p *Plugin) getBase64Certificate() string {
