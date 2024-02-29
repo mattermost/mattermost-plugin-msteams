@@ -14,7 +14,6 @@ import (
 const hostedContentsStr = "hostedContents"
 
 func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (*model.Post, bool) {
-
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []clientmodels.Attachment
