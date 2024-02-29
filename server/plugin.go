@@ -330,6 +330,7 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
+	p.API.LogDebug("plugin started")
 }
 
 func (p *Plugin) getBase64Certificate() string {

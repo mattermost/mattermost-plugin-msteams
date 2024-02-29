@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
@@ -18,11 +19,15 @@ import (
 )
 
 type tLogConsumer struct {
-	t *testing.T
+	t             *testing.T
+	pluginStarted bool
 }
 
 func (tlc *tLogConsumer) Accept(log testcontainers.Log) {
 	tlc.t.Log(strings.TrimSpace(string(log.Content)))
+	if !tlc.pluginStarted {
+		tlc.pluginStarted = strings.Contains(string(log.Content), "plugin started")
+	}
 }
 
 var buildPluginOnce sync.Once
@@ -91,6 +96,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
+
 	mockClient, err := NewMockClient(mockAPIURL)
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
@@ -111,9 +117,10 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"synclinkedchannels":         true,
 	}
 
+	logConsumer := &tLogConsumer{t: t}
 	options := []mmcontainer.MattermostCustomizeRequestOption{
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
-		mmcontainer.WithLogConsumers(&tLogConsumer{t: t}),
+		mmcontainer.WithLogConsumers(logConsumer),
 		mmcontainer.WithNetwork(newNetwork),
 	}
 	options = append(options, extraOptions...)
@@ -126,6 +133,13 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
+
+	require.Eventually(t, func() bool {
+		if logConsumer.pluginStarted {
+			return true
+		}
+		return false
+	}, 10*time.Second, 50*time.Millisecond)
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
