@@ -265,6 +265,7 @@ func TestHandleAttachments(t *testing.T) {
 		expectedAttachmentIDsCount int
 		expectedParentID           string
 		expectedError              bool
+		fileIDs                    []string
 	}{
 		{
 			description: "File attachments disabled by configuration",
@@ -333,15 +334,10 @@ func TestHandleAttachments(t *testing.T) {
 				p.On("GetClientForApp").Return(nil)
 				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
+			setupAPI:     func(mockAPI *plugintest.API) {},
 			setupClient:  func(client *mocksClient.Client) {},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
-			attachments: []clientmodels.Attachment{
-				{
-					Name: "mock-name",
-				},
-			},
+			attachments:  []clientmodels.Attachment{},
 		},
 		{
 			description: "Error uploading the file",
@@ -404,6 +400,95 @@ func TestHandleAttachments(t *testing.T) {
 			},
 			expectedText:               "mock-text",
 			expectedAttachmentIDsCount: 10,
+		},
+		{
+			description: "Attachment with existing fileID",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetConfig").Return(&model.Config{
+					FileSettings: model.FileSettings{
+						MaxFileSize: model.NewInt64(5),
+					},
+				})
+				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
+			},
+			setupClient:  func(client *mocksClient.Client) {},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
+			attachments: []clientmodels.Attachment{
+				{
+					Name: "mockFile.Name.txt",
+				},
+			},
+			expectedAttachmentIDsCount: 1,
+			expectedText:               "mock-text",
+			fileIDs:                    []string{"testFileId"},
+		},
+		{
+			description: "No attachment with existing fileID",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetConfig").Return(&model.Config{
+					FileSettings: model.FileSettings{
+						MaxFileSize: model.NewInt64(5),
+					},
+				})
+				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
+			},
+			setupClient:                func(client *mocksClient.Client) {},
+			setupMetrics:               func(mockmetrics *mocksMetrics.Metrics) {},
+			attachments:                []clientmodels.Attachment{},
+			expectedAttachmentIDsCount: 0,
+			expectedText:               "mock-text",
+			fileIDs:                    []string{"testFileId"},
+		},
+		{
+			description: "Attachment with new and existing fileID",
+			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetMaxSizeForCompleteDownload").Return(1).Times(1)
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetConfig").Return(&model.Config{
+					FileSettings: model.FileSettings{
+						MaxFileSize: model.NewInt64(5),
+					},
+				})
+				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
+				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{
+					Id: testutils.GetID(),
+				}, nil).Once()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
+				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
+			},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(1)
+			},
+			attachments: []clientmodels.Attachment{
+				{
+					Name: "mock-name",
+				},
+				{
+					Name: "mockFile.Name.txt",
+				},
+			},
+			expectedText:               "mock-text",
+			expectedAttachmentIDsCount: 2,
+			fileIDs:                    []string{"testFileId"},
 		},
 		{
 			description: "Attachment type code snippet",
@@ -491,7 +576,7 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-			newText, attachmentIDs, parentID, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, []string{})
+			newText, attachmentIDs, parentID, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)
