@@ -123,14 +123,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		isDirectMessage = true
 	}
 
-	fileInfos := []*model.FileInfo{}
-	for _, fID := range existingFileIDs {
-		fileInfo, appErr := ah.plugin.GetAPI().GetFileInfo(fID)
-		if appErr == nil {
-			// do nothing on error, allow file to re-download
-			fileInfos = append(fileInfos, fileInfo)
-		}
-	}
+	fileInfos := make(map[string]*model.FileInfo)
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -153,17 +146,12 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		exists := false
-		for _, fInfo := range fileInfos {
-			if fInfo.Name == a.Name {
-				attachments = append(attachments, fInfo.Id)
-				exists = true
-				break
-			}
-		}
-		if exists {
+		fileInfoID := ah.getFileInfo(a.Name, existingFileIDs, fileInfos)
+		if fileInfoID != "" {
+			attachments = append(attachments, fileInfoID)
 			continue
 		}
+
 		// handle the download
 		var attachmentData []byte
 		var err error
@@ -203,7 +191,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			}
 		}
 
-		fileInfoID := ""
 		if attachmentData != nil {
 			fileInfoID, errorFound = ah.ProcessAndUploadFileToMM(attachmentData, a.Name, channelID)
 		} else {
@@ -233,6 +220,23 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	}
 
 	return newText, attachments, parentID, errorFound
+}
+
+func (ah *ActivityHandler) getFileInfo(name string, fileIDs []string, fileInfos map[string]*model.FileInfo) string {
+	for _, fID := range fileIDs {
+		fileInfo := fileInfos[fID]
+		if fileInfo == nil {
+			fileInfo, _ = ah.plugin.GetAPI().GetFileInfo(fID)
+			if fileInfo == nil {
+				continue
+			}
+			fileInfos[fID] = fileInfo
+		}
+		if fileInfo.Name == name {
+			return fID
+		}
+	}
+	return ""
 }
 
 func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, client msteams.Client, us *model.UploadSession) string {
