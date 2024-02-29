@@ -169,10 +169,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 
 	require.Eventually(t, func() bool {
-		if pluginStarted.IsStarted() {
-			return true
-		}
-		return false
+		return pluginStarted.IsStarted()
 	}, 10*time.Second, 50*time.Millisecond)
 
 	return mattermost, store, mockClient, tearDown
