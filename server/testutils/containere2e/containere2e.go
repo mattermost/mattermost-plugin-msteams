@@ -19,15 +19,27 @@ import (
 )
 
 type tLogConsumer struct {
-	t             *testing.T
-	pluginStarted bool
+	t *testing.T
 }
 
 func (tlc *tLogConsumer) Accept(log testcontainers.Log) {
 	tlc.t.Log(strings.TrimSpace(string(log.Content)))
-	if !tlc.pluginStarted {
-		tlc.pluginStarted = strings.Contains(string(log.Content), "plugin started")
+}
+
+type pluginStartedConsumer struct {
+	pluginStarted int
+}
+
+func (psc *pluginStartedConsumer) Accept(log testcontainers.Log) {
+	if psc.pluginStarted < 2 {
+		if strings.Contains(string(log.Content), "plugin started") {
+			psc.pluginStarted++
+		}
 	}
+}
+
+func (psc *pluginStartedConsumer) IsStarted() bool {
+	return psc.pluginStarted >= 2
 }
 
 var buildPluginOnce sync.Once
@@ -117,10 +129,10 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"synclinkedchannels":         true,
 	}
 
-	logConsumer := &tLogConsumer{t: t}
+	pluginStarted := &pluginStartedConsumer{}
 	options := []mmcontainer.MattermostCustomizeRequestOption{
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
-		mmcontainer.WithLogConsumers(logConsumer),
+		mmcontainer.WithLogConsumers(&tLogConsumer{t: t}, pluginStarted),
 		mmcontainer.WithNetwork(newNetwork),
 	}
 	options = append(options, extraOptions...)
@@ -133,13 +145,6 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		_ = newNetwork.Remove(context.Background())
 		t.Fatal(err)
 	}
-
-	require.Eventually(t, func() bool {
-		if logConsumer.pluginStarted {
-			return true
-		}
-		return false
-	}, 10*time.Second, 50*time.Millisecond)
 
 	conn, err := mattermost.PostgresConnection(ctx)
 	if err != nil {
@@ -162,6 +167,13 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		require.NoError(t, mattermost.Terminate(context.Background()))
 		require.NoError(t, newNetwork.Remove(context.Background()))
 	}
+
+	require.Eventually(t, func() bool {
+		if pluginStarted.IsStarted() {
+			return true
+		}
+		return false
+	}, 10*time.Second, 50*time.Millisecond)
 
 	return mattermost, store, mockClient, tearDown
 }
