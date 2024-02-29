@@ -172,6 +172,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	err = mattermost.CreateUser(context.Background(), "otheruser@mattermost.com", "otheruser", "password")
 	require.NoError(t, err)
 
+	err = mattermost.AddUserToTeam(context.Background(), "otheruser", "test")
+	require.NoError(t, err)
+
 	otherUser, _, err := client.GetUserByUsername(context.Background(), "otheruser", "")
 	require.NoError(t, err)
 
