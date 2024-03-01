@@ -510,6 +510,7 @@ func (p *Plugin) OnActivate() error {
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
 		if err = p.store.Init(); err != nil {
+			p.store.Shutdown()
 			return err
 		}
 	}
@@ -523,6 +524,7 @@ func (p *Plugin) OnActivate() error {
 			AutoInvited:  true,
 		})
 		if err != nil {
+			p.store.Shutdown()
 			return err
 		}
 		p.remoteID = remoteID
@@ -532,6 +534,7 @@ func (p *Plugin) OnActivate() error {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
+			p.store.Shutdown()
 			return err
 		}
 		for _, linkedChannel := range linkedChannels {
@@ -559,6 +562,7 @@ func (p *Plugin) OnActivate() error {
 	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
+		p.store.Shutdown()
 		return err
 	}
 

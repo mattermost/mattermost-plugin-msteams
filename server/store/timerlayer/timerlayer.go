@@ -581,6 +581,20 @@ func (s *TimerLayer) SetUserInfo(userID string, msTeamsUserID string, token *oau
 	return err
 }
 
+func (s *TimerLayer) Shutdown() error {
+	start := time.Now()
+
+	err := s.Store.Shutdown()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.Shutdown", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) StoreChannelLink(link *storemodels.ChannelLink) error {
 	start := time.Now()
 

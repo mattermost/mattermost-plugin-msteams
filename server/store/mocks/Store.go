@@ -791,6 +791,20 @@ func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.
 	return r0
 }
 
+// Shutdown provides a mock function with given fields:
+func (_m *Store) Shutdown() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // StoreChannelLink provides a mock function with given fields: link
 func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	ret := _m.Called(link)
