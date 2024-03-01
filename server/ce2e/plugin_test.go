@@ -68,9 +68,9 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		newPostId := model.NewId()
+		newPostID := model.NewId()
 		err = mockClient.Post("/v1.0/teams/ms-team-id/channels/ms-channel-id/messages", map[string]any{
-			"id":                   newPostId,
+			"id":                   newPostID,
 			"etag":                 "1616990032035",
 			"messageType":          "message",
 			"createdDateTime":      time.Now().Format(time.RFC3339),
@@ -98,8 +98,10 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-		require.NoError(t, err)
+		require.Eventually(t, func() bool {
+			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
+			return err == nil
+		}, 5*time.Second, 500*time.Millisecond)
 
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
@@ -111,7 +113,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			if postInfo.MSTeamsID == newPostId {
+			if postInfo.MSTeamsID == newPostID {
 				return true
 			}
 			return false
@@ -135,8 +137,10 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		err = mockClient.MockError(http.MethodPost, "/v1.0/teams/ms-team-id/channels/ms-channel-id/messages")
 		require.NoError(t, err)
 
-		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-		require.NoError(t, err)
+		require.Eventually(t, func() bool {
+			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
+			return err == nil
+		}, 5*time.Second, 500*time.Millisecond)
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
@@ -216,9 +220,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		newPostId := model.NewId()
+		newPostID := model.NewId()
 		err = mockClient.Post("/v1.0/chats/ms-dm-id/messages", map[string]any{
-			"id":                   newPostId,
+			"id":                   newPostID,
 			"etag":                 "1616990032035",
 			"messageType":          "message",
 			"createdDateTime":      time.Now().Format(time.RFC3339),
@@ -255,7 +259,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			if postInfo.MSTeamsID == newPostId {
+			if postInfo.MSTeamsID == newPostID {
 				return true
 			}
 			return false
