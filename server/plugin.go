@@ -510,7 +510,9 @@ func (p *Plugin) OnActivate() error {
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
 		if err = p.store.Init(); err != nil {
-			p.store.Shutdown()
+			if err := p.store.Shutdown(); err != nil {
+				p.API.LogWarn("failed to close db connection", err)
+			}
 			return err
 		}
 	}
@@ -524,7 +526,9 @@ func (p *Plugin) OnActivate() error {
 			AutoInvited:  true,
 		})
 		if err != nil {
-			p.store.Shutdown()
+			if err := p.store.Shutdown(); err != nil {
+				p.API.LogWarn("failed to close db connection", err)
+			}
 			return err
 		}
 		p.remoteID = remoteID
@@ -534,7 +538,9 @@ func (p *Plugin) OnActivate() error {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
-			p.store.Shutdown()
+			if err := p.store.Shutdown(); err != nil {
+				p.API.LogWarn("failed to close db connection", err)
+			}
 			return err
 		}
 		for _, linkedChannel := range linkedChannels {
@@ -562,7 +568,9 @@ func (p *Plugin) OnActivate() error {
 	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
-		p.store.Shutdown()
+		if err := p.store.Shutdown(); err != nil {
+			p.API.LogWarn("failed to close db connection", err)
+		}
 		return err
 	}
 
