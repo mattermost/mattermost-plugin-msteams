@@ -17,7 +17,6 @@ import (
 var fakeToken = oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"}
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
-	t.Parallel()
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -69,8 +68,9 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		newPostId := model.NewId()
 		err = mockClient.Post("/v1.0/teams/ms-team-id/channels/ms-channel-id/messages", map[string]any{
-			"id":                   "ms-post-id",
+			"id":                   newPostId,
 			"etag":                 "1616990032035",
 			"messageType":          "message",
 			"createdDateTime":      time.Now().Format(time.RFC3339),
@@ -111,7 +111,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			if postInfo.MSTeamsID == "ms-post-id" {
+			if postInfo.MSTeamsID == newPostId {
 				return true
 			}
 			return false
@@ -159,7 +159,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
-	t.Parallel()
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -217,8 +216,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		newPostId := model.NewId()
 		err = mockClient.Post("/v1.0/chats/ms-dm-id/messages", map[string]any{
-			"id":                   "ms-post-id",
+			"id":                   newPostId,
 			"etag":                 "1616990032035",
 			"messageType":          "message",
 			"createdDateTime":      time.Now().Format(time.RFC3339),
@@ -255,7 +255,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			if postInfo.MSTeamsID == "ms-post-id" {
+			if postInfo.MSTeamsID == newPostId {
 				return true
 			}
 			return false
