@@ -396,6 +396,10 @@ func (p *Plugin) stop(isRestart bool) {
 			p.API.LogError("failed to close metrics job", "error", err)
 		}
 	}
+
+	if err := p.store.Shutdown(); err != nil {
+		p.API.LogError("failed to db connection", "error", err)
+	}
 }
 
 func (p *Plugin) restart() {
