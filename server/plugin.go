@@ -398,7 +398,7 @@ func (p *Plugin) stop(isRestart bool) {
 	}
 
 	if err := p.store.Shutdown(); err != nil {
-		p.API.LogError("failed to db connection", "error", err)
+		p.API.LogError("failed to close db connection", "error", err)
 	}
 }
 
