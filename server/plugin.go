@@ -235,12 +235,6 @@ func (p *Plugin) connectTeamsAppClient() error {
 		return nil
 	}
 
-	clientMock := getClientMock(p)
-	if clientMock != nil {
-		p.msteamsAppClient = clientMock
-		return nil
-	}
-
 	msteamsAppClient := msteams.NewApp(
 		p.getConfiguration().TenantID,
 		p.getConfiguration().ClientID,
@@ -338,6 +332,7 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
+	p.API.LogDebug("plugin started")
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -445,13 +440,7 @@ func (p *Plugin) generatePluginSecrets() error {
 
 func (p *Plugin) OnActivate() (err error) {
 	if p.clientBuilderWithToken == nil {
-		if getClientMock(p) != nil {
-			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
-				return getClientMock(p)
-			}
-		} else {
-			p.clientBuilderWithToken = msteams.NewTokenClient
-		}
+		p.clientBuilderWithToken = msteams.NewTokenClient
 	}
 	err = p.generatePluginSecrets()
 	if err != nil {
