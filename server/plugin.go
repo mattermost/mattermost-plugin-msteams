@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/pem"
@@ -31,6 +32,7 @@ import (
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -397,8 +399,10 @@ func (p *Plugin) stop(isRestart bool) {
 		}
 	}
 
-	if err := p.store.Shutdown(); err != nil {
-		p.API.LogError("failed to close db connection", "error", err)
+	if !isRestart {
+		if err := p.store.Shutdown(); err != nil {
+			p.API.LogError("failed to close db connection", "error", err)
+		}
 	}
 }
 
@@ -439,7 +443,7 @@ func (p *Plugin) generatePluginSecrets() error {
 	return nil
 }
 
-func (p *Plugin) OnActivate() error {
+func (p *Plugin) OnActivate() (err error) {
 	if p.clientBuilderWithToken == nil {
 		if getClientMock(p) != nil {
 			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
@@ -449,9 +453,9 @@ func (p *Plugin) OnActivate() error {
 			p.clientBuilderWithToken = msteams.NewTokenClient
 		}
 	}
-	err := p.generatePluginSecrets()
+	err = p.generatePluginSecrets()
 	if err != nil {
-		return err
+		return
 	}
 
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
@@ -470,36 +474,34 @@ func (p *Plugin) OnActivate() error {
 
 	p.activityHandler = handlers.New(p)
 
-	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
+	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
-		return err
+		return
 	}
-	p.subscriptionsClusterMutex = subscriptionsClusterMutex
 
-	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
 	if err != nil {
-		return err
+		return
 	}
-	p.whitelistClusterMutex = whitelistClusterMutex
 
-	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
+	p.userID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
 	}, pluginapi.ProfileImagePath("assets/icon.png"))
 	if err != nil {
-		return err
+		return
 	}
-	p.userID = botID
 
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
 			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
 		}
 
-		db, dbErr := p.apiClient.Store.GetMasterDB()
-		if dbErr != nil {
-			return dbErr
+		var db *sql.DB
+		db, err = p.apiClient.Store.GetMasterDB()
+		if err != nil {
+			return
 		}
 
 		store := sqlstore.New(
@@ -509,39 +511,41 @@ func (p *Plugin) OnActivate() error {
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
-		if err = p.store.Init(); err != nil {
-			if err2 := p.store.Shutdown(); err2 != nil {
-				p.API.LogWarn("failed to close db connection", err2)
+
+		defer func() {
+			if err != nil {
+				if err = p.store.Shutdown(); err != nil {
+					p.API.LogWarn("failed to close db connection", "error", err)
+				}
 			}
+		}()
+
+		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
 
 	if !p.getConfiguration().DisableSyncMsg {
-		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+		var remoteID string
+		remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  pluginID,
 			PluginID:     pluginID,
-			CreatorID:    botID,
+			CreatorID:    p.userID,
 			AutoShareDMs: true,
 			AutoInvited:  true,
 		})
 		if err != nil {
-			if err2 := p.store.Shutdown(); err2 != nil {
-				p.API.LogWarn("failed to close db connection", err2)
-			}
-			return err
+			return
 		}
 		p.remoteID = remoteID
 
 		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
-		linkedChannels, err := p.store.ListChannelLinks()
+		var linkedChannels []storemodels.ChannelLink
+		linkedChannels, err = p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
-			if err2 := p.store.Shutdown(); err2 != nil {
-				p.API.LogWarn("failed to close db connection", err2)
-			}
-			return err
+			return
 		}
 		for _, linkedChannel := range linkedChannels {
 			_, err = p.API.ShareChannel(&model.SharedChannel{
@@ -549,7 +553,7 @@ func (p *Plugin) OnActivate() error {
 				TeamId:    linkedChannel.MattermostTeamID,
 				Home:      true,
 				ReadOnly:  false,
-				CreatorId: botID,
+				CreatorId: p.userID,
 				RemoteId:  p.remoteID,
 				ShareName: linkedChannel.MattermostChannelID,
 			})
@@ -567,11 +571,8 @@ func (p *Plugin) OnActivate() error {
 
 	p.apiHandler = NewAPI(p, p.store)
 
-	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
-		if err2 := p.store.Shutdown(); err2 != nil {
-			p.API.LogWarn("failed to close db connection", err2)
-		}
-		return err
+	if err = p.validateConfiguration(p.getConfiguration()); err != nil {
+		return
 	}
 
 	go func() {
@@ -590,7 +591,8 @@ func (p *Plugin) OnActivate() error {
 	}()
 
 	go p.start(false)
-	return nil
+	err = nil
+	return
 }
 
 func (p *Plugin) OnDeactivate() error {
