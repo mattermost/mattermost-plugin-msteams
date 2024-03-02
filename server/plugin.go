@@ -444,7 +444,7 @@ func (p *Plugin) OnActivate() (err error) {
 	}
 	err = p.generatePluginSecrets()
 	if err != nil {
-		return
+		return err
 	}
 
 	p.metricsService = metrics.NewMetrics(metrics.InstanceInfo{
@@ -465,12 +465,12 @@ func (p *Plugin) OnActivate() (err error) {
 
 	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
-		return
+		return err
 	}
 
 	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
 	if err != nil {
-		return
+		return err
 	}
 
 	p.userID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
@@ -479,7 +479,7 @@ func (p *Plugin) OnActivate() (err error) {
 		Description: "Created by the MS Teams Sync plugin.",
 	}, pluginapi.ProfileImagePath("assets/icon.png"))
 	if err != nil {
-		return
+		return err
 	}
 
 	if p.store == nil {
@@ -490,7 +490,7 @@ func (p *Plugin) OnActivate() (err error) {
 		var db *sql.DB
 		db, err = p.apiClient.Store.GetMasterDB()
 		if err != nil {
-			return
+			return err
 		}
 
 		store := sqlstore.New(
@@ -524,7 +524,7 @@ func (p *Plugin) OnActivate() (err error) {
 			AutoInvited:  true,
 		})
 		if err != nil {
-			return
+			return err
 		}
 		p.remoteID = remoteID
 
@@ -534,7 +534,7 @@ func (p *Plugin) OnActivate() (err error) {
 		linkedChannels, err = p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
-			return
+			return err
 		}
 		for _, linkedChannel := range linkedChannels {
 			_, err = p.API.ShareChannel(&model.SharedChannel{
@@ -553,7 +553,7 @@ func (p *Plugin) OnActivate() (err error) {
 			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
 		}
 	} else {
-		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
 	}
@@ -561,7 +561,7 @@ func (p *Plugin) OnActivate() (err error) {
 	p.apiHandler = NewAPI(p, p.store)
 
 	if err = p.validateConfiguration(p.getConfiguration()); err != nil {
-		return
+		return err
 	}
 
 	go func() {
@@ -574,14 +574,14 @@ func (p *Plugin) OnActivate() (err error) {
 
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
-		if err := p.store.PrefillWhitelist(); err != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err.Error())
+		if err2 := p.store.PrefillWhitelist(); err2 != nil {
+			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
 		}
 	}()
 
 	go p.start(false)
 	err = nil
-	return
+	return err
 }
 
 func (p *Plugin) OnDeactivate() error {
