@@ -12,7 +12,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.0.13
+	github.com/mattermost/mattermost/server/public v0.0.15
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20231111015533-48bf4e9bd879
 	github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9
 	github.com/microsoft/kiota-abstractions-go v1.5.6
@@ -28,8 +28,8 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/mockserver v0.28.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.28.0
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
-	golang.org/x/net v0.20.0
-	golang.org/x/oauth2 v0.16.0
+	golang.org/x/net v0.21.0
+	golang.org/x/oauth2 v0.17.0
 )
 
 require (
@@ -129,17 +129,17 @@ require (
 	go.opentelemetry.io/otel v1.22.0 // indirect
 	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.20.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/image v0.8.0 // indirect
-	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.16.1 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/grpc v1.60.0 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/grpc v1.62.0 // indirect
+	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
