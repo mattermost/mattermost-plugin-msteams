@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/pem"
@@ -32,7 +31,6 @@ import (
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -438,11 +436,11 @@ func (p *Plugin) generatePluginSecrets() error {
 	return nil
 }
 
-func (p *Plugin) OnActivate() (err error) {
+func (p *Plugin) onActivate() error {
 	if p.clientBuilderWithToken == nil {
 		p.clientBuilderWithToken = msteams.NewTokenClient
 	}
-	err = p.generatePluginSecrets()
+	err := p.generatePluginSecrets()
 	if err != nil {
 		return err
 	}
@@ -487,10 +485,9 @@ func (p *Plugin) OnActivate() (err error) {
 			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
 		}
 
-		var db *sql.DB
-		db, err = p.apiClient.Store.GetMasterDB()
-		if err != nil {
-			return err
+		db, dbErr := p.apiClient.Store.GetMasterDB()
+		if dbErr != nil {
+			return dbErr
 		}
 
 		store := sqlstore.New(
@@ -501,22 +498,13 @@ func (p *Plugin) OnActivate() (err error) {
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
 
-		defer func() {
-			if err != nil {
-				if err = p.store.Shutdown(); err != nil {
-					p.API.LogWarn("failed to close db connection", "error", err)
-				}
-			}
-		}()
-
 		if err = p.store.Init(); err != nil {
 			return err
 		}
 	}
 
 	if !p.getConfiguration().DisableSyncMsg {
-		var remoteID string
-		remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  pluginID,
 			PluginID:     pluginID,
 			CreatorID:    p.userID,
@@ -530,8 +518,7 @@ func (p *Plugin) OnActivate() (err error) {
 
 		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
-		var linkedChannels []storemodels.ChannelLink
-		linkedChannels, err = p.store.ListChannelLinks()
+		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
 			return err
@@ -553,14 +540,14 @@ func (p *Plugin) OnActivate() (err error) {
 			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
 		}
 	} else {
-		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
 	}
 
 	p.apiHandler = NewAPI(p, p.store)
 
-	if err = p.validateConfiguration(p.getConfiguration()); err != nil {
+	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
 	}
 
@@ -580,8 +567,20 @@ func (p *Plugin) OnActivate() (err error) {
 	}()
 
 	go p.start(false)
-	err = nil
-	return err
+	return nil
+}
+
+func (p *Plugin) OnActivate() error {
+	if err := p.onActivate(); err != nil {
+		p.API.LogWarn("error activating the plugin", "error", err)
+		if p.store != nil {
+			if err = p.store.Shutdown(); err != nil {
+				p.API.LogWarn("failed to close db connection", "error", err)
+			}
+		}
+		return err
+	}
+	return nil
 }
 
 func (p *Plugin) OnDeactivate() error {
