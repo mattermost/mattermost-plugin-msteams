@@ -395,6 +395,12 @@ func (p *Plugin) stop(isRestart bool) {
 			p.API.LogError("failed to close metrics job", "error", err)
 		}
 	}
+
+	if !isRestart {
+		if err := p.store.Shutdown(); err != nil {
+			p.API.LogError("failed to close db connection", "error", err)
+		}
+	}
 }
 
 func (p *Plugin) restart() {
@@ -434,7 +440,7 @@ func (p *Plugin) generatePluginSecrets() error {
 	return nil
 }
 
-func (p *Plugin) OnActivate() error {
+func (p *Plugin) onActivate() error {
 	if p.clientBuilderWithToken == nil {
 		p.clientBuilderWithToken = msteams.NewTokenClient
 	}
@@ -459,19 +465,17 @@ func (p *Plugin) OnActivate() error {
 
 	p.activityHandler = handlers.New(p)
 
-	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
+	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
 		return err
 	}
-	p.subscriptionsClusterMutex = subscriptionsClusterMutex
 
-	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
 	if err != nil {
 		return err
 	}
-	p.whitelistClusterMutex = whitelistClusterMutex
 
-	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
+	p.userID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -479,7 +483,6 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	p.userID = botID
 
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
@@ -498,6 +501,7 @@ func (p *Plugin) OnActivate() error {
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
+
 		if err = p.store.Init(); err != nil {
 			return err
 		}
@@ -507,7 +511,7 @@ func (p *Plugin) OnActivate() error {
 		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  pluginID,
 			PluginID:     pluginID,
-			CreatorID:    botID,
+			CreatorID:    p.userID,
 			AutoShareDMs: true,
 			AutoInvited:  true,
 		})
@@ -529,7 +533,7 @@ func (p *Plugin) OnActivate() error {
 				TeamId:    linkedChannel.MattermostTeamID,
 				Home:      true,
 				ReadOnly:  false,
-				CreatorId: botID,
+				CreatorId: p.userID,
 				RemoteId:  p.remoteID,
 				ShareName: linkedChannel.MattermostChannelID,
 			})
@@ -561,12 +565,25 @@ func (p *Plugin) OnActivate() error {
 
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
-		if err := p.store.PrefillWhitelist(); err != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err.Error())
+		if err2 := p.store.PrefillWhitelist(); err2 != nil {
+			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
 		}
 	}()
 
 	go p.start(false)
+	return nil
+}
+
+func (p *Plugin) OnActivate() error {
+	if err := p.onActivate(); err != nil {
+		p.API.LogWarn("error activating the plugin", "error", err)
+		if p.store != nil {
+			if err = p.store.Shutdown(); err != nil {
+				p.API.LogWarn("failed to close db connection", "error", err)
+			}
+		}
+		return err
+	}
 	return nil
 }
 

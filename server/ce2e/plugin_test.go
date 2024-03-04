@@ -45,6 +45,11 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	err = store.SetUserInfo(user.Id, "ms-user-id", &fakeToken)
 	require.NoError(t, err)
 
+	require.Eventually(t, func() bool {
+		suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+		return len(suggestions) > 0
+	}, 10*time.Second, 500*time.Millisecond)
+
 	t.Run("Without Channel Link", func(t *testing.T) {
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
@@ -100,10 +105,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
-			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-			return err == nil
-		}, 5*time.Second, 500*time.Millisecond)
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
@@ -139,10 +141,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		err = mockClient.MockError(http.MethodPost, "/v1.0/teams/ms-team-id/channels/ms-channel-id/messages")
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
-			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-			return err == nil
-		}, 5*time.Second, 500*time.Millisecond)
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)

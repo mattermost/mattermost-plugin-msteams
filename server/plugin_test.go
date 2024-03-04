@@ -45,6 +45,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 			return clientMock
 		},
 	}
+	plugin.store.(*storemocks.Store).On("Shutdown").Return(nil)
 	plugin.store.(*storemocks.Store).Test(t)
 
 	plugin.msteamsAppClient.(*mocks.Client).On("ClearSubscriptions").Return(nil)
