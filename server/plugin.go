@@ -141,6 +141,10 @@ func (p *Plugin) GetBotUserID() string {
 	return p.userID
 }
 
+func (p *Plugin) GetSelectiveSync() bool {
+	return p.getConfiguration().SelectiveSync
+}
+
 func (p *Plugin) GetClientForApp() msteams.Client {
 	p.msteamsAppClientMutex.RLock()
 	defer p.msteamsAppClientMutex.RUnlock()
@@ -827,6 +831,7 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
+// isRemoteUser returns true if the given user is a remote user managed by this plugin.
 func isRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }

@@ -64,10 +64,22 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		if appErr != nil {
 			return
 		}
+
+		if p.getConfiguration().SelectiveSync {
+			shouldSync, appErr := p.ChatMembersSpanPlatforms(members)
+			if appErr != nil {
+				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+				return
+			} else if !shouldSync {
+				return
+			}
+		}
+
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
 		}
+
 		_, err := p.SendChat(post.UserId, dstUsers, post)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())

@@ -39,6 +39,7 @@ type pluginMock struct {
 	userClient                 msteams.Client
 	teamsUserClient            msteams.Client
 	metrics                    metrics.Metrics
+	selectiveSync              bool
 }
 
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
@@ -60,6 +61,10 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 }
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
+}
+func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
+func (pm *pluginMock) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+	return true, nil
 }
 
 func newTestHandler() *ActivityHandler {
