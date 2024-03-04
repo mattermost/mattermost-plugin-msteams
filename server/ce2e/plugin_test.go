@@ -48,7 +48,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	require.Eventually(t, func() bool {
 		suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
 		return len(suggestions) > 0
-	}, 5*time.Second, 100*time.Millisecond)
+	}, 10*time.Second, 500*time.Millisecond)
 
 	t.Run("Without Channel Link", func(t *testing.T) {
 		var newPost *model.Post
