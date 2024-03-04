@@ -101,9 +101,11 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-			return err == nil
+			suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+			return len(suggestions) > 0
 		}, 5*time.Second, 500*time.Millisecond)
+
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
@@ -140,9 +142,11 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-			return err == nil
+			suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+			return len(suggestions) > 0
 		}, 5*time.Second, 500*time.Millisecond)
+
+		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
