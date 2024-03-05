@@ -66,6 +66,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
+	router.HandleFunc("/reconnect", api.reconnect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
@@ -318,6 +319,13 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if connectURL != "" {
 		data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
 		_, _ = w.Write(data)
+	}
+}
+
+func (a *API) reconnect(w http.ResponseWriter, r *http.Request) {
+	connectURL := a.getConnectURL(w, r)
+	if connectURL != "" {
+		http.Redirect(w, r, connectURL, http.StatusSeeOther)
 	}
 }
 
