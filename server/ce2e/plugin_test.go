@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// just make a change
 var fakeToken = oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"}
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
