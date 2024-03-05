@@ -50,6 +50,8 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
+	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
+	GetSelectiveSync() bool
 }
 
 type ActivityHandler struct {
@@ -311,6 +313,16 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 			return metrics.DiscardedReasonOther
 		}
+
+		if ah.plugin.GetSelectiveSync() {
+			if shouldSync, appErr := ah.plugin.ChatSpansPlatforms(channelID); appErr != nil {
+				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
+				return metrics.DiscardedReasonOther
+			} else if !shouldSync {
+				return metrics.DiscardedReasonSelectiveSync
+			}
+		}
+
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
