@@ -50,10 +50,6 @@ func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey
 	}
 }
 
-func (s *SQLStore) Shutdown() error {
-	return s.db.Close()
-}
-
 func (s *SQLStore) createTable(tableName, columnList string) error {
 	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
 		return err
