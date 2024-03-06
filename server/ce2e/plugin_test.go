@@ -527,7 +527,8 @@ func TestSelectiveSync(t *testing.T) {
 				dm, _, err := client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
 				require.NoError(t, err)
 
-				mockClient.Reset()
+				err = mockClient.Reset()
+				require.NoError(t, err)
 
 				newDMID := model.NewId()
 

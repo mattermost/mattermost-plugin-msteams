@@ -13,7 +13,7 @@ const (
 func (p *Plugin) getPrimaryPlatform(userID string) string {
 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
 	if appErr != nil {
-		// Default to false if no preference is found
+		// Default to Mattermost if not found or an error occurred
 		return PreferenceValuePlatformMM
 	}
 

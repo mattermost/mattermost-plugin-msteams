@@ -194,10 +194,10 @@ func (m *MockClient) Reset() error {
 	return m.init()
 }
 
-func (m *MockClient) Assert(mockId string, times int) error {
+func (m *MockClient) Assert(mockID string, times int) error {
 	mockExpectation := map[string]any{
 		"expectationId": map[string]string{
-			"id": mockId,
+			"id": mockID,
 		},
 		"times": map[string]int{
 			"atLeast": times,
@@ -225,7 +225,7 @@ func (m *MockClient) Assert(mockId string, times int) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("Invalid status code response: %d, error: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("invalid status code response: %d, error: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
