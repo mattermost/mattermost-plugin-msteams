@@ -34,8 +34,6 @@ func setUserDefaultPlatform(t *testing.T, mattermost *mmcontainer.MattermostCont
 }
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
-	t.Parallel()
-
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -181,8 +179,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
-	t.Parallel()
-
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -333,7 +329,6 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 }
 
 func TestSelectiveSync(t *testing.T) {
-	t.Parallel()
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
