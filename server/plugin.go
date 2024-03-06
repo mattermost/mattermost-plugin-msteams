@@ -397,7 +397,7 @@ func (p *Plugin) stop(isRestart bool) {
 	}
 
 	if !isRestart {
-		if err := p.store.Shutdown(); err != nil {
+		if err := p.apiClient.Store.Close(); err != nil {
 			p.API.LogError("failed to close db connection", "error", err)
 		}
 	}
@@ -578,7 +578,7 @@ func (p *Plugin) OnActivate() error {
 	if err := p.onActivate(); err != nil {
 		p.API.LogWarn("error activating the plugin", "error", err)
 		if p.store != nil {
-			if err = p.store.Shutdown(); err != nil {
+			if err = p.apiClient.Store.Close(); err != nil {
 				p.API.LogWarn("failed to close db connection", "error", err)
 			}
 		}
