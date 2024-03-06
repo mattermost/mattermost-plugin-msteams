@@ -414,6 +414,14 @@ func TestSelectiveSync(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
+	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+		return len(suggestions) > 0
+	}, 10*time.Second, 500*time.Millisecond)
+
 	ttCases := []struct {
 		name                         string
 		fromUser                     *model.User
@@ -592,7 +600,7 @@ func TestSelectiveSync(t *testing.T) {
 							return mockClient.Assert("post-message", 1) == nil
 						}
 						return mockClient.Assert("post-message", 0) == nil
-					}, 1*time.Second, 50*time.Millisecond)
+					}, 5*time.Second, 50*time.Millisecond)
 				})
 			}
 		})
