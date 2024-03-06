@@ -74,7 +74,7 @@ func (c *MattermostContainer) URL(ctx context.Context) (string, error) {
 	return fmt.Sprintf("http://%s", net.JoinHostPort(host, containerPort.Port())), nil
 }
 
-// GetClient returns a mattermost client with the admin logged in for the mattermost instance
+// GetAdminClient returns a mattermost client with the admin logged in for the mattermost instance
 func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client4, error) {
 	url, err := c.URL(ctx)
 	if err != nil {
@@ -82,6 +82,20 @@ func (c *MattermostContainer) GetAdminClient(ctx context.Context) (*model.Client
 	}
 	client := model.NewAPIv4Client(url)
 	_, _, err = client.Login(context.Background(), c.username, c.password)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+// GetClient returns a mattermost client with the given user logged in for the mattermost instance
+func (c *MattermostContainer) GetClient(ctx context.Context, username, password string) (*model.Client4, error) {
+	url, err := c.URL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := model.NewAPIv4Client(url)
+	_, _, err = client.Login(context.Background(), username, password)
 	if err != nil {
 		return nil, err
 	}
