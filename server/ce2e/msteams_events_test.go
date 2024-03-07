@@ -236,7 +236,7 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.mock != nil {
 				tc.mock()
-				defer mockClient.Reset()
+				defer require.NoError(t, mockClient.Reset())
 			}
 
 			err := sendActivity(t, client, tc.activity)
