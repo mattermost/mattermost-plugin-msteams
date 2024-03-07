@@ -484,7 +484,7 @@ func (p *Plugin) onActivate() error {
 
 	p.remoteID = "msteams"
 	if !p.getConfiguration().DisableSyncMsg {
-		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+		p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  pluginID,
 			PluginID:     pluginID,
 			CreatorID:    p.userID,
@@ -494,7 +494,6 @@ func (p *Plugin) onActivate() error {
 		if err != nil {
 			return err
 		}
-		p.remoteID = remoteID
 		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 	}
 

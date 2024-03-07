@@ -148,7 +148,12 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 
-	return s.runMigrationRemoteID(remoteID)
+	if remoteID != "" {
+		if err := s.runMigrationRemoteID(remoteID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
