@@ -1,6 +1,15 @@
 package sqlstore
 
+import (
+	sq "github.com/Masterminds/squirrel"
+)
+
 func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
-	_, err := s.db.Exec("UPDATE Users SET RemoteID = $1 WHERE RemoteID IS NOT NULL AND RemoteID != '' AND RemoteID NOT IN (SELECT remoteid FROM remoteclusters) AND username like 'msteams%'", remoteID)
+	_, err := s.getQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
+		sq.NotEq{"RemoteID": nil},
+		sq.NotEq{"RemoteID": ""},
+		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
+		sq.Like{"Username": "msteams%"},
+	}).Exec()
 	return err
 }
