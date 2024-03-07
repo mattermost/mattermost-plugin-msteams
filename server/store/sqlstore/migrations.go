@@ -9,7 +9,7 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 		sq.NotEq{"RemoteID": nil},
 		sq.NotEq{"RemoteID": ""},
 		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
-		sq.Like{"Username": "msteams%"},
+		sq.Like{"Username": "msteams_%"},
 	}).Exec()
 	return err
 }
