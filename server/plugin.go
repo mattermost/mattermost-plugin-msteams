@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base32"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
@@ -484,6 +482,22 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
+	p.remoteID = "msteams"
+	if !p.getConfiguration().DisableSyncMsg {
+		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+			Displayname:  pluginID,
+			PluginID:     pluginID,
+			CreatorID:    p.userID,
+			AutoShareDMs: true,
+			AutoInvited:  true,
+		})
+		if err != nil {
+			return err
+		}
+		p.remoteID = remoteID
+		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
+	}
+
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
 			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
@@ -502,26 +516,12 @@ func (p *Plugin) onActivate() error {
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
 
-		if err = p.store.Init(); err != nil {
+		if err = p.store.Init(p.remoteID); err != nil {
 			return err
 		}
 	}
 
 	if !p.getConfiguration().DisableSyncMsg {
-		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-			Displayname:  pluginID,
-			PluginID:     pluginID,
-			CreatorID:    p.userID,
-			AutoShareDMs: true,
-			AutoInvited:  true,
-		})
-		if err != nil {
-			return err
-		}
-		p.remoteID = remoteID
-
-		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
-
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
@@ -662,7 +662,7 @@ func (p *Plugin) syncUsers() {
 				}
 			}
 
-			if isRemoteUser(mmUser) {
+			if p.IsRemoteUser(mmUser) {
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
@@ -704,7 +704,7 @@ func (p *Plugin) syncUsers() {
 		if msUser.Type == msteamsUserTypeGuest {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
-				if isUserPresent && isRemoteUser(mmUser) && mmUser.DeleteAt == 0 {
+				if isUserPresent && p.IsRemoteUser(mmUser) && mmUser.DeleteAt == 0 {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
@@ -718,13 +718,9 @@ func (p *Plugin) syncUsers() {
 
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !isUserPresent {
-			userUUID := uuid.Parse(msUser.ID)
-			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-			shortUserID := encoding.EncodeToString(userUUID)
-
 			newMMUser := &model.User{
 				Email:     msUser.Mail,
-				RemoteId:  &shortUserID,
+				RemoteId:  &p.remoteID,
 				FirstName: msUser.DisplayName,
 				Username:  username,
 			}
@@ -777,7 +773,7 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogWarn("Unable to set user info during sync user job", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 			}
-		} else if mmUser.RemoteId != nil {
+		} else if p.IsRemoteUser(mmUser) {
 			shouldUpdate := false
 			if !strings.HasPrefix(mmUser.Username, "msteams_") && username != mmUser.Username {
 				mmUser.Username = username
@@ -848,9 +844,9 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
-// isRemoteUser returns true if the given user is a remote user managed by this plugin.
-func isRemoteUser(user *model.User) bool {
-	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+// IsRemoteUser returns true if the given user is a remote user managed by this plugin.
+func (p *Plugin) IsRemoteUser(user *model.User) bool {
+	return user.RemoteId != nil && *user.RemoteId == p.remoteID
 }
 
 func (p *Plugin) updateMetrics() {

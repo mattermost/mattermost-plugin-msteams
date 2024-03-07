@@ -315,10 +315,10 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 	return result, err
 }
 
-func (s *TimerLayer) Init() error {
+func (s *TimerLayer) Init(remoteID string) error {
 	start := time.Now()
 
-	err := s.Store.Init()
+	err := s.Store.Init(remoteID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
