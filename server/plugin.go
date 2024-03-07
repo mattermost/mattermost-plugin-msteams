@@ -410,26 +410,27 @@ func (p *Plugin) restart() {
 
 func (p *Plugin) generatePluginSecrets() error {
 	needSaveConfig := false
-	if p.configuration.WebhookSecret == "" {
+	cfg := p.getConfiguration()
+	if cfg.WebhookSecret == "" {
 		secret, err := generateSecret()
 		if err != nil {
 			return err
 		}
 
-		p.configuration.WebhookSecret = secret
+		cfg.WebhookSecret = secret
 		needSaveConfig = true
 	}
-	if p.configuration.EncryptionKey == "" {
+	if cfg.EncryptionKey == "" {
 		secret, err := generateSecret()
 		if err != nil {
 			return err
 		}
 
-		p.configuration.EncryptionKey = secret
+		cfg.EncryptionKey = secret
 		needSaveConfig = true
 	}
 	if needSaveConfig {
-		configMap, err := p.configuration.ToMap()
+		configMap, err := cfg.ToMap()
 		if err != nil {
 			return err
 		}

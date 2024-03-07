@@ -165,9 +165,6 @@ func (p *Plugin) OnConfigurationChange() error {
 	}
 
 	if err := p.validateConfiguration(configuration); err != nil {
-		if p.configuration == nil {
-			p.setConfiguration(configuration)
-		}
 		return err
 	}
 
