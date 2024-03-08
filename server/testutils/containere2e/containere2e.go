@@ -5,9 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
@@ -145,6 +147,17 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	require.NoError(t, err)
 
 	tearDown := func() {
+		if os.Getenv("INSPECT_MOCKSERVER") != "" {
+			t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
+			minutesString := os.Getenv("INSPECT_MOCKSERVER")
+			minutes, err := strconv.Atoi(minutesString)
+			if err != nil {
+				time.Sleep(time.Duration(minutes) * time.Minute)
+			} else {
+				time.Sleep(5 * time.Minute)
+			}
+		}
+
 		require.NoError(t, mockserverContainer.Terminate(context.Background()))
 		require.NoError(t, mattermost.Terminate(context.Background()))
 		require.NoError(t, newNetwork.Remove(context.Background()))
