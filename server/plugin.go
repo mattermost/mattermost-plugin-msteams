@@ -495,7 +495,7 @@ func (p *Plugin) onActivate() error {
 	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
 	if p.getConfiguration().DisableSyncMsg {
-		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
 	}
