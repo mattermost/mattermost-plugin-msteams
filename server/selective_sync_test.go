@@ -276,6 +276,18 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.False(t, chatMembersSpanPlatforms)
 	})
 
+	t.Run("single local user", func(t *testing.T) {
+		team := setupTeam(t, p)
+		user1 := setupUser(t, p, team, false)
+
+		chatSpansPlatforms, appErr := p.ChatMembersSpanPlatforms(model.ChannelMembers{
+			model.ChannelMember{UserId: user1.Id},
+		})
+
+		require.Nil(t, appErr)
+		assert.True(t, chatSpansPlatforms)
+	})
+
 	t.Run("dm between two local users", func(t *testing.T) {
 		team := setupTeam(t, p)
 		user1 := setupUser(t, p, team, false)
