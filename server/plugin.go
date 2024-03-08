@@ -482,19 +482,22 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.remoteID = "msteams"
-	if !p.getConfiguration().DisableSyncMsg {
-		p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-			Displayname:  pluginID,
-			PluginID:     pluginID,
-			CreatorID:    p.userID,
-			AutoShareDMs: true,
-			AutoInvited:  true,
-		})
-		if err != nil {
-			return err
+	p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
+		Displayname:  pluginID,
+		PluginID:     pluginID,
+		CreatorID:    p.userID,
+		AutoShareDMs: true,
+		AutoInvited:  true,
+	})
+	if err != nil {
+		return err
+	}
+	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
+
+	if p.getConfiguration().DisableSyncMsg {
+		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
+			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
-		p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 	}
 
 	if p.store == nil {
@@ -541,10 +544,6 @@ func (p *Plugin) onActivate() error {
 			}
 
 			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
-		}
-	} else {
-		if err := p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
-			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
 	}
 
