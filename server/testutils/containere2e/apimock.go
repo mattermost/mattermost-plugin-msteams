@@ -126,8 +126,8 @@ func (m *MockClient) Delete(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodDelete, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) MockError(method string, id string, url string) error {
-	return m.Mock(method, id, url, 401, map[string]any{
+func (m *MockClient) MockError(id string, method string, errorCode int, url string) error {
+	return m.Mock(method, id, url, errorCode, map[string]any{
 		"error": map[string]any{
 			"code":    "badRequest",
 			"message": "Test bad request",

@@ -3,7 +3,6 @@ package ce2e
 import (
 	"context"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
@@ -60,15 +60,15 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	err = store.SetUserInfo(user.Id, "ms-user-id", &fakeToken)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
-		return len(suggestions) > 0
+		assert.Len(c, suggestions, 1)
 	}, 10*time.Second, 500*time.Millisecond)
 
 	t.Run("Without Channel Link", func(t *testing.T) {
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		require.Never(t, func() bool {
 			_, err = store.GetPostInfoByMattermostID(newPost.Id)
@@ -77,9 +77,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
-		if err = mockClient.Reset(); err != nil {
-			t.Log(err)
-		}
+		require.NoError(t, mockClient.Reset())
 
 		err = mockClient.Get("get-channel", "/v1.0/teams/ms-team-id/channels/ms-channel-id", map[string]any{
 			"id":              "ms-channel-id",
@@ -126,23 +124,16 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var postInfo *storemodels.PostInfo
 			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
-			if err != nil {
-				return false
-			}
-			if postInfo.MSTeamsID == newPostID {
-				return true
-			}
-			return false
+			assert.NoError(c, err)
+			assert.Equal(c, newPostID, postInfo.MSTeamsID)
 		}, 1*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
-		if err = mockClient.Reset(); err != nil {
-			t.Log(err)
-		}
+		require.NoError(t, mockClient.Reset())
 
 		err = mockClient.Get("get-channel", "/v1.0/teams/ms-team-id/channels/ms-channel-id", map[string]any{
 			"id":              "ms-channel-id",
@@ -153,7 +144,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		err = mockClient.MockError("failed-post-message", http.MethodPost, "/v1.0/teams/ms-team-id/channels/ms-channel-id/messages")
+		err = mockClient.MockError("failed-post-message", http.MethodPost, http.StatusBadRequest, "/v1.0/teams/ms-team-id/channels/ms-channel-id/messages")
 		require.NoError(t, err)
 
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
@@ -161,16 +152,12 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var logs string
-			logs, err = mattermost.GetLogs(context.Background(), 10)
-			if err != nil {
-				return false
-			}
-			if strings.Contains(logs, "Error creating post on MS Teams") && strings.Contains(logs, "Test bad request") {
-				return true
-			}
-			return false
+			logs, err = mattermost.GetLogs(context.Background(), 50)
+			assert.NoError(c, err)
+			assert.Contains(c, logs, "Error creating post on MS Teams")
+			assert.Contains(c, logs, "Test bad request")
 		}, 1*time.Second, 50*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
@@ -214,9 +201,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Everything OK", func(t *testing.T) {
-		if err = mockClient.Reset(); err != nil {
-			t.Log(err)
-		}
+		require.NoError(t, mockClient.Reset())
 
 		err = mockClient.Post("create-chat", "/v1.0/chats", map[string]any{
 			"id":              "ms-dm-id",
@@ -269,23 +254,16 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		newPost, _, err = client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var postInfo *storemodels.PostInfo
 			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
-			if err != nil {
-				return false
-			}
-			if postInfo.MSTeamsID == newPostID {
-				return true
-			}
-			return false
+			assert.NoError(c, err)
+			assert.Equal(c, newPostID, postInfo.MSTeamsID)
 		}, 1*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
-		if err = mockClient.Reset(); err != nil {
-			t.Log(err)
-		}
+		require.NoError(t, mockClient.Reset())
 
 		err = mockClient.Post("create-chat", "/v1.0/chats", map[string]any{
 			"id":              "ms-dm-id",
@@ -305,22 +283,18 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		err = mockClient.MockError("failed-to-post-message", http.MethodPost, "/v1.0/chats/ms-dm-id/messages")
+		err = mockClient.MockError("failed-to-post-message", http.MethodPost, http.StatusBadRequest, "/v1.0/chats/ms-dm-id/messages")
 		require.NoError(t, err)
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
 
-		require.Eventually(t, func() bool {
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var logs string
 			logs, err = mattermost.GetLogs(context.Background(), 10)
-			if err != nil {
-				return false
-			}
-			if strings.Contains(logs, "Error creating post on MS Teams") && strings.Contains(logs, "Test bad request") {
-				return true
-			}
-			return false
+			assert.NoError(c, err)
+			assert.Contains(c, logs, "Error creating post on MS Teams")
+			assert.Contains(c, logs, "Test bad request")
 		}, 1*time.Second, 50*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
@@ -412,9 +386,9 @@ func TestSelectiveSync(t *testing.T) {
 	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
-		return len(suggestions) > 0
+		assert.Len(c, suggestions, 1)
 	}, 10*time.Second, 500*time.Millisecond)
 
 	ttCases := []struct {
@@ -530,8 +504,7 @@ func TestSelectiveSync(t *testing.T) {
 				dm, _, err := client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
 				require.NoError(t, err)
 
-				err = mockClient.Reset()
-				require.NoError(t, err)
+				require.NoError(t, mockClient.Reset())
 
 				newDMID := model.NewId()
 
@@ -590,11 +563,11 @@ func TestSelectiveSync(t *testing.T) {
 					_, _, err = client.CreatePost(context.Background(), &post)
 					require.NoError(t, err)
 
-					require.Eventually(t, func() bool {
+					require.EventuallyWithT(t, func(c *assert.CollectT) {
 						if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-							return mockClient.Assert("post-message", 1) == nil
+							assert.NoError(c, mockClient.Assert("post-message", 1))
 						}
-						return mockClient.Assert("post-message", 0) == nil
+						assert.NoError(c, mockClient.Assert("post-message", 0))
 					}, 5*time.Second, 50*time.Millisecond)
 				})
 			}
