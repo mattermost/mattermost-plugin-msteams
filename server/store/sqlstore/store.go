@@ -31,6 +31,7 @@ const (
 	postsTableName               = "msteamssync_posts"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
+	invitedUsersTableName        = "msteamssync_invited_users"
 	PGUniqueViolationErrorCode   = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
 )
 
@@ -43,8 +44,9 @@ type SQLStore struct {
 
 func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
 	return &SQLStore{
-		db:            db,
-		api:           api,
+		db:  db,
+		api: api,
+
 		enabledTeams:  enabledTeams,
 		encryptionKey: encryptionKey,
 	}
@@ -144,7 +146,19 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
+	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
+	}
+
+	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(invitedUsersTableName, "invitePendingSince", "BIGINT"); err != nil {
+		return err
+	}
+
+	return s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT")
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
@@ -970,6 +984,102 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	}
 
 	return result != "", nil
+}
+
+func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	pendingSince := invitedUser.InvitePendingSince.UnixMicro()
+	lastSentAt := invitedUser.InviteLastSentAt.UnixMicro()
+
+	query := s.getQueryBuilder().
+		Insert(invitedUsersTableName).
+		Columns("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		Values(invitedUser.ID, pendingSince, lastSentAt).
+		SuffixExpr(sq.Expr("ON CONFLICT (mmUserID) DO UPDATE SET invitePendingSince = ?, inviteLastSentAt = ?", pendingSince, lastSentAt))
+
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	query := s.getQueryBuilder().
+		Select("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		From(invitedUsersTableName).
+		Where(sq.Eq{"mmUserID": mmUserID})
+
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result *storemodels.InvitedUser
+	if rows.Next() {
+		var id string
+		var pendingSince int64
+		var lastSentAt int64
+
+		if scanErr := rows.Scan(&id, &pendingSince, &lastSentAt); scanErr != nil {
+			return nil, scanErr
+		}
+
+		result = &storemodels.InvitedUser{
+			ID:                 id,
+			InvitePendingSince: time.UnixMicro(pendingSince),
+			InviteLastSentAt:   time.UnixMicro(pendingSince),
+		}
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
+	if _, err := s.getQueryBuilder().Delete(invitedUsersTableName).Where(sq.Eq{"mmUserID": mmUserID}).Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
+	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
+	rows, err := query.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return 0, scanErr
+		}
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff time.Time) (int, error) {
+	query := s.getQueryBuilder().
+		Select("count(*)").
+		From(invitedUsersTableName).
+		Where(sq.Lt{"invitePendingSince": unresponsiveCutoff.UnixMicro()})
+	rows, err := query.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return 0, scanErr
+		}
+	}
+
+	return result, nil
 }
 
 func hashKey(prefix, hashableKey string) string {

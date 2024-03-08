@@ -69,6 +69,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 
 	// iFrame support
@@ -341,6 +342,14 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+		a.p.API.LogWarn("Error sending conditional connect invite", "error", err.Error())
+	}
+}
+
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
@@ -446,7 +455,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
+	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in getting invited user", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
@@ -461,6 +477,13 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
+
+	err = a.p.store.DeleteUserInvite(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to clear user invite", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

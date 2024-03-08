@@ -2,6 +2,8 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
+import {useEffect} from 'react';
+
 import manifest from './manifest';
 import Client from './client';
 import ListConnectedUsers from './components/getConnectedUsersSetting';
@@ -16,15 +18,14 @@ function getSettings(serverRoute: string, disabled: boolean) {
         id: manifest.id,
         icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
         uiName: manifest.name,
-        action: disabled ?
-            {
-                title: 'Connect your Microsoft Teams Account',
-                text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
-                buttonText: 'Connect account',
-                onClick: () => Client.connect().then((result) => {
-                    window.open(result?.connectUrl, '_blank');
-                }),
-            } : undefined, //eslint-disable-line no-undefined
+        action: disabled ? {
+            title: 'Connect your Microsoft Teams Account',
+            text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
+            buttonText: 'Connect account',
+            onClick: () => Client.connect().then((result) => {
+                window.open(result?.connectUrl, '_blank');
+            }),
+        } : undefined, //eslint-disable-line no-undefined
         sections: [{
             settings: [{
                 name: 'platform',
@@ -52,6 +53,7 @@ function getSettings(serverRoute: string, disabled: boolean) {
 
 export default class Plugin {
     removeStoreSubscription?: () => void;
+    activityFunc?: () => void;
 
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         const state = store.getState();
@@ -60,6 +62,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
+        registry.registerRootComponent(RootEffects);
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
         let settingsEnabled = true;
@@ -79,10 +82,34 @@ export default class Plugin {
         });
     }
 
+    userActivityWatch(): void {
+        // Listen for new activity to trigger a call to the server
+        // Hat tip to the Github and Playbooks plugin
+        let lastActivityTime = Number.MAX_SAFE_INTEGER;
+        const activityTimeout = 60 * 60 * 1000; // 1 hour
+
+        this.activityFunc = () => {
+            const now = new Date().getTime();
+            if (now - lastActivityTime > activityTimeout) {
+                Client.notifyConnect();
+            }
+            lastActivityTime = now;
+        };
+        document.addEventListener('click', this.activityFunc);
+    }
+
     uninitialize() {
         this.removeStoreSubscription?.();
     }
 }
+
+const RootEffects = () => {
+    useEffect(() => {
+        Client.notifyConnect();
+    }, []);
+
+    return null;
+};
 
 declare global {
     interface Window {

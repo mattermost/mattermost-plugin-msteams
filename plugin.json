@@ -123,11 +123,23 @@
           "help_text": "Set the buffer size for streaming files from MS Teams to Mattermost",
           "default": 20
         },{
-            "key": "connectedUsersAllowed",
-            "display_name": "Max Connected Users",
-            "type": "number",
-            "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
-            "default": 1000
+          "key": "connectedUsersAllowed",
+          "display_name": "Max Connected Users",
+          "type": "number",
+          "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
+          "default": 1000
+        },{
+          "key": "connectedUsersInviteTimespanDays",
+          "display_name": "Automatic Connection Invites: Timespan (in Days)",
+          "type": "number",
+          "help_text": "When enabled, connection invite DMs will be sent to users when they login. Set to the number of weekdays to spread connection invites over, or how many days (excluding weekends) it should take to get to Max Connected Users. (Set to 0 to disable connection invites.)",
+          "default": 0
+        },{
+          "key": "connectedUsersInviteDaysUntilUnresponsive",
+          "display_name": "Automatic Connection Invites: Days after which to consider an invite ignored.",
+          "type": "number",
+          "help_text": "The number of days to wait before moving on to invite other users. Once invited, users can connect at any time. If there are considerable ignored invites still pending after Max Connected Users is reached, it is possible that there will be more connected users than Max Connected Users.",
+          "default": 5
         },{
             "key": "automaticallyPromoteSyntheticUsers",
             "display_name": "Automatically Promote Synthetic Users",

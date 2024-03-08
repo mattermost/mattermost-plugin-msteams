@@ -20,29 +20,31 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantID                           string `json:"tenantid"`
-	ClientID                           string `json:"clientid"`
-	ClientSecret                       string `json:"clientsecret"`
-	EncryptionKey                      string `json:"encryptionkey"`
-	EvaluationAPI                      bool   `json:"evaluationapi"`
-	WebhookSecret                      string `json:"webhooksecret"`
-	EnabledTeams                       string `json:"enabledteams"`
-	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
-	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
-	SyncReactions                      bool   `json:"syncreactions"`
-	SyncFileAttachments                bool   `json:"syncfileattachments"`
-	SyncUsers                          int    `json:"syncusers"`
-	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	CertificatePublic                  string `json:"certificatepublic"`
-	CertificateKey                     string `json:"certificatekey"`
-	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
-	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
-	PromptIntervalForDMsAndGMs         int    `json:"promptIntervalForDMsAndGMs"`
-	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
-	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
-	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
-	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
-	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
+	TenantID                                  string `json:"tenantid"`
+	ClientID                                  string `json:"clientid"`
+	ClientSecret                              string `json:"clientsecret"`
+	EncryptionKey                             string `json:"encryptionkey"`
+	EvaluationAPI                             bool   `json:"evaluationapi"`
+	WebhookSecret                             string `json:"webhooksecret"`
+	EnabledTeams                              string `json:"enabledteams"`
+	SyncDirectMessages                        bool   `json:"syncdirectmessages"`
+	SyncLinkedChannels                        bool   `json:"synclinkedchannels"`
+	SyncReactions                             bool   `json:"syncreactions"`
+	SyncFileAttachments                       bool   `json:"syncfileattachments"`
+	SyncUsers                                 int    `json:"syncusers"`
+	SyncGuestUsers                            bool   `json:"syncGuestUsers"`
+	CertificatePublic                         string `json:"certificatepublic"`
+	CertificateKey                            string `json:"certificatekey"`
+	MaxSizeForCompleteDownload                int    `json:"maxSizeForCompleteDownload"`
+	BufferSizeForFileStreaming                int    `json:"bufferSizeForFileStreaming"`
+	PromptIntervalForDMsAndGMs                int    `json:"promptIntervalForDMsAndGMs"`
+	ConnectedUsersAllowed                     int    `json:"connectedUsersAllowed"`
+	ConnectedUsersInviteTimespanDays          int    `json:"connectedUsersInviteTimespanDays"`
+	ConnectedUsersInviteDaysUntilUnresponsive int    `json:"connectedUsersInviteDaysUntilUnresponsive"`
+	SyntheticUserAuthService                  string `json:"syntheticUserAuthService"`
+	SyntheticUserAuthData                     string `json:"syntheticUserAuthData"`
+	AutomaticallyPromoteSyntheticUsers        bool   `json:"automaticallyPromoteSyntheticUsers"`
+	DisableSyncMsg                            bool   `json:"disableSyncMsg"`
 }
 
 func (c *configuration) ProcessConfiguration() {

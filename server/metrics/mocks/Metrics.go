@@ -150,19 +150,19 @@ func (_m *Metrics) ObserveSubscription(action string) {
 	_m.Called(action)
 }
 
-// ObserveSyncMsgFileDelay provides a mock function with given fields: event, delayMillis
-func (_m *Metrics) ObserveSyncMsgFileDelay(event string, delayMillis int64) {
-	_m.Called(event, delayMillis)
+// ObserveSyncMsgFileDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgFileDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
 }
 
-// ObserveSyncMsgPostDelay provides a mock function with given fields: event, delayMillis
-func (_m *Metrics) ObserveSyncMsgPostDelay(event string, delayMillis int64) {
-	_m.Called(event, delayMillis)
+// ObserveSyncMsgPostDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgPostDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
 }
 
-// ObserveSyncMsgReactionDelay provides a mock function with given fields: event, delayMillis
-func (_m *Metrics) ObserveSyncMsgReactionDelay(event string, delayMillis int64) {
-	_m.Called(event, delayMillis)
+// ObserveSyncMsgReactionDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgReactionDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
 }
 
 // ObserveSyntheticUsers provides a mock function with given fields: count

@@ -17,6 +17,10 @@ class ClientClass {
         return this.doGet(`${this.url}/connect`);
     };
 
+    notifyConnect = async () => {
+        await this.doGet(`${this.url}/notify-connect`);
+    };
+
     doGet = async (url: string, headers: {[key: string]: any} = {}) => {
         headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
 
