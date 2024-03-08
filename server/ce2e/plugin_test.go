@@ -34,6 +34,8 @@ func setUserDefaultPlatform(t *testing.T, mattermost *mmcontainer.MattermostCont
 }
 
 func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
+	t.Parallel()
+
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -127,8 +129,9 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var postInfo *storemodels.PostInfo
 			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
-			assert.NoError(c, err)
-			assert.Equal(c, newPostID, postInfo.MSTeamsID)
+			if assert.NoError(c, err) {
+				assert.Equal(c, newPostID, postInfo.MSTeamsID)
+			}
 		}, 1*time.Second, 50*time.Millisecond)
 	})
 
@@ -166,6 +169,8 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
+	t.Parallel()
+
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -257,8 +262,9 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var postInfo *storemodels.PostInfo
 			postInfo, err = store.GetPostInfoByMattermostID(newPost.Id)
-			assert.NoError(c, err)
-			assert.Equal(c, newPostID, postInfo.MSTeamsID)
+			if assert.NoError(c, err) {
+				assert.Equal(c, newPostID, postInfo.MSTeamsID)
+			}
 		}, 1*time.Second, 50*time.Millisecond)
 	})
 
@@ -303,6 +309,8 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 }
 
 func TestSelectiveSync(t *testing.T) {
+	t.Parallel()
+
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -566,8 +574,9 @@ func TestSelectiveSync(t *testing.T) {
 					require.EventuallyWithT(t, func(c *assert.CollectT) {
 						if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
 							assert.NoError(c, mockClient.Assert("post-message", 1))
+						} else {
+							assert.NoError(c, mockClient.Assert("post-message", 0))
 						}
-						assert.NoError(c, mockClient.Assert("post-message", 0))
 					}, 5*time.Second, 50*time.Millisecond)
 				})
 			}

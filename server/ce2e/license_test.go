@@ -10,6 +10,8 @@ import (
 )
 
 func TestRequiresLicense(t *testing.T) {
+	t.Parallel()
+
 	mattermost, _, _, tearDown := containere2e.NewE2ETestPlugin(t, containere2e.WithoutLicense())
 	defer tearDown()
 

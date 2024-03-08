@@ -17,6 +17,8 @@ import (
 )
 
 func TestIFrame(t *testing.T) {
+	t.Parallel()
+
 	mattermost, _, _, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 	client, err := mattermost.GetAdminClient(context.Background())
