@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
+	github.com/JohannesKaufmann/html-to-markdown v1.5.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/enescakir/emoji v1.0.0
 	github.com/google/uuid v1.6.0
@@ -15,7 +16,6 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattermost/mattermost/server/public v0.0.13
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20231111015533-48bf4e9bd879
-	github.com/mattn/godown v0.0.2-0.20211008172519-aa55d034e1f9
 	github.com/microsoft/kiota-abstractions-go v1.5.6
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.32.0
@@ -40,6 +40,8 @@ require (
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Microsoft/hcsshim v0.11.4 // indirect
+	github.com/PuerkitoBio/goquery v1.8.1 // indirect
+	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -82,7 +84,6 @@ require (
 	github.com/mattermost/logr/v2 v2.0.21 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
@@ -107,7 +108,6 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
