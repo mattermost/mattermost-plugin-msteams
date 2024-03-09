@@ -12,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,8 +33,6 @@ func sendActivity(t *testing.T, client *model.Client4, activity msteams.Activity
 }
 
 func TestNewMSTeamsDirectMessage(t *testing.T) {
-	t.Parallel()
-
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
@@ -70,6 +69,14 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	team, _, err := client.GetTeamByName(context.Background(), "test", "")
+	require.NoError(t, err)
+
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		suggestions, _, _ := client.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+		assert.Len(c, suggestions, 1)
+	}, 10*time.Second, 500*time.Millisecond)
+
 	ttCases := []struct {
 		name               string
 		activity           msteams.Activity
@@ -86,7 +93,7 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 			},
 			postText: "test-1",
 			mock: func() {
-				require.NoError(t, mockClient.Get("/v1.0/chats/msteams-chat-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-chat", "/v1.0/chats/msteams-chat-id", map[string]any{
 					"@odata.context":      "https://graph.microsoft.com/v1.0/$metadata#chats/$entity",
 					"id":                  "msteams-chat-id",
 					"createdDateTime":     time.Now().Format(time.RFC3339),
@@ -114,17 +121,17 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 						},
 					},
 				}))
-				require.NoError(t, mockClient.Get("/v1.0/users/ms-user-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-user", "/v1.0/users/ms-user-id", map[string]any{
 					"displayName": user.Username,
 					"mail":        user.Email,
 					"id":          "ms-user-id",
 				}))
-				require.NoError(t, mockClient.Get("/v1.0/users/ms-otheruser-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-other-user", "/v1.0/users/ms-otheruser-id", map[string]any{
 					"displayName": otherUser.Username,
 					"mail":        otherUser.Email,
 					"id":          "ms-otheruser-id",
 				}))
-				require.NoError(t, mockClient.Get("/v1.0/chats/msteams-chat-id/messages/msteams-message-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-message", "/v1.0/chats/msteams-chat-id/messages/msteams-message-id", map[string]any{
 					"@odata.context":       "https://graph.microsoft.com/v1.0/$metadata#chats('19%3A8ea0e38b-efb3-4757-924a-5f94061cf8c2_97f62344-57dc-409c-88ad-c4af14158ff5%40unq.gbl.spaces')/messages/$entity",
 					"id":                   "msteams-message-id",
 					"etag":                 "msteams-message-id",
@@ -189,7 +196,7 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 			},
 			postText: "test-2",
 			mock: func() {
-				require.NoError(t, mockClient.Get("/v1.0/chats/msteams-chat-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-chat", "/v1.0/chats/msteams-chat-id", map[string]any{
 					"@odata.context":      "https://graph.microsoft.com/v1.0/$metadata#chats/$entity",
 					"id":                  "msteams-chat-id",
 					"createdDateTime":     time.Now().Format(time.RFC3339),
@@ -217,12 +224,12 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 						},
 					},
 				}))
-				require.NoError(t, mockClient.Get("/v1.0/users/ms-user-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-user", "/v1.0/users/ms-user-id", map[string]any{
 					"displayName": user.Username,
 					"mail":        user.Email,
 					"id":          "ms-user-id",
 				}))
-				require.NoError(t, mockClient.Get("/v1.0/users/ms-otheruser-id", map[string]any{
+				require.NoError(t, mockClient.Get("get-other-user", "/v1.0/users/ms-otheruser-id", map[string]any{
 					"displayName": otherUser.Username,
 					"mail":        otherUser.Email,
 					"id":          "ms-otheruser-id",
@@ -234,34 +241,35 @@ func TestNewMSTeamsDirectMessage(t *testing.T) {
 
 	for _, tc := range ttCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.mock != nil {
-				tc.mock()
-				defer require.NoError(t, mockClient.Reset())
-			}
+			require.NoError(t, mockClient.Reset())
+			tc.mock()
 
 			err := sendActivity(t, client, tc.activity)
 			require.NoError(t, err)
 
-			var assertion func(t require.TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{})
 			if tc.expectPostCreation {
-				assertion = require.Eventually
+				require.EventuallyWithT(t, func(c *assert.CollectT) {
+					messages, _, err := client.GetPostsForChannel(context.Background(), dm.Id, 0, 1, "", false, false)
+					assert.NoError(c, err)
+					if assert.Len(c, messages.Order, 1) {
+						assert.Equal(c, tc.postText, messages.Posts[messages.Order[0]].Message)
+					}
+				}, 2*time.Second, 20*time.Millisecond)
 			} else {
-				assertion = require.Never
+				require.Never(t, func() bool {
+					messages, _, err := client.GetPostsForChannel(context.Background(), dm.Id, 0, 1, "", false, false)
+					if err != nil {
+						return false
+					}
+					if len(messages.Order) != 1 {
+						return false
+					}
+					if messages.Posts[messages.Order[0]].Message != tc.postText {
+						return false
+					}
+					return true
+				}, 2*time.Second, 20*time.Millisecond)
 			}
-
-			assertion(t, func() bool {
-				messages, _, err := client.GetPostsForChannel(context.Background(), dm.Id, 0, 1, "", false, false)
-				if err != nil {
-					return false
-				}
-				if len(messages.Order) != 1 {
-					return false
-				}
-				if messages.Posts[messages.Order[0]].Message != tc.postText {
-					return false
-				}
-				return true
-			}, 2*time.Second, 20*time.Millisecond)
 		})
 	}
 }
