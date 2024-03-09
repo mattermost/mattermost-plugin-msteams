@@ -379,11 +379,11 @@ func TestSelectiveSync(t *testing.T) {
 
 	conn, err := mattermost.PostgresConnection(context.Background())
 	require.NoError(t, err)
+	defer conn.Close()
 
 	// Mark user as synthetic
-	_, err = conn.Exec("UPDATE Users SET RemoteId = 'syntetic-user' WHERE Id = $1", synthetic.Id)
+	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters) WHERE Username = 'msteams_synthetic'")
 	require.NoError(t, err)
-	defer conn.Close()
 
 	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
 	require.NoError(t, err)
