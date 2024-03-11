@@ -757,6 +757,8 @@ func (p *Plugin) syncUsers() {
 					}
 				}
 			}
+		} else if !msUser.IsAccountEnabled {
+			continue
 		} else {
 			// Add the user to Mattermost
 			userUUID := uuid.Parse(msUser.ID)
