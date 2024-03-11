@@ -141,6 +141,10 @@ func (p *Plugin) GetBotUserID() string {
 	return p.userID
 }
 
+func (p *Plugin) GetSelectiveSync() bool {
+	return p.getConfiguration().SelectiveSync
+}
+
 func (p *Plugin) GetClientForApp() msteams.Client {
 	p.msteamsAppClientMutex.RLock()
 	defer p.msteamsAppClientMutex.RUnlock()
@@ -230,12 +234,6 @@ func (p *Plugin) connectTeamsAppClient() error {
 	// We don't currently support reconnecting with a new configuration: a plugin restart is
 	// required.
 	if p.msteamsAppClient != nil {
-		return nil
-	}
-
-	clientMock := getClientMock(p)
-	if clientMock != nil {
-		p.msteamsAppClient = clientMock
 		return nil
 	}
 
@@ -336,6 +334,7 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
+	p.API.LogDebug("plugin started")
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -396,6 +395,12 @@ func (p *Plugin) stop(isRestart bool) {
 			p.API.LogError("failed to close metrics job", "error", err)
 		}
 	}
+
+	if !isRestart {
+		if err := p.apiClient.Store.Close(); err != nil {
+			p.API.LogError("failed to close db connection", "error", err)
+		}
+	}
 }
 
 func (p *Plugin) restart() {
@@ -435,15 +440,9 @@ func (p *Plugin) generatePluginSecrets() error {
 	return nil
 }
 
-func (p *Plugin) OnActivate() error {
+func (p *Plugin) onActivate() error {
 	if p.clientBuilderWithToken == nil {
-		if getClientMock(p) != nil {
-			p.clientBuilderWithToken = func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client {
-				return getClientMock(p)
-			}
-		} else {
-			p.clientBuilderWithToken = msteams.NewTokenClient
-		}
+		p.clientBuilderWithToken = msteams.NewTokenClient
 	}
 	err := p.generatePluginSecrets()
 	if err != nil {
@@ -466,19 +465,17 @@ func (p *Plugin) OnActivate() error {
 
 	p.activityHandler = handlers.New(p)
 
-	subscriptionsClusterMutex, err := cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
+	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
 		return err
 	}
-	p.subscriptionsClusterMutex = subscriptionsClusterMutex
 
-	whitelistClusterMutex, err := cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
 	if err != nil {
 		return err
 	}
-	p.whitelistClusterMutex = whitelistClusterMutex
 
-	botID, err := p.apiClient.Bot.EnsureBot(&model.Bot{
+	p.userID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -486,7 +483,6 @@ func (p *Plugin) OnActivate() error {
 	if err != nil {
 		return err
 	}
-	p.userID = botID
 
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
@@ -505,6 +501,7 @@ func (p *Plugin) OnActivate() error {
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
+
 		if err = p.store.Init(); err != nil {
 			return err
 		}
@@ -514,7 +511,7 @@ func (p *Plugin) OnActivate() error {
 		remoteID, err := p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 			Displayname:  pluginID,
 			PluginID:     pluginID,
-			CreatorID:    botID,
+			CreatorID:    p.userID,
 			AutoShareDMs: true,
 			AutoInvited:  true,
 		})
@@ -536,7 +533,7 @@ func (p *Plugin) OnActivate() error {
 				TeamId:    linkedChannel.MattermostTeamID,
 				Home:      true,
 				ReadOnly:  false,
-				CreatorId: botID,
+				CreatorId: p.userID,
 				RemoteId:  p.remoteID,
 				ShareName: linkedChannel.MattermostChannelID,
 			})
@@ -568,12 +565,25 @@ func (p *Plugin) OnActivate() error {
 
 		p.whitelistClusterMutex.Lock()
 		defer p.whitelistClusterMutex.Unlock()
-		if err := p.store.PrefillWhitelist(); err != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err.Error())
+		if err2 := p.store.PrefillWhitelist(); err2 != nil {
+			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
 		}
 	}()
 
 	go p.start(false)
+	return nil
+}
+
+func (p *Plugin) OnActivate() error {
+	if err := p.onActivate(); err != nil {
+		p.API.LogWarn("error activating the plugin", "error", err)
+		if p.store != nil {
+			if err = p.apiClient.Store.Close(); err != nil {
+				p.API.LogWarn("failed to close db connection", "error", err)
+			}
+		}
+		return err
+	}
 	return nil
 }
 
@@ -694,7 +704,7 @@ func (p *Plugin) syncUsers() {
 		if msUser.Type == msteamsUserTypeGuest {
 			// Check if syncing of MS Teams guest users is disabled.
 			if !syncGuestUsers {
-				if isUserPresent && isRemoteUser(mmUser) {
+				if isUserPresent && isRemoteUser(mmUser) && mmUser.DeleteAt == 0 {
 					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
 					p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
 					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
@@ -767,23 +777,34 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogWarn("Unable to set user info during sync user job", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 			}
-		} else if (username != mmUser.Username || msUser.DisplayName != mmUser.FirstName) && mmUser.RemoteId != nil {
-			mmUser.Username = username
-			mmUser.FirstName = msUser.DisplayName
-			for {
-				_, err := p.API.UpdateUser(mmUser)
-				if err != nil {
-					if err.Id == "app.user.save.username_exists.app_error" {
-						mmUser.Username += "-" + fmt.Sprint(userSuffixID)
-						userSuffixID++
-						continue
+		} else if mmUser.RemoteId != nil {
+			shouldUpdate := false
+			if !strings.HasPrefix(mmUser.Username, "msteams_") && username != mmUser.Username {
+				mmUser.Username = username
+				shouldUpdate = true
+			}
+
+			if mmUser.FirstName != msUser.DisplayName {
+				mmUser.FirstName = msUser.DisplayName
+				shouldUpdate = true
+			}
+
+			if shouldUpdate {
+				for {
+					_, err := p.API.UpdateUser(mmUser)
+					if err != nil {
+						if err.Id == "app.user.save.username_exists.app_error" {
+							mmUser.Username = username + "-" + fmt.Sprint(userSuffixID)
+							userSuffixID++
+							continue
+						}
+
+						p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						break
 					}
 
-					p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					break
 				}
-
-				break
 			}
 		}
 	}
@@ -827,6 +848,7 @@ func getRandomString(characterSet string, length int) string {
 	return randomString.String()
 }
 
+// isRemoteUser returns true if the given user is a remote user managed by this plugin.
 func isRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
 }

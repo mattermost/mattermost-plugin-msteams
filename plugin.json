@@ -81,6 +81,12 @@
           "help_text": "Sync direct and group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
           "default": false
         },{
+          "key": "selectiveSync",
+          "display_name": "Selective sync",
+          "type": "bool",
+          "help_text": "Skip syncing messages between users on the same platform.",
+          "default": false
+        },{
           "key": "syncLinkedChannels",
           "display_name": "Sync linked channels",
           "type": "bool",

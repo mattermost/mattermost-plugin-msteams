@@ -177,7 +177,7 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 	}, nil
 }
 
-var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
+var TeamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
 func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
@@ -190,36 +190,15 @@ func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogSe
 	}
 }
 
-func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService) Client {
-	c := &ClientImpl{
+func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService, client *msgraphsdk.GraphServiceClient) Client {
+	return &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		tenantID:   tenantID,
 		clientID:   clientID,
 		logService: logService,
-		client:     nil,
+		client:     client,
 	}
-
-	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
-		TenantID: tenantID,
-		ClientID: clientID,
-		UserPrompt: func(ctx context.Context, message azidentity.DeviceCodeMessage) error {
-			fmt.Println(message.Message)
-			return nil
-		},
-	})
-	if err != nil {
-		fmt.Printf("Error creating credentials: %v\n", err)
-		return nil
-	}
-
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
-	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
-		return nil
-	}
-	c.client = client
-	return c
 }
 
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
@@ -237,7 +216,7 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
@@ -245,22 +224,22 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		RedirectURL: redirectURL,
 	}
 
+	httpClient := getHTTPClient()
+
 	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
 
-	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(TeamsDefaultScopes, "offline_access"))
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
 	client.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return client
@@ -270,7 +249,7 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	conf := &oauth2.Config{
 		ClientID:     tc.clientID,
 		ClientSecret: tc.clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tc.tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tc.tenantID),
@@ -316,6 +295,7 @@ func (tc *ClientImpl) Connect() error {
 						RetryDelay:    4 * time.Second,
 						MaxRetryDelay: 120 * time.Second,
 					},
+					Transport: getAuthClient(),
 				},
 			},
 		)
@@ -327,11 +307,21 @@ func (tc *ClientImpl) Connect() error {
 		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	httpClient := getHTTPClient()
+
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(TeamsDefaultScopes, "offline_access"))
 	if err != nil {
 		return err
 	}
-	tc.client = client
+
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
+	if err != nil {
+		return err
+	}
+
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	tc.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return nil
 }
@@ -2108,7 +2098,7 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),

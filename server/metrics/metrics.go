@@ -54,6 +54,7 @@ const (
 	DiscardedReasonInvalidWebhookSecret      = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
+	DiscardedReasonSelectiveSync             = "selective_sync"
 
 	WorkerMonitor          = "monitor"
 	WorkerSyncUsers        = "sync_users"

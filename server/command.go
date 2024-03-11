@@ -148,7 +148,10 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executePromoteUserCommand(args, parameters)
 	}
 
-	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
+	if p.getConfiguration().SyncLinkedChannels {
+		return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, disconnect, disconnect-bot and promote.")
+	}
+	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: connect, connect-bot, disconnect, disconnect-bot and promote.")
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
