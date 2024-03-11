@@ -410,7 +410,7 @@ func (p *Plugin) restart() {
 
 func (p *Plugin) generatePluginSecrets() error {
 	needSaveConfig := false
-	cfg := p.getConfiguration()
+	cfg := p.getConfiguration().Clone()
 	if cfg.WebhookSecret == "" {
 		secret, err := generateSecret()
 		if err != nil {
@@ -434,6 +434,7 @@ func (p *Plugin) generatePluginSecrets() error {
 		if err != nil {
 			return err
 		}
+		p.setConfiguration(cfg)
 		if appErr := p.API.SavePluginConfig(configMap); appErr != nil {
 			return appErr
 		}
