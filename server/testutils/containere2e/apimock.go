@@ -3,6 +3,8 @@ package containere2e
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -22,7 +24,7 @@ func NewMockClient(api string) (*MockClient, error) {
 }
 
 func (m *MockClient) init() error {
-	err := m.Get("/common/discovery/instance", map[string]any{
+	err := m.Get("init-discover-instance", "/common/discovery/instance", map[string]any{
 		"tenant_discovery_endpoint": "https://login.microsoftonline.com/d2888234-d303-4c94-8f45-c7348f089048/v2.0/.well-known/openid-configuration",
 		"api-version":               "1.1",
 		"metadata": []map[string]any{
@@ -37,7 +39,7 @@ func (m *MockClient) init() error {
 		return err
 	}
 
-	err = m.Get("/tenant-id/v2.0/.well-known/openid-configuration", map[string]any{
+	err = m.Get("init-openid-configure", "/tenant-id/v2.0/.well-known/openid-configuration", map[string]any{
 		"token_endpoint":                        "https://login.microsoftonline.com/d2888234-d303-4c94-8f45-c7348f089048/oauth2/v2.0/token",
 		"token_endpoint_auth_methods_supported": []string{"client_secret_post", "private_key_jwt", "client_secret_basic"},
 		"jwks_uri":                              "https://login.microsoftonline.com/d2888234-d303-4c94-8f45-c7348f089048/discovery/v2.0/keys",
@@ -66,7 +68,7 @@ func (m *MockClient) init() error {
 		return err
 	}
 
-	err = m.Post("/d2888234-d303-4c94-8f45-c7348f089048/oauth2/v2.0/token", map[string]any{
+	err = m.Post("init-oauth-token", "/d2888234-d303-4c94-8f45-c7348f089048/oauth2/v2.0/token", map[string]any{
 		"token_type":   "Bearer",
 		"expires_in":   3599,
 		"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
@@ -75,12 +77,12 @@ func (m *MockClient) init() error {
 		return err
 	}
 
-	err = m.Get("/v1.0/subscriptions", map[string]any{})
+	err = m.Get("init-subscriptions", "/v1.0/subscriptions", map[string]any{})
 	if err != nil {
 		return err
 	}
 
-	err = m.Post("/v1.0/subscriptions", map[string]any{
+	err = m.Post("init-crate-subscription", "/v1.0/subscriptions", map[string]any{
 		"@odata.context":            "https://graph.microsoft.com/v1.0/$metadata#subscriptions/$entity",
 		"id":                        uuid.New().String(),
 		"resource":                  "/test",
@@ -97,7 +99,7 @@ func (m *MockClient) init() error {
 		return err
 	}
 
-	err = m.Get("/v1.0/applications(appId='client-id')", map[string]any{
+	err = m.Get("init-applications", "/v1.0/applications(appId='client-id')", map[string]any{
 		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications/$entity",
 		"id":             "client-id",
 	})
@@ -108,24 +110,24 @@ func (m *MockClient) init() error {
 	return nil
 }
 
-func (m *MockClient) Get(url string, body map[string]any) error {
-	return m.Mock(http.MethodGet, url, http.StatusOK, body)
+func (m *MockClient) Get(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodGet, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) Post(url string, body map[string]any) error {
-	return m.Mock(http.MethodPost, url, http.StatusOK, body)
+func (m *MockClient) Post(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodPost, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) Put(url string, body map[string]any) error {
-	return m.Mock(http.MethodPut, url, http.StatusOK, body)
+func (m *MockClient) Put(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodPut, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) Delete(url string, body map[string]any) error {
-	return m.Mock(http.MethodDelete, url, http.StatusOK, body)
+func (m *MockClient) Delete(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodDelete, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) MockError(method string, url string) error {
-	return m.Mock(method, url, 401, map[string]any{
+func (m *MockClient) MockError(id string, method string, errorCode int, url string) error {
+	return m.Mock(method, id, url, errorCode, map[string]any{
 		"error": map[string]any{
 			"code":    "badRequest",
 			"message": "Test bad request",
@@ -138,12 +140,13 @@ func (m *MockClient) MockError(method string, url string) error {
 	})
 }
 
-func (m *MockClient) Mock(method string, url string, statusCode int, body map[string]any) error {
+func (m *MockClient) Mock(method string, id string, url string, statusCode int, body map[string]any) error {
 	bodyData, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
 	mockExpectation := map[string]any{
+		"id":       id,
 		"priority": 0,
 		"httpRequest": map[string]any{
 			"method": method,
@@ -189,4 +192,41 @@ func (m *MockClient) Reset() error {
 	defer resp.Body.Close()
 
 	return m.init()
+}
+
+func (m *MockClient) Assert(mockID string, times int) error {
+	mockExpectation := map[string]any{
+		"expectationId": map[string]string{
+			"id": mockID,
+		},
+		"times": map[string]int{
+			"atLeast": times,
+			"atMost":  times,
+		},
+	}
+	testMock, err := json.Marshal(mockExpectation)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", m.api+"/mockserver/verify", bytes.NewReader(testMock))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("invalid status code response: %d, error: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
