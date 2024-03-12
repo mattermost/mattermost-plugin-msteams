@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
@@ -220,7 +221,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, event := range lifecycleEvents.Value {
-		if event.ClientState != a.p.getConfiguration().WebhookSecret {
+		if subtle.ConstantTimeCompare([]byte(event.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) != 1 {
 			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
 			errors += "Invalid webhook secret"
 			continue
