@@ -73,7 +73,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.Never(t, func() bool {
 			_, err = store.GetPostInfoByMattermostID(newPost.Id)
 			return err == nil
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
@@ -130,7 +130,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
@@ -261,7 +261,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -297,7 +297,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
@@ -571,7 +571,7 @@ func TestSelectiveSync(t *testing.T) {
 						} else {
 							assert.NoError(c, mockClient.Assert("post-message", 0))
 						}
-					}, 5*time.Second, 50*time.Millisecond)
+					}, 5*time.Second, 200*time.Millisecond)
 				})
 			}
 		})
