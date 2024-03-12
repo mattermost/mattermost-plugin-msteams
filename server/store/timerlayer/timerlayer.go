@@ -273,20 +273,6 @@ func (s *TimerLayer) GetSubscriptionType(subscriptionID string) (string, error) 
 	return result, err
 }
 
-func (s *TimerLayer) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetSubscriptionsLastActivityAt()
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSubscriptionsLastActivityAt", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	start := time.Now()
 
@@ -649,6 +635,20 @@ func (s *TimerLayer) TeamsToMattermostUserID(userID string) (string, error) {
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.TeamsToMattermostUserID", success, elapsed)
 	return result, err
+}
+
+func (s *TimerLayer) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error {
+	start := time.Now()
+
+	err := s.Store.UpdateSubscriptionData(subscriptionID, newSubscriptionID, secret, expiresOn, certificate, syncNeeded)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionData", success, elapsed)
+	return err
 }
 
 func (s *TimerLayer) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {

@@ -144,6 +144,10 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
+	if err := s.addColumn(subscriptionsTableName, "syncNeeded", "BOOLEAN NOT NULL DEFAULT False"); err != nil {
+		return err
+	}
+
 	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
 }
 
@@ -600,6 +604,20 @@ func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubsc
 	return tx.Commit()
 }
 
+func (s *SQLStore) UpdateSubscriptionData(subscriptionID string, newSubscriptionID string, secret string, expiresOn time.Time, certificate string, syncNeeded bool) error {
+	query := s.getQueryBuilder().Update(subscriptionsTableName).
+		Set("subscriptionID", newSubscriptionID).
+		Set("secret", secret).
+		Set("expiresOn", expiresOn.UnixMicro()).
+		Set("certificate", certificate).
+		Set("syncNeeded", syncNeeded).
+		Where(sq.Eq{"subscriptionID": subscriptionID})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	query := s.getQueryBuilder().Update(subscriptionsTableName).Set("expiresOn", expiresOn.UnixMicro()).Where(sq.Eq{"subscriptionID": subscriptionID})
 	_, err := query.Exec()
@@ -614,6 +632,7 @@ func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastA
 		Update(subscriptionsTableName).
 		Set("lastActivityAt", lastActivityAt.UnixMicro()).
 		Where(sq.And{
+			sq.Eq{"syncNeeded": false},
 			sq.Eq{"subscriptionID": subscriptionID},
 			sq.Or{sq.Lt{"lastActivityAt": lastActivityAt.UnixMicro()}, sq.Eq{"lastActivityAt": nil}},
 		})
@@ -622,32 +641,6 @@ func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastA
 		return err
 	}
 	return nil
-}
-
-func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	query := s.getQueryBuilder().
-		Select("subscriptionID, lastActivityAt").
-		From(subscriptionsTableName).
-		Where(
-			sq.NotEq{"lastActivityAt": nil},
-			sq.NotEq{"lastActivityAt": 0},
-		)
-	rows, err := query.Query()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := map[string]time.Time{}
-	for rows.Next() {
-		var lastActivityAt int64
-		var subscriptionID string
-		if scanErr := rows.Scan(&subscriptionID, &lastActivityAt); scanErr != nil {
-			return nil, scanErr
-		}
-		result[subscriptionID] = time.UnixMicro(lastActivityAt)
-	}
-	return result, nil
 }
 
 func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
@@ -718,6 +711,19 @@ func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
 		return "", scanErr
 	}
 	return subscriptionType, nil
+}
+
+func (s *SQLStore) GetSubscriptionLastActivity(subscriptionID string) (*time.Time, error) {
+	row := s.getQueryBuilder().Select("lastActivityAt").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID}).QueryRow()
+	var lastActivityAt *int64
+	if scanErr := row.Scan(&lastActivityAt); scanErr != nil {
+		return nil, scanErr
+	}
+	if lastActivityAt == nil {
+		return nil, nil
+	}
+	result := time.UnixMicro(*lastActivityAt)
+	return &result, nil
 }
 
 func (s *SQLStore) StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error {
