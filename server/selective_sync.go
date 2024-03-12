@@ -28,7 +28,7 @@ func (p *Plugin) ChatMembersSpanPlatforms(members model.ChannelMembers) (bool, *
 			return false, appErr
 		}
 
-		if isRemoteUser(user) {
+		if p.IsRemoteUser(user) {
 			// Synthetic users are always remote.
 			atLeastOneRemoteUser = true
 		} else if p.getPrimaryPlatform(user.Id) == PreferenceValuePlatformMSTeams {

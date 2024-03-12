@@ -99,7 +99,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 	return nil
 }
 
-func (s *SQLStore) Init() error {
+func (s *SQLStore) Init(remoteID string) error {
 	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
 		return err
 	}
@@ -144,7 +144,16 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
+	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
+	}
+
+	if remoteID != "" {
+		if err := s.runMigrationRemoteID(remoteID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
