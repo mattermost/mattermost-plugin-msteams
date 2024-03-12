@@ -117,7 +117,6 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	options := []mmcontainer.MattermostCustomizeRequestOption{
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithLogConsumers(&tLogConsumer{t: t}),
-		mmcontainer.WithEnv("MM_EXPERIMENTALSETTINGS_ENABLESHAREDCHANNELS", "true"),
 		mmcontainer.WithNetwork(newNetwork),
 	}
 	options = append(options, extraOptions...)

@@ -498,6 +498,7 @@ func (p *Plugin) onActivate() error {
 		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
 		}
+		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
 	}
 
 	if p.store == nil {

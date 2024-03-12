@@ -382,7 +382,7 @@ func TestSelectiveSync(t *testing.T) {
 	defer conn.Close()
 
 	// Mark user as synthetic
-	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters) WHERE Username = 'msteams_synthetic'")
+	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters WHERE name='ms_teams_connect') WHERE Username = 'msteams_synthetic'")
 	require.NoError(t, err)
 
 	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
