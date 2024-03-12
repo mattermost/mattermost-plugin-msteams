@@ -273,20 +273,6 @@ func (s *TimerLayer) GetSizeOfInvitedUsers() (int, error) {
 	return result, err
 }
 
-func (s *TimerLayer) GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff time.Time) (int, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfUnresponsiveInvitedUsers", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetSizeOfWhitelist() (int, error) {
 	start := time.Now()
 

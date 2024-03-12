@@ -135,17 +135,11 @@
           "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
           "default": 1000
         },{
-          "key": "connectedUsersInviteTimespanDays",
-          "display_name": "Automatic Connection Invites: Timespan (in Days)",
+          "key": "connectedUsersInvitePoolSize",
+          "display_name": "Connection Invites: Max Pending Invitations",
           "type": "number",
-          "help_text": "When enabled, connection invite DMs will be sent to users when they login. Set to the number of weekdays to spread connection invites over, or how many days (excluding weekends) it should take to get to Max Connected Users. (Set to 0 to disable connection invites.)",
+          "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When enabled, connection invite DMs will be sent to users as they login, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. (Leave empty to disable connection invites.)",
           "default": 0
-        },{
-          "key": "connectedUsersInviteDaysUntilUnresponsive",
-          "display_name": "Automatic Connection Invites: Days after which to consider an invite ignored.",
-          "type": "number",
-          "help_text": "The number of days to wait before moving on to invite other users. Once invited, users can connect at any time. If there are considerable ignored invites still pending after Max Connected Users is reached, it is possible that there will be more connected users than Max Connected Users.",
-          "default": 5
         },{
             "key": "automaticallyPromoteSyntheticUsers",
             "display_name": "Automatically Promote Synthetic Users",

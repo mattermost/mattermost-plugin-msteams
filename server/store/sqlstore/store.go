@@ -1061,27 +1061,6 @@ func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
 	return result, nil
 }
 
-func (s *SQLStore) GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff time.Time) (int, error) {
-	query := s.getQueryBuilder().
-		Select("count(*)").
-		From(invitedUsersTableName).
-		Where(sq.Lt{"invitePendingSince": unresponsiveCutoff.UnixMicro()})
-	rows, err := query.Query()
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
-	var result int
-	if rows.Next() {
-		if scanErr := rows.Scan(&result); scanErr != nil {
-			return 0, scanErr
-		}
-	}
-
-	return result, nil
-}
-
 func hashKey(prefix, hashableKey string) string {
 	if hashableKey == "" {
 		return prefix

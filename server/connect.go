@@ -9,6 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	earlyAdopterThreshold = 1000
+)
+
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
 	if err != nil {
@@ -23,14 +27,23 @@ func (p *Plugin) botSendDirectMessage(userID, message string) error {
 }
 
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
-	now := time.Now()
+	if p.getConfiguration().ConnectedUsersInvitePoolSize == 0 {
+		// connection invites disabled
+		return false, nil
+	}
+	var nWhitelisted int
 	var pendingSince time.Time
-	var lastSent time.Time
-	user, _ := p.apiClient.User.Get(userID)
+	now := time.Now()
+
+	user, err := p.apiClient.User.Get(userID)
+	if err != nil {
+		p.API.LogWarn("Error getting user", "user_id", userID, "error", err.Error())
+		return false, err
+	}
 
 	userInWhitelist, err := p.store.IsUserPresentInWhitelist(user.Id)
 	if err != nil {
-		p.API.LogWarn("Error getting user in whitelist", "error", err.Error())
+		p.API.LogWarn("Error getting user in whitelist", "user_id", userID, "error", err.Error())
 		return false, err
 	}
 
@@ -39,28 +52,34 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, nil
 	}
 
-	invitedUser, _ := p.store.GetInvitedUser(user.Id)
+	invitedUser, err := p.store.GetInvitedUser(user.Id)
+	if err != nil {
+		p.API.LogWarn("Error getting user invite", "user_id", userID, "error", err.Error())
+		return false, err
+	}
 
 	if invitedUser != nil {
 		pendingSince = invitedUser.InvitePendingSince
-		lastSent = invitedUser.InviteLastSentAt
 	} else {
-		moreInvitesAllowed, err := p.moreInvitesAllowed(now)
+		moreInvitesAllowed, n, err := p.moreInvitesAllowed()
 		if err != nil {
-			return false, errors.Wrapf(err, "Error checking if connection invite can be sent to user_id: %s", userID)
+			p.API.LogWarn("Error checking invite pool size", "error", err.Error())
+			return false, errors.Wrapf(err, "Error checking invite pool size")
 		}
 
 		if !moreInvitesAllowed {
-			// user not connected, but invite threshold already met
+			// user not connected, but invite threshold is presently met
 			return false, nil
 		}
+
+		nWhitelisted = n
 	}
 
-	if !p.shouldSendInviteMessage(pendingSince, lastSent, now, user.GetTimezoneLocation()) {
+	if !p.shouldSendInviteMessage(pendingSince, now, user.GetTimezoneLocation()) {
 		return false, nil
 	}
 
-	if err := p.SendInviteMessage(user.Id, pendingSince, now); err != nil {
+	if err := p.SendInviteMessage(user, pendingSince, now, nWhitelisted); err != nil {
 		p.API.LogWarn("Error sending connection invite", "error", err.Error())
 		return false, err
 	}
@@ -68,8 +87,8 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	return true, nil
 }
 
-func (p *Plugin) SendInviteMessage(userID string, pendingSince time.Time, currentTime time.Time) error {
-	invitedUser := &storemodels.InvitedUser{ID: userID, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
+func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time, nWhitelisted int) error {
+	invitedUser := &storemodels.InvitedUser{ID: user.Id, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
 	if invitedUser.InvitePendingSince.IsZero() {
 		invitedUser.InvitePendingSince = currentTime
 	}
@@ -81,51 +100,49 @@ func (p *Plugin) SendInviteMessage(userID string, pendingSince time.Time, curren
 
 	connectURL := p.GetURL() + "/connect"
 
-	return p.botSendDirectMessage(userID, fmt.Sprintf("You're invited to be an early adopter for the MS Teams connected experience. [Click here to connect your account](%s)", connectURL))
+	var message string
+	if nWhitelisted < earlyAdopterThreshold {
+		message = fmt.Sprintf("@%s, you're invited to be an early adopter for the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL)
+	} else {
+		message = fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL)
+	}
+	return p.botSendDirectMessage(user.Id, message)
 }
 
 func (p *Plugin) shouldSendInviteMessage(
 	pendingSince time.Time,
-	lastSent time.Time,
 	currentTime time.Time,
 	timezone *time.Location,
 ) bool {
-	firstSentTime := pendingSince.In(timezone)
-	lastSentTime := lastSent.In(timezone)
 	now := currentTime.In(timezone)
 
-	currentYear, currentWeek := now.ISOWeek()
-	currentlyWeekday := now.Weekday()
-	lastSentYear, lastSentWeek := lastSentTime.ISOWeek()
-
-	if currentlyWeekday == time.Saturday || currentlyWeekday == time.Sunday {
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
 		// don't send on weekends
 		return false
 	}
 
-	notSent := firstSentTime.IsZero()
-	isFirstLoginOfTheWeek := currentYear != lastSentYear || currentWeek != lastSentWeek
+	if !pendingSince.IsZero() {
+		// only send once
+		return false
+	}
 
-	return notSent || isFirstLoginOfTheWeek
+	return true
 }
 
-func (p *Plugin) moreInvitesAllowed(now time.Time) (bool, error) {
+func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	nWhitelisted, err := p.store.GetSizeOfWhitelist()
 	if err != nil {
-		return false, errors.Wrapf(err, "Error in getting the size of whitelist")
+		return false, 0, errors.Wrapf(err, "Error in getting the size of whitelist")
 	}
 	nInvited, err := p.store.GetSizeOfInvitedUsers()
 	if err != nil {
-		return false, errors.Wrapf(err, "Error in getting the number of invited users")
+		return false, 0, errors.Wrapf(err, "Error in getting the number of invited users")
 	}
 
-	unresponsiveCutoff := now.Add((-time.Duration(p.getConfiguration().ConnectedUsersInviteDaysUntilUnresponsive) * 24 * time.Hour))
-	nUnresponsive, err := p.store.GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff)
-	if err != nil {
-		return false, errors.Wrapf(err, "Error in getting the number of unresponsive invited users")
+	if (nWhitelisted + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+		// only invite up to max connected
+		return false, 0, nil
 	}
 
-	dailyThreshold := (p.getConfiguration().ConnectedUsersAllowed - nWhitelisted) / p.getConfiguration().ConnectedUsersInviteTimespanDays
-
-	return (nInvited - nUnresponsive) < dailyThreshold, nil
+	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nWhitelisted, nil
 }

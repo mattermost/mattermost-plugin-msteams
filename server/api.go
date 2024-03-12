@@ -342,7 +342,7 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
-		a.p.API.LogWarn("Error sending connection invite", "error", err.Error())
+		a.p.API.LogWarn("Error in connection invite flow", "error", err.Error())
 	}
 }
 

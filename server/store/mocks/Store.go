@@ -372,27 +372,6 @@ func (_m *Store) GetSizeOfInvitedUsers() (int, error) {
 	return r0, r1
 }
 
-// GetSizeOfUnresponsiveInvitedUsers provides a mock function with given fields: unresponsiveCutoff
-func (_m *Store) GetSizeOfUnresponsiveInvitedUsers(unresponsiveCutoff time.Time) (int, error) {
-	ret := _m.Called(unresponsiveCutoff)
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func(time.Time) int); ok {
-		r0 = rf(unresponsiveCutoff)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(time.Time) error); ok {
-		r1 = rf(unresponsiveCutoff)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetSizeOfWhitelist provides a mock function with given fields:
 func (_m *Store) GetSizeOfWhitelist() (int, error) {
 	ret := _m.Called()
