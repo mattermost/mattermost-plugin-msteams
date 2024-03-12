@@ -221,7 +221,8 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, event := range lifecycleEvents.Value {
-		if subtle.ConstantTimeCompare([]byte(event.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) != 1 {
+		// Check the webhook secret using ContantTimeCompare to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(event.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) == 0 {
 			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
 			errors += "Invalid webhook secret"
 			continue
