@@ -506,13 +506,13 @@ func (_m *Store) GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	return r0, r1
 }
 
-// Init provides a mock function with given fields:
-func (_m *Store) Init() error {
-	ret := _m.Called()
+// Init provides a mock function with given fields: remoteID
+func (_m *Store) Init(remoteID string) error {
+	ret := _m.Called(remoteID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(remoteID)
 	} else {
 		r0 = ret.Error(0)
 	}

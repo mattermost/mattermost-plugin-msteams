@@ -307,6 +307,20 @@ func (_m *PluginIface) GetURL() string {
 	return r0
 }
 
+// IsRemoteUser provides a mock function with given fields: user
+func (_m *PluginIface) IsRemoteUser(user *model.User) bool {
+	ret := _m.Called(user)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*model.User) bool); ok {
+		r0 = rf(user)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewPluginIface interface {
 	mock.TestingT
 	Cleanup(func())

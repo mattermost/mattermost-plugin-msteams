@@ -10,7 +10,7 @@ import (
 )
 
 type Store interface {
-	Init() error
+	Init(remoteID string) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
