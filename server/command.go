@@ -632,6 +632,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user.RemoteId = nil
 	user.Username = newUsername
+	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)
