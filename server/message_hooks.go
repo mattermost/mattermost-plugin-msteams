@@ -37,7 +37,71 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	return ""
 }
 
-func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
+func (p *Plugin) messageDeletedHandler(post *model.Post) {
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return
+	}
+
+	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
+
+	if post.Props != nil {
+		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+			return
+		}
+	}
+
+	if post.IsSystemMessage() {
+		return
+	}
+
+	if isDirectOrGroupMessage {
+		if !p.getConfiguration().SyncDirectMessages {
+			return
+		}
+
+		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
+		if appErr != nil {
+			return
+		}
+
+		if p.getConfiguration().SelectiveSync {
+			shouldSync, appErr := p.ChatMembersSpanPlatforms(members)
+			if appErr != nil {
+				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+				return
+			} else if !shouldSync {
+				return
+			}
+		}
+
+		dstUsers := []string{}
+		for _, m := range members {
+			dstUsers = append(dstUsers, m.UserId)
+		}
+
+		if err := p.DeleteChat(post.UserId, post); err != nil {
+			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+		}
+	} else {
+		link, err := p.store.GetLinkByChannelID(post.ChannelId)
+		if err != nil || link == nil {
+			return
+		}
+
+		if !p.getConfiguration().SyncLinkedChannels {
+			return
+		}
+
+		user, _ := p.API.GetUser(post.UserId)
+
+		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
+			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+		}
+	}
+}
+
+func (p *Plugin) messagePostedHandler(post *model.Post) {
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {
 		return
@@ -103,16 +167,13 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 }
 
-func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) {
 	if !p.getConfiguration().SyncReactions {
 		return
 	}
 
-	updateRequired := true
-	if c.RequestId == "" {
-		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
-		updateRequired = !ignoreHookForReaction
-	}
+	_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
+	updateRequired := !ignoreHookForReaction
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
@@ -147,7 +208,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	}
 }
 
-func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
+func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) {
 	if !p.getConfiguration().SyncReactions {
 		return
 	}
@@ -189,12 +250,9 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	}
 }
 
-func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
-	updateRequired := true
-	if c.RequestId == "" {
-		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
-		updateRequired = !ignoreHook
-	}
+func (p *Plugin) messageUpdatedHandler(newPost *model.Post) {
+	_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+	updateRequired := !ignoreHook
 
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
@@ -669,10 +727,15 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 	return nil
 }
 
-func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
-	client, err := p.GetClientForUser(user.Id)
+func (p *Plugin) DeleteChat(userId string, post *model.Post) error {
+	client, err := p.GetClientForUser(userId)
 	if err != nil {
-		p.handlePromptForConnection(user.Id, post.ChannelId)
+		p.handlePromptForConnection(userId, post.ChannelId)
+		return err
+	}
+
+	chatID, err := p.GetChatIDForChannel(client, post.ChannelId)
+	if err != nil {
 		return err
 	}
 

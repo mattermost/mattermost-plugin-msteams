@@ -885,8 +885,6 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 }
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
-	now := model.GetMillis()
-
 	var resp model.SyncResponse
 	for _, post := range msg.Posts {
 		isUpdate := post.CreateAt != post.UpdateAt
@@ -894,11 +892,11 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 
 		switch {
 		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionCreated, now-post.CreateAt)
+			p.messagePostedHandler(post)
 		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionUpdated, now-post.UpdateAt)
+			p.messageUpdatedHandler(post)
 		default:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionDeleted, now-post.DeleteAt)
+			p.messageDeletedHandler(post)
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
@@ -912,11 +910,12 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 
 		switch {
 		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionCreated, now-reaction.CreateAt)
+			p.reactionAddedHandler(reaction)
 		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionUpdated, now-reaction.UpdateAt)
+			p.reactionRemovedHandler(reaction)
+			p.reactionAddedHandler(reaction)
 		default:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionDeleted, now-reaction.DeleteAt)
+			p.reactionRemovedHandler(reaction)
 		}
 
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
