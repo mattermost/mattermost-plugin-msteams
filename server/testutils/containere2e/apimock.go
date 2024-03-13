@@ -122,6 +122,10 @@ func (m *MockClient) Post(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodPost, id, url, http.StatusOK, body)
 }
 
+func (m *MockClient) Patch(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodPatch, id, url, http.StatusOK, body)
+}
+
 func (m *MockClient) Put(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodPut, id, url, http.StatusOK, body)
 }
@@ -163,6 +167,84 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 				"contentType": "application/json",
 				"string":      string(bodyData),
 			},
+		},
+	}
+
+	testMock, err := json.Marshal(mockExpectation)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("PUT", m.api+"/mockserver/expectation", bytes.NewReader(testMock))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (m *MockClient) MockBatch(id string, responses ...map[string]any) error {
+	method := http.MethodPost
+	url := "/v1.0/$batch"
+
+	allResponses := []map[string]any{}
+	for idx, response := range responses {
+		allResponses = append(allResponses, map[string]any{
+			"id":     fmt.Sprintf("{{REQUEST_ID_%d}}", idx),
+			"status": 200,
+			"headers": map[string]any{
+				"Content-Type":  "application/json",
+				"OData-Version": "4.0",
+			},
+			"body": response,
+		})
+	}
+
+	result := map[string]any{
+		"responses": allResponses,
+	}
+
+	bodyData, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+
+	template := fmt.Sprintf(`
+		let bodyData = json.Parse(request.body);
+		let result = json.Stringify({
+			statusCode: 200,
+			body: {
+				type: 'STRING',
+				contentType: 'application/json',
+				string: '%s'
+			}
+		});
+	`, string(bodyData))
+
+	for idx := range responses {
+		template += fmt.Sprintf("result = result.replace(/\"{{REQUEST_ID_%d}}\"/g, bodyData.responses[%d].id);\n", idx, idx)
+	}
+	template += "return result"
+
+	templateData, err := json.Marshal(template)
+	if err != nil {
+		return err
+	}
+
+	mockExpectation := map[string]any{
+		"id":       id,
+		"priority": 10,
+		"httpRequest": map[string]any{
+			"method": method,
+			"path":   url,
+		},
+		"httpResponseTemplate": map[string]any{
+			"templateType": "JAVASCRIPT",
+			"template":     string(templateData),
 		},
 	}
 
