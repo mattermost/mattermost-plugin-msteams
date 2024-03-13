@@ -52,6 +52,7 @@ type PluginIface interface {
 	GenerateRandomPassword() string
 	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
+	IsRemoteUser(user *model.User) bool
 }
 
 type ActivityHandler struct {
@@ -596,7 +597,7 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 		return false
 	}
 
-	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+	return ah.plugin.IsRemoteUser(user)
 }
 
 func IsDirectMessage(chatID string) bool {

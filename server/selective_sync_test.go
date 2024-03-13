@@ -20,6 +20,7 @@ func setupPlugin(t *testing.T) *Plugin {
 	t.Helper()
 
 	p := &Plugin{}
+	p.remoteID = "remote-id"
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -122,11 +123,11 @@ func TestChatSpansPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user2.RemoteId = model.NewString(model.NewId())
+		user2.RemoteId = model.NewString("remote-id")
 		user2, appErr = p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
@@ -145,7 +146,7 @@ func TestChatSpansPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
@@ -196,15 +197,15 @@ func TestChatSpansPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user2.RemoteId = model.NewString(model.NewId())
+		user2.RemoteId = model.NewString("remote-id")
 		user2, appErr = p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
-		user3.RemoteId = model.NewString(model.NewId())
+		user3.RemoteId = model.NewString("remote-id")
 		user3, appErr = p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
@@ -224,11 +225,11 @@ func TestChatSpansPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user3.RemoteId = model.NewString(model.NewId())
+		user3.RemoteId = model.NewString("remote-id")
 		user3, appErr = p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
@@ -296,11 +297,11 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user2.RemoteId = model.NewString(model.NewId())
+		user2.RemoteId = model.NewString("remote-id")
 		user2, appErr = p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
@@ -319,7 +320,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
@@ -374,15 +375,15 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user2.RemoteId = model.NewString(model.NewId())
+		user2.RemoteId = model.NewString("remote-id")
 		user2, appErr = p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
-		user3.RemoteId = model.NewString(model.NewId())
+		user3.RemoteId = model.NewString("remote-id")
 		user3, appErr = p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
@@ -403,11 +404,11 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 		var appErr *model.AppError
 
-		user1.RemoteId = model.NewString(model.NewId())
+		user1.RemoteId = model.NewString("remote-id")
 		user1, appErr = p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		user3.RemoteId = model.NewString(model.NewId())
+		user3.RemoteId = model.NewString("remote-id")
 		user3, appErr = p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 

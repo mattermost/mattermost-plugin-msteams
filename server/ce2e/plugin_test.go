@@ -15,6 +15,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const pluginID = "com.mattermost.msteams-sync"
+
 var fakeToken = oauth2.Token{Expiry: time.Now().Add(1 * time.Hour), AccessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjozMDE2MjM5MDIyfQ.Kilb7fc4QwqfCad501vbAc861Ik1-30ytRtk8ZxEpgM"}
 
 func setUserDefaultPlatform(t *testing.T, mattermost *mmcontainer.MattermostContainer, user *model.User, platform string) {
@@ -24,7 +26,7 @@ func setUserDefaultPlatform(t *testing.T, mattermost *mmcontainer.MattermostCont
 	require.NoError(t, err)
 	preferences = append(preferences, model.Preference{
 		UserId:   user.Id,
-		Category: "pp_com.mattermost.msteams-sync",
+		Category: "pp_" + pluginID,
 		Name:     "platform",
 		Value:    platform,
 	})
@@ -379,11 +381,11 @@ func TestSelectiveSync(t *testing.T) {
 
 	conn, err := mattermost.PostgresConnection(context.Background())
 	require.NoError(t, err)
+	defer conn.Close()
 
 	// Mark user as synthetic
-	_, err = conn.Exec("UPDATE Users SET RemoteId = 'syntetic-user' WHERE Id = $1", synthetic.Id)
+	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters WHERE pluginid=$1) WHERE Username = 'msteams_synthetic'", pluginID)
 	require.NoError(t, err)
-	defer conn.Close()
 
 	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
 	require.NoError(t, err)
@@ -489,7 +491,7 @@ func TestSelectiveSync(t *testing.T) {
 	for _, enabledSelectiveSync := range []bool{false, true} {
 		config, _, err := adminClient.GetConfig(context.Background())
 		require.NoError(t, err)
-		config.PluginSettings.Plugins["com.mattermost.msteams-sync"]["selectiveSync"] = enabledSelectiveSync
+		config.PluginSettings.Plugins[pluginID]["selectiveSync"] = enabledSelectiveSync
 		_, _, err = adminClient.UpdateConfig(context.Background(), config)
 		require.NoError(t, err)
 
