@@ -21,7 +21,7 @@ function getSettings(serverRoute: string, disabled: boolean) {
                 title: 'Connect your Microsoft Teams Account',
                 text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
                 buttonText: 'Connect account',
-                onClick: () => Client.connect(),
+                onClick: () => window.open(`${Client.url}/connect`),
             } : undefined, //eslint-disable-line no-undefined
         sections: [{
             settings: [{
@@ -60,7 +60,7 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
-        let settingsEnabled = true;
+        let settingsEnabled = false;
         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
