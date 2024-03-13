@@ -107,6 +107,10 @@ func (m *MockClient) init() error {
 		return err
 	}
 
+	if err = m.MockNotFound(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -147,7 +151,7 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 	}
 	mockExpectation := map[string]any{
 		"id":       id,
-		"priority": 0,
+		"priority": 10,
 		"httpRequest": map[string]any{
 			"method": method,
 			"path":   url,
@@ -158,6 +162,38 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 				"type":        "STRING",
 				"contentType": "application/json",
 				"string":      string(bodyData),
+			},
+		},
+	}
+
+	testMock, err := json.Marshal(mockExpectation)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("PUT", m.api+"/mockserver/expectation", bytes.NewReader(testMock))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (m *MockClient) MockNotFound() error {
+	mockExpectation := map[string]any{
+		"id":          "init-not-found",
+		"priority":    0,
+		"httpRequest": map[string]any{},
+		"httpResponse": map[string]any{
+			"statusCode": http.StatusNotFound,
+			"body": map[string]any{
+				"type":        "STRING",
+				"contentType": "text/plain",
+				"string":      "",
 			},
 		},
 	}

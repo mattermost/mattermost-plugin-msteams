@@ -1,6 +1,8 @@
 module github.com/mattermost/mattermost-plugin-msteams
 
-go 1.20
+go 1.21
+
+toolchain go1.21.6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1
@@ -24,10 +26,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.8.4
-	github.com/testcontainers/testcontainers-go v0.28.0
-	github.com/testcontainers/testcontainers-go/modules/mockserver v0.28.0
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.28.0
+	github.com/stretchr/testify v1.9.0
+	github.com/testcontainers/testcontainers-go v0.29.1
+	github.com/testcontainers/testcontainers-go/modules/mockserver v0.29.1
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.29.1
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
 	golang.org/x/net v0.20.0
 	golang.org/x/oauth2 v0.16.0
@@ -53,7 +55,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
-	github.com/docker/docker v25.0.2+incompatible // indirect
+	github.com/docker/docker v25.0.3+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dyatlov/go-opengraph/opengraph v0.0.0-20220524092352-606d7b1e5f8a // indirect
@@ -99,7 +101,7 @@ require (
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/oov/psd v0.0.0-20220121172623-5db5eafcecbb // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
+	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
@@ -112,7 +114,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/std-uritemplate/std-uritemplate/go v0.0.50 // indirect
-	github.com/stretchr/objx v0.5.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tinylib/msgp v1.1.9 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -132,7 +134,7 @@ require (
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/image v0.8.0 // indirect
-	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect

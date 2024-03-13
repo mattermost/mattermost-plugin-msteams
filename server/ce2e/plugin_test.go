@@ -553,6 +553,29 @@ func TestSelectiveSync(t *testing.T) {
 				})
 				require.NoError(t, err)
 
+				require.NoError(t, mockClient.Get("get-posted-message", "/v1.0/chats/"+newDMID+"/messages/"+newPostID, map[string]any{
+					"id":                   newPostID,
+					"messageType":          "message",
+					"createdDateTime":      time.Now().Format(time.RFC3339),
+					"lastModifiedDateTime": time.Now().Format(time.RFC3339),
+					"from": map[string]any{
+						"user": map[string]any{
+							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
+							"id":               "ms-" + tc.fromUser.Username,
+							"displayName":      tc.fromUser.Username,
+							"userIdentityType": "aadUser",
+							"tenantId":         "tenant-id",
+						},
+					},
+					"body": map[string]any{
+						"contentType": "text",
+						"content":     "Hello World",
+					},
+					"channelIdentity": map[string]any{
+						"channelId": newDMID,
+					},
+				}))
+
 				post := model.Post{
 					CreateAt:  model.GetMillis(),
 					UpdateAt:  model.GetMillis(),
@@ -562,7 +585,7 @@ func TestSelectiveSync(t *testing.T) {
 				}
 
 				t.Run(tc.name, func(t *testing.T) {
-					_, _, err = client.CreatePost(context.Background(), &post)
+					newPost, _, err := client.CreatePost(context.Background(), &post)
 					require.NoError(t, err)
 
 					require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -572,6 +595,27 @@ func TestSelectiveSync(t *testing.T) {
 							assert.NoError(c, mockClient.Assert("post-message", 0))
 						}
 					}, 5*time.Second, 50*time.Millisecond)
+
+					t.Run("reply", func(t *testing.T) {
+						reply := model.Post{
+							CreateAt:  model.GetMillis(),
+							UpdateAt:  model.GetMillis(),
+							UserId:    tc.fromUser.Id,
+							ChannelId: dm.Id,
+							Message:   "reply",
+							RootId:    newPost.Id,
+						}
+						_, _, err = client.CreatePost(context.Background(), &reply)
+						require.NoError(t, err)
+
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("post-message", 2))
+							} else {
+								assert.NoError(c, mockClient.Assert("post-message", 0))
+							}
+						}, 5*time.Second, 50*time.Millisecond)
+					})
 				})
 			}
 		})
