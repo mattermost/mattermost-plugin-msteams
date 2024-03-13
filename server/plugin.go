@@ -524,6 +524,12 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
+	ids, err := p.store.ListDMsGMsToConnect()
+	if err != nil {
+		return err
+	}
+	p.API.LogError("******************IDS To connect channels ******************", "ids", ids)
+
 	if !p.getConfiguration().DisableSyncMsg {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
@@ -881,6 +887,7 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
 	var resp model.SyncResponse
+	p.API.LogError("******************Sync Message****************", "msg", msg)
 	for _, post := range msg.Posts {
 		isUpdate := post.CreateAt != post.UpdateAt
 		isDelete := post.DeleteAt != 0

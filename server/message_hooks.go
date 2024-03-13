@@ -37,6 +37,37 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	return ""
 }
 
+func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return
+	}
+
+	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
+	if !isDirectOrGroupMessage {
+		return
+	}
+
+	if _, err := p.API.ShareChannel(&model.SharedChannel{
+		ChannelId: channel.Id,
+		Home:      true,
+		CreatorId: p.userID,
+		RemoteId:  p.remoteID,
+		ShareName: channel.Id,
+	}); err != nil {
+		p.API.LogError("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
+	}
+	if err := p.API.InviteRemoteToChannel(channel.Id, p.remoteID, p.userID, false); err != nil {
+		p.API.LogError("Unable to invite channel", "channel_id", channel.Id, "error", err.Error())
+	}
+
+	err := p.API.SyncSharedChannel(post.ChannelId)
+	if err != nil {
+		p.API.LogWarn("Failed to sync shared channel", "error", err.Error())
+	}
+	p.API.LogWarn("Synced shared channel", "channel_id", post.ChannelId)
+}
+
 func (p *Plugin) messageDeletedHandler(post *model.Post) {
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {

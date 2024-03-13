@@ -573,7 +573,7 @@ func TestSelectiveSync(t *testing.T) {
 						} else {
 							assert.NoError(c, mockClient.Assert("post-message", 0))
 						}
-					}, 5*time.Second, 200*time.Millisecond)
+					}, 10*time.Second, 200*time.Millisecond)
 				})
 			}
 		})

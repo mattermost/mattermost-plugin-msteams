@@ -37,6 +37,25 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID s
 
 func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
 	_ = p.updateAutomutingOnChannelCreated(channel)
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		if _, err := p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: channel.Id,
+			Home:      true,
+			CreatorId: p.userID,
+			RemoteId:  p.remoteID,
+			ShareName: channel.Id,
+		}); err != nil {
+			p.API.LogError("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
+		}
+		if err := p.API.InviteRemoteToChannel(channel.Id, p.remoteID, p.userID, false); err != nil {
+			p.API.LogError("Unable to invite channel", "channel_id", channel.Id, "error", err.Error())
+		}
+		if err := p.API.SyncSharedChannel(channel.Id); err != nil {
+			p.API.LogError("Unable to force sync channel", "channel_id", channel.Id, "error", err.Error())
+		}
+		p.API.LogError("Shared channel", "channel_id", channel.Id)
+	}
 }
 
 func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error {

@@ -981,6 +981,27 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	return result != "", nil
 }
 
+func (s *SQLStore) ListDMsGMsToConnect() ([]string, error) {
+	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.Eq{"scr.remoteid": nil}).Where(sq.Or{sq.Eq{"c.Type": "G"}, sq.Eq{"c.Type": "D"}})
+	fmt.Println(query.ToSql())
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []string
+	if rows.Next() {
+		var result string
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return nil, scanErr
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
 func hashKey(prefix, hashableKey string) string {
 	if hashableKey == "" {
 		return prefix
