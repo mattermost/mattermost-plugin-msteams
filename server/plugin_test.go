@@ -369,7 +369,7 @@ func TestSyncUsers(t *testing.T) {
 				}).Return([]*model.User{
 					testutils.GetRemoteUser(model.SystemAdminRoleId, "test@test.com", "remote-id"),
 				}, nil).Times(1)
-				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetRemoteUser(model.SystemAdminRoleId, "test@test.com", "remote-id"), nil)
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetRemoteUser(model.SystemAdminRoleId, "test@test.com", "remote-id"), nil).Once()
 				api.On("UpdateUser", mock.MatchedBy(func(u *model.User) bool {
 					return u.EmailVerified == true &&
 						u.FirstName == "mockDisplayName" &&
