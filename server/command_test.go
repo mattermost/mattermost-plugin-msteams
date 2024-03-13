@@ -951,36 +951,18 @@ func TestExecuteConnectCommand(t *testing.T) {
 			},
 		},
 		{
-			description: "Unable to store OAuth state",
-			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
-				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
-				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing oauth state"))
-			},
-		},
-		{
-			description: "Unable to set in KV store",
-			setupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error in trying to connect the account, please try again.")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
-			},
-			setupStore: func(s *mockStore.Store) {
-				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
-				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
-				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
-			},
-		},
-		{
 			description: "Successful execution of the command",
 			setupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), mock.AnythingOfType("*model.Post")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+				api.On("GetConfig").Return(&model.Config{
+					ServiceSettings: model.ServiceSettings{
+						SiteURL: model.NewString("/"),
+					},
+				}, nil).Maybe()
 			},
 			setupStore: func(s *mockStore.Store) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, errors.New("token not found")).Once()
 				s.On("IsUserPresentInWhitelist", testutils.GetUserID()).Return(true, nil).Once()
-				s.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil)
 			},
 		},
 	} {
