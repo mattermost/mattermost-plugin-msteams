@@ -102,6 +102,16 @@ func GetUser(role, email string) *model.User {
 	}
 }
 
+func GetRemoteUser(role, email, remoteId string) *model.User {
+	return &model.User{
+		Id:       GetID(),
+		Username: "test-user",
+		Roles:    role,
+		Email:    email,
+		RemoteId: &remoteId,
+	}
+}
+
 func GetReaction() *model.Reaction {
 	return &model.Reaction{
 		EmojiName: "+1",

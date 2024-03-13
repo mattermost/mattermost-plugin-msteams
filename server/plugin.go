@@ -642,7 +642,6 @@ func (p *Plugin) syncUsers() {
 		}
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
-
 		authData := ""
 		if configuration.AutomaticallyPromoteSyntheticUsers {
 			switch configuration.SyntheticUserAuthData {
@@ -718,10 +717,11 @@ func (p *Plugin) syncUsers() {
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !isUserPresent {
 			newMMUser := &model.User{
-				Email:     msUser.Mail,
-				RemoteId:  &p.remoteID,
-				FirstName: msUser.DisplayName,
-				Username:  username,
+				Email:         msUser.Mail,
+				RemoteId:      &p.remoteID,
+				FirstName:     msUser.DisplayName,
+				Username:      username,
+				EmailVerified: true,
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
@@ -781,6 +781,11 @@ func (p *Plugin) syncUsers() {
 
 			if mmUser.FirstName != msUser.DisplayName {
 				mmUser.FirstName = msUser.DisplayName
+				shouldUpdate = true
+			}
+
+			if !mmUser.EmailVerified {
+				mmUser.EmailVerified = true
 				shouldUpdate = true
 			}
 
