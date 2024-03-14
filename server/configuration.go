@@ -86,8 +86,13 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 			return errors.New("failed to get the size of whitelist from the DB")
 		}
 
-		if configuration.ConnectedUsersAllowed < whitelistSize {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist")
+		invitedSize, err := p.store.GetSizeOfInvitedUsers()
+		if err != nil {
+			return errors.New("failed to get the size of invited users from the DB")
+		}
+
+		if configuration.ConnectedUsersAllowed < (whitelistSize + invitedSize) {
+			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist and invited users")
 		}
 	}
 

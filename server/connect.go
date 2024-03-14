@@ -31,6 +31,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		// connection invites disabled
 		return false, nil
 	}
+
 	var nWhitelisted int
 	var pendingSince time.Time
 	now := time.Now()
