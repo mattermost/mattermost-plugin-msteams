@@ -60,7 +60,7 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
-        let settingsEnabled = false;
+        let settingsEnabled = true;
         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
