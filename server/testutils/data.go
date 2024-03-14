@@ -102,13 +102,13 @@ func GetUser(role, email string) *model.User {
 	}
 }
 
-func GetRemoteUser(role, email, remoteId string) *model.User {
+func GetRemoteUser(role, email, remoteID string) *model.User {
 	return &model.User{
 		Id:       GetID(),
 		Username: "test-user",
 		Roles:    role,
 		Email:    email,
-		RemoteId: &remoteId,
+		RemoteId: &remoteID,
 	}
 }
 

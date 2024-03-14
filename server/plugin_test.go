@@ -23,8 +23,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
-const testPluginRemoteId = "remote-id"
-
 func newTestPlugin(t *testing.T) *Plugin {
 	clientMock := &mocks.Client{}
 	plugin := &Plugin{
@@ -46,7 +44,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
-		remoteID: testPluginRemoteId,
+		remoteID: "remote-id",
 	}
 	plugin.store.(*storemocks.Store).On("Shutdown").Return(nil)
 	plugin.store.(*storemocks.Store).Test(t)
