@@ -123,7 +123,16 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		isDirectMessage = true
 	}
 
-	fileInfos := make(map[string]*model.FileInfo)
+	fileNames := make(map[string]string)
+	if len(msg.Attachments) > 0 {
+		for _, fID := range existingFileIDs {
+			fileInfo, _ := ah.plugin.GetAPI().GetFileInfo(fID)
+			if fileInfo == nil {
+				continue
+			}
+			fileNames[fileInfo.Name] = fID
+		}
+	}
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -146,7 +155,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		fileInfoID := ah.getFileInfo(a.Name, existingFileIDs, fileInfos)
+		fileInfoID := fileNames[a.Name]
 		if fileInfoID != "" {
 			attachments = append(attachments, fileInfoID)
 			continue
@@ -220,23 +229,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	}
 
 	return newText, attachments, parentID, errorFound
-}
-
-func (ah *ActivityHandler) getFileInfo(name string, fileIDs []string, fileInfos map[string]*model.FileInfo) string {
-	for _, fID := range fileIDs {
-		fileInfo := fileInfos[fID]
-		if fileInfo == nil {
-			fileInfo, _ = ah.plugin.GetAPI().GetFileInfo(fID)
-			if fileInfo == nil {
-				continue
-			}
-			fileInfos[fID] = fileInfo
-		}
-		if fileInfo.Name == name {
-			return fID
-		}
-	}
-	return ""
 }
 
 func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, client msteams.Client, us *model.UploadSession) string {
