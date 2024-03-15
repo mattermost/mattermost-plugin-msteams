@@ -471,7 +471,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamsUserID(), token).Return(nil).Times(1)
-				s.On("DeleteDMAndGMChannelPromptTime", testutils.GetUserID()).Return(errors.New("error in deleting prompt time")).Once()
 			},
 		},
 		{

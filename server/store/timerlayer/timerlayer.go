@@ -35,20 +35,6 @@ func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
 	return result
 }
 
-func (s *TimerLayer) DeleteDMAndGMChannelPromptTime(userID string) error {
-	start := time.Now()
-
-	err := s.Store.DeleteDMAndGMChannelPromptTime(userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteDMAndGMChannelPromptTime", success, elapsed)
-	return err
-}
-
 func (s *TimerLayer) DeleteLinkByChannelID(channelID string) error {
 	start := time.Now()
 
@@ -144,20 +130,6 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsers", success, elapsed)
-	return result, err
-}
-
-func (s *TimerLayer) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetDMAndGMChannelPromptTime(channelID, userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetDMAndGMChannelPromptTime", success, elapsed)
 	return result, err
 }
 
@@ -592,20 +564,6 @@ func (s *TimerLayer) StoreChannelLink(link *storemodels.ChannelLink) error {
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.StoreChannelLink", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
-	start := time.Now()
-
-	err := s.Store.StoreDMAndGMChannelPromptTime(channelID, userID, timestamp)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreDMAndGMChannelPromptTime", success, elapsed)
 	return err
 }
 

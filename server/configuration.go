@@ -38,7 +38,6 @@ type configuration struct {
 	CertificateKey                     string `json:"certificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
-	PromptIntervalForDMsAndGMs         int    `json:"promptIntervalForDMsAndGMs"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
