@@ -254,13 +254,11 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -360,13 +358,11 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -672,7 +668,6 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		p.handlePromptForConnection(user.Id, post.ChannelId)
 		return err
 	}
 
@@ -781,7 +776,6 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		p.handlePromptForConnection(user.Id, newPost.ChannelId)
 		return err
 	}
 
