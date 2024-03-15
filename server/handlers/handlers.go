@@ -350,12 +350,24 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to create post", "error", appErr)
 		return metrics.DiscardedReasonOther
+	}
+
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: newPost.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "One or more attachments sent from Microsoft Teams were not delivered to Mattermost.",
+			CreateAt:  newPost.CreateAt,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", newPost.Id, "error", appErr)
+		}
 	}
 
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
@@ -456,8 +468,20 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
+	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
+
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: post.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "One or more attachments added to an existing post in Microsoft Teams were not delivered to Mattermost.",
+			CreateAt:  post.CreateAt,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
+		}
+	}
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
