@@ -130,7 +130,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 
 			if appErr != nil {
 				if appErr.Id == "app.user.save.username_exists.app_error" {
-					newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+					newMMUser.Username = fmt.Sprintf("%s-%d", username, userSuffixID)
 					userSuffixID++
 					continue
 				}
