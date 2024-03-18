@@ -142,11 +142,13 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		if isUpdatedActivity {
+		if !ah.plugin.GetSyncFileAttachments() {
+			skippedFileAttachments = true
 			continue
 		}
 
-		if !ah.plugin.GetSyncFileAttachments() {
+		// We don't support retroactively adding file attachments to posts.
+		if isUpdatedActivity {
 			skippedFileAttachments = true
 			continue
 		}
