@@ -513,7 +513,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
 			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost are not yet delivered to Microsoft Teams.",
+			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
 			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
