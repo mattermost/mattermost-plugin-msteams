@@ -9,10 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	earlyAdopterThreshold = 1000
-)
-
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
 	if err != nil {
@@ -32,20 +28,17 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, nil
 	}
 
-	var nWhitelisted int
-	var pendingSince time.Time
-	now := time.Now()
-
 	user, err := p.apiClient.User.Get(userID)
 	if err != nil {
-		p.API.LogWarn("Error getting user", "user_id", userID, "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error getting user")
 	}
+
+	p.whitelistClusterMutex.Lock()
+	defer p.whitelistClusterMutex.Unlock()
 
 	userInWhitelist, err := p.store.IsUserPresentInWhitelist(user.Id)
 	if err != nil {
-		p.API.LogWarn("Error getting user in whitelist", "user_id", userID, "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error getting user in whitelist")
 	}
 
 	if userInWhitelist {
@@ -55,16 +48,18 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 	invitedUser, err := p.store.GetInvitedUser(user.Id)
 	if err != nil {
-		p.API.LogWarn("Error getting user invite", "user_id", userID, "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error getting user invite")
 	}
+
+	var nWhitelisted int
+	var pendingSince time.Time
+	now := time.Now()
 
 	if invitedUser != nil {
 		pendingSince = invitedUser.InvitePendingSince
 	} else {
 		moreInvitesAllowed, n, err := p.moreInvitesAllowed()
 		if err != nil {
-			p.API.LogWarn("Error checking invite pool size", "error", err.Error())
 			return false, errors.Wrapf(err, "Error checking invite pool size")
 		}
 
@@ -81,8 +76,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	}
 
 	if err := p.SendInviteMessage(user, pendingSince, now, nWhitelisted); err != nil {
-		p.API.LogWarn("Error sending connection invite", "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error sending invite")
 	}
 
 	return true, nil
@@ -95,19 +89,12 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	}
 
 	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
-		p.API.LogWarn("Error storing user in invite list", "error", err.Error())
-		return err
+		return errors.Wrapf(err, "Error storing user in invite list")
 	}
 
 	connectURL := p.GetURL() + "/connect"
 
-	var message string
-	if nWhitelisted < earlyAdopterThreshold {
-		message = fmt.Sprintf("@%s, you're invited to be an early adopter for the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL)
-	} else {
-		message = fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL)
-	}
-	return p.botSendDirectMessage(user.Id, message)
+	return p.botSendDirectMessage(user.Id, fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL))
 }
 
 func (p *Plugin) shouldSendInviteMessage(

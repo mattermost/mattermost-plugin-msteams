@@ -2,8 +2,6 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import {useEffect} from 'react';
-
 import manifest from './manifest';
 import Client from './client';
 import ListConnectedUsers from './components/getConnectedUsersSetting';
@@ -12,6 +10,9 @@ import MSTeamsAppManifestSetting from './components/appManifestSetting';
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
 import {getServerRoute} from './selectors';
+
+const MINUTE = 60 * 1000;
+const randomInt = (max: number) => Math.floor(Math.random() * max);
 
 function getSettings(serverRoute: string, disabled: boolean) {
     return {
@@ -62,7 +63,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
-        registry.registerRootComponent(RootEffects);
+        this.userActivityWatch();
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
         let settingsEnabled = true;
@@ -85,15 +86,15 @@ export default class Plugin {
     userActivityWatch(): void {
         // Listen for new activity to trigger a call to the server
         // Hat tip to the Github and Playbooks plugin
-        let lastActivityTime = Number.MAX_SAFE_INTEGER;
-        const activityTimeout = 60 * 60 * 1000; // 1 hour
+        let nextCheckAfter = Date.now() + (randomInt(10) * MINUTE);
+        const activityTimeout = 60 * MINUTE; // 1 hour
 
         this.activityFunc = () => {
-            const now = new Date().getTime();
-            if (now - lastActivityTime > activityTimeout) {
+            const now = Date.now();
+            if (now >= nextCheckAfter) {
                 Client.notifyConnect();
+                nextCheckAfter = now + activityTimeout;
             }
-            lastActivityTime = now;
         };
         document.addEventListener('click', this.activityFunc);
     }
@@ -102,14 +103,6 @@ export default class Plugin {
         this.removeStoreSubscription?.();
     }
 }
-
-const RootEffects = () => {
-    useEffect(() => {
-        Client.notifyConnect();
-    }, []);
-
-    return null;
-};
 
 declare global {
     interface Window {

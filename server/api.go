@@ -342,7 +342,7 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
-		a.p.API.LogWarn("Error in connection invite flow", "error", err.Error())
+		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	}
 }
 
@@ -444,6 +444,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.p.whitelistClusterMutex.Lock()
 	defer a.p.whitelistClusterMutex.Unlock()
+
+	inWhitelist, err := a.p.store.IsUserPresentInWhitelist(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
 	if err != nil {
 		a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
@@ -451,14 +459,21 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
+	invitedSize, err := a.p.store.GetSizeOfInvitedUsers()
 	if err != nil {
-		a.p.API.LogWarn("Error in getting invited user", "error", err.Error())
+		a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
+	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if !inWhitelist && (whitelistSize+invitedSize) >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
@@ -478,9 +493,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = a.p.store.DeleteUserInvite(mmUserID)
 	if err != nil {
-		a.p.API.LogWarn("Unable to clear user invite", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
 	}
 
 	w.Header().Add("Content-Type", "text/html")
