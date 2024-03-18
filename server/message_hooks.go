@@ -550,7 +550,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams connect` slash command.")
+	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account is not connected. Connect your account using the `/msteams connect` slash command.")
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
