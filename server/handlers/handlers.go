@@ -363,7 +363,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			ChannelId: newPost.ChannelId,
 			UserId:    ah.plugin.GetBotUserID(),
 			Message:   "Attachments sent from Microsoft Teams aren't delivered to Mattermost.",
-			CreateAt:  newPost.CreateAt,
+			// Anchor the post immediately after (never before) the post that was created.
+			CreateAt: newPost.CreateAt + 1,
 		})
 		if appErr != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", newPost.Id, "error", appErr)
@@ -476,7 +477,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 			ChannelId: post.ChannelId,
 			UserId:    ah.plugin.GetBotUserID(),
 			Message:   "Attachments added to an existing post in Microsoft Teams aren't delivered to Mattermost.",
-			CreateAt:  post.CreateAt,
+			// Anchor the post immediately after (never before) the post that was edited.
+			CreateAt: post.CreateAt + 1,
 		})
 		if appErr != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
