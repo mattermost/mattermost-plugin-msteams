@@ -64,14 +64,14 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatMembersSpanPlatforms(members)
-			if appErr != nil {
-				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
-			} else if !shouldSync {
-				return
-			}
+		chatMembersSpanPlatforms, appErr := p.ChatMembersSpanPlatforms(members)
+		if appErr != nil {
+			p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+			return
+		}
+
+		if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+			return
 		}
 
 		dstUsers := []string{}
@@ -79,7 +79,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err := p.SendChat(post.UserId, dstUsers, post)
+		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}
@@ -438,7 +438,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	return nil
 }
 
-func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
+func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, chatMembersSpanPlatforms bool) (string, error) {
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -449,13 +449,17 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	_, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, post.ChannelId)
+		if chatMembersSpanPlatforms {
+			p.handlePromptForConnection(srcUser, post.ChannelId)
+		}
 		return "", err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, post.ChannelId)
+		if chatMembersSpanPlatforms {
+			p.handlePromptForConnection(srcUser, post.ChannelId)
+		}
 		return "", err
 	}
 
