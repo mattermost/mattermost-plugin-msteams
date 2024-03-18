@@ -550,7 +550,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account is not connected. Connect your account using the `/msteams connect` slash command.")
+	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. Connect your account using the `/msteams` connect slash command.")
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {

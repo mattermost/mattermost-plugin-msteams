@@ -1278,7 +1278,7 @@ func TestSendChat(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account is not connected. Connect your account using the `/msteams connect` slash command.",
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. Connect your account using the `/msteams` connect slash command.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1316,7 +1316,7 @@ func TestSendChat(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account is not connected. Connect your account using the `/msteams connect` slash command.",
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. Connect your account using the `/msteams` connect slash command.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1708,7 +1708,7 @@ func TestSend(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account is not connected. Connect your account using the `/msteams connect` slash command.",
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. Connect your account using the `/msteams` connect slash command.",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
