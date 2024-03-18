@@ -362,7 +362,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
 			ChannelId: newPost.ChannelId,
 			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Attachments sent from Microsoft Teams weren't delivered to Mattermost.",
+			Message:   "Attachments sent from Microsoft Teams aren't delivered to Mattermost.",
 			CreateAt:  newPost.CreateAt,
 		})
 		if appErr != nil {
@@ -475,7 +475,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
 			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Attachments added to an existing post in Microsoft Teams weren't delivered to Mattermost.",
+			Message:   "Attachments added to an existing post in Microsoft Teams aren't delivered to Mattermost.",
 			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
