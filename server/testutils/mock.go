@@ -5,14 +5,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func GetMockArgumentsWithType(typeString string, num int) []interface{} {
-	ret := make([]interface{}, num)
-	for i := 0; i < len(ret); i++ {
-		ret[i] = mock.AnythingOfTypeArgument(typeString)
-	}
-	return ret
-}
-
 func MockLogs(mockAPI *plugintest.API) {
 	mockAPI.On("LogDebug", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockAPI.On("LogInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
