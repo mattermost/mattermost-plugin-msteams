@@ -1442,7 +1442,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
-					return post.Message == "Attachments sent from Mattermost are not yet delivered to Microsoft Teams."
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
 				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
@@ -1687,7 +1687,7 @@ func TestSend(t *testing.T) {
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
-					return post.Message == "Attachments sent from Mattermost are not yet delivered to Microsoft Teams."
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
 				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {

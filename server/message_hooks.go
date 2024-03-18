@@ -621,7 +621,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
 			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost are not yet delivered to Microsoft Teams.",
+			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
 			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
