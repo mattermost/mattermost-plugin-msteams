@@ -86,7 +86,7 @@ export default class Plugin {
     userActivityWatch(): void {
         // Listen for new activity to trigger a call to the server
         // Hat tip to the Github and Playbooks plugin
-        let nextCheckAfter = Date.now() + (randomInt(10) * MINUTE);
+        let nextCheckAfter = Date.now() + Math.max(MINUTE, randomInt(10) * MINUTE);
         const activityTimeout = 60 * MINUTE; // 1 hour
 
         this.activityFunc = () => {
