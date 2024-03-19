@@ -30,7 +30,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 	user, err := p.apiClient.User.Get(userID)
 	if err != nil {
-		return false, errors.Wrapf(err, "Error getting user")
+		return false, errors.Wrapf(err, "error getting user")
 	}
 
 	p.whitelistClusterMutex.Lock()
