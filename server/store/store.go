@@ -56,6 +56,10 @@ type Store interface {
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
+	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
+	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
+	DeleteUserInvite(mmUserID string) error
+	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 }

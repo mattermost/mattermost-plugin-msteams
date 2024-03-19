@@ -11,18 +11,20 @@ import MSTeamsAppManifestSetting from './components/appManifestSetting';
 import {PluginRegistry} from './types/mattermost-webapp';
 import {getServerRoute} from './selectors';
 
+const MINUTE = 60 * 1000;
+const randomInt = (max: number) => Math.floor(Math.random() * max);
+
 function getSettings(serverRoute: string, disabled: boolean) {
     return {
         id: manifest.id,
         icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
         uiName: manifest.name,
-        action: disabled ?
-            {
-                title: 'Connect your Microsoft Teams Account',
-                text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
-                buttonText: 'Connect account',
-                onClick: () => window.open(`${Client.url}/connect`),
-            } : undefined, //eslint-disable-line no-undefined
+        action: disabled ? {
+            title: 'Connect your Microsoft Teams Account',
+            text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
+            buttonText: 'Connect account',
+            onClick: () => window.open(`${Client.url}/connect`),
+        } : undefined, //eslint-disable-line no-undefined
         sections: [{
             settings: [{
                 name: 'platform',
@@ -50,6 +52,7 @@ function getSettings(serverRoute: string, disabled: boolean) {
 
 export default class Plugin {
     removeStoreSubscription?: () => void;
+    activityFunc?: () => void;
 
     public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         const state = store.getState();
@@ -58,6 +61,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
+        this.userActivityWatch();
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
         let settingsEnabled = true;
@@ -75,6 +79,22 @@ export default class Plugin {
                 registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
             }
         });
+    }
+
+    userActivityWatch(): void {
+        // Listen for new activity to trigger a call to the server
+        // Hat tip to the Github and Playbooks plugin
+        let nextCheckAfter = Date.now() + Math.max(MINUTE, randomInt(10 * MINUTE));
+        const activityTimeout = 60 * MINUTE; // 1 hour
+
+        this.activityFunc = () => {
+            const now = Date.now();
+            if (now >= nextCheckAfter) {
+                Client.notifyConnect();
+                nextCheckAfter = now + activityTimeout;
+            }
+        };
+        document.addEventListener('click', this.activityFunc);
     }
 
     uninitialize() {
