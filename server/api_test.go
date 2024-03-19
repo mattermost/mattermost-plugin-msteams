@@ -721,7 +721,7 @@ func TestConnect(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
-			ExpectedStatusCode: http.StatusOK,
+			ExpectedStatusCode: http.StatusSeeOther,
 		},
 		{
 			Name: "connect: Error in storing the OAuth state",
@@ -750,9 +750,7 @@ func TestConnect(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+			plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
 
 			mockAPI := &plugintest.API{}
 			testutils.MockLogs(mockAPI)

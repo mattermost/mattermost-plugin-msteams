@@ -334,9 +334,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
-
-	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
-	_, _ = w.Write(data)
+	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
 
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
