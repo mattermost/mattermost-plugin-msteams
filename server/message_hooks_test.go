@@ -1441,6 +1441,9 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = false
 			},
 			SetupAPI: func(api *plugintest.API) {
+				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
+				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1683,6 +1686,9 @@ func TestSend(t *testing.T) {
 				p.configuration.SyncFileAttachments = false
 			},
 			SetupAPI: func(api *plugintest.API) {
+				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
+				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)

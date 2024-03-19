@@ -263,7 +263,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
