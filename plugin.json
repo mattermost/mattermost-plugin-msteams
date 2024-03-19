@@ -138,7 +138,7 @@
           "key": "connectedUsersInvitePoolSize",
           "display_name": "Connection Invites: Max Pending Invitations",
           "type": "number",
-          "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite DMs will be sent to users as they login, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. (Set to 0 or leave empty to disable connection invites.)",
+          "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite direct messages will be sent to users as they login, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. (Set to 0 or leave empty to disable connection invites.)",
           "default": 0
         },{
             "key": "automaticallyPromoteSyntheticUsers",
