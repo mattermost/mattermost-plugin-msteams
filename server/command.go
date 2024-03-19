@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -477,19 +476,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
-		p.API.LogWarn("Error in storing the code verifier", "error", appErr.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
+	connectURL := p.GetURL() + "/connect"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -522,20 +509,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
-
+	connectURL := p.GetURL() + "/connect"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
