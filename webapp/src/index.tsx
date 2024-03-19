@@ -21,9 +21,7 @@ function getSettings(serverRoute: string, disabled: boolean) {
                 title: 'Connect your Microsoft Teams Account',
                 text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
                 buttonText: 'Connect account',
-                onClick: () => Client.connect().then((result) => {
-                    window.open(result?.connectUrl, '_blank');
-                }),
+                onClick: () => window.open(`${Client.url}/connect`),
             } : undefined, //eslint-disable-line no-undefined
         sections: [{
             settings: [{
