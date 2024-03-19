@@ -38,7 +38,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 	userInWhitelist, err := p.store.IsUserPresentInWhitelist(user.Id)
 	if err != nil {
-		return false, errors.Wrapf(err, "Error getting user in whitelist")
+		return false, errors.Wrapf(err, "error getting user in whitelist")
 	}
 
 	if userInWhitelist {
@@ -48,7 +48,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 	invitedUser, err := p.store.GetInvitedUser(user.Id)
 	if err != nil {
-		return false, errors.Wrapf(err, "Error getting user invite")
+		return false, errors.Wrapf(err, "error getting user invite")
 	}
 
 	var nWhitelisted int
@@ -60,7 +60,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	} else {
 		moreInvitesAllowed, n, err := p.moreInvitesAllowed()
 		if err != nil {
-			return false, errors.Wrapf(err, "Error checking invite pool size")
+			return false, errors.Wrapf(err, "error checking invite pool size")
 		}
 
 		if !moreInvitesAllowed {
@@ -76,7 +76,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	}
 
 	if err := p.SendInviteMessage(user, pendingSince, now, nWhitelisted); err != nil {
-		return false, errors.Wrapf(err, "Error sending invite")
+		return false, errors.Wrapf(err, "error sending invite")
 	}
 
 	return true, nil
@@ -89,7 +89,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	}
 
 	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
-		return errors.Wrapf(err, "Error storing user in invite list")
+		return errors.Wrapf(err, "error storing user in invite list")
 	}
 
 	connectURL := p.GetURL() + "/connect"
@@ -120,11 +120,11 @@ func (p *Plugin) shouldSendInviteMessage(
 func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	nWhitelisted, err := p.store.GetSizeOfWhitelist()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "Error in getting the size of whitelist")
+		return false, 0, errors.Wrapf(err, "error in getting the size of whitelist")
 	}
 	nInvited, err := p.store.GetSizeOfInvitedUsers()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "Error in getting the number of invited users")
+		return false, 0, errors.Wrapf(err, "error in getting the number of invited users")
 	}
 
 	if (nWhitelisted + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
