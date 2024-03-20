@@ -427,6 +427,20 @@ func (s *TimerLayer) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscript
 	return result, err
 }
 
+func (s *TimerLayer) ListDMsGMsToConnect() ([]string, error) {
+	start := time.Now()
+
+	result, err := s.Store.ListDMsGMsToConnect()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.ListDMsGMsToConnect", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 

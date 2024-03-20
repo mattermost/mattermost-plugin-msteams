@@ -11,12 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mockserver"
 	"github.com/testcontainers/testcontainers-go/network"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 )
 
 type tLogConsumer struct {
@@ -118,6 +119,8 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		mmcontainer.WithPlugin(filename, "com.mattermost.msteams-sync", pluginConfig),
 		mmcontainer.WithLogConsumers(&tLogConsumer{t: t}),
 		mmcontainer.WithEnv("MM_EXPERIMENTALSETTINGS_ENABLESHAREDCHANNELS", "true"),
+		mmcontainer.WithEnv("MM_LOGSETTINGS_ENABLECONSOLE", "false"),
+		mmcontainer.WithEnv("MM_LOGSETTINGS_ADVANCEDLOGGINGJSON", getLoggingConfig()),
 		mmcontainer.WithNetwork(newNetwork),
 	}
 	options = append(options, extraOptions...)
@@ -165,4 +168,29 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 
 	return mattermost, store, mockClient, tearDown
+}
+
+func getLoggingConfig() string {
+	return `{
+		"test-console":{
+			"Type": "console",
+			"Format": "plain",
+			"Levels": [
+					{"ID": 5, "Name": "debug", "Stacktrace": false},
+					{"ID": 4, "Name": "info", "Stacktrace": false},
+					{"ID": 3, "Name": "warn", "Stacktrace": false},
+					{"ID": 2, "Name": "error", "Stacktrace": false},
+					{"ID": 1, "Name": "fatal", "Stacktrace": true},
+					{"ID": 0, "Name": "panic", "Stacktrace": true},
+					{"ID": 130, "Name": "RemoteClusterServiceDebug", "Stacktrace": false},
+					{"ID": 131, "Name": "RemoteClusterServiceError", "Stacktrace": true},
+					{"ID": 200, "Name": "SharedChannelServiceDebug", "Stacktrace": false},
+					{"ID": 201, "Name": "SharedChannelServiceError", "Stacktrace": true}
+			],
+			"Options": {
+				"Out": "stdout"
+			},
+			"MaxQueueSize": 1000
+		}
+	}`
 }

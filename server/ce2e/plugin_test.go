@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
 
 const pluginID = "com.mattermost.msteams-sync"
@@ -331,7 +332,7 @@ func TestSelectiveSync(t *testing.T) {
 	err = mattermost.CreateUser(context.Background(), "msteams-primary2@mattermost.com", "msteamsprimary2", "password")
 	require.NoError(t, err)
 
-	err = mattermost.CreateUser(context.Background(), "sysnthetic@mattermost.com", "msteams_synthetic", "password")
+	err = mattermost.CreateUser(context.Background(), "synthetic@mattermost.com", "msteams_synthetic", "password")
 	require.NoError(t, err)
 
 	err = mattermost.AddUserToTeam(context.Background(), "notconnected1", "test")
@@ -541,7 +542,7 @@ func TestSelectiveSync(t *testing.T) {
 							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
 							"id":               "ms-" + tc.fromUser.Username,
 							"displayName":      tc.fromUser.Username,
-							"userIdentityType": "aadUser",
+							"userIdentityType": "addUser",
 							"tenantId":         "tenant-id",
 						},
 					},

@@ -332,7 +332,7 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
-	p.API.LogDebug("plugin started")
+	p.API.LogDebug("plugin started", "isRestart", isRestart)
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -864,7 +864,8 @@ func (p *Plugin) updateMetrics() {
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 }
 
-func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
+func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
+	p.API.LogDebug("****************** OnSharedChannelsPing ****************", "remoteID", rc.RemoteId)
 	return true
 }
 
@@ -887,7 +888,7 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
 	var resp model.SyncResponse
-	p.API.LogError("******************Sync Message****************", "msg", msg)
+	p.API.LogInfo("****************** OnSharedChannelsSyncMsg ****************", "msg", msg)
 	for _, post := range msg.Posts {
 		isUpdate := post.CreateAt != post.UpdateAt
 		isDelete := post.DeleteAt != 0

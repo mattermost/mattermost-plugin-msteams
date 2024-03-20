@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -17,9 +21,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
@@ -2078,7 +2079,7 @@ func TestDeleteChat(t *testing.T) {
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
+			err := p.DeleteChat("mockChatID" /*testutils.GetUser(model.SystemAdminRoleId, "test@test.com") ,*/, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {

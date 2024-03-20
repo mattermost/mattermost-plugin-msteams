@@ -52,20 +52,10 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		ChannelId: channel.Id,
 		Home:      true,
 		CreatorId: p.userID,
-		RemoteId:  p.remoteID,
 		ShareName: channel.Id,
 	}); err != nil {
 		p.API.LogError("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
 	}
-	if err := p.API.InviteRemoteToChannel(channel.Id, p.remoteID, p.userID, false); err != nil {
-		p.API.LogError("Unable to invite channel", "channel_id", channel.Id, "error", err.Error())
-	}
-
-	err := p.API.SyncSharedChannel(post.ChannelId)
-	if err != nil {
-		p.API.LogWarn("Failed to sync shared channel", "error", err.Error())
-	}
-	p.API.LogWarn("Synced shared channel", "channel_id", post.ChannelId)
 }
 
 func (p *Plugin) messageDeletedHandler(post *model.Post) {
@@ -112,7 +102,7 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) {
 		}
 
 		if err := p.DeleteChat(post.UserId, post); err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to handle message sent -- DeleteChat", "error", err.Error())
 		}
 	} else {
 		link, err := p.store.GetLinkByChannelID(post.ChannelId)
@@ -127,7 +117,7 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) {
 		user, _ := p.API.GetUser(post.UserId)
 
 		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to handle message sent - Delete", "error", err.Error())
 		}
 	}
 }
@@ -177,7 +167,7 @@ func (p *Plugin) messagePostedHandler(post *model.Post) {
 
 		_, err := p.SendChat(post.UserId, dstUsers, post)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to handle message sent -- SendChat", "error", err.Error())
 		}
 	} else {
 		link, err := p.store.GetLinkByChannelID(post.ChannelId)
@@ -193,7 +183,7 @@ func (p *Plugin) messagePostedHandler(post *model.Post) {
 
 		_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to handle message sent -- Send", "error", err.Error())
 		}
 	}
 }
