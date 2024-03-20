@@ -123,11 +123,17 @@
           "help_text": "Set the buffer size for streaming files from MS Teams to Mattermost",
           "default": 20
         },{
-            "key": "connectedUsersAllowed",
-            "display_name": "Max Connected Users",
-            "type": "number",
-            "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
-            "default": 1000
+          "key": "connectedUsersAllowed",
+          "display_name": "Max Connected Users",
+          "type": "number",
+          "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
+          "default": 1000
+        },{
+          "key": "connectedUsersInvitePoolSize",
+          "display_name": "Connection Invites: Max Pending Invitations",
+          "type": "number",
+          "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite direct messages will be sent to users as they login, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. (Set to 0 or leave empty to disable connection invites.)",
+          "default": 0
         },{
             "key": "automaticallyPromoteSyntheticUsers",
             "display_name": "Automatically Promote Synthetic Users",

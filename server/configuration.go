@@ -39,6 +39,7 @@ type configuration struct {
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
+	ConnectedUsersInvitePoolSize       int    `json:"connectedUsersInvitePoolSize"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
@@ -76,17 +77,6 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	}
 	if configuration.BufferSizeForFileStreaming <= 0 {
 		return errors.New("buffer size for file streaming should be greater than zero")
-	}
-
-	if p.store != nil {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
-		if err != nil {
-			return errors.New("failed to get the size of whitelist from the DB")
-		}
-
-		if configuration.ConnectedUsersAllowed < whitelistSize {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist")
-		}
 	}
 
 	return nil

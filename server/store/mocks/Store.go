@@ -72,6 +72,20 @@ func (_m *Store) DeleteUserInfo(mmUserID string) error {
 	return r0
 }
 
+// DeleteUserInvite provides a mock function with given fields: mmUserID
+func (_m *Store) DeleteUserInvite(mmUserID string) error {
+	ret := _m.Called(mmUserID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mmUserID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetChannelSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -187,6 +201,29 @@ func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.Glob
 	return r0, r1
 }
 
+// GetInvitedUser provides a mock function with given fields: mmUserID
+func (_m *Store) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	ret := _m.Called(mmUserID)
+
+	var r0 *storemodels.InvitedUser
+	if rf, ok := ret.Get(0).(func(string) *storemodels.InvitedUser); ok {
+		r0 = rf(mmUserID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.InvitedUser)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(mmUserID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
 	ret := _m.Called(channelID)
@@ -272,6 +309,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetSizeOfInvitedUsers provides a mock function with given fields:
+func (_m *Store) GetSizeOfInvitedUsers() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -763,6 +821,20 @@ func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*storemodels.ChannelLink) error); ok {
 		r0 = rf(link)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StoreInvitedUser provides a mock function with given fields: invitedUser
+func (_m *Store) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	ret := _m.Called(invitedUser)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*storemodels.InvitedUser) error); ok {
+		r0 = rf(invitedUser)
 	} else {
 		r0 = ret.Error(0)
 	}
