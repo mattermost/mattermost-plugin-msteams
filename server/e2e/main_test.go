@@ -6,11 +6,15 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost/server/public/model"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,6 +42,28 @@ var mmClient *model.Client4
 var mmClientAdmin *model.Client4
 var testCfg *TestConfig
 
+func newManualClient(tenantID, clientID string, logService *pluginapi.LogService) msteams.Client {
+	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
+		TenantID: tenantID,
+		ClientID: clientID,
+		UserPrompt: func(ctx context.Context, message azidentity.DeviceCodeMessage) error {
+			fmt.Println(message.Message)
+			return nil
+		},
+	})
+	if err != nil {
+		fmt.Printf("Error creating credentials: %v\n", err)
+		return nil
+	}
+
+	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, msteams.TeamsDefaultScopes)
+	if err != nil {
+		fmt.Printf("Error creating client: %v\n", err)
+		return nil
+	}
+	return msteams.NewManualClient(tenantID, clientID, logService, client)
+}
+
 func setup(t *testing.T) {
 	if testCfg == nil {
 		data, err := os.ReadFile("testconfig.json")
@@ -51,7 +77,7 @@ func setup(t *testing.T) {
 	}
 
 	if msClient == nil {
-		msClient = msteams.NewManualClient(testCfg.MSTeams.TenantID, testCfg.MSTeams.ClientID, nil)
+		msClient = newManualClient(testCfg.MSTeams.TenantID, testCfg.MSTeams.ClientID, nil)
 	}
 	if mmClient == nil {
 		mmClient = model.NewAPIv4Client(testCfg.Mattermost.URL)

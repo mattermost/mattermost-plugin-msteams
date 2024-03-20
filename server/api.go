@@ -69,13 +69,12 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
 	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
-
-	api.registerClientMock()
 
 	return api
 }
@@ -336,9 +335,15 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
+	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+}
 
-	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
-	_, _ = w.Write(data)
+func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
+	}
 }
 
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
@@ -439,6 +444,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.p.whitelistClusterMutex.Lock()
 	defer a.p.whitelistClusterMutex.Unlock()
+
+	inWhitelist, err := a.p.store.IsUserPresentInWhitelist(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
 	if err != nil {
 		a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
@@ -446,7 +459,21 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
+	invitedSize, err := a.p.store.GetSizeOfInvitedUsers()
+	if err != nil {
+		a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if !inWhitelist && (whitelistSize+invitedSize) >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
@@ -462,6 +489,11 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
+	}
+
+	err = a.p.store.DeleteUserInvite(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
 	}
 
 	w.Header().Add("Content-Type", "text/html")

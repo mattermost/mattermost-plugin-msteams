@@ -94,7 +94,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, bool, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -115,7 +115,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	errorFound := false
 	if client == nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get the client")
-		return "", nil, "", errorFound
+		return "", nil, "", false, errorFound
 	}
 
 	isDirectMessage := false
@@ -133,6 +133,8 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			fileNames[fileInfo.Name] = fID
 		}
 	}
+
+	skippedFileAttachments := false
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -152,14 +154,19 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 
 		if !ah.plugin.GetSyncFileAttachments() {
+			skippedFileAttachments = true
 			continue
 		}
 
 		fileInfoID := fileNames[a.Name]
 		if fileInfoID != "" {
 			attachments = append(attachments, fileInfoID)
-			continue
 		}
+		// // We don't support retroactively adding file attachments to posts.
+		// if isUpdatedActivity {
+		// 	skippedFileAttachments = true
+		// 	continue
+		// }
 
 		// handle the download
 		var attachmentData []byte
@@ -228,7 +235,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 	}
 
-	return newText, attachments, parentID, errorFound
+	return newText, attachments, parentID, skippedFileAttachments, errorFound
 }
 
 func (ah *ActivityHandler) GetFileFromTeamsAndUploadToMM(downloadURL string, client msteams.Client, us *model.UploadSession) string {

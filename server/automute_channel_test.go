@@ -175,8 +175,6 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 	})
 
 	t.Run("when a GM is created, should mute it for users with automuting enabled", func(t *testing.T) {
-		t.Skip("not working due to MM-56776")
-
 		p := newAutomuteTestPlugin(t)
 
 		channel := &model.Channel{

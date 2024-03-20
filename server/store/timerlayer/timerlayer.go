@@ -91,6 +91,20 @@ func (s *TimerLayer) DeleteUserInfo(mmUserID string) error {
 	return err
 }
 
+func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
+	start := time.Now()
+
+	err := s.Store.DeleteUserInvite(mmUserID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInvite", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	start := time.Now()
 
@@ -175,6 +189,20 @@ func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.
 	return result, err
 }
 
+func (s *TimerLayer) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetInvitedUser(mmUserID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetInvitedUser", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
 	start := time.Now()
 
@@ -228,6 +256,20 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMattermostID", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetSizeOfInvitedUsers() (int, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetSizeOfInvitedUsers()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfInvitedUsers", success, elapsed)
 	return result, err
 }
 
@@ -315,10 +357,10 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 	return result, err
 }
 
-func (s *TimerLayer) Init() error {
+func (s *TimerLayer) Init(remoteID string) error {
 	start := time.Now()
 
-	err := s.Store.Init()
+	err := s.Store.Init(remoteID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -606,6 +648,20 @@ func (s *TimerLayer) StoreDMAndGMChannelPromptTime(channelID string, userID stri
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.StoreDMAndGMChannelPromptTime", success, elapsed)
+	return err
+}
+
+func (s *TimerLayer) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	start := time.Now()
+
+	err := s.Store.StoreInvitedUser(invitedUser)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.StoreInvitedUser", success, elapsed)
 	return err
 }
 

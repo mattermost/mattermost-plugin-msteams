@@ -552,6 +552,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 			testutils.MockLogs(mockAPI)
 			testCase.setupStore(store)
 			testCase.setupMetrics(mockmetrics)
+
+			// We'll port these tests later: for now just hard-code false.
+			p.On("GetSelectiveSync").Return(false).Maybe()
+
 			subscriptionID := "test"
 
 			ah.plugin = p

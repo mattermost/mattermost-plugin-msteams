@@ -39,6 +39,7 @@ type pluginMock struct {
 	userClient                 msteams.Client
 	teamsUserClient            msteams.Client
 	metrics                    metrics.Metrics
+	selectiveSync              bool
 }
 
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
@@ -52,6 +53,7 @@ func (pm *pluginMock) GetMaxSizeForCompleteDownload() int              { return 
 func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return pm.bufferSizeForStreaming }
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
+func (pm *pluginMock) IsRemoteUser(user *model.User) bool              { return user.RemoteId != nil }
 func (pm *pluginMock) GetMetrics() metrics.Metrics                     { return pm.metrics }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
 func (pm *pluginMock) GetClientForUser(string) (msteams.Client, error) { return pm.userClient, nil }
@@ -60,6 +62,10 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 }
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
+}
+func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
+func (pm *pluginMock) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+	return true, nil
 }
 
 func newTestHandler() *ActivityHandler {

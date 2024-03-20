@@ -255,16 +255,17 @@ func TestHandleMessageReference(t *testing.T) {
 
 func TestHandleAttachments(t *testing.T) {
 	for _, testCase := range []struct {
-		description                string
-		setupPlugin                func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics)
-		setupAPI                   func(mockAPI *plugintest.API)
-		setupClient                func(*mocksClient.Client)
-		setupMetrics               func(*mocksMetrics.Metrics)
-		attachments                []clientmodels.Attachment
-		expectedText               string
-		expectedAttachmentIDsCount int
-		expectedParentID           string
-		expectedError              bool
+		description                    string
+		setupPlugin                    func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics)
+		setupAPI                       func(mockAPI *plugintest.API)
+		setupClient                    func(*mocksClient.Client)
+		setupMetrics                   func(*mocksMetrics.Metrics)
+		attachments                    []clientmodels.Attachment
+		expectedText                   string
+		expectedAttachmentIDsCount     int
+		expectedParentID               string
+		expectedSkippedFileAttachments bool
+		expectedError                  bool
 		fileIDs                    []string
 	}{
 		{
@@ -289,9 +290,14 @@ func TestHandleAttachments(t *testing.T) {
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 			},
-			attachments:                []clientmodels.Attachment{},
-			expectedText:               "mock-text",
-			expectedAttachmentIDsCount: 0,
+			attachments: []clientmodels.Attachment{
+				{
+					Name: "mock-name",
+				},
+			},
+			expectedText:                   "mock-text",
+			expectedSkippedFileAttachments: true,
+			expectedAttachmentIDsCount:     0,
 		},
 		{
 			description: "Successfully handled attachments",
@@ -576,10 +582,15 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
+<<<<<<< HEAD
 			newText, attachmentIDs, parentID, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
+=======
+			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, false)
+>>>>>>> main
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)
+			assert.Equal(t, testCase.expectedSkippedFileAttachments, skippedFileAttachments)
 			assert.Equal(t, testCase.expectedError, errorsFound)
 		})
 	}

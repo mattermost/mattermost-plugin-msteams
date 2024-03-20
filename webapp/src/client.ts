@@ -13,8 +13,8 @@ class ClientClass {
         this.url = url + `/plugins/${pluginId}`;
     }
 
-    connect = async () => {
-        return this.doGet(`${this.url}/connect`);
+    notifyConnect = async () => {
+        await this.doGet(`${this.url}/notify-connect`);
     };
 
     doGet = async (url: string, headers: {[key: string]: any} = {}) => {

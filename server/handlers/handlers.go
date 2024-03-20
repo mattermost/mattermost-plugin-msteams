@@ -50,6 +50,9 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
+	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
+	GetSelectiveSync() bool
+	IsRemoteUser(user *model.User) bool
 }
 
 type ActivityHandler struct {
@@ -311,6 +314,16 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 			return metrics.DiscardedReasonOther
 		}
+
+		if ah.plugin.GetSelectiveSync() {
+			if shouldSync, appErr := ah.plugin.ChatSpansPlatforms(channelID); appErr != nil {
+				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
+				return metrics.DiscardedReasonOther
+			} else if !shouldSync {
+				return metrics.DiscardedReasonSelectiveSync
+			}
+		}
+
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
@@ -337,12 +350,25 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to create post", "error", appErr)
 		return metrics.DiscardedReasonOther
+	}
+
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: newPost.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "Attachments sent from Microsoft Teams aren't delivered to Mattermost.",
+			// Anchor the post immediately after (never before) the post that was created.
+			CreateAt: newPost.CreateAt + 1,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", newPost.Id, "error", appErr)
+		}
 	}
 
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
@@ -445,8 +471,25 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
+<<<<<<< HEAD
 	post, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
+=======
+	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
+>>>>>>> main
 	post.Id = postInfo.MattermostID
+
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: post.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "Attachments added to an existing post in Microsoft Teams aren't delivered to Mattermost.",
+			// Anchor the post immediately after (never before) the post that was edited.
+			CreateAt: post.CreateAt + 1,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
+		}
+	}
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
@@ -586,7 +629,7 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 		return false
 	}
 
-	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+	return ah.plugin.IsRemoteUser(user)
 }
 
 func IsDirectMessage(chatID string) bool {
