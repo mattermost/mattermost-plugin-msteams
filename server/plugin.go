@@ -494,6 +494,18 @@ func (p *Plugin) onActivate() error {
 	}
 	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
+	// simulate a ping to the plugin from server so it appears "online" immediately.
+	// !!!! remove this when fixed in server
+	p.apiClient.Store.GetMasterDB()
+	db, dbErr := p.apiClient.Store.GetMasterDB()
+	if dbErr != nil {
+		return dbErr
+	}
+	_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
+	if err != nil {
+		return fmt.Errorf("cannot simluate ping: %w", err)
+	}
+
 	if p.getConfiguration().DisableSyncMsg {
 		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
 		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
