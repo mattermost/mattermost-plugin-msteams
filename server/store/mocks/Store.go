@@ -30,20 +30,6 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 	return r0
 }
 
-// DeleteDMAndGMChannelPromptTime provides a mock function with given fields: userID
-func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
-	ret := _m.Called(userID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DeleteLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	ret := _m.Called(channelID)
@@ -185,27 +171,6 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(page, perPage)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
-func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
-	ret := _m.Called(channelID, userID)
-
-	var r0 time.Time
-	if rf, ok := ret.Get(0).(func(string, string) time.Time); ok {
-		r0 = rf(channelID, userID)
-	} else {
-		r0 = ret.Get(0).(time.Time)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(channelID, userID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -856,20 +821,6 @@ func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*storemodels.ChannelLink) error); ok {
 		r0 = rf(link)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StoreDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID, timestamp
-func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
-	ret := _m.Called(channelID, userID, timestamp)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, time.Time) error); ok {
-		r0 = rf(channelID, userID, timestamp)
 	} else {
 		r0 = ret.Error(0)
 	}

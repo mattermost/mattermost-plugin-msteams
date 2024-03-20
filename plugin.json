@@ -111,12 +111,6 @@
           "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
           "default": ""
         },{
-          "key": "promptIntervalForDMsAndGMs",
-          "display_name": "Prompt interval for DMs and GMs (in hours)",
-          "type": "number",
-          "help_text": "Set the time for DMs and GMs after which the user will get a prompt to connect their account when they try to post a message without connecting their account. (Leave it empty to disable the prompt)",
-          "default": 0
-        },{
           "key": "maxSizeForCompleteDownload",
           "display_name": "Maximum size of attachments to support complete one time download (in MB)",
           "type": "number",

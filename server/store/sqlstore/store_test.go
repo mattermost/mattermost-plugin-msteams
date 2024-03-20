@@ -10,7 +10,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -908,28 +907,6 @@ func TestListGlobalSubscriptions(t *testing.T) {
 	subscriptions, err := store.ListGlobalSubscriptions()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
-}
-
-func TestStoreAndGetAndDeleteDMGMPromptTime(t *testing.T) {
-	store, api := setupTestStore(t)
-	testTime := time.Now()
-	key := connectionPromptKey + "mockMattermostChannelID-1_mockMattermostUserID-1"
-	api.On("KVSet", key, mock.Anything).Return(nil)
-	err := store.StoreDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1", testTime)
-	assert.Nil(t, err)
-
-	timeBytes, err := testTime.MarshalJSON()
-	assert.Nil(t, err)
-	api.On("KVGet", key).Return(timeBytes, nil)
-
-	timestamp, err := store.GetDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1")
-	assert.Nil(t, err)
-	assert.True(t, timestamp.Equal(testTime))
-
-	api.On("KVList", 0, 100).Return([]string{key}, nil).Once()
-	api.On("KVDelete", key).Return(nil).Once()
-	err = store.DeleteDMAndGMChannelPromptTime("mockMattermostUserID-1")
-	assert.Nil(t, err)
 }
 
 func TestStoreAndVerifyOAuthState(t *testing.T) {

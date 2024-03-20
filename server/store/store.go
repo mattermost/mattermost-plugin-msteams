@@ -44,9 +44,6 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
-	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
-	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
-	DeleteDMAndGMChannelPromptTime(userID string) error
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error

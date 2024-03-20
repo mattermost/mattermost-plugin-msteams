@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -65,14 +64,14 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatMembersSpanPlatforms(members)
-			if appErr != nil {
-				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
-			} else if !shouldSync {
-				return
-			}
+		chatMembersSpanPlatforms, appErr := p.ChatMembersSpanPlatforms(members)
+		if appErr != nil {
+			p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+			return
+		}
+
+		if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+			return
 		}
 
 		dstUsers := []string{}
@@ -80,7 +79,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err := p.SendChat(post.UserId, dstUsers, post)
+		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}
@@ -255,13 +254,11 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -361,13 +358,11 @@ func (p *Plugin) SetReaction(teamID, channelID, userID string, post *model.Post,
 func (p *Plugin) UnsetChatReaction(teamsMessageID, srcUser, channelID string, emojiName string) error {
 	srcUserID, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, channelID)
 		return err
 	}
 
@@ -443,7 +438,7 @@ func (p *Plugin) UnsetReaction(teamID, channelID, userID string, post *model.Pos
 	return nil
 }
 
-func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (string, error) {
+func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, chatMembersSpanPlatforms bool) (string, error) {
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -454,13 +449,17 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 
 	_, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, post.ChannelId)
+		if chatMembersSpanPlatforms {
+			p.handlePromptForConnection(srcUser, post.ChannelId)
+		}
 		return "", err
 	}
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		p.handlePromptForConnection(srcUser, post.ChannelId)
+		if chatMembersSpanPlatforms {
+			p.handlePromptForConnection(srcUser, post.ChannelId)
+		}
 		return "", err
 	}
 
@@ -551,23 +550,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post) (
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	promptInterval := p.getConfiguration().PromptIntervalForDMsAndGMs
-	if promptInterval <= 0 {
-		return
-	}
-
-	timestamp, err := p.store.GetDMAndGMChannelPromptTime(channelID, userID)
-	if err != nil {
-		p.API.LogWarn("Unable to get the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())
-	}
-
-	if time.Until(timestamp) < -time.Hour*time.Duration(promptInterval) {
-		message := fmt.Sprintf("[Click here to reconnect your account.](%s)", p.GetURL()+"/connect")
-		p.sendBotEphemeralPost(userID, channelID, "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. "+message)
-		if err := p.store.StoreDMAndGMChannelPromptTime(channelID, userID, time.Now()); err != nil {
-			p.API.LogWarn("Unable to store the last prompt timestamp for the channel", "channel_id", channelID, "error", err.Error())
-		}
-	}
+	message := fmt.Sprintf("[Click here to connect your account](%s).", p.GetURL()+"/connect")
+	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "+message)
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
@@ -689,7 +673,6 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		p.handlePromptForConnection(user.Id, post.ChannelId)
 		return err
 	}
 
@@ -798,7 +781,6 @@ func (p *Plugin) UpdateChat(chatID string, user *model.User, newPost *model.Post
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		p.handlePromptForConnection(user.Id, newPost.ChannelId)
 		return err
 	}
 
