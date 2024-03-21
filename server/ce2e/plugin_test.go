@@ -489,6 +489,14 @@ func TestSelectiveSync(t *testing.T) {
 		},
 	}
 
+	for _, tc := range ttCases {
+		client, err := mattermost.GetClient(context.Background(), tc.fromUser.Username, "password")
+		require.NoError(t, err)
+
+		_, _, err = client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
+		require.NoError(t, err)
+	}
+
 	for _, enabledSelectiveSync := range []bool{false, true} {
 		config, _, err := adminClient.GetConfig(context.Background())
 		require.NoError(t, err)

@@ -37,27 +37,6 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	return ""
 }
 
-func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	channel, appErr := p.API.GetChannel(post.ChannelId)
-	if appErr != nil {
-		return
-	}
-
-	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
-	if !isDirectOrGroupMessage {
-		return
-	}
-
-	if _, err := p.API.ShareChannel(&model.SharedChannel{
-		ChannelId: channel.Id,
-		Home:      true,
-		CreatorId: p.userID,
-		ShareName: channel.Id,
-	}); err != nil {
-		p.API.LogError("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
-	}
-}
-
 func (p *Plugin) messageDeletedHandler(post *model.Post) {
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {
