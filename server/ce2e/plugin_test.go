@@ -152,6 +152,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
+		time.Sleep(3 * time.Second)
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
@@ -489,14 +490,6 @@ func TestSelectiveSync(t *testing.T) {
 		},
 	}
 
-	for _, tc := range ttCases {
-		client, err := mattermost.GetClient(context.Background(), tc.fromUser.Username, "password")
-		require.NoError(t, err)
-
-		_, _, err = client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
-		require.NoError(t, err)
-	}
-
 	for _, enabledSelectiveSync := range []bool{false, true} {
 		config, _, err := adminClient.GetConfig(context.Background())
 		require.NoError(t, err)
@@ -516,6 +509,8 @@ func TestSelectiveSync(t *testing.T) {
 
 				dm, _, err := client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
 				require.NoError(t, err)
+
+				time.Sleep(3 * time.Second)
 
 				require.NoError(t, mockClient.Reset())
 

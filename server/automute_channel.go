@@ -47,6 +47,7 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 		}); err != nil {
 			p.API.LogError("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
 		}
+		p.API.InviteRemoteToChannel(channel.Id, p.remoteID, p.userID, false)
 		if err := p.API.SyncSharedChannel(channel.Id); err != nil {
 			p.API.LogError("Unable to sync shared channel", "channel_id", channel.Id, "error", err.Error())
 		}

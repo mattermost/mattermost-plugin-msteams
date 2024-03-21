@@ -235,12 +235,15 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 			Home:      true,
 			ReadOnly:  false,
 			CreatorId: p.userID,
-			RemoteId:  p.remoteID,
+			// RemoteId:  p.remoteID,
 			ShareName: channelLink.MattermostChannelID,
 		}); err != nil {
 			p.API.LogWarn("Failed to share channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
 		} else {
 			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
+		}
+		if err := p.API.SyncSharedChannel(channelLink.MattermostChannelID); err != nil {
+			p.API.LogError("Unable to sync shared channel", "channel_id", channel.Id, "error", err.Error())
 		}
 	}
 
