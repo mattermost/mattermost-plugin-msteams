@@ -488,7 +488,7 @@ func (p *Plugin) onActivate() error {
 		Displayname:  pluginID,
 		PluginID:     pluginID,
 		CreatorID:    p.userID,
-		AutoShareDMs: true,
+		AutoShareDMs: false,
 		AutoInvited:  true,
 	})
 	if err != nil {
