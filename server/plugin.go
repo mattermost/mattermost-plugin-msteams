@@ -22,6 +22,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
+	"github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -244,6 +245,10 @@ func (p *Plugin) connectTeamsAppClient() error {
 		&p.apiClient.Log,
 	)
 
+	if p.getConfiguration().RunAsLoadTest {
+		loadtest.TenantId = p.getConfiguration().TenantID
+	}
+
 	p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	err := p.msteamsAppClient.Connect()
 	if err != nil {
@@ -458,6 +463,12 @@ func (p *Plugin) onActivate() error {
 	p.metricsHandler = metrics.NewMetricsHandler(p.GetMetrics())
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
+
+	if p.getConfiguration().RunAsLoadTest {
+		p.API.LogInfo("Running MS TEAMS Plugin in Load Test mode")
+		loadtest.LogService = &p.apiClient.Log
+		loadtest.RunAsLoadTest = p.getConfiguration().RunAsLoadTest
+	}
 
 	config := p.apiClient.Configuration.GetConfig()
 	license := p.apiClient.System.GetLicense()
@@ -806,6 +817,10 @@ func (p *Plugin) syncUsers() {
 				}
 			}
 		}
+	}
+
+	if p.getConfiguration().RunAsLoadTest {
+		loadtest.FakeConnectUsersForLoadTest(p.API, p.store)
 	}
 }
 

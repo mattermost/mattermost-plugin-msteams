@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -37,13 +38,6 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	channel, appErr := p.API.GetChannel(post.ChannelId)
-	if appErr != nil {
-		return
-	}
-
-	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
-
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
 			return
@@ -53,6 +47,13 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post.IsSystemMessage() {
 		return
 	}
+
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return
+	}
+
+	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
 
 	if isDirectOrGroupMessage {
 		if !p.getConfiguration().SyncDirectMessages {
@@ -77,6 +78,12 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
+
+			// When running a load test, fake that the users are actually connected to MS Teams
+			if p.getConfiguration().RunAsLoadTest {
+				p.API.LogDebug("Connecting user to MS Teams for load test")
+				loadtest.FakeConnectUserForLoadTest(m.UserId, p.store)
+			}
 		}
 
 		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)

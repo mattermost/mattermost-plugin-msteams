@@ -6,18 +6,24 @@ package msteams
 import (
 	"net/http"
 
+	loadtest "github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
 )
 
 func getAuthClient() *http.Client {
-	return http.DefaultClient
+	return getHTTPClient()
 }
 
 func getHTTPClient() *http.Client {
 	defaultClientOptions := msgraphsdk.GetDefaultClientOptions()
 	defaultMiddleWare := msgraphcore.GetDefaultMiddlewaresWithOptions(&defaultClientOptions)
 
-	return khttp.GetDefaultClient(defaultMiddleWare...)
+	httpClient := khttp.GetDefaultClient(defaultMiddleWare...)
+
+	transport := khttp.NewCustomTransportWithParentTransport(&loadtest.MockRoundTripper{}, defaultMiddleWare...)
+	httpClient.Transport = transport
+
+	return httpClient
 }
