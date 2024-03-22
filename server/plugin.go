@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base32"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -20,7 +19,6 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/pkg/errors"
-	"github.com/xtgo/uuid"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
@@ -673,7 +671,7 @@ func (p *Plugin) syncUsers() {
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if isUserPresent {
 			// Update the user if needed
-			if p.isRemoteUser(mmUser) {
+			if p.IsRemoteUser(mmUser) {
 				if !syncGuestUsers && msUser.Type == msteamsUserTypeGuest {
 					if mmUser.DeleteAt == 0 {
 						// if the user is a guest and should not sync, deactivate it
@@ -763,11 +761,6 @@ func (p *Plugin) syncUsers() {
 		} else if !msUser.IsAccountEnabled {
 			continue
 		} else {
-			// Add the user to Mattermost
-			userUUID := uuid.Parse(msUser.ID)
-			encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-			shortUserID := encoding.EncodeToString(userUUID)
-
 			// If we are not sync'ing guests, but the user is a MS Team guest, deactivate it from the get go
 			deleteAt := int64(0)
 			if !syncGuestUsers && msUser.Type == msteamsUserTypeGuest {
