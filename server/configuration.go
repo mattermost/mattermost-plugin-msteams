@@ -44,6 +44,7 @@ type configuration struct {
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
 	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
+	UseSharedChannels                  bool   `json:"useSharedChannels"`
 }
 
 func (c *configuration) ProcessConfiguration() {

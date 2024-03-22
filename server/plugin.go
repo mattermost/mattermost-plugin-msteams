@@ -269,6 +269,26 @@ func (p *Plugin) start(isRestart bool) {
 		}
 	}
 
+	if p.getConfiguration().UseSharedChannels {
+		ids, err := p.store.ListDMsGMsToConnect()
+		if err != nil {
+			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
+		}
+		for _, id := range ids {
+			if _, err := p.API.ShareChannel(&model.SharedChannel{
+				ChannelId: id,
+				Home:      true,
+				CreatorId: p.userID,
+				ShareName: id,
+			}); err != nil {
+				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
+			}
+			if err := p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
+			}
+		}
+	}
+
 	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 
 	// We don't restart the activity handler since it's stateless.
@@ -335,7 +355,6 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
-	p.API.LogDebug("plugin started", "isRestart", isRestart)
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -512,8 +531,8 @@ func (p *Plugin) onActivate() error {
 	// writting the invite directly in the DB
 	// !!!! remove this when fixed in server
 	p.inviteRemoteToChannel = func(channelID, remoteID, userID string) error {
-		now := model.GetMillis() - 1000
-		_, err := db.Exec("insert into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
+		now := model.GetMillis()
+		_, err := db.Exec("INSERT into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (channelid, remoteid) DO NOTHING", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
 		if err != nil {
 			p.API.LogError("cannot simulate invite", "error", err)
 			return err
@@ -551,13 +570,7 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	ids, err := p.store.ListDMsGMsToConnect()
-	if err != nil {
-		return err
-	}
-	p.API.LogError("******************IDS To connect channels ******************", "ids", ids)
-
-	if !p.getConfiguration().DisableSyncMsg {
+	if !p.getConfiguration().DisableSyncMsg && p.getConfiguration().UseSharedChannels {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
@@ -575,6 +588,10 @@ func (p *Plugin) onActivate() error {
 			})
 			if err != nil {
 				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+			}
+
+			if err := p.inviteRemoteToChannel(linkedChannel.MattermostChannelID, p.remoteID, p.userID); err != nil {
+				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", linkedChannel.MattermostChannelID, "error", err.Error())
 			}
 
 			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
@@ -892,7 +909,6 @@ func (p *Plugin) updateMetrics() {
 }
 
 func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
-	p.API.LogDebug("****************** OnSharedChannelsPing ****************", "remoteID", rc.RemoteId)
 	return true
 }
 
@@ -915,7 +931,10 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
 	var resp model.SyncResponse
-	p.API.LogInfo("****************** OnSharedChannelsSyncMsg ****************", "msg", msg)
+	if !p.getConfiguration().UseSharedChannels {
+		return resp, nil
+	}
+
 	for _, post := range msg.Posts {
 		isUpdate := post.CreateAt != post.UpdateAt
 		isDelete := post.DeleteAt != 0
@@ -954,4 +973,22 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 	}
 
 	return resp, nil
+}
+
+func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
+	_ = p.updateAutomutingOnChannelCreated(channel)
+
+	if p.getConfiguration().UseSharedChannels && (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) {
+		if _, err := p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: channel.Id,
+			Home:      true,
+			CreatorId: p.userID,
+			ShareName: channel.Id,
+		}); err != nil {
+			p.API.LogWarn("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
+		}
+		if err := p.inviteRemoteToChannel(channel.Id, p.remoteID, p.userID); err != nil {
+			p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", channel.Id, "error", err.Error())
+		}
+	}
 }

@@ -938,7 +938,6 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 
 func (s *SQLStore) ListDMsGMsToConnect() ([]string, error) {
 	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.Eq{"scr.remoteid": nil}).Where(sq.Or{sq.Eq{"c.Type": "G"}, sq.Eq{"c.Type": "D"}})
-	fmt.Println(query.ToSql())
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err

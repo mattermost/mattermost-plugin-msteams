@@ -2123,7 +2123,7 @@ func TestDeleteChat(t *testing.T) {
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			err := p.DeleteChat("mockChatID" /*testutils.GetUser(model.SystemAdminRoleId, "test@test.com") ,*/, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
+			err := p.DeleteChat(testutils.GetID() /*testutils.GetUser(model.SystemAdminRoleId, "test@test.com") ,*/, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {

@@ -114,6 +114,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"syncdirectmessages":         true,
 		"synclinkedchannels":         true,
 		"disableSyncMsg":             false,
+		"useSharedChannels":          true,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{

@@ -147,6 +147,12 @@
             "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
             "default": false
         },{
+            "key": "useSharedChannels",
+            "display_name": "Use Shared Channels for message delivery",
+            "type": "bool",
+            "help_text": "When true, the plugin will use shared channels infrastructure for message delivery instea of plugin hooks.",
+            "default": false
+        },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",

@@ -53,8 +53,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: channel.Id,
 		Message:   "message",
@@ -76,7 +74,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.Never(t, func() bool {
 			_, err = store.GetPostInfoByMattermostID(newPost.Id)
 			return err == nil
-		}, 5*time.Second, 200*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
@@ -122,7 +120,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-		time.Sleep(3 * time.Second)
 
 		var newPost *model.Post
 		newPost, _, err = client.CreatePost(context.Background(), &post)
@@ -134,7 +131,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 5*time.Second, 200*time.Millisecond)
+		}, 15*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -153,7 +150,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = client.ExecuteCommand(context.Background(), channel.Id, "/msteams link ms-team-id ms-channel-id")
-		time.Sleep(3 * time.Second)
 
 		newPost, _, err := client.CreatePost(context.Background(), &post)
 		require.NoError(t, err)
@@ -164,7 +160,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 5*time.Second, 200*time.Millisecond)
+		}, 15*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
@@ -194,8 +190,6 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: dm.Id,
 		Message:   "message",
@@ -545,7 +539,7 @@ func TestSelectiveSync(t *testing.T) {
 							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
 							"id":               "ms-" + tc.fromUser.Username,
 							"displayName":      tc.fromUser.Username,
-							"userIdentityType": "addUser",
+							"userIdentityType": "aadUser",
 							"tenantId":         "tenant-id",
 						},
 					},

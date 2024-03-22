@@ -36,6 +36,13 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	return ""
 }
 
+func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	p.messageDeletedHandler(post)
+}
+
 func (p *Plugin) messageDeletedHandler(post *model.Post) {
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {
@@ -98,6 +105,13 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) {
 			p.API.LogWarn("Unable to handle message sent - Delete", "error", err.Error())
 		}
 	}
+}
+
+func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	p.messagePostedHandler(post)
 }
 
 func (p *Plugin) messagePostedHandler(post *model.Post) {
@@ -166,6 +180,13 @@ func (p *Plugin) messagePostedHandler(post *model.Post) {
 	}
 }
 
+func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	p.reactionAddedHandler(reaction)
+}
+
 func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) {
 	if !p.getConfiguration().SyncReactions {
 		return
@@ -205,6 +226,13 @@ func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) {
 	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName, updateRequired); err != nil {
 		p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
 	}
+}
+
+func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	p.reactionRemovedHandler(reaction)
 }
 
 func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) {
@@ -247,6 +275,13 @@ func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) {
 	if err != nil {
 		p.API.LogWarn("Unable to handle message reaction unset", "error", err.Error())
 	}
+}
+
+func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	p.messageUpdatedHandler(newPost)
 }
 
 func (p *Plugin) messageUpdatedHandler(newPost *model.Post) {
