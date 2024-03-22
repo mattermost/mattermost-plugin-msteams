@@ -266,7 +266,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 5*time.Second, 200*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -298,11 +298,12 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var logs string
+			assert.NoError(c, mockClient.Assert("failed-to-post-message", 1))
 			logs, err = mattermost.GetLogs(context.Background(), 10)
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 5*time.Second, 200*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
