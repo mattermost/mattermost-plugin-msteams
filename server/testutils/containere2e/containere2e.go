@@ -113,6 +113,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"webhooksecret":              "webhook-secret",
 		"syncdirectmessages":         true,
 		"synclinkedchannels":         true,
+		"disableSyncMsg":             false,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{

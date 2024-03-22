@@ -85,6 +85,7 @@ type Plugin struct {
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+	inviteRemoteToChannel  func(chanelID, remoteID, userID string) error
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -504,6 +505,18 @@ func (p *Plugin) onActivate() error {
 	_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
 	if err != nil {
 		return fmt.Errorf("cannot simluate ping: %w", err)
+	}
+
+	// writting the invite directly in the DB
+	// !!!! remove this when fixed in server
+	p.inviteRemoteToChannel = func(channelID, remoteID, userID string) error {
+		now := model.GetMillis() - 1000
+		_, err := db.Exec("insert into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
+		if err != nil {
+			p.API.LogError("cannot simulate invite", "error", err)
+			return err
+		}
+		return nil
 	}
 
 	if p.getConfiguration().DisableSyncMsg {

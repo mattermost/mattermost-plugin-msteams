@@ -157,42 +157,51 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
+		p.API.LogError("Unable to get the current channel information.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		p.API.LogError("Linking/unlinking a direct or group message is not allowed", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
 	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
 	if !canLinkChannel {
+		p.API.LogError("Unable to link the channel. You have to be a channel admin to link it.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
 	if len(parameters) < 2 {
+		p.API.LogError("Invalid link command, please pass the MS Teams team id and channel id as parameters.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
 	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
+		p.API.LogError("This team is not enabled for MS Teams sync.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "This team is not enabled for MS Teams sync.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
+		p.API.LogError("A link for this channel already exists. Please unlink the channel before you link again with another channel.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
 	if err == nil && link != nil {
+		p.API.LogError("A link for this channel already exists. Please unlink the channel before you link again with another channel.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	client, err := p.GetClientForUser(args.UserId)
 	if err != nil {
+		p.API.LogError("Unable to link the channel, looks like your account is not connected to MS Teams", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
 	if _, err = client.GetChannelInTeam(parameters[0], parameters[1]); err != nil {
+		p.API.LogError("MS Teams channel not found or you don't have the permissions to access it.", args.UserId, args.ChannelId)
 		return p.cmdError(args.UserId, args.ChannelId, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
@@ -242,15 +251,20 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		} else {
 			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
 		}
+		if err := p.inviteRemoteToChannel(channelLink.MattermostChannelID, p.remoteID, p.userID); err != nil {
+			p.API.LogError("Unable invite remote shared channel", "channel_id", channel.Id, "error", err.Error())
+		}
 		if err := p.API.SyncSharedChannel(channelLink.MattermostChannelID); err != nil {
 			p.API.LogError("Unable to sync shared channel", "channel_id", channel.Id, "error", err.Error())
 		}
+		p.API.LogError("CHANNEL LINKED AND INVITED", "channel_id", channel.Id)
 	}
 
 	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
 		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
 	}
 
+	p.API.LogError("CHANNEL LINKED ", "channel_id", channel.Id)
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
 	return &model.CommandResponse{}, nil
 }
