@@ -85,7 +85,8 @@ type Plugin struct {
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
-	inviteRemoteToChannel  func(chanelID, remoteID, userID string) error
+	// !!!! remove this when fixed in server
+	inviteRemoteToChannel func(chanelID, remoteID, userID string) error
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -270,12 +271,13 @@ func (p *Plugin) start(isRestart bool) {
 	}
 
 	if p.getConfiguration().UseSharedChannels {
-		ids, err := p.store.ListDMsGMsToConnect()
+		var ids []string
+		ids, err = p.store.ListDMsGMsToConnect()
 		if err != nil {
 			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
 		}
 		for _, id := range ids {
-			if _, err := p.API.ShareChannel(&model.SharedChannel{
+			if _, err = p.API.ShareChannel(&model.SharedChannel{
 				ChannelId: id,
 				Home:      true,
 				CreatorId: p.userID,
@@ -283,7 +285,7 @@ func (p *Plugin) start(isRestart bool) {
 			}); err != nil {
 				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
 			}
-			if err := p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
 				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
 			}
 		}
@@ -516,30 +518,6 @@ func (p *Plugin) onActivate() error {
 	}
 	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
-	// simulate a ping to the plugin from server so it appears "online" immediately.
-	// !!!! remove this when fixed in server
-	p.apiClient.Store.GetMasterDB()
-	db, dbErr := p.apiClient.Store.GetMasterDB()
-	if dbErr != nil {
-		return dbErr
-	}
-	_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
-	if err != nil {
-		return fmt.Errorf("cannot simluate ping: %w", err)
-	}
-
-	// writting the invite directly in the DB
-	// !!!! remove this when fixed in server
-	p.inviteRemoteToChannel = func(channelID, remoteID, userID string) error {
-		now := model.GetMillis()
-		_, err := db.Exec("INSERT into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (channelid, remoteid) DO NOTHING", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
-		if err != nil {
-			p.API.LogError("cannot simulate invite", "error", err)
-			return err
-		}
-		return nil
-	}
-
 	if p.getConfiguration().DisableSyncMsg {
 		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
 		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
@@ -555,6 +533,25 @@ func (p *Plugin) onActivate() error {
 		db, dbErr := p.apiClient.Store.GetMasterDB()
 		if dbErr != nil {
 			return dbErr
+		}
+
+		// simulate a ping to the plugin from server so it appears "online" immediately.
+		// !!!! remove this when fixed in server
+		_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
+		if err != nil {
+			return fmt.Errorf("cannot simulate ping: %w", err)
+		}
+
+		// writing the invite directly in the DB
+		// !!!! remove this when fixed in server
+		p.inviteRemoteToChannel = func(channelID, remoteID, userID string) error {
+			now := model.GetMillis()
+			_, err2 := db.Exec("INSERT into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (channelid, remoteid) DO NOTHING", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
+			if err2 != nil {
+				p.API.LogError("cannot simulate invite", "error", err2)
+				return err2
+			}
+			return nil
 		}
 
 		store := sqlstore.New(

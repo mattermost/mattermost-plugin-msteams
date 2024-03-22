@@ -81,11 +81,6 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) {
 			}
 		}
 
-		dstUsers := []string{}
-		for _, m := range members {
-			dstUsers = append(dstUsers, m.UserId)
-		}
-
 		if err := p.DeleteChat(post.UserId, post); err != nil {
 			p.API.LogWarn("Unable to handle message sent -- DeleteChat", "error", err.Error())
 		}
@@ -763,10 +758,10 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 	return nil
 }
 
-func (p *Plugin) DeleteChat(userId string, post *model.Post) error {
-	client, err := p.GetClientForUser(userId)
+func (p *Plugin) DeleteChat(userID string, post *model.Post) error {
+	client, err := p.GetClientForUser(userID)
 	if err != nil {
-		p.handlePromptForConnection(userId, post.ChannelId)
+		p.handlePromptForConnection(userID, post.ChannelId)
 		return err
 	}
 
