@@ -44,9 +44,6 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
-	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
-	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
-	DeleteDMAndGMChannelPromptTime(userID string) error
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
@@ -56,6 +53,10 @@ type Store interface {
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
+	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
+	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
+	DeleteUserInvite(mmUserID string) error
+	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 	ListDMsGMsToConnect() ([]string, error)
