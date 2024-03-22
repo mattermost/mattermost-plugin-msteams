@@ -17,6 +17,8 @@ var stringsToCheckForHTML = []string{
 	"<h3>",
 	"<ol>",
 	"<ul>",
+	"<table>",
+	"<hr>",
 }
 
 func ConvertToMD(text string) string {

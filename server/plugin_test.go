@@ -44,6 +44,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 			return clientMock
 		},
+		remoteID: "remote-id",
 	}
 	plugin.store.(*storemocks.Store).On("Shutdown").Return(nil)
 	plugin.store.(*storemocks.Store).Test(t)
