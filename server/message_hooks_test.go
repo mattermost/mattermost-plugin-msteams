@@ -2033,7 +2033,26 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+var (
+	anyString      = mock.AnythingOfType("string")
+	anyStringSlice = mock.AnythingOfType("[]string")
+	anyInt         = mock.AnythingOfType("int")
+	anyPost        = mock.AnythingOfType("*model.Post")
+	anyFloat64     = mock.AnythingOfType("float64")
+)
+
 func TestDeleteChat(t *testing.T) {
+	mockChat := &clientmodels.Chat{
+		ID: testutils.GetChatID(),
+		Members: []clientmodels.ChatMember{
+			{
+				DisplayName: "mockDisplayName",
+				UserID:      testutils.GetTeamsUserID(),
+				Email:       testutils.GetTestEmail(),
+			},
+		},
+	}
+
 	for _, test := range []struct {
 		Name          string
 		SetupAPI      func(*plugintest.API)
@@ -2043,8 +2062,10 @@ func TestDeleteChat(t *testing.T) {
 		ExpectedError string
 	}{
 		{
-			Name:     "DeleteChat: Unable to get the client",
-			SetupAPI: func(api *plugintest.API) {},
+			Name: "DeleteChat: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", anyString, anyPost).Return(&model.Post{}).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
@@ -2057,32 +2078,51 @@ func TestDeleteChat(t *testing.T) {
 		{
 			Name: "DeleteChat: Unable to get the post info",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", anyString).Return(testutils.GetUserID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post info")).Times(1)
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+			},
 			ExpectedError: "unable to get the post info",
 		},
 		{
 			Name: "DeleteChat: Post info is nil",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+			},
 			ExpectedError: "post not found",
 		},
 		{
 			Name: "DeleteChat: Unable to delete the message",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -2090,17 +2130,24 @@ func TestDeleteChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(errors.New("unable to delete the message")).Times(1)
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+				uclient.On("DeleteChatMessage", anyString, anyString).Return(errors.New("unable to delete the message")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "false", anyFloat64).Once()
 			},
 			ExpectedError: "unable to delete the message",
 		},
 		{
-			Name:     "DeleteChat: Valid",
-			SetupAPI: func(api *plugintest.API) {},
+			Name: "DeleteChat: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -2108,9 +2155,12 @@ func TestDeleteChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(nil).Times(1)
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+				uclient.On("DeleteChatMessage", anyString, anyString).Return(nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
 				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
