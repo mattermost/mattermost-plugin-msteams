@@ -30,20 +30,6 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 	return r0
 }
 
-// DeleteDMAndGMChannelPromptTime provides a mock function with given fields: userID
-func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
-	ret := _m.Called(userID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DeleteLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	ret := _m.Called(channelID)
@@ -74,6 +60,20 @@ func (_m *Store) DeleteSubscription(subscriptionID string) error {
 
 // DeleteUserInfo provides a mock function with given fields: mmUserID
 func (_m *Store) DeleteUserInfo(mmUserID string) error {
+	ret := _m.Called(mmUserID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mmUserID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteUserInvite provides a mock function with given fields: mmUserID
+func (_m *Store) DeleteUserInvite(mmUserID string) error {
 	ret := _m.Called(mmUserID)
 
 	var r0 error
@@ -178,27 +178,6 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	return r0, r1
 }
 
-// GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
-func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
-	ret := _m.Called(channelID, userID)
-
-	var r0 time.Time
-	if rf, ok := ret.Get(0).(func(string, string) time.Time); ok {
-		r0 = rf(channelID, userID)
-	} else {
-		r0 = ret.Get(0).(time.Time)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(channelID, userID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetGlobalSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -215,6 +194,29 @@ func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.Glob
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetInvitedUser provides a mock function with given fields: mmUserID
+func (_m *Store) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	ret := _m.Called(mmUserID)
+
+	var r0 *storemodels.InvitedUser
+	if rf, ok := ret.Get(0).(func(string) *storemodels.InvitedUser); ok {
+		r0 = rf(mmUserID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.InvitedUser)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(mmUserID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -307,6 +309,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetSizeOfInvitedUsers provides a mock function with given fields:
+func (_m *Store) GetSizeOfInvitedUsers() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -805,13 +828,13 @@ func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	return r0
 }
 
-// StoreDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID, timestamp
-func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
-	ret := _m.Called(channelID, userID, timestamp)
+// StoreInvitedUser provides a mock function with given fields: invitedUser
+func (_m *Store) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	ret := _m.Called(invitedUser)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, time.Time) error); ok {
-		r0 = rf(channelID, userID, timestamp)
+	if rf, ok := ret.Get(0).(func(*storemodels.InvitedUser) error); ok {
+		r0 = rf(invitedUser)
 	} else {
 		r0 = ret.Error(0)
 	}
