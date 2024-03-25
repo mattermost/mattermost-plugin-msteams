@@ -905,7 +905,7 @@ func (p *Plugin) updateMetrics() {
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 }
 
-func (p *Plugin) OnSharedChannelsPing(rc *model.RemoteCluster) bool {
+func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
 	return true
 }
 
