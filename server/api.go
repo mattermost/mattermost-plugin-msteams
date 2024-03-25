@@ -341,8 +341,10 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
+	} else if inviteWasSent {
+		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
 	}
 }
 
