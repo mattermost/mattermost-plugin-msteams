@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
@@ -479,7 +480,7 @@ func (p *Plugin) onActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/icon.png"))
+	}, pluginapi.ProfileImageBytes(assets.Icon))
 	if err != nil {
 		return err
 	}
