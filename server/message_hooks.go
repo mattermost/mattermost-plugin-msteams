@@ -40,7 +40,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 	if p.getConfiguration().UseSharedChannels {
 		return
 	}
-	p.messageDeletedHandler(post)
+	_ = p.messageDeletedHandler(post)
 }
 
 func (p *Plugin) messageDeletedHandler(post *model.Post) error {
@@ -181,7 +181,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	if p.getConfiguration().UseSharedChannels {
 		return
 	}
-	p.reactionAddedHandler(reaction)
+	_ = p.reactionAddedHandler(reaction)
 }
 
 func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) error {
@@ -232,7 +232,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	if p.getConfiguration().UseSharedChannels {
 		return
 	}
-	p.reactionRemovedHandler(reaction)
+	_ = p.reactionRemovedHandler(reaction)
 }
 
 func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) error {
@@ -284,7 +284,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 	if p.getConfiguration().UseSharedChannels {
 		return
 	}
-	p.messageUpdatedHandler(newPost)
+	_ = p.messageUpdatedHandler(newPost)
 }
 
 func (p *Plugin) messageUpdatedHandler(newPost *model.Post) error {
