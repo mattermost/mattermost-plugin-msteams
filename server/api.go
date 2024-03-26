@@ -319,6 +319,10 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
+	connectBot := r.URL.Query().Has("isBot")
+	if connectBot {
+		userID = a.p.GetBotUserID()
+	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
@@ -328,7 +332,9 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codeVerifier := model.NewId()
-	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
+	codeVerifierKey := "_code_verifier_" + userID
+
+	if appErr := a.p.API.KVSet(codeVerifierKey, []byte(codeVerifier)); appErr != nil {
 		a.p.API.LogWarn("Error in storing the code verifier", "error", appErr.Message)
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return

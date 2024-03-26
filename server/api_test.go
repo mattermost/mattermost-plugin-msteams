@@ -711,6 +711,7 @@ func TestConnect(t *testing.T) {
 		SetupStore         func(*storemocks.Store)
 		ExpectedResult     string
 		ExpectedStatusCode int
+		isBot              bool
 	}{
 		{
 			Name: "connect: User connected",
@@ -746,6 +747,18 @@ func TestConnect(t *testing.T) {
 			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
 		},
+		{
+			Name: "connect: Bot connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", "bot-user-id"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusSeeOther,
+			isBot:              true,
+		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -762,7 +775,11 @@ func TestConnect(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
+			endPoint := "/connect"
+			if test.isBot {
+				endPoint += "?isBot"
+			}
+			r := httptest.NewRequest(http.MethodGet, endPoint, nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 
