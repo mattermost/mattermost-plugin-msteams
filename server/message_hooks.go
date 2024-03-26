@@ -771,7 +771,6 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 func (p *Plugin) DeleteChat(userID string, post *model.Post) error {
 	client, err := p.GetClientForUser(userID)
 	if err != nil {
-		p.handlePromptForConnection(userID, post.ChannelId)
 		return err
 	}
 
