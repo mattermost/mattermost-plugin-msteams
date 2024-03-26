@@ -636,10 +636,10 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
-	var activeMSUsersCount int64 = 0
+	var activeMSTeamsUsersCount int64 = 0
 	for _, msUser := range msUsers {
 		if msUser.IsAccountEnabled {
-			activeMSUsersCount++
+			activeMSTeamsUsersCount++
 		}
 
 		userSuffixID := 1
@@ -814,7 +814,7 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 	}
-	p.GetMetrics().ObserveUpstreamUsers(activeMSUsersCount)
+	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
 
 func generateSecret() (string, error) {
