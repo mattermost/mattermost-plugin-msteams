@@ -565,7 +565,7 @@ func (p *Plugin) onActivate() error {
 			now := model.GetMillis()
 			_, err2 := db.Exec("INSERT into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (channelid, remoteid) DO NOTHING", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
 			if err2 != nil {
-				p.API.LogError("cannot simulate invite", "error", err2)
+				p.API.LogWarn("cannot simulate invite", "error", err2)
 				return err2
 			}
 			return nil
