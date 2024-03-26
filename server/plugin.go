@@ -928,21 +928,26 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
 	var resp model.SyncResponse
-	if !p.getConfiguration().UseSharedChannels {
-		return resp, nil
-	}
 
 	for _, post := range msg.Posts {
-		isUpdate := post.CreateAt != post.UpdateAt
-		isDelete := post.DeleteAt != 0
+		if p.getConfiguration().UseSharedChannels {
+			isUpdate := post.CreateAt != post.UpdateAt
+			isDelete := post.DeleteAt != 0
 
-		switch {
-		case !isUpdate && !isDelete:
-			p.messagePostedHandler(post)
-		case isUpdate && !isDelete:
-			p.messageUpdatedHandler(post)
-		default:
-			p.messageDeletedHandler(post)
+			switch {
+			case !isUpdate && !isDelete:
+				if err := p.messagePostedHandler(post); err != nil {
+					return resp, err
+				}
+			case isUpdate && !isDelete:
+				if err := p.messageUpdatedHandler(post); err != nil {
+					return resp, err
+				}
+			default:
+				if err := p.messageDeletedHandler(post); err != nil {
+					return resp, err
+				}
+			}
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
@@ -951,17 +956,27 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 	}
 
 	for _, reaction := range msg.Reactions {
-		isUpdate := reaction.CreateAt != reaction.UpdateAt
-		isDelete := reaction.DeleteAt != 0
+		if p.getConfiguration().UseSharedChannels {
+			isUpdate := reaction.CreateAt != reaction.UpdateAt
+			isDelete := reaction.DeleteAt != 0
 
-		switch {
-		case !isUpdate && !isDelete:
-			p.reactionAddedHandler(reaction)
-		case isUpdate && !isDelete:
-			p.reactionRemovedHandler(reaction)
-			p.reactionAddedHandler(reaction)
-		default:
-			p.reactionRemovedHandler(reaction)
+			switch {
+			case !isUpdate && !isDelete:
+				if err := p.reactionAddedHandler(reaction); err != nil {
+					return resp, err
+				}
+			case isUpdate && !isDelete:
+				if err := p.reactionRemovedHandler(reaction); err != nil {
+					return resp, err
+				}
+				if err := p.reactionAddedHandler(reaction); err != nil {
+					return resp, err
+				}
+			default:
+				if err := p.reactionRemovedHandler(reaction); err != nil {
+					return resp, err
+				}
+			}
 		}
 
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
