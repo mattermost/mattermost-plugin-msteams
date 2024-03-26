@@ -636,7 +636,7 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
-	var activeMSTeamsUsersCount int64 = 0
+	var activeMSTeamsUsersCount int64
 	for _, msUser := range msUsers {
 		if msUser.IsAccountEnabled {
 			activeMSTeamsUsersCount++
