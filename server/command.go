@@ -600,6 +600,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
+		p.API.LogWarn("Unable to update the user during promotion", "user_id", user.Id, "error", appErr.Error())
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)
 		return &model.CommandResponse{}, nil
 	}
