@@ -82,7 +82,7 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) error {
 		}
 
 		if err := p.DeleteChat(post.UserId, post); err != nil {
-			p.API.LogWarn("Unable to handle message sent -- DeleteChat", "error", err.Error())
+			p.API.LogWarn("Unable to delete chat", "error", err.Error())
 			return err
 		}
 	} else {
@@ -98,7 +98,7 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) error {
 		user, _ := p.API.GetUser(post.UserId)
 
 		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
-			p.API.LogWarn("Unable to handle message sent - Delete", "error", err.Error())
+			p.API.LogWarn("Unable to delete message", "error", err.Error())
 			return err
 		}
 	}
@@ -157,7 +157,7 @@ func (p *Plugin) messagePostedHandler(post *model.Post) error {
 
 		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent -- SendChat", "error", err.Error())
+			p.API.LogWarn("Unable to send chat", "error", err.Error())
 			return err
 		}
 	} else {
@@ -174,7 +174,7 @@ func (p *Plugin) messagePostedHandler(post *model.Post) error {
 
 		_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent -- Send", "error", err.Error())
+			p.API.LogWarn("Unable to send message", "error", err.Error())
 			return err
 		}
 	}
