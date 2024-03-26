@@ -1007,7 +1007,7 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
 	_ = p.updateAutomutingOnChannelCreated(channel)
 
-	if p.getConfiguration().UseSharedChannels && (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) {
+	if p.getConfiguration().UseSharedChannels && channel.IsGroupOrDirect() {
 		if _, err := p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: channel.Id,
 			Home:      true,
