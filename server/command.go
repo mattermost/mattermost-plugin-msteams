@@ -571,16 +571,10 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 		return &model.CommandResponse{}, nil
 	}
 
-	username := parameters[0]
-	newUsername := parameters[1]
+	username := strings.TrimPrefix(parameters[0], "@")
+	newUsername := strings.TrimPrefix(parameters[1], "@")
 
-	var user *model.User
-	var appErr *model.AppError
-	if strings.HasPrefix(username, "@") {
-		user, appErr = p.API.GetUserByUsername(username[1:])
-	} else {
-		user, appErr = p.API.GetUserByUsername(username)
-	}
+	user, appErr := p.API.GetUserByUsername(username)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", user not found")
 		return &model.CommandResponse{}, nil

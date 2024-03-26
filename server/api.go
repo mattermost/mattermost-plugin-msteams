@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
@@ -221,7 +222,8 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, event := range lifecycleEvents.Value {
-		if event.ClientState != a.p.getConfiguration().WebhookSecret {
+		// Check the webhook secret using ContantTimeCompare to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(event.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) == 0 {
 			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
 			errors += "Invalid webhook secret"
 			continue
@@ -341,8 +343,10 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	if _, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
+	} else if inviteWasSent {
+		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
 	}
 }
 
