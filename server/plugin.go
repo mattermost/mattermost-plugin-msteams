@@ -37,15 +37,16 @@ import (
 )
 
 const (
-	botUsername                  = "msteams"
-	botDisplayName               = "MS Teams"
-	pluginID                     = "com.mattermost.msteams-sync"
-	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
-	msteamsUserTypeGuest         = "Guest"
-	syncUsersJobName             = "sync_users"
-	metricsJobName               = "metrics"
-	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
+	botUsername                      = "msteams"
+	botDisplayName                   = "MS Teams"
+	pluginID                         = "com.mattermost.msteams-sync"
+	subscriptionsClusterMutexKey     = "subscriptions_cluster_mutex"
+	gmsDmsAutoconnectClusterMutexKey = "gms_dms_autoconnect_cluster_mutex"
+	whitelistClusterMutexKey         = "whitelist_cluster_mutex"
+	msteamsUserTypeGuest             = "Guest"
+	syncUsersJobName                 = "sync_users"
+	metricsJobName                   = "metrics"
+	checkCredentialsJobName          = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
 )
@@ -270,27 +271,6 @@ func (p *Plugin) start(isRestart bool) {
 		}
 	}
 
-	if p.getConfiguration().UseSharedChannels {
-		var ids []string
-		ids, err = p.store.ListDMsGMsToConnect()
-		if err != nil {
-			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
-		}
-		for _, id := range ids {
-			if _, err = p.API.ShareChannel(&model.SharedChannel{
-				ChannelId: id,
-				Home:      true,
-				CreatorId: p.userID,
-				ShareName: id,
-			}); err != nil {
-				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
-			}
-			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
-				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
-			}
-		}
-	}
-
 	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
 
 	// We don't restart the activity handler since it's stateless.
@@ -356,6 +336,43 @@ func (p *Plugin) start(isRestart bool) {
 	}
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
+	}
+
+	gmsDmsAutoconnectMutex, err := cluster.NewMutex(p.API, gmsDmsAutoconnectClusterMutexKey)
+	if err != nil {
+		p.API.LogError("Unable to create mutex for automatic connection of dms and gms", "error", err.Error())
+		return
+	}
+
+	gmsDmsAutoconnectMutex.Lock()
+	defer gmsDmsAutoconnectMutex.Unlock()
+
+	for {
+		var ids []string
+		ids, err = p.store.ListDMsGMsToConnectBatch()
+		if err != nil {
+			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
+			continue
+		}
+		if len(ids) == 0 {
+			p.API.LogInfo("DMs and GMs automatic connection finished")
+			break
+		}
+		for _, id := range ids {
+			if _, err = p.API.ShareChannel(&model.SharedChannel{
+				ChannelId: id,
+				Home:      true,
+				CreatorId: p.userID,
+				ShareName: id,
+			}); err != nil {
+				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
+			}
+			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
+			}
+		}
+		// Give some time to other work to happen in the server
+		time.Sleep(1 * time.Second)
 	}
 }
 
