@@ -635,8 +635,8 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListDMsGMsToConnect provides a mock function with given fields:
-func (_m *Store) ListDMsGMsToConnect() ([]string, error) {
+// ListDMsGMsToConnectBatch provides a mock function with given fields:
+func (_m *Store) ListDMsGMsToConnectBatch() ([]string, error) {
 	ret := _m.Called()
 
 	var r0 []string

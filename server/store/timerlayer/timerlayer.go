@@ -441,17 +441,17 @@ func (s *TimerLayer) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscript
 	return result, err
 }
 
-func (s *TimerLayer) ListDMsGMsToConnect() ([]string, error) {
+func (s *TimerLayer) ListDMsGMsToConnectBatch() ([]string, error) {
 	start := time.Now()
 
-	result, err := s.Store.ListDMsGMsToConnect()
+	result, err := s.Store.ListDMsGMsToConnectBatch()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.ListDMsGMsToConnect", success, elapsed)
+	s.metrics.ObserveStoreMethodDuration("Store.ListDMsGMsToConnectBatch", success, elapsed)
 	return result, err
 }
 
