@@ -635,13 +635,13 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	return r0, r1
 }
 
-// ListDMsGMsToConnectBatch provides a mock function with given fields:
-func (_m *Store) ListDMsGMsToConnectBatch() ([]string, error) {
-	ret := _m.Called()
+// ListDMsGMsToConnectBatch provides a mock function with given fields: remoteID
+func (_m *Store) ListDMsGMsToConnectBatch(remoteID string) ([]string, error) {
+	ret := _m.Called(remoteID)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func() []string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = rf(remoteID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -649,8 +649,8 @@ func (_m *Store) ListDMsGMsToConnectBatch() ([]string, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(remoteID)
 	} else {
 		r1 = ret.Error(1)
 	}

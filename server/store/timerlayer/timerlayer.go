@@ -441,10 +441,10 @@ func (s *TimerLayer) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscript
 	return result, err
 }
 
-func (s *TimerLayer) ListDMsGMsToConnectBatch() ([]string, error) {
+func (s *TimerLayer) ListDMsGMsToConnectBatch(remoteID string) ([]string, error) {
 	start := time.Now()
 
-	result, err := s.Store.ListDMsGMsToConnectBatch()
+	result, err := s.Store.ListDMsGMsToConnectBatch(remoteID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
