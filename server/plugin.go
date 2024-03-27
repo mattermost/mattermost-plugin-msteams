@@ -349,7 +349,7 @@ func (p *Plugin) start(isRestart bool) {
 
 	for {
 		var ids []string
-		ids, err = p.store.ListDMsGMsToConnectBatch()
+		ids, err = p.store.ListDMsGMsToConnectBatch(p.remoteID)
 		if err != nil {
 			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
 			continue

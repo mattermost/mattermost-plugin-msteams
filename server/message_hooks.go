@@ -320,7 +320,7 @@ func (p *Plugin) messageUpdatedHandler(newPost *model.Post) error {
 			var teamsUserID string
 			teamsUserID, err = p.store.MattermostToTeamsUserID(m.UserId)
 			if err != nil {
-				return appErr
+				return err
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}

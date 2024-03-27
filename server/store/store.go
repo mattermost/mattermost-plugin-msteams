@@ -59,5 +59,5 @@ type Store interface {
 	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
-	ListDMsGMsToConnectBatch() ([]string, error)
+	ListDMsGMsToConnectBatch(remoteID string) ([]string, error)
 }

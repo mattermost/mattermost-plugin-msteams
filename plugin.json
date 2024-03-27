@@ -148,9 +148,9 @@
             "default": false
         },{
             "key": "useSharedChannels",
-            "display_name": "Use Shared Channels for message delivery",
+            "display_name": "Reliable Message Delivery",
             "type": "bool",
-            "help_text": "When true, the plugin will use shared channels infrastructure for message delivery instead of plugin hooks.",
+            "help_text": "When true, the plugin will ensure reliable message delivery to msteams retrying when is needed.",
             "default": false
         },{
             "key": "syntheticUserAuthService",
