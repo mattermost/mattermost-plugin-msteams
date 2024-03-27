@@ -94,7 +94,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (string, model.StringArray, string, bool, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, bool, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -123,6 +123,17 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		isDirectMessage = true
 	}
 
+	fileNames := make(map[string]string)
+	if len(msg.Attachments) > 0 {
+		for _, fID := range existingFileIDs {
+			fileInfo, _ := ah.plugin.GetAPI().GetFileInfo(fID)
+			if fileInfo == nil {
+				continue
+			}
+			fileNames[fileInfo.Name] = fID
+		}
+	}
+
 	skippedFileAttachments := false
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
@@ -147,11 +158,15 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		// We don't support retroactively adding file attachments to posts.
-		if isUpdatedActivity {
-			skippedFileAttachments = true
-			continue
+		fileInfoID := fileNames[a.Name]
+		if fileInfoID != "" {
+			attachments = append(attachments, fileInfoID)
 		}
+		// // We don't support retroactively adding file attachments to posts.
+		// if isUpdatedActivity {
+		// 	skippedFileAttachments = true
+		// 	continue
+		// }
 
 		// handle the download
 		var attachmentData []byte
@@ -192,7 +207,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			}
 		}
 
-		fileInfoID := ""
 		if attachmentData != nil {
 			fileInfoID, errorFound = ah.ProcessAndUploadFileToMM(attachmentData, a.Name, channelID)
 		} else {
