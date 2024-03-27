@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -78,12 +77,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
-
-			// When running a load test, fake that the users are actually connected to MS Teams
-			if p.getConfiguration().RunAsLoadTest {
-				p.API.LogDebug("Connecting user to MS Teams for load test")
-				loadtest.FakeConnectUserForLoadTest(m.UserId, p.store)
-			}
 		}
 
 		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)

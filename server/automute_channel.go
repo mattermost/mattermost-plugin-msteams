@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 
@@ -37,6 +39,19 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID s
 
 func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
 	_ = p.updateAutomutingOnChannelCreated(channel)
+
+	if p.getConfiguration().RunAsLoadTest && channel.IsGroupOrDirect() {
+		// When running a load test, fake that the users are actually connected to MS Teams
+		members, appErr := p.API.GetChannelMembers(channel.Id, 0, math.MaxInt32)
+		if appErr != nil {
+			return
+		}
+
+		for _, m := range members {
+			p.API.LogDebug("Connecting user to MS Teams for load test")
+			loadtest.FakeConnectUserForLoadTest(m.UserId, p.store)
+		}
+	}
 }
 
 func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error {
