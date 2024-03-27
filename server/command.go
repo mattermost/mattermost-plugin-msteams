@@ -159,7 +159,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -257,7 +257,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -569,16 +569,10 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 		return &model.CommandResponse{}, nil
 	}
 
-	username := parameters[0]
-	newUsername := parameters[1]
+	username := strings.TrimPrefix(parameters[0], "@")
+	newUsername := strings.TrimPrefix(parameters[1], "@")
 
-	var user *model.User
-	var appErr *model.AppError
-	if strings.HasPrefix(username, "@") {
-		user, appErr = p.API.GetUserByUsername(username[1:])
-	} else {
-		user, appErr = p.API.GetUserByUsername(username)
-	}
+	user, appErr := p.API.GetUserByUsername(username)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", user not found")
 		return &model.CommandResponse{}, nil
@@ -603,6 +597,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user.RemoteId = nil
 	user.Username = newUsername
+	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)

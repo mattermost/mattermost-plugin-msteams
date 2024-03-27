@@ -738,6 +738,11 @@ func (p *Plugin) syncUsers() {
 					shouldUpdate = true
 				}
 
+				if !mmUser.EmailVerified {
+					mmUser.EmailVerified = true
+					shouldUpdate = true
+				}
+
 				if shouldUpdate {
 					for {
 						p.API.LogInfo("Updating user profile", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
@@ -768,11 +773,12 @@ func (p *Plugin) syncUsers() {
 			}
 
 			newMMUser := &model.User{
-				Email:     msUser.Mail,
-				RemoteId:  &p.remoteID,
-				FirstName: msUser.DisplayName,
-				Username:  username,
-				DeleteAt:  deleteAt,
+				Email:         msUser.Mail,
+				RemoteId:      &p.remoteID,
+				FirstName:     msUser.DisplayName,
+				Username:      username,
+				EmailVerified: true,
+				DeleteAt:      deleteAt,
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {

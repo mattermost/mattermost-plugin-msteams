@@ -42,7 +42,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	isDirectOrGroupMessage := channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup
+	isDirectOrGroupMessage := channel.IsGroupOrDirect()
 
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
@@ -126,7 +126,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
+		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
@@ -173,7 +173,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if appErr != nil {
 			return
 		}
-		if (channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup) && p.getConfiguration().SyncDirectMessages {
+		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
@@ -208,7 +208,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 		if appErr != nil {
 			return
 		}
-		if channel.Type != model.ChannelTypeGroup && channel.Type != model.ChannelTypeDirect {
+		if !channel.IsGroupOrDirect() {
 			return
 		}
 		if !p.getConfiguration().SyncDirectMessages {
@@ -822,7 +822,7 @@ func (p *Plugin) GetChatIDForChannel(client msteams.Client, channelID string) (s
 		p.API.LogWarn("Unable to get MM channel", "channel_id", channelID, "error", appErr.DetailedError)
 		return "", appErr
 	}
-	if channel.Type != model.ChannelTypeDirect && channel.Type != model.ChannelTypeGroup {
+	if !channel.IsGroupOrDirect() {
 		return "", errors.New("invalid channel type, chatID is only available for direct messages and group messages")
 	}
 
