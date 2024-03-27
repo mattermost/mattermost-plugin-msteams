@@ -67,6 +67,14 @@ func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
 	return nil
 }
 
+func (s *SQLStore) createUniqueIndex(tableName, indexName, columnList string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) error {
 	if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
 		return err
@@ -166,6 +174,16 @@ func (s *SQLStore) Init(remoteID string) error {
 			return err
 		}
 	}
+
+	// dedup entries with multiples ms teams id
+	if err := s.runMSTeamUserIDDedup(); err != nil {
+		return err
+	}
+
+	if err := s.createUniqueIndex(usersTableName, "idx_msteamssync_users_msteamsuserid_unq", "msteamsuserid"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -770,7 +788,11 @@ func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {
 }
 
 func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
-	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(s.db)
+	return s.getQueryBuilderWithRunner(s.db)
+}
+
+func (s *SQLStore) getQueryBuilderWithRunner(r sq.BaseRunner) sq.StatementBuilderType {
+	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(r)
 }
 
 func (s *SQLStore) VerifyOAuth2State(state string) error {
