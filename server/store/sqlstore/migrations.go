@@ -3,7 +3,6 @@ package sqlstore
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -44,11 +43,10 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	var mmuserid, msteamsuserid, username, remoteid string
 	var nRemoteid sql.NullString
 	for rows.Next() {
-		err := rows.Scan(&mmuserid, &msteamsuserid, &username, &nRemoteid)
+		err = rows.Scan(&mmuserid, &msteamsuserid, &username, &nRemoteid)
 		if err != nil {
 			return err
 		}
-		s.api.LogDebug(fmt.Sprintf("mmuserid: [%s], msteamsuserid: [%s], username: [%s]", mmuserid, msteamsuserid, username))
 
 		remoteid = ""
 		if nRemoteid.Valid {
@@ -79,7 +77,8 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 	for msteamsuserid, mmuserid := range bestCandidate {
 		s.api.LogInfo("Deleting duplicates for msteamsuserid: " + msteamsuserid + ", keeping mmuserid: " + mmuserid)
 		_, err := s.getQueryBuilderWithRunner(tx).Delete("msteamssync_users").
