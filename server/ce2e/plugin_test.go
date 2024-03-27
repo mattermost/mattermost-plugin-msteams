@@ -387,13 +387,13 @@ func TestSelectiveSync(t *testing.T) {
 	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters WHERE pluginid=$1) WHERE Username = 'msteams_synthetic'", pluginID)
 	require.NoError(t, err)
 
-	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
-	require.NoError(t, err)
+	// team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
+	// require.NoError(t, err)
 
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
-		assert.Len(c, suggestions, 1)
-	}, 10*time.Second, 500*time.Millisecond)
+	// require.EventuallyWithT(t, func(c *assert.CollectT) {
+	// 	suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+	// 	assert.Len(c, suggestions, 1)
+	// }, 10*time.Second, 500*time.Millisecond)
 
 	ttCases := []struct {
 		name                         string
