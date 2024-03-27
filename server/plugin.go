@@ -68,6 +68,8 @@ type Plugin struct {
 	stopSubscriptions func()
 	stopContext       context.Context
 
+	stopDmsGmsMigration func()
+
 	userID    string
 	remoteID  string
 	apiClient *pluginapi.Client
@@ -347,7 +349,13 @@ func (p *Plugin) start(isRestart bool) {
 	gmsDmsAutoconnectMutex.Lock()
 	defer gmsDmsAutoconnectMutex.Unlock()
 
+	ctxMigration, stopMigration := context.WithCancel(context.Background())
+	p.stopDmsGmsMigration = stopMigration
+
 	for {
+		if ctxMigration.Err() != nil {
+			break
+		}
 		var ids []string
 		ids, err = p.store.ListDMsGMsToConnectBatch(p.remoteID)
 		if err != nil {
@@ -417,6 +425,12 @@ func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
+
+	if p.stopDmsGmsMigration != nil {
+		p.stopDmsGmsMigration()
+		time.Sleep(1 * time.Second)
+	}
+
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
