@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/oauth2"
 )
 
@@ -59,5 +60,5 @@ type Store interface {
 	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
-	ListDMsGMsToConnectBatch(remoteID string) ([]string, error)
+	ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error)
 }

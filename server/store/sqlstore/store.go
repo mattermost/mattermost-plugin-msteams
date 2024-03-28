@@ -10,6 +10,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -936,14 +937,29 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	return result != "", nil
 }
 
-func (s *SQLStore) ListDMsGMsToConnectBatch(remoteID string) ([]string, error) {
-	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.Or{sq.Eq{"scr.remoteid": nil}, sq.NotEq{"scr.remoteid": remoteID}}).Where(sq.Or{sq.Eq{"c.Type": "G"}, sq.Eq{"c.Type": "D"}}).Limit(500)
+func (s *SQLStore) ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error) {
+	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.Eq{"scr.remoteid": nil}, sq.Eq{"c.Type": channelType}).Limit(500)
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var results []string
+	if rows.Next() {
+		var result string
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return nil, scanErr
+		}
+		results = append(results, result)
+	}
+
+	query = s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannels AS sc ON sc.channelid = c.id").Where(sq.Eq{"sc.remoteid": nil}, sq.NotEq{"c.Id": results}, sq.Eq{"c.Type": channelType}).Limit(500)
+	rows, err = query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
 	if rows.Next() {
 		var result string
 		if scanErr := rows.Scan(&result); scanErr != nil {

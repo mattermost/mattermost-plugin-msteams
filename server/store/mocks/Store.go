@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	model "github.com/mattermost/mattermost/server/public/model"
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
@@ -612,6 +613,29 @@ func (_m *Store) ListChannelSubscriptionsToRefresh(certificate string) ([]*store
 	return r0, r1
 }
 
+// ListChannelsToConnectBatch provides a mock function with given fields: remoteID, channelType
+func (_m *Store) ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error) {
+	ret := _m.Called(remoteID, channelType)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string, model.ChannelType) []string); ok {
+		r0 = rf(remoteID, channelType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, model.ChannelType) error); ok {
+		r1 = rf(remoteID, channelType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListChatSubscriptionsToCheck provides a mock function with given fields:
 func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error) {
 	ret := _m.Called()
@@ -628,29 +652,6 @@ func (_m *Store) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription,
 	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListDMsGMsToConnectBatch provides a mock function with given fields: remoteID
-func (_m *Store) ListDMsGMsToConnectBatch(remoteID string) ([]string, error) {
-	ret := _m.Called(remoteID)
-
-	var r0 []string
-	if rf, ok := ret.Get(0).(func(string) []string); ok {
-		r0 = rf(remoteID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(remoteID)
 	} else {
 		r1 = ret.Error(1)
 	}

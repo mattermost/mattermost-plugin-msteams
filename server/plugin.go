@@ -356,27 +356,32 @@ func (p *Plugin) start(isRestart bool) {
 		if ctxMigration.Err() != nil {
 			break
 		}
-		var ids []string
-		ids, err = p.store.ListDMsGMsToConnectBatch(p.remoteID)
-		if err != nil {
-			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
-			continue
-		}
-		if len(ids) == 0 {
-			p.API.LogInfo("DMs and GMs automatic connection finished")
-			break
-		}
-		for _, id := range ids {
-			if _, err = p.API.ShareChannel(&model.SharedChannel{
-				ChannelId: id,
-				Home:      true,
-				CreatorId: p.userID,
-				ShareName: id,
-			}); err != nil {
-				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
+
+		for _, channelType := range []model.ChannelType{model.ChannelTypeGroup, model.ChannelTypeDirect} {
+			var ids []string
+			ids, err = p.store.ListChannelsToConnectBatch(p.remoteID, channelType)
+			if err != nil {
+				p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
+				continue
 			}
-			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
-				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
+			if len(ids) == 0 {
+				p.API.LogInfo("DMs and GMs automatic connection finished")
+				break
+			}
+			for _, id := range ids {
+				if _, err = p.API.ShareChannel(&model.SharedChannel{
+					ChannelId: id,
+					Home:      true,
+					CreatorId: p.userID,
+					ShareName: id,
+					// TODO: Fix this, this should allow Group chanels too here
+					Type: model.ChannelTypeDirect,
+				}); err != nil {
+					p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
+				}
+				if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+					p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
+				}
 			}
 		}
 		// Give some time to other work to happen in the server
@@ -1032,6 +1037,8 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 			Home:      true,
 			CreatorId: p.userID,
 			ShareName: channel.Id,
+			// TODO: Fix this, this should allow Group chanels too here
+			Type: model.ChannelTypeDirect,
 		}); err != nil {
 			p.API.LogWarn("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
 		}
