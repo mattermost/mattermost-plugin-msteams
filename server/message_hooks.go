@@ -790,7 +790,7 @@ func (p *Plugin) DeleteChat(userID string, post *model.Post) error {
 		return errors.New("post not found")
 	}
 
-	if err := client.DeleteChatMessage(chatID, postInfo.MSTeamsID); err != nil {
+	if err := client.DeleteChatMessage(userID, chatID, postInfo.MSTeamsID); err != nil {
 		p.API.LogWarn("Error deleting post from MS Teams", "error", err)
 		return err
 	}
