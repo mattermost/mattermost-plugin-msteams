@@ -164,6 +164,6 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 	return nil
 }
 
-func (s *SQLStore) createMSTeamsUserIdUniqueIndex() error {
+func (s *SQLStore) createMSTeamsUserIDUniqueIndex() error {
 	return s.createUniqueIndex(usersTableName, "idx_msteamssync_users_msteamsuserid_unq", "msteamsuserid")
 }

@@ -128,7 +128,7 @@ func (s *SQLStore) Init(remoteID string) error {
 			return err
 		}
 
-		if err := s.createMSTeamsUserIdUniqueIndex(); err != nil {
+		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
 			return err
 		}
 	}
