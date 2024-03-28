@@ -147,6 +147,12 @@
             "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
             "default": false
         },{
+            "key": "disableCheckCredentials",
+            "display_name": "Disable periodically checking the validity of the application credentials",
+            "type": "bool",
+            "help_text": "When true, the plugin will not periodically check the validity of the application credentials.",
+            "default": false
+        },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",

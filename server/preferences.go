@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+
+	"github.com/mattermost/mattermost/server/public/model"
+)
+
 const (
 	PreferenceCategoryPlugin = "pp_" + pluginID
 
@@ -18,4 +24,23 @@ func (p *Plugin) getPrimaryPlatform(userID string) string {
 	}
 
 	return pref.Value
+}
+
+// setPrimaryPlatform sets a user's primary platform preference.
+func (p *Plugin) setPrimaryPlatform(userID string, primaryPlatform string) error {
+	if primaryPlatform != PreferenceValuePlatformMM && primaryPlatform != PreferenceValuePlatformMSTeams {
+		return fmt.Errorf("invalid primary platform: %s", primaryPlatform)
+	}
+
+	appErr := p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+		UserId:   userID,
+		Category: PreferenceCategoryPlugin,
+		Name:     PreferenceNamePlatform,
+		Value:    primaryPlatform,
+	}})
+	if appErr != nil {
+		return appErr
+	}
+
+	return nil
 }
