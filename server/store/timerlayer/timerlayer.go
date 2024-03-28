@@ -12,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost/server/public/model"
 
 	"golang.org/x/oauth2"
 )
@@ -424,6 +425,20 @@ func (s *TimerLayer) ListChannelSubscriptionsToRefresh(certificate string) ([]*s
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.ListChannelSubscriptionsToRefresh", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error) {
+	start := time.Now()
+
+	result, err := s.Store.ListChannelsToConnectBatch(remoteID, channelType)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.ListChannelsToConnectBatch", success, elapsed)
 	return result, err
 }
 

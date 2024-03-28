@@ -147,6 +147,12 @@
             "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
             "default": false
         },{
+            "key": "useSharedChannels",
+            "display_name": "Reliable Message Delivery",
+            "type": "bool",
+            "help_text": "When true, the plugin will ensure reliable message delivery to msteams retrying when is needed.",
+            "default": false
+        },{
             "key": "syntheticUserAuthService",
             "display_name": "Synthetic User Auth Service",
             "type": "dropdown",

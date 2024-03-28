@@ -227,19 +227,21 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
 	}
 
-	if !p.getConfiguration().DisableSyncMsg {
+	if !p.getConfiguration().DisableSyncMsg && p.getConfiguration().UseSharedChannels {
 		if _, err = p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: channelLink.MattermostChannelID,
 			TeamId:    channelLink.MattermostTeamID,
 			Home:      true,
 			ReadOnly:  false,
 			CreatorId: p.userID,
-			RemoteId:  p.remoteID,
 			ShareName: channelLink.MattermostChannelID,
 		}); err != nil {
 			p.API.LogWarn("Failed to share channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
 		} else {
 			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
+		}
+		if err := p.inviteRemoteToChannel(channelLink.MattermostChannelID, p.remoteID, p.userID); err != nil {
+			p.API.LogWarn("Unable invite remote shared channel", "channel_id", channel.Id, "error", err.Error())
 		}
 	}
 

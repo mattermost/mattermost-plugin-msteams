@@ -37,15 +37,16 @@ import (
 )
 
 const (
-	botUsername                  = "msteams"
-	botDisplayName               = "MS Teams"
-	pluginID                     = "com.mattermost.msteams-sync"
-	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
-	msteamsUserTypeGuest         = "Guest"
-	syncUsersJobName             = "sync_users"
-	metricsJobName               = "metrics"
-	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
+	botUsername                      = "msteams"
+	botDisplayName                   = "MS Teams"
+	pluginID                         = "com.mattermost.msteams-sync"
+	subscriptionsClusterMutexKey     = "subscriptions_cluster_mutex"
+	gmsDmsAutoconnectClusterMutexKey = "gms_dms_autoconnect_cluster_mutex"
+	whitelistClusterMutexKey         = "whitelist_cluster_mutex"
+	msteamsUserTypeGuest             = "Guest"
+	syncUsersJobName                 = "sync_users"
+	metricsJobName                   = "metrics"
+	checkCredentialsJobName          = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
 )
@@ -67,6 +68,8 @@ type Plugin struct {
 	stopSubscriptions func()
 	stopContext       context.Context
 
+	stopDmsGmsMigration func()
+
 	userID    string
 	remoteID  string
 	apiClient *pluginapi.Client
@@ -85,6 +88,8 @@ type Plugin struct {
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+	// !!!! remove this when fixed in server
+	inviteRemoteToChannel func(chanelID, remoteID, userID string) error
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -334,7 +339,61 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
-	p.API.LogDebug("plugin started")
+
+	gmsDmsAutoconnectMutex, err := cluster.NewMutex(p.API, gmsDmsAutoconnectClusterMutexKey)
+	if err != nil {
+		p.API.LogError("Unable to create mutex for automatic connection of dms and gms", "error", err.Error())
+		return
+	}
+
+	gmsDmsAutoconnectMutex.Lock()
+	defer gmsDmsAutoconnectMutex.Unlock()
+
+	ctxMigration, stopMigration := context.WithCancel(context.Background())
+	p.stopDmsGmsMigration = stopMigration
+
+	for {
+		if ctxMigration.Err() != nil {
+			break
+		}
+
+		var ids []string
+		var ids2 []string
+		ids, err = p.store.ListChannelsToConnectBatch(p.remoteID, model.ChannelTypeDirect)
+		if err != nil {
+			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
+			continue
+		}
+		ids2, err = p.store.ListChannelsToConnectBatch(p.remoteID, model.ChannelTypeGroup)
+		if err != nil {
+			p.API.LogWarn("Unable to list the dms/gms to connect", "error", err.Error())
+			continue
+		}
+
+		if len(ids) == 0 && len(ids2) == 0 {
+			p.API.LogInfo("DMs and GMs automatic connection finished")
+			break
+		}
+
+		for _, id := range append(ids, ids2...) {
+			if _, err = p.API.ShareChannel(&model.SharedChannel{
+				ChannelId: id,
+				Home:      true,
+				CreatorId: p.userID,
+				ShareName: id,
+				// TODO: Fix this, this should allow Group chanels too here
+				Type: model.ChannelTypeDirect,
+			}); err != nil {
+				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
+			}
+			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
+			}
+		}
+
+		// Give some time to other work to happen in the server
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func (p *Plugin) getBase64Certificate() string {
@@ -378,6 +437,12 @@ func (p *Plugin) stop(isRestart bool) {
 	if p.monitor != nil {
 		p.monitor.Stop()
 	}
+
+	if p.stopDmsGmsMigration != nil {
+		p.stopDmsGmsMigration()
+		time.Sleep(1 * time.Second)
+	}
+
 	if p.stopSubscriptions != nil {
 		p.stopSubscriptions()
 		time.Sleep(1 * time.Second)
@@ -513,6 +578,25 @@ func (p *Plugin) onActivate() error {
 			return dbErr
 		}
 
+		// simulate a ping to the plugin from server so it appears "online" immediately.
+		// !!!! remove this when fixed in server
+		_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
+		if err != nil {
+			return fmt.Errorf("cannot simulate ping: %w", err)
+		}
+
+		// writing the invite directly in the DB
+		// !!!! remove this when fixed in server
+		p.inviteRemoteToChannel = func(channelID, remoteID, userID string) error {
+			now := model.GetMillis()
+			_, err2 := db.Exec("INSERT into sharedchannelremotes (id, channelid, creatorid, createat, updateat, isinviteaccepted, isinviteconfirmed, remoteid, lastpostupdateat, lastpostid, lastpostcreateat) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (channelid, remoteid) DO NOTHING", model.NewId(), channelID, userID, now, now, true, true, remoteID, now, "", now)
+			if err2 != nil {
+				p.API.LogWarn("cannot simulate invite", "error", err2)
+				return err2
+			}
+			return nil
+		}
+
 		store := sqlstore.New(
 			db,
 			p.API,
@@ -526,7 +610,7 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	if !p.getConfiguration().DisableSyncMsg {
+	if !p.getConfiguration().DisableSyncMsg && p.getConfiguration().UseSharedChannels {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
@@ -544,6 +628,10 @@ func (p *Plugin) onActivate() error {
 			})
 			if err != nil {
 				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
+			}
+
+			if err := p.inviteRemoteToChannel(linkedChannel.MattermostChannelID, p.remoteID, p.userID); err != nil {
+				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", linkedChannel.MattermostChannelID, "error", err.Error())
 			}
 
 			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
@@ -887,20 +975,27 @@ func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.
 }
 
 func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
-	now := model.GetMillis()
-
 	var resp model.SyncResponse
-	for _, post := range msg.Posts {
-		isUpdate := post.CreateAt != post.UpdateAt
-		isDelete := post.DeleteAt != 0
 
-		switch {
-		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionCreated, now-post.CreateAt)
-		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionUpdated, now-post.UpdateAt)
-		default:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionDeleted, now-post.DeleteAt)
+	for _, post := range msg.Posts {
+		if p.getConfiguration().UseSharedChannels {
+			isUpdate := post.CreateAt != post.UpdateAt
+			isDelete := post.DeleteAt != 0
+
+			switch {
+			case !isUpdate && !isDelete:
+				if err := p.messagePostedHandler(post); err != nil {
+					return resp, err
+				}
+			case isUpdate && !isDelete:
+				if err := p.messageUpdatedHandler(post); err != nil {
+					return resp, err
+				}
+			default:
+				if err := p.messageDeletedHandler(post); err != nil {
+					return resp, err
+				}
+			}
 		}
 
 		if resp.PostsLastUpdateAt < post.UpdateAt {
@@ -909,16 +1004,27 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 	}
 
 	for _, reaction := range msg.Reactions {
-		isUpdate := reaction.CreateAt != reaction.UpdateAt
-		isDelete := reaction.DeleteAt != 0
+		if p.getConfiguration().UseSharedChannels {
+			isUpdate := reaction.CreateAt != reaction.UpdateAt
+			isDelete := reaction.DeleteAt != 0
 
-		switch {
-		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionCreated, now-reaction.CreateAt)
-		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionUpdated, now-reaction.UpdateAt)
-		default:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionDeleted, now-reaction.DeleteAt)
+			switch {
+			case !isUpdate && !isDelete:
+				if err := p.reactionAddedHandler(reaction); err != nil {
+					return resp, err
+				}
+			case isUpdate && !isDelete:
+				if err := p.reactionRemovedHandler(reaction); err != nil {
+					return resp, err
+				}
+				if err := p.reactionAddedHandler(reaction); err != nil {
+					return resp, err
+				}
+			default:
+				if err := p.reactionRemovedHandler(reaction); err != nil {
+					return resp, err
+				}
+			}
 		}
 
 		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
@@ -927,4 +1033,24 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 	}
 
 	return resp, nil
+}
+
+func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
+	_ = p.updateAutomutingOnChannelCreated(channel)
+
+	if p.getConfiguration().UseSharedChannels && channel.IsGroupOrDirect() {
+		if _, err := p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: channel.Id,
+			Home:      true,
+			CreatorId: p.userID,
+			ShareName: channel.Id,
+			// TODO: Fix this, this should allow Group chanels too here
+			Type: model.ChannelTypeDirect,
+		}); err != nil {
+			p.API.LogWarn("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
+		}
+		if err := p.inviteRemoteToChannel(channel.Id, p.remoteID, p.userID); err != nil {
+			p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", channel.Id, "error", err.Error())
+		}
+	}
 }

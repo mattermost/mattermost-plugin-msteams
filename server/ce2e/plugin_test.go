@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
 
 const pluginID = "com.mattermost.msteams-sync"
@@ -52,8 +53,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: channel.Id,
 		Message:   "message",
@@ -75,7 +74,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 		require.Never(t, func() bool {
 			_, err = store.GetPostInfoByMattermostID(newPost.Id)
 			return err == nil
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Everything OK", func(t *testing.T) {
@@ -132,7 +131,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 15*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -161,7 +160,7 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 15*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
@@ -191,8 +190,6 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: dm.Id,
 		Message:   "message",
@@ -263,7 +260,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 5*time.Second, 50*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -295,11 +292,12 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var logs string
+			assert.NoError(c, mockClient.Assert("failed-to-post-message", 1))
 			logs, err = mattermost.GetLogs(context.Background(), 10)
 			assert.NoError(c, err)
 			assert.Contains(c, logs, "Error creating post on MS Teams")
 			assert.Contains(c, logs, "Test bad request")
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 10*time.Second, 200*time.Millisecond)
 
 		_, err = store.GetPostInfoByMattermostID(newPost.Id)
 		require.Error(t, err)
@@ -331,7 +329,7 @@ func TestSelectiveSync(t *testing.T) {
 	err = mattermost.CreateUser(context.Background(), "msteams-primary2@mattermost.com", "msteamsprimary2", "password")
 	require.NoError(t, err)
 
-	err = mattermost.CreateUser(context.Background(), "sysnthetic@mattermost.com", "msteams_synthetic", "password")
+	err = mattermost.CreateUser(context.Background(), "synthetic@mattermost.com", "msteams_synthetic", "password")
 	require.NoError(t, err)
 
 	err = mattermost.AddUserToTeam(context.Background(), "notconnected1", "test")
@@ -573,7 +571,7 @@ func TestSelectiveSync(t *testing.T) {
 						} else {
 							assert.NoError(c, mockClient.Assert("post-message", 0))
 						}
-					}, 5*time.Second, 50*time.Millisecond)
+					}, 10*time.Second, 200*time.Millisecond)
 				})
 			}
 		})

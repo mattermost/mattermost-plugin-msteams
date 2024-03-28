@@ -47,8 +47,8 @@ func (c *ClientDisconnectionLayer) CreateOrGetChatForUsers(usersIDs []string) (*
 	return result, err
 }
 
-func (c *ClientDisconnectionLayer) DeleteChatMessage(chatID string, msgID string) error {
-	err := c.Client.DeleteChatMessage(chatID, msgID)
+func (c *ClientDisconnectionLayer) DeleteChatMessage(userID string, chatID string, msgID string) error {
+	err := c.Client.DeleteChatMessage(userID, chatID, msgID)
 	if err != nil {
 		var graphErr *msteams.GraphAPIError
 		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {

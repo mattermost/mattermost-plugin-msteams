@@ -21,7 +21,7 @@ type Client interface {
 	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
-	DeleteChatMessage(chatID, msgID string) error
+	DeleteChatMessage(userID, chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
 	SubscribeToChats(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
 	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate string) (*clientmodels.Subscription, error)
