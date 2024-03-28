@@ -25,9 +25,9 @@ const (
 func (s *SQLStore) runMSTeamUserIDDedup() error {
 	// get all users with duplicate msteamsuserid
 	rows, err := s.getQueryBuilder().Select(
-		usersTableName+".mmuserid",
-		usersTableName+".msteamsuserid",
-		"users.remoteid",
+		"mmuserid",
+		"msteamsuserid",
+		"remoteid",
 	).
 		From(usersTableName).
 		Where(sq.Expr("msteamsuserid IN ( SELECT msteamsuserid FROM " + usersTableName + " GROUP BY msteamsuserid HAVING COUNT(*) > 1)")).
