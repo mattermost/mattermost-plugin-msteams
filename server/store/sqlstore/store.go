@@ -938,7 +938,7 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 }
 
 func (s *SQLStore) ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error) {
-	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.Eq{"scr.remoteid": nil}, sq.Eq{"c.Type": channelType}).Limit(500)
+	query := s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannelremotes AS scr ON scr.channelid = c.id").Where(sq.And{sq.Eq{"scr.remoteid": nil}, sq.Eq{"c.Type": channelType}}).Limit(500)
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
@@ -953,7 +953,7 @@ func (s *SQLStore) ListChannelsToConnectBatch(remoteID string, channelType model
 		results = append(results, result)
 	}
 
-	query = s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannels AS sc ON sc.channelid = c.id").Where(sq.Eq{"sc.remoteid": nil}, sq.NotEq{"c.Id": results}, sq.Eq{"c.Type": channelType}).Limit(500)
+	query = s.getQueryBuilder().Select("c.Id").From("Channels AS c").LeftJoin("sharedchannels AS sc ON sc.channelid = c.id").Where(sq.And{sq.Eq{"sc.remoteid": nil}, sq.NotEq{"c.Id": results}, sq.Eq{"c.Type": channelType}}).Limit(500)
 	rows, err = query.Query()
 	if err != nil {
 		return nil, err
