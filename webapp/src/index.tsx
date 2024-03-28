@@ -99,6 +99,11 @@ export default class Plugin {
 
     uninitialize() {
         this.removeStoreSubscription?.();
+
+        if (this.activityFunc) {
+            document.removeEventListener('click', this.activityFunc);
+            delete this.activityFunc;
+        }
     }
 }
 
