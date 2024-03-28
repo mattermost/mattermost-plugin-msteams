@@ -180,7 +180,7 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 
-	if err := s.createUniqueIndex(usersTableName, "idx_msteamssync_users_msteamsuserid_unq", "msteamsuserid"); err != nil {
+	if err := s.createMSTeamsUserIdUniqueIndex(); err != nil {
 		return err
 	}
 
@@ -788,11 +788,7 @@ func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {
 }
 
 func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
-	return s.getQueryBuilderWithRunner(s.db)
-}
-
-func (s *SQLStore) getQueryBuilderWithRunner(r sq.BaseRunner) sq.StatementBuilderType {
-	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(r)
+	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(s.db)
 }
 
 func (s *SQLStore) VerifyOAuth2State(state string) error {

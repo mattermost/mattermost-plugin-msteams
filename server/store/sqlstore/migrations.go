@@ -1,7 +1,6 @@
 package sqlstore
 
 import (
-	"context"
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
@@ -26,12 +25,11 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	rows, err := s.getQueryBuilder().Select(
 		"msteamssync_users.mmuserid",
 		"msteamssync_users.msteamsuserid",
-		"users.username",
 		"users.remoteid",
 	).
 		From("msteamssync_users").
 		Where(sq.Expr("msteamsuserid IN ( SELECT msteamsuserid FROM msteamssync_users GROUP BY msteamsuserid HAVING COUNT(*) > 1)")).
-		Join("users ON msteamssync_users.mmuserid = users.id").
+		LeftJoin("users ON msteamssync_users.mmuserid = users.id").
 		OrderBy("users.createat ASC").
 		Query()
 	if err != nil {
@@ -40,57 +38,59 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 
 	bestCandidate := map[string]string{}
 	bestCandidateScore := map[string]byte{}
-	var mmuserid, msteamsuserid, username, remoteid string
-	var nRemoteid sql.NullString
 	for rows.Next() {
-		err = rows.Scan(&mmuserid, &msteamsuserid, &username, &nRemoteid)
+		var mmUserID, teamsUserID, remoteID string
+		var nRemoteID sql.NullString
+
+		err = rows.Scan(&mmUserID, &teamsUserID, &nRemoteID)
 		if err != nil {
 			return err
 		}
 
-		remoteid = ""
-		if nRemoteid.Valid {
-			remoteid = nRemoteid.String
+		remoteID = ""
+		if nRemoteID.Valid {
+			remoteID = nRemoteID.String
 		}
 
 		currentUserScore := DedupScoreDefault
-		if remoteid == "" {
+		if remoteID == "" {
 			currentUserScore = DedupScoreNotSynthetic
 		}
 
-		_, ok := bestCandidate[msteamsuserid]
+		_, ok := bestCandidate[teamsUserID]
 		if !ok {
-			bestCandidate[msteamsuserid] = mmuserid
-			bestCandidateScore[msteamsuserid] = currentUserScore
+			bestCandidate[teamsUserID] = mmUserID
+			bestCandidateScore[teamsUserID] = currentUserScore
 			continue
 		}
 
-		if ok && currentUserScore > bestCandidateScore[msteamsuserid] {
-			bestCandidate[msteamsuserid] = mmuserid
-			bestCandidateScore[msteamsuserid] = currentUserScore
+		if ok && currentUserScore > bestCandidateScore[teamsUserID] {
+			bestCandidate[teamsUserID] = mmUserID
+			bestCandidateScore[teamsUserID] = currentUserScore
 			continue
 		}
 	}
 
-	// for each msteamsusers, remove all but the best candidate
-	tx, err := s.db.BeginTx(context.Background(), nil)
-	if err != nil {
-		return err
+	if len(bestCandidate) == 0 {
+		return nil
 	}
 
-	defer func() { _ = tx.Rollback() }()
-	for msteamsuserid, mmuserid := range bestCandidate {
-		s.api.LogInfo("Deleting duplicates for msteamsuserid: " + msteamsuserid + ", keeping mmuserid: " + mmuserid)
-		_, err := s.getQueryBuilderWithRunner(tx).Delete("msteamssync_users").
-			Where(sq.And{
-				sq.Eq{"msteamsuserid": msteamsuserid},
-				sq.NotEq{"mmuserid": mmuserid},
-			}).
-			Exec()
-		if err != nil {
-			return err
-		}
+	orCond := sq.Or{}
+	for teamsUserID, mmUserID := range bestCandidate {
+		orCond = append(orCond, sq.And{
+			sq.Eq{"msteamsuserid": teamsUserID},
+			sq.NotEq{"mmuserid": mmUserID},
+		})
 	}
 
-	return tx.Commit()
+	s.api.LogInfo("Deleting duplicates")
+	_, err = s.getQueryBuilder().Delete("msteamssync_users").
+		Where(orCond).
+		Exec()
+
+	return err
+}
+
+func (s *SQLStore) createMSTeamsUserIdUniqueIndex() error {
+	return s.createUniqueIndex(usersTableName, "idx_msteamssync_users_msteamsuserid_unq", "msteamsuserid")
 }
