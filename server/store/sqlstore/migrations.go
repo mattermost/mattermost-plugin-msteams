@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"database/sql"
+	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -22,20 +23,24 @@ const (
 )
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
+	// get all users with duplicate msteamsuserid
 	rows, err := s.getQueryBuilder().Select(
-		"msteamssync_users.mmuserid",
-		"msteamssync_users.msteamsuserid",
+		usersTableName+".mmuserid",
+		usersTableName+".msteamsuserid",
 		"users.remoteid",
 	).
-		From("msteamssync_users").
-		Where(sq.Expr("msteamsuserid IN ( SELECT msteamsuserid FROM msteamssync_users GROUP BY msteamsuserid HAVING COUNT(*) > 1)")).
-		LeftJoin("users ON msteamssync_users.mmuserid = users.id").
+		From(usersTableName).
+		Where(sq.Expr("msteamsuserid IN ( SELECT msteamsuserid FROM " + usersTableName + " GROUP BY msteamsuserid HAVING COUNT(*) > 1)")).
+		LeftJoin("users ON " + usersTableName + ".mmuserid = users.id").
 		OrderBy("users.createat ASC").
 		Query()
 	if err != nil {
 		return err
 	}
 
+	// find the best candidate to keep based on:
+	// 1. real user > synthetic user
+	// 2. keep the oldest user
 	bestCandidate := map[string]string{}
 	bestCandidateScore := map[string]byte{}
 	for rows.Next() {
@@ -75,6 +80,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 		return nil
 	}
 
+	// for each msteams id, we're deleting all the duplicates except the best candidate
 	orCond := sq.Or{}
 	for teamsUserID, mmUserID := range bestCandidate {
 		orCond = append(orCond, sq.And{
@@ -84,11 +90,78 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	}
 
 	s.api.LogInfo("Deleting duplicates")
-	_, err = s.getQueryBuilder().Delete("msteamssync_users").
+	_, err = s.getQueryBuilder().Delete(usersTableName).
 		Where(orCond).
 		Exec()
 
 	return err
+}
+
+func (s *SQLStore) createTable(tableName, columnList string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) createUniqueIndex(tableName, indexName, columnList string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) indexExist(tableName, indexName string) (bool, error) {
+	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_indexes WHERE tablename = '%s' AND indexname = '%s'", tableName, indexName))
+	if err != nil {
+		return false, err
+	}
+
+	defer rows.Close()
+	return rows.Next(), nil
+}
+
+func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
+	rows, err := s.db.Query(fmt.Sprintf("SELECT constraint_name from information_schema.table_constraints where table_name = '%s' and constraint_type='PRIMARY KEY'", tableName))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var constraintName string
+	if rows.Next() {
+		if scanErr := rows.Scan(&constraintName); scanErr != nil {
+			return scanErr
+		}
+	}
+
+	if constraintName == "" {
+		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
+			return err
+		}
+	} else if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s, ADD PRIMARY KEY(%s)", tableName, constraintName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SQLStore) createMSTeamsUserIdUniqueIndex() error {
