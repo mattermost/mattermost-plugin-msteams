@@ -87,12 +87,13 @@ func setupTestHelper(t *testing.T) *testHelper {
 		PluginSettings: model.PluginSettings{
 			Plugins: map[string]map[string]any{
 				manifest.Id: {
-					"tenantid":      model.NewId(),
-					"clientid":      model.NewId(),
-					"clientsecret":  model.NewId(),
-					"encryptionkey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa_aaa",
-					"webhooksecret": model.NewId(),
-					"syncusers":     0,
+					"tenantid":                model.NewId(),
+					"clientid":                model.NewId(),
+					"clientsecret":            model.NewId(),
+					"encryptionkey":           "aaaaaaaaaaaaaaaaaaaaaaaaaaaa_aaa",
+					"webhooksecret":           model.NewId(),
+					"syncusers":               0,
+					"disableCheckCredentials": true,
 				},
 			},
 		},
