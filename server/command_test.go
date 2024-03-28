@@ -1025,6 +1025,13 @@ func TestGetAutocompleteData(t *testing.T) {
 						SubCommands: []*model.AutocompleteData{},
 					},
 					{
+						Trigger:     "status",
+						HelpText:    "Show your connection status",
+						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
 						Trigger:     "connect-bot",
 						HelpText:    "Connect the bot account (only system admins can do this)",
 						RoleID:      model.SystemAdminRoleId,
@@ -1087,6 +1094,13 @@ func TestGetAutocompleteData(t *testing.T) {
 					{
 						Trigger:     "disconnect",
 						HelpText:    "Disconnect your Mattermost account from your MS Teams account",
+						RoleID:      model.SystemUserRoleId,
+						Arguments:   []*model.AutocompleteArg{},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:     "status",
+						HelpText:    "Show your connection status",
 						RoleID:      model.SystemUserRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
@@ -1315,5 +1329,57 @@ func TestExecutePromoteCommand(t *testing.T) {
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
 		assertEphemeralResponse(th, t, args, fmt.Sprintf("Account %s has been promoted and updated the username to %s", remoteUser.Username, remoteUser.Username))
+	})
+}
+
+func TestStatusCommand(t *testing.T) {
+	th := setupTestHelper(t)
+
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+
+	t.Run("not connected", func(t *testing.T) {
+		th.Reset(t)
+
+		args := &model.CommandArgs{
+			UserId:    user1.Id,
+			ChannelId: model.NewId(),
+		}
+
+		commandResponse, appErr := th.p.executeStatusCommand(args)
+		require.Nil(t, appErr)
+		assertCommandResponse(t, "Your account is not connected to Teams.", commandResponse)
+	})
+
+	t.Run("no token", func(t *testing.T) {
+		th.Reset(t)
+
+		args := &model.CommandArgs{
+			UserId:    user1.Id,
+			ChannelId: model.NewId(),
+		}
+
+		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", nil)
+		require.NoError(t, err)
+
+		commandResponse, appErr := th.p.executeStatusCommand(args)
+		require.Nil(t, appErr)
+		assertCommandResponse(t, "Your account is not connected to Teams.", commandResponse)
+	})
+
+	t.Run("connected", func(t *testing.T) {
+		th.Reset(t)
+
+		args := &model.CommandArgs{
+			UserId:    user1.Id,
+			ChannelId: model.NewId(),
+		}
+
+		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+		require.NoError(t, err)
+
+		commandResponse, appErr := th.p.executeStatusCommand(args)
+		require.Nil(t, appErr)
+		assertCommandResponse(t, "Your account is connected to Teams.", commandResponse)
 	})
 }
