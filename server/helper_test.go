@@ -156,7 +156,7 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 		th.clientMock.AssertExpectations(t)
 
 		// Ccheck the websocket event queue for unhandled events that might represent
-		// unexpected behaviour.
+		// unexpected behavior.
 		unmatchedEvents := make(map[string][]*model.WebSocketEvent)
 
 	nextWebsocketClient:
