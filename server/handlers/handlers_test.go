@@ -136,9 +136,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}, nil).Times(1)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{MattermostID: "mockMattermostID"}, nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 			},
@@ -386,6 +387,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, true, mock.AnythingOfType("time.Duration")).Times(1)
 			},
 		},
 		{
@@ -445,6 +447,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, true, mock.AnythingOfType("time.Duration")).Times(1)
 			},
 		},
 		{
@@ -535,6 +538,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, false, mock.AnythingOfType("time.Duration")).Times(1)
 			},
 		},
 	} {

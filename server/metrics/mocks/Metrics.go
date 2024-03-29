@@ -125,6 +125,11 @@ func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage 
 	_m.Called(action, source, isDirectMessage)
 }
 
+// ObserveMessageDelay provides a mock function with given fields: action, source, isDirectMessage, delay
+func (_m *Metrics) ObserveMessageDelay(action string, source string, isDirectMessage bool, delay time.Duration) {
+	_m.Called(action, source, isDirectMessage, delay)
+}
+
 // ObserveOAuthTokenInvalidated provides a mock function with given fields:
 func (_m *Metrics) ObserveOAuthTokenInvalidated() {
 	_m.Called()

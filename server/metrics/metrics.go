@@ -74,6 +74,7 @@ type Metrics interface {
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
 	ObserveMessage(action, source string, isDirectMessage bool)
+	ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration)
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
@@ -129,6 +130,7 @@ type metrics struct {
 	lifecycleEventsTotal     *prometheus.CounterVec
 	changeEventsTotal        *prometheus.CounterVec
 	messagesTotal            *prometheus.CounterVec
+	messageDelayTime         *prometheus.HistogramVec
 	reactionsTotal           *prometheus.CounterVec
 	filesTotal               *prometheus.CounterVec
 	subscriptionsTotal       *prometheus.CounterVec
@@ -274,6 +276,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct"})
 	m.registry.MustRegister(m.messagesTotal)
+
+	m.messageDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "message_delay_seconds",
+		Help:        "The delay between a message event across platforms",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct"})
+	m.registry.MustRegister(m.messageDelayTime)
 
 	m.reactionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -486,6 +497,12 @@ func (m *metrics) ObserveLifecycleEvent(eventType string, discardedReason string
 func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
 	if m != nil {
 		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+	}
+}
+
+func (m *metrics) ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration) {
+	if m != nil {
+		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Observe(delay.Seconds())
 	}
 }
 
