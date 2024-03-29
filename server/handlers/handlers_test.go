@@ -141,7 +141,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveConfirmedMessage", metrics.ActionSourceMattermost, true).Times(1)
 			},
 		},
 		{

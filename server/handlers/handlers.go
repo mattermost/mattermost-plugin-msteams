@@ -276,7 +276,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
-		ah.plugin.GetMetrics().ObserveConfirmedMessage(metrics.ActionSourceMattermost, isDirectMessage)
 		return metrics.DiscardedReasonDuplicatedPost
 	}
 

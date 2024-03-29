@@ -77,7 +77,6 @@ type Metrics interface {
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
-	ObserveConfirmedMessage(source string, isDirectMessage bool)
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
@@ -132,7 +131,6 @@ type metrics struct {
 	messagesTotal            *prometheus.CounterVec
 	reactionsTotal           *prometheus.CounterVec
 	filesTotal               *prometheus.CounterVec
-	messagesConfirmedTotal   *prometheus.CounterVec
 	subscriptionsTotal       *prometheus.CounterVec
 	syncMsgPostDelayTime     *prometheus.HistogramVec
 	syncMsgReactionDelayTime *prometheus.HistogramVec
@@ -294,16 +292,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesTotal)
-
-	// TODO: Why?
-	m.messagesConfirmedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemEvents,
-		Name:        "messages_confirmed_total",
-		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
-		ConstLabels: additionalLabels,
-	}, []string{"source", "is_direct"})
-	m.registry.MustRegister(m.messagesConfirmedTotal)
 
 	m.subscriptionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -516,12 +504,6 @@ func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectM
 func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
 		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
-	}
-}
-
-func (m *metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	if m != nil {
-		m.messagesConfirmedTotal.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 

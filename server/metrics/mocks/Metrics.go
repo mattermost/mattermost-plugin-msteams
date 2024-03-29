@@ -85,11 +85,6 @@ func (_m *Metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
 	_m.Called(expireDate)
 }
 
-// ObserveConfirmedMessage provides a mock function with given fields: source, isDirectMessage
-func (_m *Metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	_m.Called(source, isDirectMessage)
-}
-
 // ObserveConnectedUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
