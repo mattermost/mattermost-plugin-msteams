@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -14,14 +15,20 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
 type testHelper struct {
-	p             *Plugin
-	appClientMock *mocks.Client
-	clientMock    *mocks.Client
+	p                *Plugin
+	appClientMock    *mocks.Client
+	clientMock       *mocks.Client
+	websocketClients map[string]*model.WebSocketClient
+}
+
+func newTestHelper(p *Plugin, appClientMock *mocks.Client, clientMock *mocks.Client) *testHelper {
+	return &testHelper{p, appClientMock, clientMock, make(map[string]*model.WebSocketClient)}
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
@@ -106,7 +113,7 @@ func setupTestHelper(t *testing.T) *testHelper {
 	})
 	require.NoError(t, err)
 
-	return &testHelper{p, appClientMock, clientMock}
+	return newTestHelper(p, appClientMock, clientMock)
 }
 
 func (th *testHelper) clearDatabase(t *testing.T) {
@@ -147,6 +154,38 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 	t.Cleanup(func() {
 		th.appClientMock.AssertExpectations(t)
 		th.clientMock.AssertExpectations(t)
+
+		// Ccheck the websocket event queue for unhandled events that might represent
+		// unexpected behaviour.
+		unmatchedEvents := make(map[string][]*model.WebSocketEvent)
+
+	nextWebsocketClient:
+		for userID, websocketClient := range th.websocketClients {
+			for {
+				select {
+				case event := <-websocketClient.EventChannel:
+					switch event.EventType() {
+					case model.WebsocketEventHello, model.WebsocketEventStatusChange:
+						// Ignore these common events by default.
+						continue
+					default:
+						unmatchedEvents[userID] = append(unmatchedEvents[userID], event)
+					}
+				default:
+					continue nextWebsocketClient
+				}
+			}
+		}
+
+		for userID, events := range unmatchedEvents {
+			t.Logf("found %d unmatched websocket events for user %s", len(events), userID)
+			for _, event := range events {
+				t.Logf(" - %s", event.EventType())
+			}
+		}
+		if len(unmatchedEvents) > 0 {
+			t.Fail()
+		}
 	})
 
 	return th
@@ -238,21 +277,22 @@ func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User 
 	return user
 }
 
-func (th *testHelper) SetupClient(t *testing.T, user *model.User) *model.Client4 {
+func (th *testHelper) SetupClient(t *testing.T, userID string) *model.Client4 {
 	t.Helper()
 
-	// TODO: Don't hard-code this!
+	user, err := th.p.apiClient.User.Get(userID)
+	require.NoError(t, err)
 
 	client := model.NewAPIv4Client(os.Getenv("MM_SERVICESETTINGS_SITEURL"))
 
 	// TODO: Don't hardcode "password"
-	_, _, err := client.Login(context.TODO(), user.Username, "password")
+	_, _, err = client.Login(context.TODO(), user.Username, "password")
 	require.NoError(t, err)
 
 	return client
 }
 
-func (th *testHelper) SetupWebsocketClient(t *testing.T, client *model.Client4) *model.WebSocketClient {
+func (th *testHelper) setupWebsocketClient(t *testing.T, client *model.Client4) *model.WebSocketClient {
 	t.Helper()
 
 	websocketURL, err := url.Parse(client.URL)
@@ -270,4 +310,73 @@ func (th *testHelper) SetupWebsocketClient(t *testing.T, client *model.Client4) 
 	require.NoError(t, err)
 
 	return websocketClient
+}
+
+// SetupWebsocketClientForUser sets up a websocket client for a user.
+//
+// Call this before you emit the event in order to ensure the client is ready to receive it.
+func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string) {
+	t.Helper()
+
+	if th.websocketClients == nil {
+		th.websocketClients = make(map[string]*model.WebSocketClient)
+	}
+	if websocketClient := th.websocketClients[userID]; websocketClient == nil {
+		client := th.SetupClient(t, userID)
+		websocketClient = th.setupWebsocketClient(t, client)
+		websocketClient.Listen()
+		t.Cleanup(func() {
+			websocketClient.Close()
+			delete(th.websocketClients, userID)
+		})
+
+		th.websocketClients[userID] = websocketClient
+	}
+}
+
+// GetWebsocketClientForUser returns a websocket client previously setup for a user.
+//
+// It's important to call SetupWebsocketClientForUser first and early in tests, otherwise the
+// websocket won't be setup to listen to the event of interest. To help with this, this method
+// won't create a websocket client on demand.
+func (th *testHelper) GetWebsocketClientForUser(t *testing.T, userID string) *model.WebSocketClient {
+	t.Helper()
+
+	websocketClient := th.websocketClients[userID]
+	require.NotNil(t, websocketClient, "websocket client must be setup first")
+
+	return websocketClient
+}
+
+func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, message string) {
+	t.Helper()
+
+	websocketClient := th.GetWebsocketClientForUser(t, userID)
+
+	for {
+		select {
+		case event, ok := <-websocketClient.EventChannel:
+			if !ok {
+				t.Fatal("channel closed before getting websocket event for ephemeral message")
+			}
+
+			if event.EventType() == model.WebsocketEventEphemeralMessage {
+				data := event.GetData()
+				postJSON, ok := data["post"].(string)
+				require.True(t, ok, "failed to find post in ephemeral message websocket event")
+
+				var post model.Post
+				err := json.Unmarshal([]byte(postJSON), &post)
+				require.NoError(t, err)
+
+				assert.Equal(t, channelID, post.ChannelId)
+				assert.Equal(t, message, post.Message)
+
+				// If we get this far, we're good!
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("failed to get websocket event for ephemeral message")
+		}
+	}
 }

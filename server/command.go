@@ -33,18 +33,18 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 	}
 }
 
-func (p *Plugin) cmdSuccess(text string) (*model.CommandResponse, *model.AppError) {
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         text,
-	}, nil
+func (p *Plugin) cmdSuccess(args *model.CommandArgs, text string) (*model.CommandResponse, *model.AppError) {
+	// Delegate to an ephemeral post from the bot, since we can't customize the sender here.
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, text)
+
+	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) cmdError(detailedError string) (*model.CommandResponse, *model.AppError) {
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         detailedError,
-	}, nil
+func (p *Plugin) cmdError(args *model.CommandArgs, detailedError string) (*model.CommandResponse, *model.AppError) {
+	// Delegate to an ephemeral post from the bot, since we can't customize the sender here.
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, detailedError)
+
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
@@ -153,51 +153,51 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 	}
 
 	if p.getConfiguration().SyncLinkedChannels {
-		return p.cmdError("Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, disconnect, disconnect-bot and promote.")
+		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, disconnect, disconnect-bot and promote.")
 	}
-	return p.cmdError("Unknown command. Valid options: connect, connect-bot, disconnect, disconnect-bot and promote.")
+	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, disconnect, disconnect-bot and promote.")
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return p.cmdError("Unable to get the current channel information.")
+		return p.cmdError(args, "Unable to get the current channel information.")
 	}
 
 	if channel.IsGroupOrDirect() {
-		return p.cmdError("Linking/unlinking a direct or group message is not allowed")
+		return p.cmdError(args, "Linking/unlinking a direct or group message is not allowed")
 	}
 
 	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
 	if !canLinkChannel {
-		return p.cmdError("Unable to link the channel. You have to be a channel admin to link it.")
+		return p.cmdError(args, "Unable to link the channel. You have to be a channel admin to link it.")
 	}
 
 	if len(parameters) < 2 {
-		return p.cmdError("Invalid link command, please pass the MS Teams team id and channel id as parameters.")
+		return p.cmdError(args, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
 	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return p.cmdError("This team is not enabled for MS Teams sync.")
+		return p.cmdError(args, "This team is not enabled for MS Teams sync.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
-		return p.cmdError("A link for this channel already exists. Please unlink the channel before you link again with another channel.")
+		return p.cmdError(args, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	link, err = p.store.GetLinkByMSTeamsChannelID(parameters[0], parameters[1])
 	if err == nil && link != nil {
-		return p.cmdError("A link for this channel already exists. Please unlink the channel before you link again with another channel.")
+		return p.cmdError(args, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
 	}
 
 	client, err := p.GetClientForUser(args.UserId)
 	if err != nil {
-		return p.cmdError("Unable to link the channel, looks like your account is not connected to MS Teams")
+		return p.cmdError(args, "Unable to link the channel, looks like your account is not connected to MS Teams")
 	}
 
 	if _, err = client.GetChannelInTeam(parameters[0], parameters[1]); err != nil {
-		return p.cmdError("MS Teams channel not found or you don't have the permissions to access it.")
+		return p.cmdError(args, "MS Teams channel not found or you don't have the permissions to access it.")
 	}
 
 	channelLink := storemodels.ChannelLink{
@@ -212,13 +212,13 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	channelsSubscription, err := p.GetClientForApp().SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
 		p.API.LogWarn("Unable to subscribe to the channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
-		return p.cmdError("Unable to subscribe to the channel")
+		return p.cmdError(args, "Unable to subscribe to the channel")
 	}
 
 	p.GetMetrics().ObserveSubscription(metrics.SubscriptionConnected)
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
 		p.API.LogWarn("Unable to create the new link", "error", err.Error())
-		return p.cmdError("Unable to create new link.")
+		return p.cmdError(args, "Unable to create new link.")
 	}
 
 	if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
@@ -229,7 +229,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		Secret:         p.getConfiguration().WebhookSecret,
 	}); err != nil {
 		p.API.LogWarn("Unable to save the subscription in the DB", "error", err.Error())
-		return p.cmdError("Error occurred while saving the subscription")
+		return p.cmdError(args, "Error occurred while saving the subscription")
 	}
 
 	if !p.getConfiguration().DisableSyncMsg {
@@ -252,33 +252,33 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
 	}
 
-	return p.cmdSuccess("The MS Teams channel is now linked to this Mattermost channel.")
+	return p.cmdSuccess(args, "The MS Teams channel is now linked to this Mattermost channel.")
 }
 
 func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	channel, appErr := p.API.GetChannel(args.ChannelId)
 	if appErr != nil {
-		return p.cmdError("Unable to get the current channel information.")
+		return p.cmdError(args, "Unable to get the current channel information.")
 	}
 
 	if channel.IsGroupOrDirect() {
-		return p.cmdError("Linking/unlinking a direct or group message is not allowed")
+		return p.cmdError(args, "Linking/unlinking a direct or group message is not allowed")
 	}
 
 	canLinkChannel := p.API.HasPermissionToChannel(args.UserId, args.ChannelId, model.PermissionManageChannelRoles)
 	if !canLinkChannel {
-		return p.cmdError("Unable to unlink the channel, you have to be a channel admin to unlink it.")
+		return p.cmdError(args, "Unable to unlink the channel, you have to be a channel admin to unlink it.")
 	}
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)
 	if err != nil {
 		p.API.LogWarn("Unable to get the link by channel ID", "error", err.Error())
-		return p.cmdError("This Mattermost channel is not linked to any MS Teams channel.")
+		return p.cmdError(args, "This Mattermost channel is not linked to any MS Teams channel.")
 	}
 
 	if err = p.store.DeleteLinkByChannelID(channel.Id); err != nil {
 		p.API.LogWarn("Unable to delete the link by channel ID", "error", err.Error())
-		return p.cmdError("Unable to delete link.")
+		return p.cmdError(args, "Unable to delete link.")
 	}
 
 	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannel)
@@ -306,23 +306,23 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
-	return p.cmdSuccess("The MS Teams channel is no longer linked to this Mattermost channel.")
+	return p.cmdSuccess(args, "The MS Teams channel is no longer linked to this Mattermost channel.")
 }
 
 func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err != nil || link == nil {
-		return p.cmdError("Link doesn't exist.")
+		return p.cmdError(args, "Link doesn't exist.")
 	}
 
 	msteamsTeam, err := p.GetClientForApp().GetTeam(link.MSTeamsTeam)
 	if err != nil {
-		return p.cmdError("Unable to get the MS Teams team information.")
+		return p.cmdError(args, "Unable to get the MS Teams team information.")
 	}
 
 	msteamsChannel, err := p.GetClientForApp().GetChannelInTeam(link.MSTeamsTeam, link.MSTeamsChannel)
 	if err != nil {
-		return p.cmdError("Unable to get the MS Teams channel information.")
+		return p.cmdError(args, "Unable to get the MS Teams channel information.")
 	}
 
 	text := fmt.Sprintf(
@@ -331,22 +331,22 @@ func (p *Plugin) executeShowCommand(args *model.CommandArgs) (*model.CommandResp
 		msteamsTeam.DisplayName,
 	)
 
-	return p.cmdSuccess(text)
+	return p.cmdSuccess(args, text)
 }
 
 func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError("Unable to execute the command, only system admins have access to execute this command.")
+		return p.cmdError(args, "Unable to execute the command, only system admins have access to execute this command.")
 	}
 
 	links, err := p.store.ListChannelLinksWithNames()
 	if err != nil {
 		p.API.LogWarn("Unable to get links from store", "error", err.Error())
-		return p.cmdError("Something went wrong.")
+		return p.cmdError(args, "Something went wrong.")
 	}
 
 	if len(links) == 0 {
-		return p.cmdError("No links present.")
+		return p.cmdError(args, "No links present.")
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
@@ -453,109 +453,107 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 
 func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if storedToken, _ := p.store.GetTokenForMattermostUser(args.UserId); storedToken != nil {
-		return p.cmdError("You are already connected to MS Teams. Please disconnect your account first before connecting again.")
+		return p.cmdError(args, "You are already connected to MS Teams. Please disconnect your account first before connecting again.")
 	}
 
 	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
 		p.API.LogWarn("Error in checking if a user is present in whitelist", "user_id", args.UserId, "error", err.Error())
-		return p.cmdError(genericErrorMessage)
+		return p.cmdError(args, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
 			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
-			return p.cmdError(genericErrorMessage)
+			return p.cmdError(args, genericErrorMessage)
 		}
 
 		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
-			return p.cmdError("You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
+			return p.cmdError(args, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
 		}
 	}
 
 	connectURL := p.GetURL() + "/connect"
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
-	return p.cmdSuccess(fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
+	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 }
 
 func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError("Unable to connect the bot account, only system admins can connect the bot account.")
+		return p.cmdError(args, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
 	if storedToken, _ := p.store.GetTokenForMattermostUser(p.userID); storedToken != nil {
-		return p.cmdError("The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
+		return p.cmdError(args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	}
 
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
 		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
-		return p.cmdError(genericErrorMessage)
+		return p.cmdError(args, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
 			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
-			return p.cmdError(genericErrorMessage)
+			return p.cmdError(args, genericErrorMessage)
 		}
 
 		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
-			return p.cmdError("You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
+			return p.cmdError(args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
 		}
 	}
 
 	connectURL := p.GetURL() + "/connect"
-	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
-	return p.cmdSuccess(fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
+	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 }
 
 func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
 	if err != nil {
-		return p.cmdSuccess("Error: the account is not connected")
+		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
 	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
-		return p.cmdSuccess("Error: the account is not connected")
+		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
 	err = p.store.SetUserInfo(args.UserId, teamsUserID, nil)
 	if err != nil {
-		return p.cmdSuccess(fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
+		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
 
 	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
-	return p.cmdSuccess("Your account has been disconnected.")
+	return p.cmdSuccess(args, "Your account has been disconnected.")
 }
 
 func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError("Unable to disconnect the bot account, only system admins can disconnect the bot account.")
+		return p.cmdError(args, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
 	}
 
 	if _, err := p.store.MattermostToTeamsUserID(p.userID); err != nil {
-		return p.cmdSuccess("Error: unable to find the connected bot account")
+		return p.cmdSuccess(args, "Error: unable to find the connected bot account")
 	}
 
 	if err := p.store.DeleteUserInfo(p.userID); err != nil {
-		return p.cmdSuccess(fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
+		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
 	}
 
-	return p.cmdSuccess("The bot account has been disconnected.")
+	return p.cmdSuccess(args, "The bot account has been disconnected.")
 }
 
 func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	if len(parameters) != 2 {
-		return p.cmdSuccess("Invalid promote command, please pass the current username and promoted username as parameters.")
+		return p.cmdSuccess(args, "Invalid promote command, please pass the current username and promoted username as parameters.")
 	}
 
 	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdSuccess("Unable to execute the command, only system admins have access to execute this command.")
+		return p.cmdSuccess(args, "Unable to execute the command, only system admins have access to execute this command.")
 	}
 
 	username := strings.TrimPrefix(parameters[0], "@")
@@ -563,21 +561,21 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user, appErr := p.API.GetUserByUsername(username)
 	if appErr != nil {
-		return p.cmdSuccess("Error: Unable to promote account " + username + ", user not found")
+		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", user not found")
 	}
 
 	userID, err := p.store.MattermostToTeamsUserID(user.Id)
 	if err != nil || userID == "" {
-		return p.cmdSuccess("Error: Unable to promote account " + username + ", it is not a known msteams user account")
+		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", it is not a known msteams user account")
 	}
 
 	if user.RemoteId == nil {
-		return p.cmdSuccess("Error: Unable to promote account " + username + ", it is already a regular account")
+		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", it is already a regular account")
 	}
 
 	newUser, appErr := p.API.GetUserByUsername(newUsername)
 	if appErr == nil && newUser != nil && newUser.Id != user.Id {
-		return p.cmdSuccess("Error: the promoted username already exists, please use a different username.")
+		return p.cmdSuccess(args, "Error: the promoted username already exists, please use a different username.")
 	}
 
 	user.RemoteId = nil
@@ -585,10 +583,10 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
-		return p.cmdSuccess("Error: Unable to promote account " + username)
+		return p.cmdSuccess(args, "Error: Unable to promote account "+username)
 	}
 
-	return p.cmdSuccess("Account " + username + " has been promoted and updated the username to " + newUsername)
+	return p.cmdSuccess(args, "Account "+username+" has been promoted and updated the username to "+newUsername)
 }
 
 func getAutocompletePath(path string) string {
