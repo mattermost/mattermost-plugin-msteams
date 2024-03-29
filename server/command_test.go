@@ -1338,6 +1338,8 @@ func TestStatusCommand(t *testing.T) {
 	team := th.SetupTeam(t)
 	user1 := th.SetupUser(t, team)
 
+	th.SetupWebsocketClientForUser(t, user1.Id)
+
 	t.Run("not connected", func(t *testing.T) {
 		th.Reset(t)
 
@@ -1348,7 +1350,8 @@ func TestStatusCommand(t *testing.T) {
 
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
-		assertCommandResponse(t, "Your account is not connected to Teams.", commandResponse)
+		assertNoCommandResponse(t, commandResponse)
+		assertEphemeralResponse(th, t, args, "Your account is not connected to Teams.")
 	})
 
 	t.Run("no token", func(t *testing.T) {
@@ -1364,7 +1367,8 @@ func TestStatusCommand(t *testing.T) {
 
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
-		assertCommandResponse(t, "Your account is not connected to Teams.", commandResponse)
+		assertNoCommandResponse(t, commandResponse)
+		assertEphemeralResponse(th, t, args, "Your account is not connected to Teams.")
 	})
 
 	t.Run("connected", func(t *testing.T) {
@@ -1380,6 +1384,7 @@ func TestStatusCommand(t *testing.T) {
 
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
-		assertCommandResponse(t, "Your account is connected to Teams.", commandResponse)
+		assertNoCommandResponse(t, commandResponse)
+		assertEphemeralResponse(th, t, args, "Your account is connected to Teams.")
 	})
 }
