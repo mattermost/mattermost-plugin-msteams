@@ -667,19 +667,19 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 
 func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {
 	if parentID != "" {
-		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).Delete(tc.ctx, nil); err != nil {
+		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).SoftDelete().Post(tc.ctx, nil); err != nil {
 			return NormalizeGraphAPIError(err)
 		}
 	} else {
-		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).Delete(tc.ctx, nil); err != nil {
+		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).SoftDelete().Post(tc.ctx, nil); err != nil {
 			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
 }
 
-func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
-	return NormalizeGraphAPIError(tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Delete(tc.ctx, nil))
+func (tc *ClientImpl) DeleteChatMessage(userID, chatID, msgID string) error {
+	return NormalizeGraphAPIError(tc.client.Users().ByUserId(userID).Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).SoftDelete().Post(tc.ctx, nil))
 }
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
