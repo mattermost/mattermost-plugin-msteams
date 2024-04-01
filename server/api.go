@@ -321,7 +321,18 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	connectBot := r.URL.Query().Has("isBot")
 	if connectBot {
+		if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+			a.p.API.LogWarn("Attempt to connect the bot account, by non system admin.", "user_id", userID)
+			http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+			return
+		}
 		userID = a.p.GetBotUserID()
+	}
+
+	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
+		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
 	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
