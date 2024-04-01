@@ -30,6 +30,7 @@ type Monitor struct {
 	certificate        string
 	useEvaluationAPI   bool
 	syncDirectMessages bool
+	startupTime        time.Time
 }
 
 // New creates a new instance of the Monitor job.
@@ -44,6 +45,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 		useEvaluationAPI:   useEvaluationAPI,
 		certificate:        certificate,
 		syncDirectMessages: syncDirectMessages,
+		startupTime:        time.Now(),
 	}
 }
 
@@ -81,6 +83,12 @@ func (m *Monitor) Stop() {
 // runMonitoringSystemJob is a callback to trigger the business logic of the Monitor job, being run
 // automatically by the job subsystem.
 func (m *Monitor) runMonitoringSystemJob() {
+	// Wait at least one minute after startup before starting the monitoring job.
+	if time.Since(m.startupTime) < 1*time.Minute {
+		m.api.LogInfo("Delaying the Monitoring System Job until at least 1 minute after startup")
+		return
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			m.metrics.ObserveGoroutineFailure()
