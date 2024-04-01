@@ -1351,7 +1351,7 @@ func TestStatusCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Your account is not connected to Teams.")
+		assertEphemeralResponse(th, t, args, "Your account isn't connected to MS Teams.")
 	})
 
 	t.Run("no token", func(t *testing.T) {
@@ -1368,7 +1368,7 @@ func TestStatusCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Your account is not connected to Teams.")
+		assertEphemeralResponse(th, t, args, "Your account isn't connected to MS Teams.")
 	})
 
 	t.Run("connected", func(t *testing.T) {
@@ -1385,6 +1385,6 @@ func TestStatusCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeStatusCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Your account is connected to Teams.")
+		assertEphemeralResponse(th, t, args, "Your account is connected to MS Teams.")
 	})
 }

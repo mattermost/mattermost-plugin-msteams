@@ -599,12 +599,12 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	if storedToken, err := p.store.GetTokenForMattermostUser(args.UserId); err != nil {
 		// TODO: We will need to distinguish real errors from "row not found" later.
-		return p.cmdSuccess(args, "Your account is not connected to Teams.")
+		return p.cmdSuccess(args, "Your account isn't connected to MS Teams.")
 	} else if storedToken != nil {
-		return p.cmdSuccess(args, "Your account is connected to Teams.")
+		return p.cmdSuccess(args, "Your account is connected to MS Teams.")
 	}
 
-	return p.cmdSuccess(args, "Your account is not connected to Teams.")
+	return p.cmdSuccess(args, "Your account isn't connected to MS Teams.")
 }
 
 func getAutocompletePath(path string) string {
