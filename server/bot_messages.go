@@ -88,3 +88,21 @@ func (p *Plugin) NotifyUpdatedAttachmentsNotSupportedFromTeams(post *model.Post)
 		p.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
 	}
 }
+
+func (p *Plugin) notifyUserConnected(userID string) {
+	if err := p.botSendDirectMessage(userID, "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."); err != nil {
+		p.GetAPI().LogWarn("Failed to notify user connected", "user_id", userID, "error", err)
+	}
+}
+
+func (p *Plugin) notifyUserMattermostPrimary(userID string) {
+	if err := p.botSendDirectMessage(userID, "You’ve chosen Mattermost as your primary platform: you’ll receive Microsoft Teams messages and notifications in Mattermost. Consider [disabling MS Teams notifications](https://support.microsoft.com/en-us/office/manage-notifications-in-microsoft-teams-1cc31834-5fe5-412b-8edb-43fecc78413d) to avoid duplicated notifications."); err != nil {
+		p.GetAPI().LogWarn("Failed to notify user is Mattermost primary", "user_id", userID, "error", err)
+	}
+}
+
+func (p *Plugin) notifyUserTeamsPrimary(userID string) {
+	if err := p.botSendDirectMessage(userID, "You’ve chosen Microsoft Teams as your primary platform: your Mattermost notifications for DMs and GMs are muted, and you’ll receive chats from Mattermost in Microsoft Teams."); err != nil {
+		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
+	}
+}
