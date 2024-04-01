@@ -53,6 +53,9 @@ type PluginIface interface {
 	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
+	NotifyFileAttachmentError(userID, channelID string)
+	NotifyUpdatedAttachmentsNotSupportedFromTeams(post *model.Post)
+	NotifyAttachmentsNotSupportedFromTeams(post *model.Post)
 }
 
 type ActivityHandler struct {
@@ -358,27 +361,14 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	if skippedFileAttachments {
-		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
-			ChannelId: newPost.ChannelId,
-			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Attachments sent from Microsoft Teams aren't delivered to Mattermost.",
-			// Anchor the post immediately after (never before) the post that was created.
-			CreateAt: newPost.CreateAt + 1,
-		})
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", newPost.Id, "error", appErr)
-		}
+		ah.plugin.NotifyAttachmentsNotSupportedFromTeams(post)
 	}
 
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
 	ah.plugin.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage, time.Since(msg.CreateAt))
 
 	if errorFound {
-		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
-			ChannelId: channelID,
-			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Some images could not be delivered because they exceeded the maximum resolution and/or size allowed.",
-		})
+		ah.plugin.NotifyFileAttachmentError(senderID, channelID)
 	}
 
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
@@ -473,16 +463,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 	post.Id = postInfo.MattermostID
 
 	if skippedFileAttachments {
-		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
-			ChannelId: post.ChannelId,
-			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Attachments added to an existing post in Microsoft Teams aren't delivered to Mattermost.",
-			// Anchor the post immediately after (never before) the post that was edited.
-			CreateAt: post.CreateAt + 1,
-		})
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
-		}
+		ah.plugin.NotifyUpdatedAttachmentsNotSupportedFromTeams(post)
 	}
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)

@@ -67,6 +67,9 @@ func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
 func (pm *pluginMock) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
 	return true, nil
 }
+func (pm *pluginMock) NotifyFileAttachmentError(userID, channelID string)             {}
+func (pm *pluginMock) NotifyUpdatedAttachmentsNotSupportedFromTeams(post *model.Post) {}
+func (pm *pluginMock) NotifyAttachmentsNotSupportedFromTeams(post *model.Post)        {}
 
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{

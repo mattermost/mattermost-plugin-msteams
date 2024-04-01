@@ -566,15 +566,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
 		}
 	} else if len(post.FileIds) > 0 {
-		_, appErr := p.API.CreatePost(&model.Post{
-			ChannelId: post.ChannelId,
-			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
-		})
-		if appErr != nil {
-			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
-		}
+		p.notifyAttachmentsNotSupportedFromMattermost(post)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -605,11 +597,6 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 		}
 	}
 	return newMessage.ID, nil
-}
-
-func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	message := fmt.Sprintf("[Click here to connect your account](%s).", p.GetURL()+"/connect")
-	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "+message)
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
@@ -660,15 +647,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
 		}
 	} else if len(post.FileIds) > 0 {
-		_, appErr := p.API.CreatePost(&model.Post{
-			ChannelId: post.ChannelId,
-			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
-		})
-		if appErr != nil {
-			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", channelID, "post_id", post.Id, "error", appErr)
-		}
+		p.notifyAttachmentsNotSupportedFromMattermost(post)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))

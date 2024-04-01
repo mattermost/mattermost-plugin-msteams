@@ -321,6 +321,21 @@ func (_m *PluginIface) IsRemoteUser(user *model.User) bool {
 	return r0
 }
 
+// NotifyAttachmentsNotSupportedFromTeams provides a mock function with given fields: post
+func (_m *PluginIface) NotifyAttachmentsNotSupportedFromTeams(post *model.Post) {
+	_m.Called(post)
+}
+
+// NotifyFileAttachmentError provides a mock function with given fields: userID, channelID
+func (_m *PluginIface) NotifyFileAttachmentError(userID string, channelID string) {
+	_m.Called(userID, channelID)
+}
+
+// NotifyUpdatedAttachmentsNotSupportedFromTeams provides a mock function with given fields: post
+func (_m *PluginIface) NotifyUpdatedAttachmentsNotSupportedFromTeams(post *model.Post) {
+	_m.Called(post)
+}
+
 type mockConstructorTestingTNewPluginIface interface {
 	mock.TestingT
 	Cleanup(func())
