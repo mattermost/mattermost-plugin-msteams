@@ -68,7 +68,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 			}
 		}
 
-		if err := p.DeleteChat(post.UserId, post); err != nil {
+		if err := p.DeleteChat(post); err != nil {
 			p.API.LogWarn("Unable to delete chat", "error", err.Error())
 			return
 		}
@@ -724,8 +724,8 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 	return nil
 }
 
-func (p *Plugin) DeleteChat(userID string, post *model.Post) error {
-	client, err := p.GetClientForUser(userID)
+func (p *Plugin) DeleteChat(post *model.Post) error {
+	client, err := p.GetClientForUser(post.UserId)
 	if err != nil {
 		return err
 	}
@@ -746,7 +746,7 @@ func (p *Plugin) DeleteChat(userID string, post *model.Post) error {
 		return errors.New("post not found")
 	}
 
-	if err := client.DeleteChatMessage(userID, chatID, postInfo.MSTeamsID); err != nil {
+	if err := client.DeleteChatMessage(post.UserId, chatID, postInfo.MSTeamsID); err != nil {
 		p.API.LogWarn("Error deleting post from MS Teams", "error", err)
 		return err
 	}
