@@ -160,6 +160,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		fileInfoID := fileNames[a.Name]
 		if fileInfoID != "" {
 			attachments = append(attachments, fileInfoID)
+			continue
 		}
 
 		// handle the download
