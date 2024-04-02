@@ -53,6 +53,7 @@ type PluginIface interface {
 	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
+	GetRemoteID() string
 }
 
 type ActivityHandler struct {
