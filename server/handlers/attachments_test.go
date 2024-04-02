@@ -266,7 +266,7 @@ func TestHandleAttachments(t *testing.T) {
 		expectedParentID               string
 		expectedSkippedFileAttachments bool
 		expectedError                  bool
-		fileIDs                    []string
+		fileIDs                        []string
 	}{
 		{
 			description: "File attachments disabled by configuration",
@@ -582,11 +582,7 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-<<<<<<< HEAD
-			newText, attachmentIDs, parentID, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
-=======
-			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, false)
->>>>>>> main
+			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)

@@ -127,10 +127,9 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	if len(msg.Attachments) > 0 {
 		for _, fID := range existingFileIDs {
 			fileInfo, _ := ah.plugin.GetAPI().GetFileInfo(fID)
-			if fileInfo == nil {
-				continue
+			if fileInfo != nil {
+				fileNames[fileInfo.Name] = fID
 			}
-			fileNames[fileInfo.Name] = fID
 		}
 	}
 
@@ -162,11 +161,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		if fileInfoID != "" {
 			attachments = append(attachments, fileInfoID)
 		}
-		// // We don't support retroactively adding file attachments to posts.
-		// if isUpdatedActivity {
-		// 	skippedFileAttachments = true
-		// 	continue
-		// }
 
 		// handle the download
 		var attachmentData []byte
