@@ -471,11 +471,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-<<<<<<< HEAD
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
-=======
-	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
->>>>>>> main
+	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
 	post.Id = postInfo.MattermostID
 
 	if skippedFileAttachments {
