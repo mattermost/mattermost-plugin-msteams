@@ -471,7 +471,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 				s.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Once()
 				var token *oauth2.Token
 				s.On("SetUserInfo", testutils.GetUserID(), testutils.GetTeamsUserID(), token).Return(nil).Times(1)
-				s.On("DeleteDMAndGMChannelPromptTime", testutils.GetUserID()).Return(errors.New("error in deleting prompt time")).Once()
 			},
 		},
 		{
@@ -1383,7 +1382,21 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("remote-id")}, nil).Once()
 				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
-				api.On("UpdateUser", &model.User{Id: "test", Username: "new-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "new-user", RemoteId: nil}, nil).Once()
+				api.On("UpdateUser", &model.User{Id: "test", Username: "new-user", RemoteId: nil, EmailVerified: true}).Return(&model.User{Id: "test", Username: "new-user", RemoteId: nil, EmailVerified: true}, nil).Once()
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to new-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user and valid new username, submitted with a @",
+			params:      []string{"@valid-user", "@new-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("remote-id")}, nil).Once()
+				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
+				api.On("UpdateUser", &model.User{Id: "test", Username: "new-user", RemoteId: nil, EmailVerified: true}).Return(&model.User{Id: "test", Username: "new-user", RemoteId: nil}, nil).Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to new-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
@@ -1396,7 +1409,20 @@ func TestExecutePromoteCommand(t *testing.T) {
 			setupAPI: func(api *plugintest.API) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("remote-id")}, nil).Times(2)
-				api.On("UpdateUser", &model.User{Id: "test", Username: "valid-user", RemoteId: nil}).Return(&model.User{Id: "test", Username: "valid-user", RemoteId: nil}, nil).Times(1)
+				api.On("UpdateUser", &model.User{Id: "test", Username: "valid-user", RemoteId: nil, EmailVerified: true}).Return(&model.User{Id: "test", Username: "valid-user", RemoteId: nil, EmailVerified: true}, nil).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to valid-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
+			},
+			setupStore: func(s *mockStore.Store) {
+				s.On("MattermostToTeamsUserID", "test").Return("ms-test", nil).Times(1)
+			},
+		},
+		{
+			description: "Valid user and valid new username, submitted with a @",
+			params:      []string{"@valid-user", "@valid-user"},
+			setupAPI: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("remote-id")}, nil).Times(2)
+				api.On("UpdateUser", &model.User{Id: "test", Username: "valid-user", RemoteId: nil, EmailVerified: true}).Return(&model.User{Id: "test", Username: "valid-user", RemoteId: nil}, nil).Times(1)
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Account valid-user has been promoted and updated the username to valid-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {

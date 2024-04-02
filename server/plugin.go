@@ -488,7 +488,7 @@ func (p *Plugin) onActivate() error {
 		Displayname:  pluginID,
 		PluginID:     pluginID,
 		CreatorID:    p.userID,
-		AutoShareDMs: true,
+		AutoShareDMs: false,
 		AutoInvited:  true,
 	})
 	if err != nil {
@@ -623,7 +623,6 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogWarn("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -637,14 +636,18 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
+	var activeMSTeamsUsersCount int64
 	for _, msUser := range msUsers {
+		if msUser.IsAccountEnabled {
+			activeMSTeamsUsersCount++
+		}
+
 		userSuffixID := 1
 		if msUser.Mail == "" {
 			continue
 		}
 
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
-
 		authData := ""
 		if configuration.AutomaticallyPromoteSyntheticUsers {
 			switch configuration.SyntheticUserAuthData {
@@ -720,10 +723,11 @@ func (p *Plugin) syncUsers() {
 		username := "msteams_" + slug.Make(msUser.DisplayName)
 		if !isUserPresent {
 			newMMUser := &model.User{
-				Email:     msUser.Mail,
-				RemoteId:  &p.remoteID,
-				FirstName: msUser.DisplayName,
-				Username:  username,
+				Email:         msUser.Mail,
+				RemoteId:      &p.remoteID,
+				FirstName:     msUser.DisplayName,
+				Username:      username,
+				EmailVerified: true,
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
@@ -786,6 +790,11 @@ func (p *Plugin) syncUsers() {
 				shouldUpdate = true
 			}
 
+			if !mmUser.EmailVerified {
+				mmUser.EmailVerified = true
+				shouldUpdate = true
+			}
+
 			if shouldUpdate {
 				for {
 					_, err := p.API.UpdateUser(mmUser)
@@ -805,6 +814,7 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 	}
+	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
 
 func generateSecret() (string, error) {
