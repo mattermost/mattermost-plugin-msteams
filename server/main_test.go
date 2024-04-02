@@ -126,7 +126,7 @@ func setupServer(mt *mainTest) error {
 	config.ServiceSettings.SiteURL = model.NewString("http://example.com/")
 	config.LogSettings.EnableConsole = model.NewBool(true)
 	config.LogSettings.EnableFile = model.NewBool(false)
-	config.LogSettings.ConsoleLevel = model.NewString("INFO")
+	config.LogSettings.ConsoleLevel = model.NewString("DEBUG")
 	config.ServiceSettings.EnableLocalMode = model.NewBool(true)
 	config.ServiceSettings.LocalModeSocketLocation = model.NewString(path.Join(tmpDir, "mattermost_local.socket"))
 	config.ServiceSettings.EnableDeveloper = model.NewBool(true)
