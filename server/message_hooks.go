@@ -60,7 +60,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatSpansPlatforms(post.ChannelId)
+			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return

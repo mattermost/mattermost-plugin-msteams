@@ -50,7 +50,7 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
+	ChatShouldSync(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 }
@@ -316,7 +316,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		}
 
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, appErr := ah.plugin.ChatSpansPlatforms(channelID); appErr != nil {
+			if shouldSync, appErr := ah.plugin.ChatShouldSync(channelID); appErr != nil {
 				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {

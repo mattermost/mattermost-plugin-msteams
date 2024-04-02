@@ -8,10 +8,14 @@ import (
 
 // ChatMembersSpanPlatforms determines if the members of the given channel span both Mattermost and
 // MS Teams. Chats between users on the same platform are skipped if selective sync is enabled.
-func (p *Plugin) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+// Chats with only a single member are self chats and always sync.
+func (p *Plugin) ChatShouldSync(channelID string) (bool, *model.AppError) {
 	members, appErr := p.API.GetChannelMembers(channelID, 0, math.MaxInt32)
 	if appErr != nil {
 		return false, appErr
+	}
+	if len(members) == 1 {
+		return true, nil
 	}
 
 	return p.ChatMembersSpanPlatforms(members)
@@ -19,7 +23,6 @@ func (p *Plugin) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
 
 // ChatMembersSpanPlatforms determines if the given channel members span both Mattermost and
 // MS Teams. Chats between users on the same platform are skipped if selective sync is enabled.
-// Chats with only a single member are self chats and always sync.
 func (p *Plugin) ChatMembersSpanPlatforms(members model.ChannelMembers) (bool, *model.AppError) {
 	atLeastOneLocalUser := false
 	atLeastOneRemoteUser := false
