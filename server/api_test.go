@@ -762,13 +762,9 @@ func TestConnect(t *testing.T) {
 		{
 			Name: "connect: Bot Permissions",
 			SetupPlugin: func(api *plugintest.API) {
-				// api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
-				// api.On("KVSet", fmt.Sprintf("_code_verifier_%s", "bot-user-id"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
 				api.On("HasPermissionTo", mock.AnythingOfType("string"), model.PermissionManageSystem).Return(false).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				// store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
-				// store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusInternalServerError,
 			isBot:              true,
