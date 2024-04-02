@@ -79,6 +79,21 @@ export default class Plugin {
                 registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
             }
         });
+
+        // Site statistics handler
+        if (registry.registerSiteStatisticsHandler) {
+            registry.registerSiteStatisticsHandler(async () => {
+                const siteStats = await Client.fetchSiteStats();
+                return {
+                    msteams_connected_users: {
+                        name: 'MS Teams: Connected Users',
+                        id: 'msteams_connected_users',
+                        icon: 'fa-users', // font-awesome-4.7.0 handler
+                        value: siteStats?.total_connected_users,
+                    },
+                };
+            });
+        }
     }
 
     userActivityWatch(): void {

@@ -285,9 +285,10 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]clientmodels.User{
 					{
-						ID:          testutils.GetTeamsUserID(),
-						DisplayName: "mockDisplayName",
-						Mail:        "mockEmail@msteams.com",
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
 					},
 				}, nil).Times(1)
 			},
@@ -316,9 +317,10 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]clientmodels.User{
 					{
-						ID:          testutils.GetTeamsUserID(),
-						DisplayName: "mockDisplayName",
-						Mail:        "mockEmail@msteams.com",
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
 					},
 				}, nil).Times(1)
 			},
@@ -351,9 +353,10 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]clientmodels.User{
 					{
-						ID:          testutils.GetTeamsUserID(),
-						DisplayName: "mockDisplayName",
-						Mail:        "mockEmail@msteams.com",
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
 					},
 				}, nil).Times(1)
 			},
