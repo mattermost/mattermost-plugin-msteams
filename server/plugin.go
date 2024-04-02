@@ -636,7 +636,6 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogWarn("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -650,7 +649,12 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
+	var activeMSTeamsUsersCount int64
 	for _, msUser := range msUsers {
+		if msUser.IsAccountEnabled {
+			activeMSTeamsUsersCount++
+		}
+
 		userSuffixID := 1
 		if msUser.Mail == "" {
 			continue
@@ -827,6 +831,7 @@ func (p *Plugin) syncUsers() {
 	if p.getConfiguration().RunAsLoadTest {
 		loadtest.FakeConnectUsersForLoadTest(p.API, p.store)
 	}
+	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
 
 func generateSecret() (string, error) {
