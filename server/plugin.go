@@ -203,6 +203,15 @@ func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	client = client_timerlayer.New(client, p.GetMetrics())
 	client = client_disconnectionlayer.New(client, userID, p.OnDisconnectedTokenHandler)
 
+	if p.getConfiguration().RunAsLoadTest {
+		if !loadtest.Settings.MapHasToken(token.AccessToken) {
+			teamsUserID, err := p.store.MattermostToTeamsUserID(userID)
+			if err == nil {
+				loadtest.Settings.AddTokenToMap(token.AccessToken, userID, teamsUserID)
+			}
+		}
+	}
+
 	if token.Expiry.Before(time.Now()) {
 		newToken, err := client.RefreshToken(token)
 		if err != nil {
@@ -244,10 +253,6 @@ func (p *Plugin) connectTeamsAppClient() error {
 		p.getConfiguration().ClientSecret,
 		&p.apiClient.Log,
 	)
-
-	if p.getConfiguration().RunAsLoadTest {
-		loadtest.TenantId = p.getConfiguration().TenantID
-	}
 
 	p.msteamsAppClient = client_timerlayer.New(msteamsAppClient, p.GetMetrics())
 	err := p.msteamsAppClient.Connect()
@@ -464,12 +469,6 @@ func (p *Plugin) onActivate() error {
 
 	p.apiClient = pluginapi.NewClient(p.API, p.Driver)
 
-	if p.getConfiguration().RunAsLoadTest {
-		p.API.LogInfo("Running MS TEAMS Plugin in Load Test mode")
-		loadtest.LogService = &p.apiClient.Log
-		loadtest.RunAsLoadTest = p.getConfiguration().RunAsLoadTest
-	}
-
 	config := p.apiClient.Configuration.GetConfig()
 	license := p.apiClient.System.GetLicense()
 	if !pluginapi.IsE20LicensedOrDevelopment(config, license) {
@@ -537,6 +536,23 @@ func (p *Plugin) onActivate() error {
 		if err = p.store.Init(p.remoteID); err != nil {
 			return err
 		}
+	}
+
+	if p.getConfiguration().RunAsLoadTest {
+		p.API.LogInfo("Running MS TEAMS Plugin in Load Test mode")
+		loadtest.Configure(
+			p.getConfiguration().ClientID,
+			p.getConfiguration().ClientSecret,
+			p.getConfiguration().TenantID,
+			p.getConfiguration().WebhookSecret,
+			p.GetURL()+"/",
+			true,
+			p.getConfiguration().LoadTestUseIncomingPostMessage,
+			p.getConfiguration().LoadTestMaxIncomingPosts,
+			p.API,
+			p.store,
+			&p.apiClient.Log,
+		)
 	}
 
 	if !p.getConfiguration().DisableSyncMsg {
@@ -829,7 +845,7 @@ func (p *Plugin) syncUsers() {
 	}
 
 	if p.getConfiguration().RunAsLoadTest {
-		loadtest.FakeConnectUsersForLoadTest(p.API, p.store)
+		loadtest.FakeConnectUsersForLoadTest()
 	}
 	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }

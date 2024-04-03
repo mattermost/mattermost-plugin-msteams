@@ -19,15 +19,32 @@ import (
 )
 
 type MockRoundTripper struct {
-	originalTransport *http.Transport
+	originalTransport  *http.Transport
+	DisableCompression bool
 }
 
 var (
-	applicationId string
-	TenantId      string
-	LogService    *pluginapi.LogService
-	RunAsLoadTest bool
+	Settings      *LoadTestSettings
+	ReverseClient *http.Client
 )
+
+func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, enabled, useIncomingPostMessage bool, maxIncomingPosts int, api plugin.API, store store.Store, logService *pluginapi.LogService) {
+	Settings = &LoadTestSettings{
+		api:                    api,
+		store:                  store,
+		applicationId:          applicationId,
+		secret:                 secret,
+		tenantId:               tenantId,
+		baseUrl:                baseUrl,
+		userTokenMap:           make(LoadTestUserTokenMap),
+		Enabled:                enabled,
+		useIncomingPostMessage: useIncomingPostMessage,
+		maxIncomingPosts:       maxIncomingPosts,
+		logService:             logService,
+		webhookSecret:          webhookSecret,
+	}
+	ReverseClient = http.DefaultClient
+}
 
 func NewRespBodyFromBytes(body []byte) io.ReadCloser {
 	return &dummyReadCloser{orig: body}
@@ -54,13 +71,13 @@ func NewJsonResponse(status int, body any) (*http.Response, error) { // nolint: 
 }
 
 func log(message string, keyValuePairs ...interface{}) {
-	if LogService != nil {
-		LogService.Debug(fmt.Sprintf("Mock RoundTripper: %s", message), keyValuePairs...)
+	if Settings.logService != nil {
+		Settings.logService.Debug(fmt.Sprintf("Mock RoundTripper: %s", message), keyValuePairs...)
 	}
 }
 
 func (rt *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if RunAsLoadTest {
+	if Settings.Enabled {
 		url := req.URL.RequestURI()
 		log("request", "url", url, "method", req.Method)
 
@@ -68,20 +85,24 @@ func (rt *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 			return initApplications(url)
 		} else if strings.Contains(url, "/common/discovery/instance") {
 			return initDiscoverInstance()
-		} else if strings.Contains(url, "/"+strings.ToLower(TenantId)+"/v2.0/.well-known/openid-configuration") {
+		} else if strings.Contains(url, "/"+strings.ToLower(Settings.tenantId)+"/v2.0/.well-known/openid-configuration") {
 			return initOpenIdConfigure()
-		} else if strings.Contains(url, "/"+strings.ToLower(TenantId)+"/oauth2/v2.0/token") {
+		} else if strings.Contains(url, "/"+strings.ToLower(Settings.tenantId)+"/oauth2/v2.0/token") {
 			return getOAuthToken()
 		} else if strings.Contains(url, "/v1.0/subscriptions") && strings.ToLower(req.Method) == "post" {
 			return initSubsciptions()
 		} else if match, _ := regexp.MatchString("/v1.0/teams/(.+)/channels/(.+)", url); match {
 			return getMSTeamChannel(url)
 		} else if strings.Contains(url, "/v1.0/chats") {
-			if strings.Contains(url, "/messages") {
+			if match, _ := regexp.MatchString(`/v1.0/chats/(.+)/messages/(.+)`, url); match {
+				return getChatMessage(url)
+			} else if strings.Contains(url, "/messages") {
 				return postMessageToMSTeams(req)
 			} else {
 				return getOrCreateMSTeamsChat(req)
 			}
+		} else if match, _ := regexp.MatchString(`/v1.0/users/(.+)\?\$select=displayName,id,mail,userPrincipalName,userType`, url); match {
+			return getUser(url)
 		}
 
 		return NewJsonResponse(200, map[string]any{})
@@ -90,15 +111,15 @@ func (rt *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	return rt.originalTransport.RoundTrip(req)
 }
 
-func FakeConnectUserForLoadTest(mmUserId string, store store.Store) error {
-	if teamsUserID, _ := store.MattermostToTeamsUserID(mmUserId); teamsUserID == "" {
+func FakeConnectUserForLoadTest(mmUserId string) error {
+	if teamsUserID, _ := Settings.store.MattermostToTeamsUserID(mmUserId); teamsUserID == "" {
 		msUserId := "ms_teams-" + mmUserId
 		fakeToken := &oauth2.Token{
 			Expiry:      time.Now().Add(24 * 30 * time.Hour),
 			TokenType:   "fake",
 			AccessToken: model.NewRandomString(26),
 		}
-		if err := store.SetUserInfo(mmUserId, msUserId, fakeToken); err != nil {
+		if err := Settings.store.SetUserInfo(mmUserId, msUserId, fakeToken); err != nil {
 			return err
 		}
 	}
@@ -106,23 +127,23 @@ func FakeConnectUserForLoadTest(mmUserId string, store store.Store) error {
 	return nil
 }
 
-func FakeConnectUsersForLoadTest(api plugin.API, store store.Store) {
-	mmUsers, appErr := api.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
+func FakeConnectUsersForLoadTest() {
+	mmUsers, appErr := Settings.api.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
-		api.LogWarn("Unable to get MM users during setup load test", "error", appErr.Error())
+		Settings.api.LogWarn("Unable to get MM users during setup load test", "error", appErr.Error())
 		return
 	}
 
 	count := 0
 	for _, mmUser := range mmUsers {
-		if teamsUserID, _ := store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
-			err := FakeConnectUserForLoadTest(mmUser.Id, store)
+		if teamsUserID, _ := Settings.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
+			err := FakeConnectUserForLoadTest(mmUser.Id)
 			if err != nil {
-				api.LogWarn("Unable to store Mattermost user ID vs Teams user ID in fake connect for load test", "user_id", mmUser.Id, "error", err.Error())
+				Settings.api.LogWarn("Unable to store Mattermost user ID vs Teams user ID in fake connect for load test", "user_id", mmUser.Id, "error", err.Error())
 				continue
 			}
 			count += 1
 		}
 	}
-	api.LogDebug("LoadTest connected", "users", count, "of", len(mmUsers))
+	Settings.api.LogDebug("LoadTest connected", "users", count, "of", len(mmUsers))
 }

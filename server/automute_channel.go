@@ -49,7 +49,7 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 
 		for _, m := range members {
 			p.API.LogDebug("Connecting user to MS Teams for load test")
-			loadtest.FakeConnectUserForLoadTest(m.UserId, p.store)
+			loadtest.FakeConnectUserForLoadTest(m.UserId)
 		}
 	}
 }
