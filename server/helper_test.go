@@ -113,6 +113,11 @@ func setupTestHelper(t *testing.T) *testHelper {
 	})
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		_, err := clientLocal.DetachPlugin(ctx, manifest.Id)
+		require.NoError(t, err)
+	})
+
 	return newTestHelper(p, appClientMock, clientMock)
 }
 
