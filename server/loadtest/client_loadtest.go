@@ -24,8 +24,7 @@ type MockRoundTripper struct {
 }
 
 var (
-	Settings      *LoadTestSettings
-	ReverseClient *http.Client
+	Settings *LoadTestSettings
 )
 
 func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, enabled, useIncomingPostMessage bool, maxIncomingPosts int, api plugin.API, store store.Store, logService *pluginapi.LogService) {
@@ -43,7 +42,6 @@ func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, e
 		logService:             logService,
 		webhookSecret:          webhookSecret,
 	}
-	ReverseClient = http.DefaultClient
 }
 
 func NewRespBodyFromBytes(body []byte) io.ReadCloser {

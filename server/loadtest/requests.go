@@ -99,10 +99,11 @@ func simulatePostToChat(channelId, msUserId, message string, count int) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	_, err = ReverseClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log("simulatePostToChat failed", "error", err)
 	}
+	defer resp.Body.Close()
 }
 
 func simulatePostsToChat(channelId, msUserId, message string) {
