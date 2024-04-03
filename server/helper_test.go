@@ -12,6 +12,7 @@ import (
 	goPlugin "github.com/hashicorp/go-plugin"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -210,7 +211,20 @@ func (th *testHelper) SetupTeam(t *testing.T) *model.Team {
 	return team
 }
 
-func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team) *model.Channel {
+type ChannelOption func(*testing.T, *testHelper, *model.Channel)
+
+func WithMembers(members ...*model.User) ChannelOption {
+	return func(t *testing.T, th *testHelper, channel *model.Channel) {
+		t.Helper()
+
+		for _, user := range members {
+			_, appErr := th.p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			require.Nil(t, appErr)
+		}
+	}
+}
+
+func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team, opts ...ChannelOption) *model.Channel {
 	t.Helper()
 
 	channelName := model.NewId()
@@ -222,7 +236,42 @@ func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team) *model.
 	})
 	require.Nil(t, appErr)
 
+	for _, opt := range opts {
+		opt(t, th, channel)
+	}
+
 	return channel
+}
+
+func (th *testHelper) SetupPrivateChannel(t *testing.T, team *model.Team, opts ...ChannelOption) *model.Channel {
+	t.Helper()
+
+	channelName := model.NewId()
+	channel, appErr := th.p.API.CreateChannel(&model.Channel{
+		Name:        channelName,
+		DisplayName: channelName,
+		Type:        model.ChannelTypePrivate,
+		TeamId:      team.Id,
+	})
+	require.Nil(t, appErr)
+
+	for _, opt := range opts {
+		opt(t, th, channel)
+	}
+
+	return channel
+}
+
+func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) {
+	channelLink := storemodels.ChannelLink{
+		MattermostTeamID:    team.Id,
+		MattermostChannelID: channel.Id,
+		MSTeamsTeam:         model.NewId(),
+		MSTeamsChannel:      model.NewId(),
+		Creator:             user.Id,
+	}
+	err := th.p.store.StoreChannelLink(&channelLink)
+	require.NoError(t, err)
 }
 
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
@@ -267,6 +316,11 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	require.Nil(t, appErr)
 
 	return user
+}
+
+func (th *testHelper) ConnectUser(t *testing.T, userID string) {
+	err := th.p.store.SetUserInfo(userID, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+	require.NoError(t, err)
 }
 
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {

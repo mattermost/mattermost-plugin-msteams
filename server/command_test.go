@@ -98,10 +98,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 
 	t.Run("not a linked channel", func(t *testing.T) {
 		th.p.configuration.DisableSyncMsg = true
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
@@ -116,10 +114,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 
 	t.Run("successfully unlinked", func(t *testing.T) {
 		th.p.configuration.DisableSyncMsg = true
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		channelLink := storemodels.ChannelLink{
@@ -145,10 +141,8 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 
 	t.Run("successfully unlinked, sync msg enabled", func(t *testing.T) {
 		th.p.configuration.DisableSyncMsg = false
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		channelLink := storemodels.ChannelLink{
@@ -594,10 +588,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("missing parameters", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
@@ -615,10 +607,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 		t.Skip("not yet implemented")
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
@@ -635,10 +625,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("already linked", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		channelLink := storemodels.ChannelLink{
@@ -666,10 +654,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("another channel already linked", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		otherChannel := th.SetupPublicChannel(t, team)
@@ -699,10 +685,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("user not connected", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
@@ -719,10 +703,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("not found on Teams", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
@@ -744,10 +726,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("failed to subscribe", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
@@ -775,10 +755,8 @@ func TestExecuteLinkCommand(t *testing.T) {
 	t.Run("successfully linked", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-		_, appErr := th.p.API.AddUserToChannel(channel.Id, user1.Id, user1.Id)
-		require.Nil(t, appErr)
-		_, appErr = th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
 
 		args := &model.CommandArgs{
