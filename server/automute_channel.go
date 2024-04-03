@@ -10,6 +10,11 @@ import (
 )
 
 func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
+	p.API.LogDebug(
+		"User has joine channel",
+		"user_id", channelMember.UserId,
+		"channel_id", channelMember.ChannelId,
+	)
 	_, _ = p.updateAutomutingOnUserJoinedChannel(c, channelMember.UserId, channelMember.ChannelId)
 }
 
