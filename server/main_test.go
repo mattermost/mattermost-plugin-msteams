@@ -193,6 +193,11 @@ func setupServer(mt *mainTest) error {
 // TestMain is run before any tests within this package and helps setup a singleton Postgres and
 // Mattermost intance for use with tests.
 func TestMain(m *testing.M) {
+	var status int
+	defer func() {
+		os.Exit(status)
+	}()
+
 	mt := new(mainTest)
 	defer mt.Done()
 
@@ -212,7 +217,5 @@ func TestMain(m *testing.M) {
 	}
 
 	// This actually runs the tests
-	status := m.Run()
-
-	os.Exit(status)
+	status = m.Run()
 }
