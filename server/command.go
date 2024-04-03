@@ -81,9 +81,6 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	disconnect := model.NewAutocompleteData("disconnect", "", "Disconnect your Mattermost account from your MS Teams account")
 	cmd.AddCommand(disconnect)
 
-	status := model.NewAutocompleteData("status", "", "Show your connection status")
-	cmd.AddCommand(status)
-
 	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
 	connectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(connectBot)
@@ -153,10 +150,6 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "promote" {
 		return p.executePromoteUserCommand(args, parameters)
-	}
-
-	if action == "status" {
-		return p.executeStatusCommand(args)
 	}
 
 	if p.getConfiguration().SyncLinkedChannels {
@@ -594,17 +587,6 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	}
 
 	return p.cmdSuccess(args, "Account "+username+" has been promoted and updated the username to "+newUsername)
-}
-
-func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if storedToken, err := p.store.GetTokenForMattermostUser(args.UserId); err != nil {
-		// TODO: We will need to distinguish real errors from "row not found" later.
-		return p.cmdSuccess(args, "Your account isn't connected to MS Teams.")
-	} else if storedToken != nil {
-		return p.cmdSuccess(args, "Your account is connected to MS Teams.")
-	}
-
-	return p.cmdSuccess(args, "Your account isn't connected to MS Teams.")
 }
 
 func getAutocompletePath(path string) string {
