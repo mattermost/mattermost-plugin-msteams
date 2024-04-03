@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -160,7 +159,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -258,7 +257,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -477,19 +476,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
-		p.API.LogWarn("Error in storing the code verifier", "error", appErr.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
+	connectURL := p.GetURL() + "/connect"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -522,20 +509,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
-
+	connectURL := p.GetURL() + "/connect"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -559,9 +533,6 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
-	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogWarn("Unable to delete the last prompt timestamp for the user", "user_id", args.UserId, "error", err.Error())
-	}
 
 	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
@@ -598,16 +569,10 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 		return &model.CommandResponse{}, nil
 	}
 
-	username := parameters[0]
-	newUsername := parameters[1]
+	username := strings.TrimPrefix(parameters[0], "@")
+	newUsername := strings.TrimPrefix(parameters[1], "@")
 
-	var user *model.User
-	var appErr *model.AppError
-	if strings.HasPrefix(username, "@") {
-		user, appErr = p.API.GetUserByUsername(username[1:])
-	} else {
-		user, appErr = p.API.GetUserByUsername(username)
-	}
+	user, appErr := p.API.GetUserByUsername(username)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", user not found")
 		return &model.CommandResponse{}, nil
@@ -632,6 +597,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user.RemoteId = nil
 	user.Username = newUsername
+	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)

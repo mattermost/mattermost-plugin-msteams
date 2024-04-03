@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -17,9 +21,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
@@ -76,7 +77,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2).Add(time.Hour*2), nil).Once()
 			},
 			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
@@ -284,7 +284,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get source user ID")).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
@@ -743,7 +742,6 @@ func TestSetChatReaction(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
@@ -755,7 +753,6 @@ func TestSetChatReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
@@ -1018,7 +1015,6 @@ func TestUnsetChatReaction(t *testing.T) {
 			SetupAPI: func(api *plugintest.API) {},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
@@ -1030,7 +1026,6 @@ func TestUnsetChatReaction(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient:     func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:    func(mockmetrics *metricsmocks.Metrics) {},
@@ -1249,32 +1244,34 @@ func TestSendChat(t *testing.T) {
 		},
 	}
 	for _, test := range []struct {
-		Name            string
-		SetupPlugin     func(*Plugin)
-		SetupAPI        func(*plugintest.API)
-		SetupStore      func(*storemocks.Store)
-		SetupClient     func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics    func(mockmetrics *metricsmocks.Metrics)
-		ExpectedMessage string
-		ExpectedError   string
+		Name                     string
+		SetupPlugin              func(*Plugin)
+		SetupAPI                 func(*plugintest.API)
+		SetupStore               func(*storemocks.Store)
+		SetupClient              func(*clientmocks.Client, *clientmocks.Client)
+		SetupMetrics             func(mockmetrics *metricsmocks.Metrics)
+		ChatMembersSpanPlatforms bool
+		ExpectedMessage          string
+		ExpectedError            string
 	}{
 		{
-			Name: "SendChat: Unable to get the source user ID",
+			Name: "SendChat: Unable to get the source user ID, chat members don't span platforms",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
-			SetupAPI: func(api *plugintest.API) {},
+			SetupAPI: func(api *plugintest.API) {
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get the source user ID")).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), errors.New("error in getting prompt from store")).Once()
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
-			ExpectedError: "unable to get the source user ID",
+			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
+			ChatMembersSpanPlatforms: false,
+			ExpectedError:            "unable to get the source user ID",
 		},
 		{
-			Name: "SendChat: Unable to get the client",
+			Name: "SendChat: Unable to get the source user ID, chat members span platforms",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
@@ -1282,19 +1279,56 @@ func TestSendChat(t *testing.T) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
 					UserId:    "bot-user-id",
 					ChannelId: testutils.GetChannelID(),
-					Message:   "Your Mattermost account is not connected to MS Teams so your activity will not be relayed to users on MS Teams. You can connect your account using the `/msteams connect` slash command.",
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get the source user ID")).Times(1)
+			},
+			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
+			ChatMembersSpanPlatforms: true,
+			ExpectedError:            "unable to get the source user ID",
+		},
+		{
+			Name: "SendChat: Unable to get the client, chat members don't span platforms",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
+			SetupAPI: func(api *plugintest.API) {
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
+				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
+			},
+			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
+			ChatMembersSpanPlatforms: false,
+			ExpectedError:            "not connected user",
+		},
+		{
+			Name: "SendChat: Unable to get the client, chat members span platforms",
+			SetupPlugin: func(p *Plugin) {
+				p.configuration.SyncFileAttachments = true
+			},
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
 				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now(), nil).Once()
-				store.On("StoreDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID(), mock.AnythingOfType("time.Time")).Return(errors.New("error in storing prompt")).Once()
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
-			ExpectedError: "not connected user",
+			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
+			ChatMembersSpanPlatforms: true,
+			ExpectedError:            "not connected user",
 		},
 		{
 			Name: "SendChat: Unable to create or get the chat",
@@ -1441,6 +1475,9 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = false
 			},
 			SetupAPI: func(api *plugintest.API) {
+				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
+				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1640,7 +1677,7 @@ func TestSendChat(t *testing.T) {
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
 			mockPost.RootId = "mockRootID"
-			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost)
+			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost, test.ChatMembersSpanPlatforms)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1668,7 +1705,13 @@ func TestSend(t *testing.T) {
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
-			SetupAPI: func(api *plugintest.API) {},
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
+					UserId:    "bot-user-id",
+					ChannelId: testutils.GetChannelID(),
+					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
+				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
@@ -1683,6 +1726,9 @@ func TestSend(t *testing.T) {
 				p.configuration.SyncFileAttachments = false
 			},
 			SetupAPI: func(api *plugintest.API) {
+				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
+				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
@@ -1987,7 +2033,26 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+var (
+	anyString      = mock.AnythingOfType("string")
+	anyStringSlice = mock.AnythingOfType("[]string")
+	anyInt         = mock.AnythingOfType("int")
+	anyPost        = mock.AnythingOfType("*model.Post")
+	anyFloat64     = mock.AnythingOfType("float64")
+)
+
 func TestDeleteChat(t *testing.T) {
+	mockChat := &clientmodels.Chat{
+		ID: testutils.GetChatID(),
+		Members: []clientmodels.ChatMember{
+			{
+				DisplayName: "mockDisplayName",
+				UserID:      testutils.GetTeamsUserID(),
+				Email:       testutils.GetTestEmail(),
+			},
+		},
+	}
+
 	for _, test := range []struct {
 		Name          string
 		SetupAPI      func(*plugintest.API)
@@ -1997,13 +2062,14 @@ func TestDeleteChat(t *testing.T) {
 		ExpectedError string
 	}{
 		{
-			Name:     "DeleteChat: Unable to get the client",
-			SetupAPI: func(api *plugintest.API) {},
+			Name: "DeleteChat: Unable to get the client",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("SendEphemeralPost", anyString, anyPost).Return(&model.Post{}).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
 			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
@@ -2012,32 +2078,51 @@ func TestDeleteChat(t *testing.T) {
 		{
 			Name: "DeleteChat: Unable to get the post info",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", anyString).Return(testutils.GetUserID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post info")).Times(1)
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+			},
 			ExpectedError: "unable to get the post info",
 		},
 		{
 			Name: "DeleteChat: Post info is nil",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
+			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+			},
+			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+			},
 			ExpectedError: "post not found",
 		},
 		{
 			Name: "DeleteChat: Unable to delete the message",
 			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -2045,17 +2130,24 @@ func TestDeleteChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(errors.New("unable to delete the message")).Times(1)
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+				uclient.On("DeleteChatMessage", anyString, anyString, "mockMSTeamsID").Return(errors.New("unable to delete the message")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "false", anyFloat64).Once()
 			},
 			ExpectedError: "unable to delete the message",
 		},
 		{
-			Name:     "DeleteChat: Valid",
-			SetupAPI: func(api *plugintest.API) {},
+			Name: "DeleteChat: Valid",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetChannel", anyString).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
+				api.On("GetChannelMembers", anyString, anyInt, anyInt).Return(testutils.GetChannelMembers(10), nil).Times(1)
+			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
 				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
 					MattermostID: testutils.GetID(),
@@ -2063,9 +2155,12 @@ func TestDeleteChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("DeleteChatMessage", "mockChatID", "mockMSTeamsID").Return(nil).Times(1)
+				uclient.On("CreateOrGetChatForUsers", anyStringSlice).Return(mockChat, nil).Times(1)
+				uclient.On("DeleteChatMessage", anyString, anyString, "mockMSTeamsID").Return(nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", anyFloat64).Once()
+				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", anyFloat64).Once()
 				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMattermost, true).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.DeleteChatMessage", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -2078,7 +2173,7 @@ func TestDeleteChat(t *testing.T) {
 			test.SetupStore(p.store.(*storemocks.Store))
 			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
 			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			err := p.DeleteChat("mockChatID", testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
+			err := p.DeleteChat(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -2301,8 +2396,8 @@ func TestUpdateChat(t *testing.T) {
 				}, nil).Times(1)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 				store.On("GetTokenForMattermostUser", "bot-user-id").Return(nil, nil).Times(1)
-				store.On("GetDMAndGMChannelPromptTime", testutils.GetChannelID(), testutils.GetID()).Return(time.Now().Add(time.Hour*2), nil).Once()
 			},
+
 			SetupClient:   func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:  func(mockmetrics *metricsmocks.Metrics) {},
 			ExpectedError: "not connected user",
@@ -2693,6 +2788,109 @@ func TestGetMentionsData(t *testing.T) {
 			msg, mentions := p.getMentionsData(test.Message, testutils.GetTeamID(), testutils.GetChannelID(), test.ChatID, client)
 			assert.Equal(test.ExpectedMessage, msg)
 			assert.Equal(test.ExpectedMentionsCount, len(mentions))
+		})
+	}
+}
+
+func TestUserWillLogin(t *testing.T) {
+	for _, test := range []struct {
+		Name                               string
+		User                               *model.User
+		UserIsRemote                       bool // the remote id is set by the plugin during the test
+		AutomaticallyPromoteSyntheticUsers bool
+		SetupAPI                           func(*plugintest.API)
+		SetupStore                         func(*storemocks.Store)
+		SetupClient                        func(*clientmocks.Client)
+		Result                             string
+	}{
+		{
+			Name: "Autopromotion works",
+			User: &model.User{
+				Id:            testutils.GetID(),
+				EmailVerified: false,
+			},
+			UserIsRemote:                       true,
+			AutomaticallyPromoteSyntheticUsers: true,
+			SetupAPI: func(api *plugintest.API) {
+				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
+					if user.EmailVerified == false {
+						return false
+					}
+
+					if *user.RemoteId != "" {
+						return false
+					}
+
+					return true
+				})).Once().Return(nil, nil)
+				api.On("LogInfo", "Promoted synthetic user", "user_id", testutils.GetID()).Once()
+			},
+			SetupClient: func(client *clientmocks.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{}, nil)
+			},
+			SetupStore: func(store *storemocks.Store) {},
+			Result:     "",
+		},
+		{
+			Name: "UpdateUser failed during autopromotion",
+			User: &model.User{
+				Id:            testutils.GetID(),
+				EmailVerified: false,
+			},
+			UserIsRemote:                       true,
+			AutomaticallyPromoteSyntheticUsers: true,
+			SetupAPI: func(api *plugintest.API) {
+				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
+					if user.EmailVerified == false {
+						return false
+					}
+
+					if *user.RemoteId != "" {
+						return false
+					}
+
+					return true
+				})).Once().Return(nil, model.NewAppError("UpdateUser", "err from test", nil, "", 500))
+				api.On("LogWarn", "Failed to promote synthetic user", "user_id", testutils.GetID(), "err", "err from test").Once()
+			},
+			SetupClient: func(client *clientmocks.Client) {},
+			SetupStore:  func(store *storemocks.Store) {},
+			Result:      "Unable to promote synthetic user",
+		},
+		{
+			Name: "No autopromotion",
+			User: &model.User{
+				Id:            testutils.GetID(),
+				EmailVerified: false,
+			},
+			UserIsRemote:                       true,
+			AutomaticallyPromoteSyntheticUsers: false,
+			SetupAPI:                           func(api *plugintest.API) {},
+			SetupClient:                        func(client *clientmocks.Client) {},
+			SetupStore:                         func(store *storemocks.Store) {},
+			Result:                             "",
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := newTestPlugin(t)
+			cfg := p.configuration
+			cfg.AutomaticallyPromoteSyntheticUsers = test.AutomaticallyPromoteSyntheticUsers
+
+			test.SetupAPI(p.API.(*plugintest.API))
+			test.SetupStore(p.store.(*storemocks.Store))
+
+			client := p.msteamsAppClient.(*clientmocks.Client)
+			test.SetupClient(client)
+
+			user := test.User
+			if test.UserIsRemote {
+				user.RemoteId = &p.remoteID
+			}
+
+			res := p.UserWillLogIn(nil, user)
+
+			assert.Equal(test.Result, res)
 		})
 	}
 }

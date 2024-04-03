@@ -6,6 +6,10 @@ import {ClientError} from 'mattermost-redux/client/client4';
 
 import {id as pluginId} from './manifest';
 
+export interface SiteStats {
+    total_connected_users: number;
+}
+
 class ClientClass {
     url = '';
 
@@ -13,8 +17,16 @@ class ClientClass {
         this.url = url + `/plugins/${pluginId}`;
     }
 
-    connect = async () => {
-        return this.doGet(`${this.url}/connect`);
+    notifyConnect = async () => {
+        await this.doGet(`${this.url}/notify-connect`);
+    };
+
+    fetchSiteStats = async (): Promise<SiteStats | null> => {
+        const data = await this.doGet(`${this.url}/stats/site`);
+        if (!data) {
+            return null;
+        }
+        return data as SiteStats;
     };
 
     doGet = async (url: string, headers: {[key: string]: any} = {}) => {

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -31,6 +30,7 @@ const (
 	postsTableName               = "msteamssync_posts"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
+	invitedUsersTableName        = "msteamssync_invited_users"
 	PGUniqueViolationErrorCode   = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
 )
 
@@ -43,8 +43,9 @@ type SQLStore struct {
 
 func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
 	return &SQLStore{
-		db:            db,
-		api:           api,
+		db:  db,
+		api: api,
+
 		enabledTeams:  enabledTeams,
 		encryptionKey: encryptionKey,
 	}
@@ -99,7 +100,7 @@ func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
 	return nil
 }
 
-func (s *SQLStore) Init() error {
+func (s *SQLStore) Init(remoteID string) error {
 	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
 		return err
 	}
@@ -144,7 +145,28 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
+	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
+	}
+
+	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(invitedUsersTableName, "invitePendingSince", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if remoteID != "" {
+		if err := s.runMigrationRemoteID(remoteID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
@@ -720,64 +742,6 @@ func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
 	return subscriptionType, nil
 }
 
-func (s *SQLStore) StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error {
-	timeBytes, err := timestamp.MarshalJSON()
-	if err != nil {
-		return err
-	}
-
-	if err := s.api.KVSet(connectionPromptKey+channelID+"_"+userID, timeBytes); err != nil {
-		return errors.New(err.Error())
-	}
-
-	return nil
-}
-
-func (s *SQLStore) GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error) {
-	var t time.Time
-	data, err := s.api.KVGet(connectionPromptKey + channelID + "_" + userID)
-	if err != nil {
-		return t, errors.New(err.Error())
-	}
-
-	if err := t.UnmarshalJSON(data); err != nil {
-		return t, err
-	}
-
-	return t, nil
-}
-
-func (s *SQLStore) DeleteDMAndGMChannelPromptTime(userID string) error {
-	var userKeys []string
-	page := 0
-	perPage := 100
-	for {
-		keys, err := s.api.KVList(page, perPage)
-		if err != nil {
-			return errors.New(err.Error())
-		}
-
-		for _, key := range keys {
-			if strings.HasPrefix(key, connectionPromptKey) && strings.Contains(key, userID) {
-				userKeys = append(userKeys, key)
-			}
-		}
-
-		if len(keys) < perPage {
-			break
-		}
-		page++
-	}
-
-	for _, key := range userKeys {
-		if err := s.api.KVDelete(key); err != nil {
-			return errors.New(err.Error())
-		}
-	}
-
-	return nil
-}
-
 func (s *SQLStore) RecoverPost(postID string) error {
 	query := s.getQueryBuilder().Update("Posts").Set("DeleteAt", 0).Where(sq.Eq{"Id": postID}, sq.NotEq{"DeleteAt": 0})
 	if _, err := query.Exec(); err != nil {
@@ -970,6 +934,81 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	}
 
 	return result != "", nil
+}
+
+func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	pendingSince := invitedUser.InvitePendingSince.UnixMicro()
+	lastSentAt := invitedUser.InviteLastSentAt.UnixMicro()
+
+	query := s.getQueryBuilder().
+		Insert(invitedUsersTableName).
+		Columns("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		Values(invitedUser.ID, pendingSince, lastSentAt).
+		SuffixExpr(sq.Expr("ON CONFLICT (mmUserID) DO UPDATE SET invitePendingSince = ?, inviteLastSentAt = ?", pendingSince, lastSentAt))
+
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	query := s.getQueryBuilder().
+		Select("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		From(invitedUsersTableName).
+		Where(sq.Eq{"mmUserID": mmUserID})
+
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result *storemodels.InvitedUser
+	if rows.Next() {
+		var id string
+		var pendingSince int64
+		var lastSentAt int64
+
+		if scanErr := rows.Scan(&id, &pendingSince, &lastSentAt); scanErr != nil {
+			return nil, scanErr
+		}
+
+		result = &storemodels.InvitedUser{
+			ID:                 id,
+			InvitePendingSince: time.UnixMicro(pendingSince),
+			InviteLastSentAt:   time.UnixMicro(pendingSince),
+		}
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
+	if _, err := s.getQueryBuilder().Delete(invitedUsersTableName).Where(sq.Eq{"mmUserID": mmUserID}).Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
+	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
+	rows, err := query.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return 0, scanErr
+		}
+	}
+
+	return result, nil
 }
 
 func hashKey(prefix, hashableKey string) string {
