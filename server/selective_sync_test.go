@@ -103,6 +103,18 @@ func TestChatShouldSync(t *testing.T) {
 		require.Error(t, appErr)
 	})
 
+	t.Run("dm with a single users", func(t *testing.T) {
+		team := setupTeam(t, p)
+		user1 := setupUser(t, p, team, false)
+
+		channel, err := p.API.CreateDirectChannel(user1.Id, user1.Id)
+		require.Nil(t, err)
+
+		chatShouldSync, appErr := p.ChatShouldSync(channel.Id)
+		require.Nil(t, appErr)
+		assert.True(t, chatShouldSync)
+	})
+
 	t.Run("dm between two local users", func(t *testing.T) {
 		team := setupTeam(t, p)
 		user1 := setupUser(t, p, team, false)
