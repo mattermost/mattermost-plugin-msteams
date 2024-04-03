@@ -6,7 +6,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-// ChatMembersSpanPlatforms determines if the members of the given channel span both Mattermost and
+// ChatShouldSync determines if the members of the given channel span both Mattermost and
 // MS Teams. Chats between users on the same platform are skipped if selective sync is enabled.
 // Chats with only a single member are self chats and always sync.
 func (p *Plugin) ChatShouldSync(channelID string) (bool, *model.AppError) {
