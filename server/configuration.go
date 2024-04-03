@@ -44,9 +44,10 @@ type configuration struct {
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
 	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
-	RunAsLoadTest                      bool   `json:"runAsLoadTest"`
-	LoadTestMaxIncomingPosts           int    `json:"loadTestMaxIncomingPosts"`
-	LoadTestUseIncomingPostMessage     bool   `json:"loadTestUseIncomingPostMessage"`
+	RunAsLoadTest                      bool   `json:"runasloadtest"`
+	MaxIncomingPosts                   int    `json:"maxincomingposts"`
+	MinIncomingPosts                   int    `json:"minincomingposts"`
+	IncludeIncomingPostContent         bool   `json:"includeincomingpostcontent"`
 }
 
 func (c *configuration) ProcessConfiguration() {

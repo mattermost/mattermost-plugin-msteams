@@ -15,18 +15,19 @@ type LoadTestUserTokenData struct {
 type LoadTestUserTokenMap map[string]LoadTestUserTokenData
 
 type LoadTestSettings struct {
-	api                    plugin.API
-	store                  store.Store
-	logService             *pluginapi.LogService
-	applicationId          string
-	secret                 string
-	webhookSecret          string
-	baseUrl                string
-	tenantId               string
-	Enabled                bool
-	userTokenMap           LoadTestUserTokenMap
-	maxIncomingPosts       int
-	useIncomingPostMessage bool
+	api                   plugin.API
+	store                 store.Store
+	logService            *pluginapi.LogService
+	applicationId         string
+	secret                string
+	webhookSecret         string
+	baseUrl               string
+	tenantId              string
+	Enabled               bool
+	userTokenMap          LoadTestUserTokenMap
+	maxIncomingPosts      int
+	minIncomingPosts      int
+	simulateIncomingPosts bool
 }
 
 func (s *LoadTestSettings) AddTokenToMap(accessToken, mmUserId, msUserId string) {

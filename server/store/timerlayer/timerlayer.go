@@ -147,6 +147,20 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 	return result, err
 }
 
+func (s *TimerLayer) GetConnectedUsersCount() (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetConnectedUsersCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsersCount", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 

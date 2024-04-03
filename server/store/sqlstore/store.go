@@ -1011,6 +1011,17 @@ func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
 	return result, nil
 }
 
+func (s *SQLStore) GetConnectedUsersCount() (int64, error) {
+	query := s.getQueryBuilder().Select("count(mmUserID)").From(usersTableName).Where(sq.NotEq{"token": ""}).Where(sq.NotEq{"token": nil})
+	row := query.QueryRow()
+	var connectedUsers int64
+	if err := row.Scan(&connectedUsers); err != nil {
+		return 0, err
+	}
+
+	return connectedUsers, nil
+}
+
 func hashKey(prefix, hashableKey string) string {
 	if hashableKey == "" {
 		return prefix

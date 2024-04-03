@@ -13,7 +13,10 @@ import (
 )
 
 func getAuthClient() *http.Client {
-	return getHTTPClient()
+	if loadtest.Settings != nil && loadtest.Settings.Enabled {
+		return getHTTPClient()
+	}
+	return http.DefaultClient
 }
 
 func getHTTPClient() *http.Client {
@@ -21,9 +24,10 @@ func getHTTPClient() *http.Client {
 	defaultMiddleWare := msgraphcore.GetDefaultMiddlewaresWithOptions(&defaultClientOptions)
 
 	httpClient := khttp.GetDefaultClient(defaultMiddleWare...)
-
-	transport := khttp.NewCustomTransportWithParentTransport(&loadtest.MockRoundTripper{}, defaultMiddleWare...)
-	httpClient.Transport = transport
+	if loadtest.Settings != nil && loadtest.Settings.Enabled {
+		transport := khttp.NewCustomTransportWithParentTransport(&loadtest.MockRoundTripper{}, defaultMiddleWare...)
+		httpClient.Transport = transport
+	}
 
 	return httpClient
 }

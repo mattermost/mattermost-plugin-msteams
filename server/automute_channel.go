@@ -13,6 +13,19 @@ import (
 
 func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.ChannelMember, actor *model.User) {
 	_, _ = p.updateAutomutingOnUserJoinedChannel(c, channelMember.UserId, channelMember.ChannelId)
+
+	if p.getConfiguration().RunAsLoadTest {
+		connectedUsers, err := p.store.GetConnectedUsersCount()
+		maxAllowed := int64(p.getConfiguration().ConnectedUsersAllowed)
+		if err != nil || connectedUsers >= maxAllowed {
+			return
+		}
+		p.API.LogDebug("Connecting user to MS Teams for load test")
+		loadtest.FakeConnectUserForLoadTest(channelMember.UserId)
+		if actor != nil && (connectedUsers+1) < maxAllowed {
+			loadtest.FakeConnectUserForLoadTest(actor.Id)
+		}
+	}
 }
 
 func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID string, channelID string) (bool, error) {
@@ -48,6 +61,9 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 		}
 
 		for _, m := range members {
+			if connectedUsers, err := p.store.GetConnectedUsersCount(); err != nil || connectedUsers >= int64(p.getConfiguration().ConnectedUsersAllowed) {
+				return
+			}
 			p.API.LogDebug("Connecting user to MS Teams for load test")
 			loadtest.FakeConnectUserForLoadTest(m.UserId)
 		}

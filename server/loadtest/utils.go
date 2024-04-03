@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -39,15 +40,6 @@ func uncompressRequestBody(req *http.Request) ([]byte, error) {
 	}
 
 	return uncompressedBody, nil
-}
-
-func removeStringFromSlice(a string, slice []string) []string {
-	for i, str := range slice {
-		if str == a {
-			return append(slice[:i], slice[i+1:]...)
-		}
-	}
-	return slice
 }
 
 func getPostContentAsMD(req *http.Request) string {
@@ -107,7 +99,9 @@ func getOtherUserFromChannelId(channelId, userId string) string {
 
 func getRandomUserFromChannelId(channelId, userId string) string {
 	userIds := strings.Split(strings.Replace(channelId, "ms-gm-", "", 1), "__")
-	idsWithoutUserId := removeStringFromSlice(userId, userIds)
+	idsWithoutUserId := slices.DeleteFunc(userIds, func(id string) bool {
+		return userId == id
+	})
 	randInt := rand.Intn(len(idsWithoutUserId))
 	return userIds[randInt]
 }
@@ -160,7 +154,7 @@ func buildPostActivityForDM(channelId, msUserId, message string, count int) (*MS
 	msgId := model.NewId()
 	text := fmt.Sprintf("%s\nAnswer #%d", message, count)
 
-	if Settings.useIncomingPostMessage {
+	if Settings.simulateIncomingPosts {
 		otherUserId := "ms_teams-" + getOtherUserFromChannelId(channelId, msUserId)
 		content := buildMessageContent(channelId, msgId, text, otherUserId)
 
@@ -194,7 +188,7 @@ func buildPostActivityForGM(channelId, msUserId, message string, count int) (*MS
 	var err error
 	msgId := model.NewId()
 	text := fmt.Sprintf("%s\nAnswer #%d", message, count)
-	if Settings.useIncomingPostMessage {
+	if Settings.simulateIncomingPosts {
 		otherUserId := "ms_teams-" + getRandomUserFromChannelId(channelId, strings.Replace(msUserId, "ms_teams-", "", 1))
 		content := buildMessageContent(channelId, msgId, text, otherUserId)
 

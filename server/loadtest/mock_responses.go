@@ -14,6 +14,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
+var (
+	subscription map[string]interface{}
+)
+
 func initApplications(url string) (*http.Response, error) {
 	r := regexp.MustCompile(`/v1.0/applications\(appId='(.+)'\)`)
 	result := r.FindSubmatch([]byte(url))
@@ -37,12 +41,10 @@ func initApplications(url string) (*http.Response, error) {
 		}
 	}
 
-	return NewJsonResponse(403, nil)
+	return NewErrorResponse(500, "Mock: initApplications could not find submatch for the regex")
 }
 
 func initDiscoverInstance() (*http.Response, error) {
-	log("for Discovery")
-
 	return NewJsonResponse(200, map[string]any{
 		"tenant_discovery_endpoint": "https://login.microsoftonline.com/" + strings.ToLower(Settings.tenantId) + "/v2.0/.well-known/openid-configuration",
 		"api-version":               "1.1",
@@ -57,8 +59,6 @@ func initDiscoverInstance() (*http.Response, error) {
 }
 
 func initOpenIdConfigure() (*http.Response, error) {
-	log("OpenId configure")
-
 	return NewJsonResponse(200, map[string]any{
 		"token_endpoint":                        "https://login.microsoftonline.com/" + strings.ToLower(Settings.tenantId) + "/oauth2/v2.0/token",
 		"token_endpoint_auth_methods_supported": []string{"client_secret_post", "private_key_jwt", "client_secret_basic"},
@@ -87,20 +87,31 @@ func initOpenIdConfigure() (*http.Response, error) {
 }
 
 func initSubsciptions() (*http.Response, error) {
-	log("for Subscriptions")
-	return NewJsonResponse(200, map[string]any{
+	subscription = map[string]any{
 		"@odata.context":            "https://graph.microsoft.com/v1.0/$metadata#subscriptions/$entity",
 		"id":                        "msteams_subscriptions_id",
 		"resource":                  "/test",
 		"applicationId":             Settings.applicationId,
 		"changeType":                "created",
 		"clientState":               "secretClientValue",
-		"notificationUrl":           "https://webhook.azurewebsites.net/api/send/myNotifyClient",
+		"notificationUrl":           fmt.Sprintf("%schanges", Settings.baseUrl),
 		"expirationDateTime":        "2036-11-20T18:23:45.9356913Z",
 		"creatorId":                 "8ee44408-0679-472c-bc2a-692812af3437",
 		"latestSupportedTlsVersion": "v1_2",
 		"notificationContentType":   "application/json",
-	})
+	}
+	return NewJsonResponse(200, subscription)
+}
+
+func getSubscriptions() (*http.Response, error) {
+	if subscription != nil {
+		return NewJsonResponse(200, map[string]any{
+			"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#subscriptions",
+			"value":          []map[string]any{subscription},
+		})
+	}
+	log("No subscriptions found!!")
+	return NewJsonResponse(200, map[string]any{})
 }
 
 func getMSTeamChannel(url string) (*http.Response, error) {
@@ -119,7 +130,7 @@ func getMSTeamChannel(url string) (*http.Response, error) {
 		})
 	}
 
-	return NewJsonResponse(404, map[string]any{})
+	return NewErrorResponse(500, "Mock: getMSTeamChannel could not find submatch for the regex")
 }
 
 func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
@@ -134,7 +145,7 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 		id := model.NewId()
 
 		if Settings.maxIncomingPosts > 0 {
-			go simulatePostsToChat(channelId, msUserId, content)
+			simulatePostsToChat(channelId, msUserId, content)
 		}
 
 		return NewJsonResponse(201, map[string]any{
@@ -164,8 +175,7 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 			},
 		})
 	}
-	log("postMessageToMSTeams url did not match")
-	return NewJsonResponse(500, map[string]any{})
+	return NewErrorResponse(500, "Mock: postMessageToMSTeams could not find submatch for the regex")
 }
 
 func getChatMessage(reqUrl string) (*http.Response, error) {
@@ -178,7 +188,7 @@ func getChatMessage(reqUrl string) (*http.Response, error) {
 
 		decodedValue, err := url.QueryUnescape(msgId)
 		if err != nil {
-			return nil, err
+			return NewErrorResponse(500, fmt.Sprintf("Mock: getChatMessage %s", err.Error()))
 		}
 
 		re := regexp.MustCompile(`(.+){{{((.|\n|\r|\t)*?)}}}`)
@@ -201,14 +211,14 @@ func getChatMessage(reqUrl string) (*http.Response, error) {
 		}
 	}
 
-	return NewJsonResponse(500, map[string]any{})
+	return NewErrorResponse(500, "Mock: getChatMessage could not find submatch for the regex")
 }
 
 func getOrCreateMSTeamsChat(req *http.Request) (*http.Response, error) {
-	if strings.ToLower(req.Method) == "post" {
+	if req.Method == http.MethodPost {
 		uncompressedBody, err := uncompressRequestBody(req)
 		if err != nil {
-			return nil, err
+			return NewErrorResponse(500, fmt.Sprintf("Mock: getOrCreateMSTeamsChat %s", err.Error()))
 		}
 
 		chat := struct {
@@ -222,8 +232,7 @@ func getOrCreateMSTeamsChat(req *http.Request) (*http.Response, error) {
 
 		err = json.Unmarshal(uncompressedBody, &chat)
 		if err != nil {
-			log("getOrCreateMSTeamsChat failed", "error", err)
-			return nil, err
+			return NewErrorResponse(500, fmt.Sprintf("Mock: getOrCreateMSTeamsChat %s", err.Error()))
 		}
 		members := []string{}
 		r := regexp.MustCompile(`https:\/\/graph.microsoft.com\/v1.0\/users\('(.+)'\)`)
@@ -292,7 +301,7 @@ func getOrCreateMSTeamsChat(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	return NewJsonResponse(200, map[string]any{})
+	return NewErrorResponse(500, "Mock: getOrCreateMSTeamsChat could not find submatch for the regex")
 }
 
 func getOAuthToken() (*http.Response, error) {
@@ -329,5 +338,5 @@ func getUser(url string) (*http.Response, error) {
 		})
 	}
 
-	return NewJsonResponse(404, map[string]any{})
+	return NewErrorResponse(500, "Mock: getUser could not find submatch for the regex")
 }

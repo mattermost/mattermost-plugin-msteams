@@ -183,6 +183,34 @@
                   }
               ]
         },{
+            "key": "runasloadtest",
+            "display_name": "Enable load tests",
+            "type": "bool",
+            "help_text": "When true, the plugin will run in load test mode.",
+            "default": false,
+            "hosting": "on-prem"
+        },{
+          "key": "maxincomingposts",
+          "display_name": "Max Incoming Posts",
+          "type": "number",
+          "help_text": "The maximum number of incoming posts to simulate every time a user sends a message to MS Teams.",
+          "default": 50,
+          "hosting": "on-prem"
+        },{
+          "key": "minincomingposts",
+          "display_name": "Min Incoming Posts",
+          "type": "number",
+          "help_text": "The minimum number of incoming posts to simulate every time a user sends a message to MS Teams. Must be lower or equal to Max Incoming Posts",
+          "default": 20,
+          "hosting": "on-prem"
+        },{
+          "key": "includeincomingpostcontent",
+          "display_name": "Includes the message content in the simulated request from MS Teams",
+          "type": "bool",
+          "help_text": "When true, the plugin will send the content of the message in the 'changes' notification.",
+          "default": false,
+          "hosting": "on-prem"
+        },{
             "key": "appManifestDownload",
             "display_name": "Download Manifest",
             "type": "custom",
