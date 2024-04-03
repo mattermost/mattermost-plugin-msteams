@@ -752,6 +752,7 @@ func TestSelectiveSync(t *testing.T) {
 						ChannelId: dm.Id,
 					}
 					newReaction, _, err := client.SaveReaction(context.Background(), &reaction)
+					require.NoError(t, err)
 
 					t.Run("add reaction", func(t *testing.T) {
 						require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -765,6 +766,7 @@ func TestSelectiveSync(t *testing.T) {
 					})
 
 					_, err = client.DeleteReaction(context.Background(), newReaction)
+					require.NoError(t, err)
 
 					t.Run("remove reaction", func(t *testing.T) {
 						require.EventuallyWithT(t, func(c *assert.CollectT) {

@@ -21,7 +21,7 @@ type BatchRequest struct {
 }
 
 type BatchResponse struct {
-	Id         string         `json:"id"`
+	ID         string         `json:"id"`
 	StatusCode int            `json:"status"`
 	Body       map[string]any `json:"body"`
 }
@@ -147,7 +147,7 @@ func (m *MockClient) Delete(id string, url string, body map[string]any) error {
 
 func (m *MockClient) MockBatch(id string, requests []BatchRequest, responses []BatchResponse) error {
 	for idx := range responses {
-		responses[idx].Id = "{{#jsonPath}}$.requests[" + fmt.Sprint(idx) + "].id{{/jsonPath}}{{jsonPathResult}}"
+		responses[idx].ID = "{{#jsonPath}}$.requests[" + fmt.Sprint(idx) + "].id{{/jsonPath}}{{jsonPathResult}}"
 	}
 
 	responseData, err := json.Marshal(map[string]any{
