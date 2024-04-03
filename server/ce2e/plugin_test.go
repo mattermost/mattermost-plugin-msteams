@@ -714,7 +714,6 @@ func TestSelectiveSync(t *testing.T) {
 								assert.NoError(c, mockClient.Assert("post-message", 0))
 							}
 						}, 5*time.Second, 200*time.Millisecond)
-
 					})
 
 					newPost.Message = "edited message"
