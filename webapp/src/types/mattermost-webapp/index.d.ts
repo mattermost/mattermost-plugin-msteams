@@ -80,6 +80,7 @@ export interface PluginRegistry {
     registerRootComponent(component: React.ElementType)
     registerAdminConsoleCustomSetting(key: string, component: React.ElementType)
     registerUserSettings?(setting: PluginConfiguration)
+    registerSiteStatisticsHandler(handler: any)
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }

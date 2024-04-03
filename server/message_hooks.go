@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -25,6 +26,7 @@ import (
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	if p.IsRemoteUser(user) && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
 		*user.RemoteId = ""
+		user.EmailVerified = true
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
 			p.API.LogWarn("Unable to promote synthetic user", "user_id", user.Id, "error", appErr.Error())
 			return "Unable to promote synthetic user"
@@ -34,6 +36,60 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	}
 
 	return ""
+}
+
+func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
+	if post.Props != nil {
+		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+			return
+		}
+	}
+
+	if post.IsSystemMessage() {
+		return
+	}
+
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		p.API.LogWarn("Failed to get channel on message deleted", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+		return
+	}
+
+	if channel.IsGroupOrDirect() {
+		if !p.getConfiguration().SyncDirectMessages {
+			return
+		}
+
+		if p.getConfiguration().SelectiveSync {
+			shouldSync, appErr := p.ChatSpansPlatforms(post.ChannelId)
+			if appErr != nil {
+				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+				return
+			} else if !shouldSync {
+				return
+			}
+		}
+
+		if err := p.DeleteChat(post); err != nil {
+			p.API.LogWarn("Unable to delete chat", "error", err.Error())
+			return
+		}
+	} else {
+		link, err := p.store.GetLinkByChannelID(post.ChannelId)
+		if err != nil || link == nil {
+			return
+		}
+
+		if !p.getConfiguration().SyncLinkedChannels {
+			return
+		}
+
+		user, _ := p.API.GetUser(post.UserId)
+		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
+			p.API.LogWarn("Unable to delete message", "error", err.Error())
+			return
+		}
+	}
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
@@ -541,6 +597,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 	}
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, true)
+	p.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMattermost, true, newMessage.CreateAt.Sub(time.UnixMilli(post.CreateAt)))
+
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
@@ -625,6 +683,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, false)
+	p.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMattermost, false, newMessage.CreateAt.Sub(time.UnixMilli(post.CreateAt)))
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
@@ -670,8 +729,13 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 	return nil
 }
 
-func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) error {
-	client, err := p.GetClientForUser(user.Id)
+func (p *Plugin) DeleteChat(post *model.Post) error {
+	client, err := p.GetClientForUser(post.UserId)
+	if err != nil {
+		return err
+	}
+
+	chatID, err := p.GetChatIDForChannel(client, post.ChannelId)
 	if err != nil {
 		return err
 	}
@@ -687,7 +751,7 @@ func (p *Plugin) DeleteChat(chatID string, user *model.User, post *model.Post) e
 		return errors.New("post not found")
 	}
 
-	if err := client.DeleteChatMessage(chatID, postInfo.MSTeamsID); err != nil {
+	if err := client.DeleteChatMessage(post.UserId, chatID, postInfo.MSTeamsID); err != nil {
 		p.API.LogWarn("Error deleting post from MS Teams", "error", err)
 		return err
 	}

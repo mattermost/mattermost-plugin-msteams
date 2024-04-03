@@ -624,9 +624,6 @@ func (p *Plugin) syncUsers() {
 		return
 	}
 
-	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
-
-	// Get the users registered in Mattermost
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogWarn("Unable to get MM users during sync user job", "error", appErr.Error())
@@ -641,10 +638,12 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
-
-	// sync users
+	var activeMSTeamsUsersCount int64
 	for _, msUser := range msUsers {
-		// this is used if there is already another user registered with the same username in MM
+		if msUser.IsAccountEnabled {
+			activeMSTeamsUsersCount++
+		}
+
 		userSuffixID := 1
 
 		// The email field is mandatory in MM, if there is no email we skip the user
@@ -831,6 +830,7 @@ func (p *Plugin) syncUsers() {
 			}
 		}
 	}
+	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
 
 func generateSecret() (string, error) {
