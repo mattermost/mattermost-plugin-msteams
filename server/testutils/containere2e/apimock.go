@@ -15,6 +15,17 @@ type MockClient struct {
 	api string
 }
 
+type BatchRequest struct {
+	Method string `json:"method"`
+	URL    string `json:"url"`
+}
+
+type BatchResponse struct {
+	Id         string         `json:"id"`
+	StatusCode int            `json:"status"`
+	Body       map[string]any `json:"body"`
+}
+
 func NewMockClient(api string) (*MockClient, error) {
 	mock := &MockClient{api: api}
 	if err := mock.init(); err != nil {
@@ -134,22 +145,19 @@ func (m *MockClient) Delete(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodDelete, id, url, http.StatusOK, body)
 }
 
-func (m *MockClient) MockError(id string, method string, errorCode int, url string) error {
-	return m.Mock(method, id, url, errorCode, map[string]any{
-		"error": map[string]any{
-			"code":    "badRequest",
-			"message": "Test bad request",
-			"innerError": map[string]any{
-				"code":       "invalidRange",
-				"request-id": "request-id",
-				"date":       time.Now().Format(time.RFC3339),
-			},
+func (m *MockClient) MockBatch(id string, requests []BatchRequest, responses []BatchResponse) error {
+	for idx := range responses {
+		responses[idx].Id = "{{#jsonPath}}$.requests[" + fmt.Sprint(idx) + "].id{{/jsonPath}}{{jsonPathResult}}"
+	}
+
+	responseData, err := json.Marshal(map[string]any{
+		"statusCode": 200,
+		"body": map[string]any{
+			"type":        "JSON",
+			"contentType": "application/json",
+			"string":      map[string]any{"responses": responses},
 		},
 	})
-}
-
-func (m *MockClient) Mock(method string, id string, url string, statusCode int, body map[string]any) error {
-	bodyData, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
@@ -157,16 +165,17 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 		"id":       id,
 		"priority": 10,
 		"httpRequest": map[string]any{
-			"method": method,
-			"path":   url,
-		},
-		"httpResponse": map[string]any{
-			"statusCode": statusCode,
+			"method": http.MethodPost,
+			"path":   "/v1.0/$batch",
 			"body": map[string]any{
-				"type":        "STRING",
-				"contentType": "application/json",
-				"string":      string(bodyData),
+				"type":      "JSON",
+				"matchType": "ONLY_MATCHING_FIELDS",
+				"json":      map[string][]BatchRequest{"requests": requests},
 			},
+		},
+		"httpResponseTemplate": map[string]any{
+			"templateType": "MUSTACHE",
+			"template":     string(responseData),
 		},
 	}
 
@@ -187,54 +196,21 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 	return nil
 }
 
-func (m *MockClient) MockBatch(id string, responses ...map[string]any) error {
-	method := http.MethodPost
-	url := "/v1.0/$batch"
-
-	allResponses := []map[string]any{}
-	for idx, response := range responses {
-		allResponses = append(allResponses, map[string]any{
-			"id":     fmt.Sprintf("{{REQUEST_ID_%d}}", idx),
-			"status": 200,
-			"headers": map[string]any{
-				"Content-Type":  "application/json",
-				"OData-Version": "4.0",
+func (m *MockClient) MockError(id string, method string, errorCode int, url string) error {
+	return m.Mock(method, id, url, errorCode, map[string]any{
+		"error": map[string]any{
+			"code":    "badRequest",
+			"message": "Test bad request",
+			"innerError": map[string]any{
+				"code":       "invalidRange",
+				"request-id": "request-id",
+				"date":       time.Now().Format(time.RFC3339),
 			},
-			"body": response,
-		})
-	}
+		},
+	})
+}
 
-	result := map[string]any{
-		"responses": allResponses,
-	}
-
-	bodyData, err := json.Marshal(result)
-	if err != nil {
-		return err
-	}
-
-	template := fmt.Sprintf(`
-		let bodyData = json.Parse(request.body);
-		let result = json.Stringify({
-			statusCode: 200,
-			body: {
-				type: 'STRING',
-				contentType: 'application/json',
-				string: '%s'
-			}
-		});
-	`, string(bodyData))
-
-	for idx := range responses {
-		template += fmt.Sprintf("result = result.replace(/\"{{REQUEST_ID_%d}}\"/g, bodyData.responses[%d].id);\n", idx, idx)
-	}
-	template += "return result"
-
-	templateData, err := json.Marshal(template)
-	if err != nil {
-		return err
-	}
-
+func (m *MockClient) Mock(method string, id string, url string, statusCode int, body map[string]any) error {
 	mockExpectation := map[string]any{
 		"id":       id,
 		"priority": 10,
@@ -242,9 +218,13 @@ func (m *MockClient) MockBatch(id string, responses ...map[string]any) error {
 			"method": method,
 			"path":   url,
 		},
-		"httpResponseTemplate": map[string]any{
-			"templateType": "JAVASCRIPT",
-			"template":     string(templateData),
+		"httpResponse": map[string]any{
+			"statusCode": statusCode,
+			"body": map[string]any{
+				"type":        "STRING",
+				"contentType": "application/json",
+				"string":      body,
+			},
 		},
 	}
 
