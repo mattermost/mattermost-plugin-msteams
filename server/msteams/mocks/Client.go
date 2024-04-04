@@ -58,13 +58,13 @@ func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (*clientmodels.Chat
 	return r0, r1
 }
 
-// DeleteChatMessage provides a mock function with given fields: chatID, msgID
-func (_m *Client) DeleteChatMessage(chatID string, msgID string) error {
-	ret := _m.Called(chatID, msgID)
+// DeleteChatMessage provides a mock function with given fields: userID, chatID, msgID
+func (_m *Client) DeleteChatMessage(userID string, chatID string, msgID string) error {
+	ret := _m.Called(userID, chatID, msgID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(chatID, msgID)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(userID, chatID, msgID)
 	} else {
 		r0 = ret.Error(0)
 	}

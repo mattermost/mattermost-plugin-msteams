@@ -721,7 +721,7 @@ func TestConnect(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
-			ExpectedStatusCode: http.StatusOK,
+			ExpectedStatusCode: http.StatusSeeOther,
 		},
 		{
 			Name: "connect: Error in storing the OAuth state",
@@ -750,9 +750,7 @@ func TestConnect(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+			plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
 
 			mockAPI := &plugintest.API{}
 			testutils.MockLogs(mockAPI)
@@ -947,6 +945,116 @@ func TestGetConnectedUsersFile(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/connected-users/download", nil)
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.NotNil(t, result)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
+			}
+		})
+	}
+}
+
+func TestGetSiteStats(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "getSiteStats: Insufficient permissions for the user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
+			},
+			SetupStore:         func(store *storemocks.Store) {},
+			ExpectedStatusCode: http.StatusForbidden,
+			ExpectedResult:     "not able to authorize the user\n",
+		},
+		{
+			Name: "getSiteStats: Unable to get the list of connected users from the store",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(nil, errors.New("failed")).Times(1)
+			},
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedResult:     "unable to get site stats\n",
+		},
+		{
+			Name: "getSiteStats: no connected users",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 0,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":0}`,
+		},
+		{
+			Name: "getSiteStats: 1 connected user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 1,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":1}`,
+		},
+		{
+			Name: "getSiteStats: 10 connected users",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 10,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":10}`,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			if test.ExpectedResult != "" {
+				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
+			}
+
+			mockAPI := &plugintest.API{}
+			testutils.MockLogs(mockAPI)
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/stats/site", nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 

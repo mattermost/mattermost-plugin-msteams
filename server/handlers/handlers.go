@@ -52,6 +52,7 @@ type PluginIface interface {
 	GenerateRandomPassword() string
 	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
+	IsRemoteUser(user *model.User) bool
 }
 
 type ActivityHandler struct {
@@ -275,7 +276,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
 	if postInfo != nil {
-		ah.plugin.GetMetrics().ObserveConfirmedMessage(metrics.ActionSourceMattermost, isDirectMessage)
 		return metrics.DiscardedReasonDuplicatedPost
 	}
 
@@ -349,7 +349,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
@@ -357,7 +357,21 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: newPost.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "Attachments sent from Microsoft Teams aren't delivered to Mattermost.",
+			// Anchor the post immediately after (never before) the post that was created.
+			CreateAt: newPost.CreateAt + 1,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", newPost.Id, "error", appErr)
+		}
+	}
+
 	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
+	ah.plugin.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage, time.Since(msg.CreateAt))
 
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
@@ -455,8 +469,21 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
+	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
 	post.Id = postInfo.MattermostID
+
+	if skippedFileAttachments {
+		_, appErr := ah.plugin.GetAPI().CreatePost(&model.Post{
+			ChannelId: post.ChannelId,
+			UserId:    ah.plugin.GetBotUserID(),
+			Message:   "Attachments added to an existing post in Microsoft Teams aren't delivered to Mattermost.",
+			// Anchor the post immediately after (never before) the post that was edited.
+			CreateAt: post.CreateAt + 1,
+		})
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
+		}
+	}
 
 	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
 	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
@@ -596,7 +623,7 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 		return false
 	}
 
-	return user.RemoteId != nil && *user.RemoteId != "" && strings.HasPrefix(user.Username, "msteams_")
+	return ah.plugin.IsRemoteUser(user)
 }
 
 func IsDirectMessage(chatID string) bool {

@@ -57,3 +57,9 @@ type ConnectedUser struct {
 	LastName         string
 	Email            string
 }
+
+type InvitedUser struct {
+	ID                 string
+	InvitePendingSince time.Time
+	InviteLastSentAt   time.Time
+}

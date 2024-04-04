@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
@@ -69,7 +70,9 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
+	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -220,7 +223,8 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, event := range lifecycleEvents.Value {
-		if event.ClientState != a.p.getConfiguration().WebhookSecret {
+		// Check the webhook secret using ContantTimeCompare to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(event.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) == 0 {
 			a.p.metricsService.ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonInvalidWebhookSecret)
 			errors += "Invalid webhook secret"
 			continue
@@ -334,9 +338,17 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
+	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+}
 
-	data, _ := json.Marshal(map[string]string{"connectUrl": connectURL})
-	_, _ = w.Write(data)
+func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
+	} else if inviteWasSent {
+		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
+	}
 }
 
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
@@ -437,6 +449,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.p.whitelistClusterMutex.Lock()
 	defer a.p.whitelistClusterMutex.Unlock()
+
+	inWhitelist, err := a.p.store.IsUserPresentInWhitelist(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
 	if err != nil {
 		a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
@@ -444,7 +464,21 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if whitelistSize >= a.p.getConfiguration().ConnectedUsersAllowed {
+	invitedSize, err := a.p.store.GetSizeOfInvitedUsers()
+	if err != nil {
+		a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if !inWhitelist && (whitelistSize+invitedSize) >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
@@ -460,6 +494,11 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
+	}
+
+	err = a.p.store.DeleteUserInvite(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
 	}
 
 	w.Header().Add("Content-Type", "text/html")
@@ -670,4 +709,36 @@ func GetPageAndPerPage(r *http.Request) (page, perPage int) {
 	}
 
 	return page, perPage
+}
+
+func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	stats, err := a.p.store.GetStats()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
+		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
+		return
+	}
+
+	siteStats := struct {
+		TotalConnectedUsers int64 `json:"total_connected_users"`
+	}{
+		TotalConnectedUsers: stats.ConnectedUsers,
+	}
+
+	data, err := json.Marshal(siteStats)
+	if err != nil {
+		a.p.API.LogWarn("Failed to marshal site stats", "error", err.Error())
+		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
 }
