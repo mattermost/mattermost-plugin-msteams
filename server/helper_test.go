@@ -439,3 +439,36 @@ func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, me
 		}
 	}
 }
+
+func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expectedMessage string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.Message == expectedMessage {
+				return
+			}
+		}
+		t.Errorf("failed to find post with expected message: %s", expectedMessage)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
+func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.Never(t, func() bool {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		return len(postList.Posts) > 0
+	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
+}

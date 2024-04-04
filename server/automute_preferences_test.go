@@ -67,6 +67,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
@@ -82,6 +83,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
 	})
 
 	t.Run("should unmute linked channels when their primary platform changes from MS Teams to MM", func(t *testing.T) {
@@ -101,6 +103,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
@@ -116,6 +119,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
 	})
 
 	t.Run("should do nothing when unrelated preferences change", func(t *testing.T) {
@@ -129,6 +133,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 				Value:    "full",
 			},
 		})
+		th.assertNoDMFromUser(t, p.userID, user.Id)
 	})
 
 	t.Run("should do nothing when an unconnected user turns on automuting", func(t *testing.T) {
@@ -159,6 +164,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, unconnectedUser.Id)
+		th.assertNoDMFromUser(t, p.userID, unconnectedUser.Id)
 	})
 
 	t.Run("should not affect other users when a connected user turns on automuting", func(t *testing.T) {
@@ -189,6 +195,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		})
 
 		assertUserHasAutomuteEnabled(t, p, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -231,6 +238,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		})
 
 		assertUserHasAutomuteEnabled(t, p, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
 
 		for _, channel := range channels {
 			assertChannelAutomuted(t, p, channel.Id, user.Id)
@@ -246,6 +254,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		})
 
 		assertUserHasAutomuteDisabled(t, p, user.Id)
+		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
 
 		for _, channel := range channels {
 			assertChannelNotAutomuted(t, p, channel.Id, user.Id)
