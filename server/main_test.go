@@ -1,4 +1,4 @@
-package main_test
+package main
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,23 +19,24 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/app"
 	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
 	"github.com/mattermost/mattermost/server/v8/config"
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// mainTest is a testing.T-like structure that currently just mimics the t.Cleanup semantics.
-type mainTest struct {
+// mainT is a testing.T-like structure that currently just mimics the t.Cleanup semantics.
+type mainT struct {
 	cleanupFunctions []func()
 }
 
 // Cleanup adds a function to be called when cleaning up.
-func (mt *mainTest) Cleanup(f func()) {
+func (mt *mainT) Cleanup(f func()) {
 	mt.cleanupFunctions = append(mt.cleanupFunctions, f)
 }
 
 // Done calls all cleanup functions with defer-like semantics (last function added called first).
-func (mt *mainTest) Done() {
+func (mt *mainT) Done() {
 	for i := range mt.cleanupFunctions {
 		f := mt.cleanupFunctions[len(mt.cleanupFunctions)-i-1]
 		f()
@@ -56,7 +58,7 @@ func setupServerPath() error {
 
 // setupDatabase initializes a singleton Postgres testcontainer and mattermost_test database for
 // use with tests.
-func setupDatabase(t *mainTest) error {
+func setupDatabase(mt *mainT) error {
 	// Setup a Postgres testcontainer for all tests.
 	pgContainer, err := postgres.RunContainer(context.TODO(),
 		testcontainers.WithImage("docker.io/postgres:15.2-alpine"),
@@ -81,7 +83,7 @@ func setupDatabase(t *mainTest) error {
 	postgresDSN := fmt.Sprintf("postgres://mmuser:mostest@%s/mattermost_test?sslmode=disable", net.JoinHostPort("localhost", containerPort.Port()))
 	os.Setenv("TEST_DATABASE_POSTGRESQL_DSN", postgresDSN)
 
-	t.Cleanup(func() {
+	mt.Cleanup(func() {
 		if err := pgContainer.Terminate(context.TODO()); err != nil {
 			panic(err)
 		}
@@ -91,7 +93,7 @@ func setupDatabase(t *mainTest) error {
 }
 
 // setupServer initializes a singleton Mattermost instance for use with tests.
-func setupServer(mt *mainTest) error {
+func setupServer(mt *mainT) error {
 	// Ignore any locally defined SiteURL as we intend to host our own.
 	os.Unsetenv("MM_SERVICESETTINGS_SITEURL")
 	os.Unsetenv("MM_SERVICESETTINGS_LISTENADDRESS")
@@ -190,31 +192,38 @@ func setupServer(mt *mainTest) error {
 	return nil
 }
 
-// TestMain is run before any tests within this package and helps setup a singleton Postgres and
-// Mattermost intance for use with tests.
+var setupReattachEnvironmentOnce sync.Once
+
+// setupReattachEnvironment is used by the test helper to initialize the infrastructure for running
+// reattached plugin tests exactly once (per package).
+//
+// Note that while we assert on the given *testing.T, we setup cleanup functions on the global
+// *mainT to clean up once at termination.
+func setupReattachEnvironment(t *testing.T) {
+	setupReattachEnvironmentOnce.Do(func() {
+		err := setupServerPath()
+		require.NoError(t, err)
+
+		err = setupDatabase(mt)
+		require.NoError(t, err)
+
+		err = setupServer(mt)
+		require.NoError(t, err)
+	})
+}
+
+var mt *mainT
+
+// TestMain is run before any tests within this package and helps setup a mainT for global cleanup
+// if needed.
 func TestMain(m *testing.M) {
 	var status int
 	defer func() {
 		os.Exit(status)
 	}()
 
-	mt := new(mainTest)
+	mt = new(mainT)
 	defer mt.Done()
-
-	err := setupServerPath()
-	if err != nil {
-		panic("failed to setup server path: " + err.Error())
-	}
-
-	err = setupDatabase(mt)
-	if err != nil {
-		panic("failed to setup database: " + err.Error())
-	}
-
-	err = setupServer(mt)
-	if err != nil {
-		panic("failed to setup server: " + err.Error())
-	}
 
 	// This actually runs the tests
 	status = m.Run()
