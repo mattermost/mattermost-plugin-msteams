@@ -886,6 +886,10 @@ func (p *Plugin) IsRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId == p.remoteID
 }
 
+func (p *Plugin) GetRemoteID() string {
+	return p.remoteID
+}
+
 func (p *Plugin) updateMetrics() {
 	stats, err := p.store.GetStats()
 	if err != nil {
