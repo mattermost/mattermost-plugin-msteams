@@ -146,6 +146,9 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	require.NoError(t, err)
 
+	if os.Getenv("INSPECT_MOCKSERVER") != "" {
+		t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
+	}
 	tearDown := func() {
 		if os.Getenv("INSPECT_MOCKSERVER") != "" {
 			t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
