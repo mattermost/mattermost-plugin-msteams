@@ -28,21 +28,18 @@ type testHelper struct {
 	websocketClients map[string]*model.WebSocketClient
 }
 
-func newTestHelper(p *Plugin, appClientMock *mocks.Client, clientMock *mocks.Client) *testHelper {
-	return &testHelper{p, appClientMock, clientMock, make(map[string]*model.WebSocketClient)}
-}
-
 func setupTestHelper(t *testing.T) *testHelper {
 	t.Helper()
 
-	appClientMock := &mocks.Client{}
-	clientMock := &mocks.Client{}
-
 	p := &Plugin{
-		msteamsAppClient: appClientMock,
+		// These mocks are replaced later, but serve the plugin during early initialization
+		msteamsAppClient: &mocks.Client{},
 		clientBuilderWithToken: func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
-			return clientMock
+			return &mocks.Client{}
 		},
+	}
+	th := &testHelper{
+		p: p,
 	}
 
 	// ctx, and specifically cancel, gives us control over the plugin lifecycle
@@ -57,7 +54,7 @@ func setupTestHelper(t *testing.T) *testHelper {
 
 	// plugin.ClientMain with options allows for reattachment.
 	go plugin.ClientMain(
-		p,
+		th.p,
 		plugin.WithTestContext(ctx),
 		plugin.WithTestReattachConfigCh(reattachConfigCh),
 		plugin.WithTestCloseCh(closeCh),
@@ -119,7 +116,8 @@ func setupTestHelper(t *testing.T) *testHelper {
 		require.NoError(t, err)
 	})
 
-	return newTestHelper(p, appClientMock, clientMock)
+	th.Reset(t)
+	return th
 }
 
 func (th *testHelper) clearDatabase(t *testing.T) {
@@ -147,19 +145,22 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 	// touch any Mattermost tables.
 	th.clearDatabase(t)
 
-	th.appClientMock = &mocks.Client{}
-	th.clientMock = &mocks.Client{}
-	th.appClientMock.Test(t)
-	th.clientMock.Test(t)
+	appClientMock := &mocks.Client{}
+	clientMock := &mocks.Client{}
+	appClientMock.Test(t)
+	clientMock.Test(t)
 
-	th.p.msteamsAppClient = th.appClientMock
+	th.appClientMock = appClientMock
+	th.clientMock = clientMock
+
+	th.p.msteamsAppClient = appClientMock
 	th.p.clientBuilderWithToken = func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
-		return th.clientMock
+		return clientMock
 	}
 
 	t.Cleanup(func() {
-		th.appClientMock.AssertExpectations(t)
-		th.clientMock.AssertExpectations(t)
+		appClientMock.AssertExpectations(t)
+		clientMock.AssertExpectations(t)
 
 		// Ccheck the websocket event queue for unhandled events that might represent
 		// unexpected behavior.
@@ -380,6 +381,7 @@ func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string) {
 	if th.websocketClients == nil {
 		th.websocketClients = make(map[string]*model.WebSocketClient)
 	}
+
 	if websocketClient := th.websocketClients[userID]; websocketClient == nil {
 		client := th.SetupClient(t, userID)
 		websocketClient = th.setupWebsocketClient(t, client)
@@ -400,6 +402,10 @@ func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string) {
 // won't create a websocket client on demand.
 func (th *testHelper) GetWebsocketClientForUser(t *testing.T, userID string) *model.WebSocketClient {
 	t.Helper()
+
+	if th.websocketClients == nil {
+		th.websocketClients = make(map[string]*model.WebSocketClient)
+	}
 
 	websocketClient := th.websocketClients[userID]
 	require.NotNil(t, websocketClient, "websocket client must be setup first")
