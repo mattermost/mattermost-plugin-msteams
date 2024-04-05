@@ -20,7 +20,6 @@ require (
 	github.com/microsoft/kiota-http-go v1.3.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.36.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
-	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/sirupsen/logrus v1.9.3
@@ -172,6 +171,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/otiai10/gosseract/v2 v2.4.1 // indirect
+	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect

@@ -53,6 +53,7 @@ type PluginIface interface {
 	ChatSpansPlatforms(channelID string) (bool, *model.AppError)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
+	GetRemoteID() string
 	NotifyFileAttachmentError(userID, channelID string)
 	NotifyUpdatedAttachmentsNotSupportedFromTeams(post *model.Post)
 	NotifyAttachmentsNotSupportedFromTeams(post *model.Post)
