@@ -10,7 +10,28 @@ import (
 	"time"
 )
 
-func simulatePostToChat(channelId, msUserId, message string, count int) {
+var (
+	maxRoutines           int
+	simulatedRequestsChan chan int
+	simulatedRequests     int
+)
+
+func init() {
+	maxRoutines = 1000
+	simulatedRequests = 0
+	simulatedRequestsChan = make(chan int)
+
+	startCount := func() {
+		for count := range simulatedRequestsChan {
+			simulatedRequests += count
+			log("simulating requests", "count", simulatedRequests)
+		}
+	}
+
+	go startCount()
+}
+
+func simulatePostToChat(channelId, msUserId, message string, count, total int) {
 	var activities *MSActivities
 	var err error
 	if strings.HasPrefix(channelId, "ms-dm-") {
@@ -46,13 +67,30 @@ func simulatePostToChat(channelId, msUserId, message string, count int) {
 		log("simulatePostToChat failed", "error", err)
 	}
 	defer resp.Body.Close()
+
+	if count == total {
+		simulatedRequestsChan <- (total * -1)
+	}
 }
 
 func simulatePostsToChat(channelId, msUserId, message string) {
-	max := Settings.maxIncomingPosts - Settings.minIncomingPosts
-	randInt := rand.Intn(max+1) + Settings.minIncomingPosts
-	log("simulating incoming posts", "count", randInt, "min", Settings.minIncomingPosts, "max", Settings.maxIncomingPosts)
-	for i := 1; i <= randInt; i++ {
-		go simulatePostToChat(channelId, msUserId, message, i)
+	maxIncoming := Settings.maxIncomingPosts - Settings.minIncomingPosts
+	routinesLeft := maxRoutines - simulatedRequests
+
+	if routinesLeft > 0 {
+		maxIncoming = minOf(maxIncoming, routinesLeft)
+		numberOfRequests := rand.Intn(maxIncoming+1) + Settings.minIncomingPosts
+
+		if numberOfRequests <= routinesLeft {
+			simulatedRequestsChan <- numberOfRequests
+			log("simulating incoming posts", "count", numberOfRequests, "min", Settings.minIncomingPosts, "max", Settings.maxIncomingPosts)
+			for i := 1; i <= numberOfRequests; i++ {
+				go simulatePostToChat(channelId, msUserId, message, i, numberOfRequests)
+			}
+		} else {
+			log("skipping incoming simulation as numberOfRequests is more than the routines left", "left", routinesLeft, "numberOfRequests", numberOfRequests)
+		}
+	} else {
+		log("skipping incoming simulation as there are no more routines left", "left", routinesLeft, "sim", simulatedRequests, "max", maxRoutines)
 	}
 }

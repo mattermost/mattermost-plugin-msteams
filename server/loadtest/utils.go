@@ -19,6 +19,18 @@ import (
 	"gitlab.com/golang-commonmark/markdown"
 )
 
+func minOf(vars ...int) int {
+	max := vars[0]
+
+	for _, i := range vars {
+		if max > i {
+			max = i
+		}
+	}
+
+	return max
+}
+
 func uncompressRequestBody(req *http.Request) ([]byte, error) {
 	gzippedBody, err := io.ReadAll(req.Body)
 	if err != nil {
