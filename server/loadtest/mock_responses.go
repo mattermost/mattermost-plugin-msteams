@@ -317,22 +317,11 @@ func getUser(url string) (*http.Response, error) {
 	result := r.FindSubmatch([]byte(url))
 	if len(result) > 0 {
 		id := string(result[1])
-		mmUserId, err := Settings.store.TeamsToMattermostUserID(id)
-		if err != nil {
-			log("getUser failed", "error", err)
-			return nil, err
-		}
-		user, appErr := Settings.api.GetUser(mmUserId)
-		if appErr != nil {
-			log("getUser failed", "error", appErr)
-			return nil, err
-		}
-
 		return NewJsonResponse(200, map[string]any{
 			"id":                id,
-			"displayName":       fmt.Sprintf("%s %s", user.FirstName, user.LastName),
-			"mail":              user.Email,
-			"userPrincipalName": user.Email,
+			"displayName":       "Test User",
+			"mail":              "email@loadtest.mattermost.com",
+			"userPrincipalName": "email@loadtest.mattermost.com",
 			"userType":          "User",
 			"isAccountEnabled":  true,
 		})
