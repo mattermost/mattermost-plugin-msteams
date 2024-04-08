@@ -47,6 +47,8 @@ const (
 	QueryParamPage            = "page"
 	QueryParamPerPage         = "per_page"
 	QueryParamPrimaryPlatform = "primary_platform"
+	QueryParamChannelID       = "channel_id"
+	QueryParamPostID          = "post_id"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
@@ -73,6 +75,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
+	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -332,13 +335,21 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		userID = a.p.GetBotUserID()
 	}
 
+	query := r.URL.Query()
+	channelID := query.Get(QueryParamChannelID)
+	postID := query.Get(QueryParamPostID)
+	if channelID == "" || postID == "" {
+		a.p.API.LogWarn("Missing channelID or postID from query paramaeters", "channelID", channelID, "postID", postID)
+		http.Error(w, "Missing required query paramters.", http.StatusBadRequest)
+	}
+
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
 		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
+	state := fmt.Sprintf("%s_%s_%s_%s", model.NewId(), userID, postID, channelID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
@@ -355,6 +366,35 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+}
+
+func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
+
+	bundlePath, err := a.p.API.GetBundlePath()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
+		return
+	}
+
+	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
+	if err != nil {
+		a.p.API.LogError("unable to parse the template", "error", err.Error())
+		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	}
+
+	err = t.Execute(w, struct {
+		ServerURL                 string
+		APIEndPoint               string
+		QueryParamPrimaryPlatform string
+	}{
+		ServerURL:                 a.p.GetURL(),
+		APIEndPoint:               APIChoosePrimaryPlatform,
+		QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
+	})
+	if err != nil {
+		a.p.API.LogError("unable to execute the template", "error", err.Error())
+		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+	}
 }
 
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
@@ -388,7 +428,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 
 	stateArr := strings.Split(state, "_")
-	if len(stateArr) != 2 {
+	if len(stateArr) != 4 {
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
@@ -525,32 +565,16 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
+	a.p.API.DeleteEphemeralPost(mmUserID, stateArr[2])
 
-	bundlePath, err := a.p.API.GetBundlePath()
-	if err != nil {
-		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
-		return
+	post := &model.Post{
+		Id:        stateArr[2],
+		Message:   "You have successfully connected your Microsoft Teams account.",
+		ChannelId: stateArr[3],
 	}
-
-	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
-	if err != nil {
-		a.p.API.LogError("unable to parse the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	}
-
-	err = t.Execute(w, struct {
-		ServerURL                 string
-		APIEndPoint               string
-		QueryParamPrimaryPlatform string
-	}{
-		ServerURL:                 a.p.GetURL(),
-		APIEndPoint:               APIChoosePrimaryPlatform,
-		QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
-	})
-	if err != nil {
-		a.p.API.LogError("unable to execute the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	}
+	_ = a.p.GetAPI().SendEphemeralPost(mmUser.Id, post)
+	connectURL := a.p.GetURL() + "/primary-platform"
+	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
