@@ -1368,7 +1368,8 @@ func TestExecutePromoteCommand(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 				api.On("GetUserByUsername", "valid-user").Return(&model.User{Id: "test", Username: "valid-user", RemoteId: model.NewString("remote-id")}, nil).Once()
 				api.On("GetUserByUsername", "new-user").Return(nil, &model.AppError{}).Once()
-				api.On("UpdateUser", mock.Anything).Return(nil, &model.AppError{}).Once()
+				api.On("UpdateUser", mock.Anything).Return(nil, &model.AppError{Message: "error msg"}).Once()
+				api.On("LogWarn", mock.AnythingOfType("string"), "user_id", "test", "error", "error msg").Once()
 				api.On("SendEphemeralPost", testutils.GetUserID(), testutils.GetEphemeralPost(p.userID, testutils.GetChannelID(), "Error: Unable to promote account valid-user")).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Once()
 			},
 			setupStore: func(s *mockStore.Store) {
