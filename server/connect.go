@@ -9,19 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// func (p *Plugin) botSendDirectMessage(userID, message string) error {
-// 	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
-// 	if err != nil {
-// 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
-// 	}
-
-// 	return p.apiClient.Post.CreatePost(&model.Post{
-// 		Message:   message,
-// 		UserId:    p.userID,
-// 		ChannelId: channel.Id,
-// 	})
-// }
-
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	if p.getConfiguration().ConnectedUsersInvitePoolSize == 0 {
 		// connection invites disabled
