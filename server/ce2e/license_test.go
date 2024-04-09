@@ -1,5 +1,3 @@
-//go:build exclude
-
 package ce2e
 
 import (
@@ -7,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 )
 
 func TestRequiresLicense(t *testing.T) {

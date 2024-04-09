@@ -1,5 +1,3 @@
-//go:build exclude
-
 package ce2e
 
 import (
@@ -10,15 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func sendActivity(t *testing.T, client *model.Client4, activity msteams.Activity) error {
+func sendActivity(_ *testing.T, client *model.Client4, activity msteams.Activity) error {
 	data, err := json.Marshal(map[string][]msteams.Activity{"Value": {activity}})
 	if err != nil {
 		return err

@@ -1,5 +1,3 @@
-//go:build exclude
-
 package ce2e
 
 import (
@@ -8,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
 
 const pluginID = "com.mattermost.msteams-sync"
