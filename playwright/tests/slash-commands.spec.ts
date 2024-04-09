@@ -19,7 +19,7 @@ test.describe('link slash command', () => {
       const url = mattermost.url()
       await login(page, url, "regularuser", "regularuser")
       await expect(page.getByLabel('town square public channel')).toBeVisible();
-      await page.getByTestId('post_textbox').fill("/msteams-sync link")
+      await page.getByTestId('post_textbox').fill("/msteams link")
       await page.getByTestId('SendMessageButton').click();
 
       await expect(page.getByText('Unable to link the channel. You have to be a channel admin to link it.', { exact: true })).toBeVisible();
@@ -30,12 +30,12 @@ test.describe('link slash command', () => {
       const url = mattermost.url()
       await login(page, url, "admin", "admin")
       await expect(page.getByLabel('town square public channel')).toBeVisible();
-      await page.getByTestId('post_textbox').fill("/msteams-sync link")
+      await page.getByTestId('post_textbox').fill("/msteams link")
       await page.getByTestId('SendMessageButton').click();
 
       await expect(page.getByText('Invalid link command, please pass the MS Teams team id and channel id as parameters.', { exact: true })).toBeVisible();
 
-      await page.getByTestId('post_textbox').fill("/msteams-sync link team-id channel-id")
+      await page.getByTestId('post_textbox').fill("/msteams link team-id channel-id")
       await page.getByTestId('SendMessageButton').click();
 
       await expect(page.getByText('Unable to link the channel, looks like your account is not connected to MS Teams', { exact: true })).toBeVisible();
