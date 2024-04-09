@@ -475,8 +475,13 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
+<<<<<<< HEAD
 	p.SendConnectMessage(args.ChannelId, args.UserId, "")
 	return &model.CommandResponse{}, nil
+=======
+	connectURL := p.GetURL() + "/connect"
+	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
+>>>>>>> 0d14f68 (MM-5701: reenable reattached plugin tests (#563))
 }
 
 func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
