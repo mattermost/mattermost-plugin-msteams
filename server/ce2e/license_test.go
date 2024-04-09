@@ -1,5 +1,3 @@
-//go:build exclude
-
 package ce2e
 
 import (
