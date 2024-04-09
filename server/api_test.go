@@ -711,7 +711,17 @@ func TestConnect(t *testing.T) {
 		SetupStore         func(*storemocks.Store)
 		ExpectedResult     string
 		ExpectedStatusCode int
+		isBot              bool
 	}{
+		{
+			Name: "connect: User already connected",
+			SetupPlugin: func(api *plugintest.API) {
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(&oauth2.Token{}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusInternalServerError,
+		},
 		{
 			Name: "connect: User connected",
 			SetupPlugin: func(api *plugintest.API) {
@@ -720,6 +730,7 @@ func TestConnect(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusSeeOther,
 		},
@@ -729,6 +740,7 @@ func TestConnect(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
+				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
 			},
 			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
@@ -741,10 +753,35 @@ func TestConnect(t *testing.T) {
 				}).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
 				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
 			},
 			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
 			ExpectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			Name: "connect: Bot Permissions",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", mock.AnythingOfType("string"), model.PermissionManageSystem).Return(false).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+			},
+			ExpectedStatusCode: http.StatusInternalServerError,
+			isBot:              true,
+		},
+		{
+			Name: "connect: Bot connected",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
+				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", "bot-user-id"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
+				api.On("HasPermissionTo", mock.AnythingOfType("string"), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
+				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusSeeOther,
+			isBot:              true,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
@@ -762,7 +799,11 @@ func TestConnect(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connect", nil)
+			endPoint := "/connect"
+			if test.isBot {
+				endPoint += "?isBot"
+			}
+			r := httptest.NewRequest(http.MethodGet, endPoint, nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 
@@ -945,6 +986,116 @@ func TestGetConnectedUsersFile(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/connected-users/download", nil)
+			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
+			plugin.ServeHTTP(nil, w, r)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.NotNil(t, result)
+			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+
+			bodyBytes, err := io.ReadAll(result.Body)
+			assert.Nil(err)
+			if test.ExpectedResult != "" {
+				assert.Equal(test.ExpectedResult, string(bodyBytes))
+			}
+		})
+	}
+}
+
+func TestGetSiteStats(t *testing.T) {
+	for _, test := range []struct {
+		Name               string
+		SetupPlugin        func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		ExpectedResult     string
+		ExpectedStatusCode int
+	}{
+		{
+			Name: "getSiteStats: Insufficient permissions for the user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
+			},
+			SetupStore:         func(store *storemocks.Store) {},
+			ExpectedStatusCode: http.StatusForbidden,
+			ExpectedResult:     "not able to authorize the user\n",
+		},
+		{
+			Name: "getSiteStats: Unable to get the list of connected users from the store",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(nil, errors.New("failed")).Times(1)
+			},
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedResult:     "unable to get site stats\n",
+		},
+		{
+			Name: "getSiteStats: no connected users",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 0,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":0}`,
+		},
+		{
+			Name: "getSiteStats: 1 connected user",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 1,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":1}`,
+		},
+		{
+			Name: "getSiteStats: 10 connected users",
+			SetupPlugin: func(api *plugintest.API) {
+				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("GetStats").Return(&storemodels.Stats{
+					ConnectedUsers: 10,
+					SyntheticUsers: 999,
+					LinkedChannels: 999,
+				}, nil).Times(1)
+			},
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedResult:     `{"total_connected_users":10}`,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			plugin := newTestPlugin(t)
+			if test.ExpectedResult != "" {
+				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
+			}
+
+			mockAPI := &plugintest.API{}
+			testutils.MockLogs(mockAPI)
+
+			plugin.SetAPI(mockAPI)
+			defer mockAPI.AssertExpectations(t)
+
+			test.SetupPlugin(mockAPI)
+			test.SetupStore(plugin.store.(*storemocks.Store))
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/stats/site", nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
 

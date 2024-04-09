@@ -511,7 +511,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	connectURL := p.GetURL() + "/connect"
+	connectURL := p.GetURL() + "/connect?isBot"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
