@@ -507,8 +507,9 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	connectURL := p.GetURL() + "/connect"
-	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
+	connectURL := p.GetURL() + "/connect?isBot"
+	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
