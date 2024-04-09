@@ -654,19 +654,14 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 	}
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
+
 	if primaryPlatform != PreferenceValuePlatformMM && primaryPlatform != PreferenceValuePlatformMSTeams {
 		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 		return
 	}
 
-	err := a.p.API.UpdatePreferencesForUser(userID, []model.Preference{{
-		UserId:   userID,
-		Category: PreferenceCategoryPlugin,
-		Name:     PreferenceNamePlatform,
-		Value:    primaryPlatform,
-	}})
-
+	err := a.p.setPrimaryPlatform(userID, primaryPlatform)
 	if err != nil {
 		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
 		http.Error(w, "error updating the preferences", http.StatusInternalServerError)

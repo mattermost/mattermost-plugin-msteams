@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
@@ -312,20 +313,22 @@ func (p *Plugin) start(isRestart bool) {
 		p.syncUserJob = job
 	}
 
-	checkCredentialsJob, err := cluster.Schedule(
-		p.API,
-		checkCredentialsJobName,
-		cluster.MakeWaitForRoundedInterval(24*time.Hour),
-		p.checkCredentials,
-	)
-	if err != nil {
-		p.API.LogError("error in scheduling the check credentials job", "error", err)
-		return
-	}
-	p.checkCredentialsJob = checkCredentialsJob
+	if !p.getConfiguration().DisableCheckCredentials {
+		checkCredentialsJob, jobErr := cluster.Schedule(
+			p.API,
+			checkCredentialsJobName,
+			cluster.MakeWaitForRoundedInterval(24*time.Hour),
+			p.checkCredentials,
+		)
+		if jobErr != nil {
+			p.API.LogError("error in scheduling the check credentials job", "error", jobErr)
+			return
+		}
+		p.checkCredentialsJob = checkCredentialsJob
 
-	// Run the job above right away so we immediately populate metrics.
-	p.checkCredentials()
+		// Run the job above right away so we immediately populate metrics.
+		p.checkCredentials()
+	}
 
 	// Unregister and re-register slash command to reflect any configuration changes.
 	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
@@ -389,6 +392,13 @@ func (p *Plugin) stop(isRestart bool) {
 	}
 
 	p.stopSyncUsersJob()
+
+	if p.checkCredentialsJob != nil {
+		if err := p.checkCredentialsJob.Close(); err != nil {
+			p.API.LogError("Failed to close background check credentials job", "error", err)
+		}
+		p.checkCredentialsJob = nil
+	}
 
 	if !isRestart && p.metricsJob != nil {
 		if err := p.metricsJob.Close(); err != nil {
@@ -479,7 +489,7 @@ func (p *Plugin) onActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/icon.png"))
+	}, pluginapi.ProfileImageBytes(assets.Icon))
 	if err != nil {
 		return err
 	}
