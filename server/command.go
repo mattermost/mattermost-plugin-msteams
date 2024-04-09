@@ -507,7 +507,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	connectURL := p.GetURL() + "/connect"
+	connectURL := p.GetURL() + "/connect?isBot"
 	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 }
 
@@ -583,6 +583,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
+		p.API.LogWarn("Unable to update the user during promotion", "user_id", user.Id, "error", appErr.Error())
 		return p.cmdSuccess(args, "Error: Unable to promote account "+username)
 	}
 
