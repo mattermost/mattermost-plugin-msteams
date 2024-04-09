@@ -922,7 +922,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeConnectBotCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, fmt.Sprintf("[Click here to connect the bot account](%s/connect)", th.p.GetURL()))
+		assertEphemeralResponse(th, t, args, fmt.Sprintf("[Click here to connect the bot account](%s/connect?isBot)", th.p.GetURL()))
 	})
 }
 
@@ -1194,7 +1194,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 	})
 
 	t.Run("not a remote user", func(t *testing.T) {
-		err := th.p.store.SetUserInfo(user3.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(user3.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
@@ -1211,7 +1211,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 	t.Run("new username already exists", func(t *testing.T) {
 		remoteUser := th.SetupRemoteUser(t, team)
 
-		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
@@ -1229,7 +1229,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 		remoteUser := th.SetupRemoteUser(t, team)
 		newUsername := model.NewId()
 
-		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
@@ -1247,7 +1247,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 		remoteUser := th.SetupRemoteUser(t, team)
 		newUsername := model.NewId()
 
-		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
@@ -1264,7 +1264,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 	t.Run("successfully promoted to same username, without @ prefix", func(t *testing.T) {
 		remoteUser := th.SetupRemoteUser(t, team)
 
-		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
@@ -1281,7 +1281,7 @@ func TestExecutePromoteCommand(t *testing.T) {
 	t.Run("successfully promoted to same username, with @ prefix", func(t *testing.T) {
 		remoteUser := th.SetupRemoteUser(t, team)
 
-		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id", nil)
+		err := th.p.store.SetUserInfo(remoteUser.Id, "team_user_id_"+model.NewId(), nil)
 		require.NoError(t, err)
 
 		args := &model.CommandArgs{
