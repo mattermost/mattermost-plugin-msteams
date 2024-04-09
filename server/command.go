@@ -475,8 +475,8 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
-	connectURL := p.GetURL() + "/connect"
-	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
+	p.SendConnectMessage(args.ChannelId, args.UserId, "")
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
@@ -507,8 +507,8 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	connectURL := p.GetURL() + "/connect?isBot"
-	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
+	p.SendConnectBotMessage(args.ChannelId, args.UserId, "")
+	return &model.CommandResponse{}, nil
 }
 
 func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {

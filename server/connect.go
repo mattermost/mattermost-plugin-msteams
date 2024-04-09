@@ -9,18 +9,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) botSendDirectMessage(userID, message string) error {
-	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
-	}
+// func (p *Plugin) botSendDirectMessage(userID, message string) error {
+// 	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
+// 	if err != nil {
+// 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
+// 	}
 
-	return p.apiClient.Post.CreatePost(&model.Post{
-		Message:   message,
-		UserId:    p.userID,
-		ChannelId: channel.Id,
-	})
-}
+// 	return p.apiClient.Post.CreatePost(&model.Post{
+// 		Message:   message,
+// 		UserId:    p.userID,
+// 		ChannelId: channel.Id,
+// 	})
+// }
 
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	if p.getConfiguration().ConnectedUsersInvitePoolSize == 0 {
@@ -92,9 +92,14 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		return errors.Wrapf(err, "error storing user in invite list")
 	}
 
-	connectURL := p.GetURL() + "/connect"
+	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
+	}
+	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
+	p.SendConnectMessage(channel.Id, user.Id, message)
 
-	return p.botSendDirectMessage(user.Id, fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL))
+	return nil
 }
 
 func (p *Plugin) shouldSendInviteMessage(
@@ -133,4 +138,24 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	}
 
 	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nWhitelisted, nil
+}
+
+func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
+	p.SendMessage(channelID, userID, message, p.GetURL()+"/connect?")
+}
+
+func (p *Plugin) SendConnectBotMessage(channelID string, userID string, message string) {
+	p.SendMessage(channelID, userID, message, p.GetURL()+"/connect?isBot&")
+}
+
+func (p *Plugin) SendMessage(channelID string, userID string, message string, url string) {
+	postID := model.NewId()
+	connectURL := fmt.Sprintf(url+"post_id=%s&channel_id=%s", postID, channelID)
+	post := &model.Post{
+		Id:        postID,
+		ChannelId: channelID,
+		UserId:    p.GetBotUserID(),
+		Message:   message + fmt.Sprintf(" [Click here to connect your account](%s)", connectURL),
+	}
+	p.API.SendEphemeralPost(userID, post)
 }

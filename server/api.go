@@ -324,8 +324,9 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		return
 	}
+	query := r.URL.Query()
 	userID := r.Header.Get("Mattermost-User-ID")
-	connectBot := r.URL.Query().Has("isBot")
+	connectBot := query.Has("isBot")
 	if connectBot {
 		if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
 			a.p.API.LogWarn("Attempt to connect the bot account, by non system admin.", "user_id", userID)
@@ -335,7 +336,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		userID = a.p.GetBotUserID()
 	}
 
-	query := r.URL.Query()
 	channelID := query.Get(QueryParamChannelID)
 	postID := query.Get(QueryParamPostID)
 	if channelID == "" || postID == "" {

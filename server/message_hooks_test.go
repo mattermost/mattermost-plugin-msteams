@@ -1276,11 +1276,7 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1314,11 +1310,7 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()

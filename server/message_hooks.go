@@ -608,8 +608,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	message := fmt.Sprintf("[Click here to connect your account](%s).", p.GetURL()+"/connect")
-	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "+message)
+	message := "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "
+	p.SendConnectMessage(channelID, userID, message)
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
