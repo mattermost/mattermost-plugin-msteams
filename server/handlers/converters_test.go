@@ -6,15 +6,14 @@ import (
 	"testing"
 	"time"
 
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams-sync/server/handlers/mocks"
-	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
-	mocksClient "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/mocks"
-	mocksStore "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
+	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	mocksStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,12 +49,11 @@ func TestMsgToPost(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID())
-				p.On("GetURL").Return("https://example.com/")
-				p.On("GetClientForApp").Return(client)
+				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetAPI").Return(mockAPI).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get user avatar", "Error", mock.Anything).Once()
 			},
 			post: &model.Post{
 				UserId:    testutils.GetSenderID(),
@@ -64,8 +62,6 @@ func TestMsgToPost(t *testing.T) {
 				Props: model.StringInterface{
 					"from_webhook":                         "true",
 					"msteams_sync_pqoejrn65psweomewmosaqr": true,
-					"override_icon_url":                    "https://example.com//public/msteams-sync-icon.svg",
-					"override_username":                    "mock-UserDisplayName",
 				},
 				FileIds:  model.StringArray{},
 				CreateAt: mmCreateAtTime,
@@ -83,7 +79,7 @@ func TestMsgToPost(t *testing.T) {
 
 			ah.plugin = p
 
-			post, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, false)
+			post, _, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, false)
 			assert.Equal(t, testCase.post, post)
 		})
 	}
@@ -128,11 +124,10 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Unable to get mm user ID for user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Once()
-				p.On("GetStore").Return(store).Once()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get MM user ID from Teams user ID", "TeamsUserID", testutils.GetTeamsUserID(), "Error", "unable to get mm user ID").Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
@@ -152,11 +147,10 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Unable to get mm user details for user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Twice()
-				p.On("GetStore").Return(store).Once()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
-				api.On("LogDebug", "Unable to get MM user details", "MMUserID", testutils.GetMattermostID(), "Error", "unable to get mm user details").Once()
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
@@ -177,8 +171,8 @@ func TestHandleMentions(t *testing.T) {
 		{
 			description: "Successful user mentions",
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Twice()
-				p.On("GetStore").Return(store).Twice()
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
 			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
@@ -219,6 +213,7 @@ func TestHandleMentions(t *testing.T) {
 			mockAPI := &plugintest.API{}
 			testCase.setupPlugin(p, mockAPI, store)
 			testCase.setupAPI(mockAPI)
+			testutils.MockLogs(mockAPI)
 			testCase.setupStore(store)
 
 			ah.plugin = p

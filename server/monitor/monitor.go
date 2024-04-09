@@ -6,42 +6,52 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 )
 
 const monitoringSystemJobName = "monitoring_system"
 
+// Monitor is a job that creates and maintains chat and channel subscriptions.
+//
+// While the job is started on all plugin instances in a cluster, only one instance will actually
+// do the required effort, falling over seamlessly as needed.
 type Monitor struct {
-	client           msteams.Client
-	store            store.Store
-	api              plugin.API
-	metrics          metrics.Metrics
-	job              *cluster.Job
-	baseURL          string
-	webhookSecret    string
-	certificate      string
-	useEvaluationAPI bool
+	client             msteams.Client
+	store              store.Store
+	api                plugin.API
+	metrics            metrics.Metrics
+	job                *cluster.Job
+	baseURL            string
+	webhookSecret      string
+	certificate        string
+	useEvaluationAPI   bool
+	syncDirectMessages bool
+	startupTime        time.Time
 }
 
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string) *Monitor {
+// New creates a new instance of the Monitor job.
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncDirectMessages bool) *Monitor {
 	return &Monitor{
-		client:           client,
-		store:            store,
-		api:              api,
-		metrics:          metrics,
-		baseURL:          baseURL,
-		webhookSecret:    webhookSecret,
-		useEvaluationAPI: useEvaluationAPI,
-		certificate:      certificate,
+		client:             client,
+		store:              store,
+		api:                api,
+		metrics:            metrics,
+		baseURL:            baseURL,
+		webhookSecret:      webhookSecret,
+		useEvaluationAPI:   useEvaluationAPI,
+		certificate:        certificate,
+		syncDirectMessages: syncDirectMessages,
+		startupTime:        time.Now(),
 	}
 }
 
+// Start starts running the Monitor job.
 func (m *Monitor) Start() error {
-	m.api.LogDebug("Starting the msteams sync monitoring system")
+	m.api.LogInfo("Starting the msteams sync monitoring system")
 
 	// Close the previous background job if exists.
 	m.Stop()
@@ -50,45 +60,18 @@ func (m *Monitor) Start() error {
 		m.api,
 		monitoringSystemJobName,
 		cluster.MakeWaitForRoundedInterval(1*time.Minute),
-		m.RunMonitoringSystemJob,
+		m.runMonitoringSystemJob,
 	)
 	if jobErr != nil {
 		return fmt.Errorf("error in scheduling the monitoring system job. error: %w", jobErr)
 	}
 
 	m.job = job
-	return m.store.SetJobStatus(monitoringSystemJobName, false)
+
+	return nil
 }
 
-func (m *Monitor) RunMonitoringSystemJob() {
-	defer func() {
-		if r := recover(); r != nil {
-			m.metrics.ObserveGoroutineFailure()
-			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
-		}
-	}()
-
-	defer func() {
-		if sErr := m.store.SetJobStatus(monitoringSystemJobName, false); sErr != nil {
-			m.api.LogDebug("Failed to set monitoring job running status to false.")
-		}
-	}()
-
-	isStatusUpdated, sErr := m.store.CompareAndSetJobStatus(monitoringSystemJobName, false, true)
-	if sErr != nil {
-		m.api.LogError("Something went wrong while fetching monitoring job status", "Error", sErr.Error())
-		return
-	}
-
-	if !isStatusUpdated {
-		m.api.LogDebug("Monitoring job already running")
-		return
-	}
-
-	m.api.LogDebug("Running the Monitoring System Job")
-	m.check()
-}
-
+// Stop stops running the Monitor job.
 func (m *Monitor) Stop() {
 	if m.job != nil {
 		if err := m.job.Close(); err != nil {
@@ -97,24 +80,42 @@ func (m *Monitor) Stop() {
 	}
 }
 
-func (m *Monitor) check() {
+// runMonitoringSystemJob is a callback to trigger the business logic of the Monitor job, being run
+// automatically by the job subsystem.
+func (m *Monitor) runMonitoringSystemJob() {
+	// Wait at least one minute after startup before starting the monitoring job.
+	if time.Since(m.startupTime) < 1*time.Minute {
+		m.api.LogInfo("Delaying the Monitoring System Job until at least 1 minute after startup")
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			m.metrics.ObserveGoroutineFailure()
+			m.api.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	m.api.LogInfo("Running the Monitoring System Job")
+
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 
-	msteamsSubscriptionsMap, allChatsSubscription, err := m.GetMSTeamsSubscriptionsMap()
+	msteamsSubscriptionsMap, allChatsSubscription, err := m.getMSTeamsSubscriptionsMap()
 	if err != nil {
 		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
 	}()
 
-	m.checkGlobalSubscriptions(msteamsSubscriptionsMap, allChatsSubscription)
+	m.checkGlobalChatsSubscription(msteamsSubscriptionsMap, allChatsSubscription)
 
 	wg.Wait()
 }

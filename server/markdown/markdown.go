@@ -3,7 +3,8 @@ package markdown
 import (
 	"strings"
 
-	"github.com/mattn/godown"
+	md "github.com/JohannesKaufmann/html-to-markdown"
+	plugin "github.com/JohannesKaufmann/html-to-markdown/plugin"
 )
 
 var stringsToCheckForHTML = []string{
@@ -14,17 +15,22 @@ var stringsToCheckForHTML = []string{
 	"<h1>",
 	"<h2>",
 	"<h3>",
+	"<ol>",
+	"<ul>",
+	"<table>",
+	"<hr>",
 }
 
 func ConvertToMD(text string) string {
 	for _, tag := range stringsToCheckForHTML {
 		if strings.Contains(text, tag) {
-			var sb strings.Builder
-			if err := godown.Convert(&sb, strings.NewReader(text), nil); err != nil {
+			converter := md.NewConverter("", true, nil)
+			converter.Use(plugin.GitHubFlavored())
+			markdown, err := converter.ConvertString(text)
+			if err != nil {
 				return text
 			}
-
-			return sb.String()
+			return markdown
 		}
 	}
 

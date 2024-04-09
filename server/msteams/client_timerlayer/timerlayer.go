@@ -13,9 +13,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/oauth2"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 type ClientTimerLayer struct {
@@ -51,10 +51,10 @@ func (c *ClientTimerLayer) CreateOrGetChatForUsers(usersIDs []string) (*clientmo
 	return result, err
 }
 
-func (c *ClientTimerLayer) DeleteChatMessage(chatID string, msgID string) error {
+func (c *ClientTimerLayer) DeleteChatMessage(userID string, chatID string, msgID string) error {
 	start := time.Now()
 
-	err := c.Client.DeleteChatMessage(chatID, msgID)
+	err := c.Client.DeleteChatMessage(userID, chatID, msgID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -91,6 +91,20 @@ func (c *ClientTimerLayer) DeleteSubscription(subscriptionID string) error {
 	}
 	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteSubscription", success, elapsed)
 	return err
+}
+
+func (c *ClientTimerLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	start := time.Now()
+
+	result, err := c.Client.GetAppCredentials(applicationID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetAppCredentials", success, elapsed)
+	return result, err
 }
 
 func (c *ClientTimerLayer) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {

@@ -5,14 +5,12 @@ package store
 import (
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"golang.org/x/oauth2"
 )
 
 type Store interface {
-	Init() error
-	GetAvatarCache(userID string) ([]byte, error)
-	SetAvatarCache(userID string, photo []byte) error
+	Init(remoteID string) error
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
@@ -46,20 +44,19 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
-	StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error
-	GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error)
-	DeleteDMAndGMChannelPromptTime(userID string) error
 	RecoverPost(postID string) error
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
-	SetJobStatus(jobName string, status bool) error
-	CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error)
 	GetStats() (*storemodels.Stats, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	PrefillWhitelist() error
 	GetSizeOfWhitelist() (int, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserPresentInWhitelist(userID string) (bool, error)
+	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
+	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
+	DeleteUserInvite(mmUserID string) error
+	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 }

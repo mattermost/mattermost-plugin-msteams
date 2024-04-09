@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/oauth2"
 )
@@ -21,7 +21,7 @@ type Client interface {
 	UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	UpdateChatMessage(chatID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error)
 	DeleteMessage(teamID, channelID, parentID, msgID string) error
-	DeleteChatMessage(chatID, msgID string) error
+	DeleteChatMessage(userID, chatID, msgID string) error
 	SubscribeToChannels(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
 	SubscribeToChats(baseURL, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error)
 	SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate string) (*clientmodels.Subscription, error)
@@ -56,4 +56,5 @@ type Client interface {
 	ListChannels(teamID string) ([]clientmodels.Channel, error)
 	ListChannelMessages(teamID, channelID string, since time.Time) ([]*clientmodels.Message, error)
 	ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error)
+	GetAppCredentials(applicationID string) ([]clientmodels.Credential, error)
 }

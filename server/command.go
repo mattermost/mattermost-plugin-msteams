@@ -5,21 +5,20 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi/experimental/command"
 )
 
-const msteamsCommand = "msteams-sync"
+const msteamsCommand = "msteams"
 const commandWaitingMessage = "Please wait while your request is being processed."
 
-func (p *Plugin) createMsteamsSyncCommand() *model.Command {
-	iconData, err := command.GetIconData(p.API, "assets/msteams-sync-icon.svg")
+func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
+	iconData, err := command.GetIconData(p.API, "assets/icon.svg")
 	if err != nil {
-		p.API.LogError("Unable to get the MS Teams icon for the slash command")
+		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
 
 	return &model.Command{
@@ -29,7 +28,7 @@ func (p *Plugin) createMsteamsSyncCommand() *model.Command {
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
-		AutocompleteData:     getAutocompleteData(),
+		AutocompleteData:     getAutocompleteData(syncLinkedChannels),
 		AutocompleteIconData: iconData,
 	}
 }
@@ -51,23 +50,25 @@ func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
 	})
 }
 
-func getAutocompleteData() *model.AutocompleteData {
+func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	cmd := model.NewAutocompleteData(msteamsCommand, "[command]", "Manage MS Teams linked channels")
 
-	link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
-	link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
-	link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
-	cmd.AddCommand(link)
+	if syncLinkedChannels {
+		link := model.NewAutocompleteData("link", "[msteams-team-id] [msteams-channel-id]", "Link current channel to a MS Teams channel")
+		link.AddDynamicListArgument("[msteams-team-id]", getAutocompletePath("teams"), true)
+		link.AddDynamicListArgument("[msteams-channel-id]", getAutocompletePath("channels"), true)
+		cmd.AddCommand(link)
 
-	unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
-	cmd.AddCommand(unlink)
+		unlink := model.NewAutocompleteData("unlink", "", "Unlink the current channel from the MS Teams channel")
+		cmd.AddCommand(unlink)
 
-	show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
-	cmd.AddCommand(show)
+		show := model.NewAutocompleteData("show", "", "Show MS Teams linked channel")
+		cmd.AddCommand(show)
 
-	showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
-	showLinks.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(showLinks)
+		showLinks := model.NewAutocompleteData("show-links", "", "Show all MS Teams linked channels")
+		showLinks.RoleID = model.SystemAdminRoleId
+		cmd.AddCommand(showLinks)
+	}
 
 	connect := model.NewAutocompleteData("connect", "", "Connect your Mattermost account to your MS Teams account")
 	cmd.AddCommand(connect)
@@ -108,20 +109,22 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return &model.CommandResponse{}, nil
 	}
 
-	if action == "link" {
-		return p.executeLinkCommand(args, parameters)
-	}
+	if p.getConfiguration().SyncLinkedChannels {
+		if action == "link" {
+			return p.executeLinkCommand(args, parameters)
+		}
 
-	if action == "unlink" {
-		return p.executeUnlinkCommand(args)
-	}
+		if action == "unlink" {
+			return p.executeUnlinkCommand(args)
+		}
 
-	if action == "show" {
-		return p.executeShowCommand(args)
-	}
+		if action == "show" {
+			return p.executeShowCommand(args)
+		}
 
-	if action == "show-links" {
-		return p.executeShowLinksCommand(args)
+		if action == "show-links" {
+			return p.executeShowLinksCommand(args)
+		}
 	}
 
 	if action == "connect" {
@@ -144,7 +147,10 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executePromoteUserCommand(args, parameters)
 	}
 
-	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink and show.")
+	if p.getConfiguration().SyncLinkedChannels {
+		return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, disconnect, disconnect-bot and promote.")
+	}
+	return p.cmdError(args.UserId, args.ChannelId, "Unknown command. Valid options: connect, connect-bot, disconnect, disconnect-bot and promote.")
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
@@ -153,7 +159,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -200,17 +206,17 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, commandWaitingMessage)
 	channelsSubscription, err := p.GetClientForApp().SubscribeToChannel(channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getBase64Certificate())
 	if err != nil {
-		p.API.LogDebug("Unable to subscribe to the channel", "channelID", channelLink.MattermostChannelID, "error", err.Error())
+		p.API.LogWarn("Unable to subscribe to the channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to subscribe to the channel")
 	}
 
 	p.GetMetrics().ObserveSubscription(metrics.SubscriptionConnected)
 	if err = p.store.StoreChannelLink(&channelLink); err != nil {
-		p.API.LogDebug("Unable to create the new link", "error", err.Error())
+		p.API.LogWarn("Unable to create the new link", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to create new link.")
 	}
 
-	if err := p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
+	if err = p.store.SaveChannelSubscription(storemodels.ChannelSubscription{
 		SubscriptionID: channelsSubscription.ID,
 		TeamID:         channelLink.MSTeamsTeam,
 		ChannelID:      channelLink.MSTeamsChannel,
@@ -219,6 +225,26 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 	}); err != nil {
 		p.API.LogWarn("Unable to save the subscription in the DB", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Error occurred while saving the subscription")
+	}
+
+	if !p.getConfiguration().DisableSyncMsg {
+		if _, err = p.API.ShareChannel(&model.SharedChannel{
+			ChannelId: channelLink.MattermostChannelID,
+			TeamId:    channelLink.MattermostTeamID,
+			Home:      true,
+			ReadOnly:  false,
+			CreatorId: p.userID,
+			RemoteId:  p.remoteID,
+			ShareName: channelLink.MattermostChannelID,
+		}); err != nil {
+			p.API.LogWarn("Failed to share channel", "channel_id", channelLink.MattermostChannelID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Shared channel", "channel_id", channelLink.MattermostChannelID)
+		}
+	}
+
+	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "The MS Teams channel is now linked to this Mattermost channel.")
@@ -231,7 +257,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to get the current channel information.")
 	}
 
-	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+	if channel.IsGroupOrDirect() {
 		return p.cmdError(args.UserId, args.ChannelId, "Linking/unlinking a direct or group message is not allowed")
 	}
 
@@ -242,12 +268,12 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)
 	if err != nil {
-		p.API.LogDebug("Unable to get the link by channel ID", "error", err.Error())
+		p.API.LogWarn("Unable to get the link by channel ID", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "This Mattermost channel is not linked to any MS Teams channel.")
 	}
 
 	if err = p.store.DeleteLinkByChannelID(channel.Id); err != nil {
-		p.API.LogDebug("Unable to delete the link by channel ID", "error", err.Error())
+		p.API.LogWarn("Unable to delete the link by channel ID", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Unable to delete link.")
 	}
 
@@ -255,17 +281,29 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 
 	subscription, err := p.store.GetChannelSubscriptionByTeamsChannelID(link.MSTeamsChannel)
 	if err != nil {
-		p.API.LogDebug("Unable to get the subscription by MS Teams channel ID", "error", err.Error())
+		p.API.LogWarn("Unable to get the subscription by MS Teams channel ID", "error", err.Error())
 		return &model.CommandResponse{}, nil
 	}
 
 	if err = p.store.DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription from the DB", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+		p.API.LogWarn("Unable to delete the subscription from the DB", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		return &model.CommandResponse{}, nil
 	}
 
+	if !p.getConfiguration().DisableSyncMsg {
+		if _, err = p.API.UnshareChannel(link.MattermostChannelID); err != nil {
+			p.API.LogWarn("Failed to unshare channel", "channel_id", link.MattermostChannelID, "subscription_id", subscription.SubscriptionID, "error", err.Error())
+		} else {
+			p.API.LogInfo("Unshared channel", "channel_id", link.MattermostChannelID)
+		}
+	}
+
 	if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
-		p.API.LogDebug("Unable to delete the subscription on MS Teams", "subscriptionID", subscription.SubscriptionID, "error", err.Error())
+		p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
+	}
+
+	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
+		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return &model.CommandResponse{}, nil
@@ -304,7 +342,7 @@ func (p *Plugin) executeShowLinksCommand(args *model.CommandArgs) (*model.Comman
 
 	links, err := p.store.ListChannelLinksWithNames()
 	if err != nil {
-		p.API.LogDebug("Unable to get links from store", "Error", err.Error())
+		p.API.LogWarn("Unable to get links from store", "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, "Something went wrong.")
 	}
 
@@ -386,7 +424,7 @@ func (p *Plugin) GetMSTeamsTeamDetails(msTeamsTeamIDsVsNames map[string]string) 
 	teamsQuery = strings.TrimSuffix(teamsQuery, ", ") + ")"
 	msTeamsTeams, err := p.GetClientForApp().GetTeams(teamsQuery)
 	if err != nil {
-		p.API.LogDebug("Unable to get the MS Teams teams information", "Error", err.Error())
+		p.API.LogWarn("Unable to get the MS Teams teams information", "error", err.Error())
 		return true
 	}
 
@@ -402,7 +440,7 @@ func (p *Plugin) GetMSTeamsChannelDetailsForAllTeams(msTeamsTeamIDsVsChannelsQue
 	for teamID, channelsQuery := range msTeamsTeamIDsVsChannelsQuery {
 		channels, err := p.GetClientForApp().GetChannelsInTeam(teamID, channelsQuery+")")
 		if err != nil {
-			p.API.LogDebug("Unable to get the MS Teams channel information for the team", "TeamID", teamID, "Error", err.Error())
+			p.API.LogWarn("Unable to get the MS Teams channel information for the team", "team_id", teamID, "error", err.Error())
 			errorsFound = true
 		}
 
@@ -422,14 +460,14 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	genericErrorMessage := "Error in trying to connect the account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
 	if err != nil {
-		p.API.LogError("Error in checking if a user is present in whitelist", "UserID", args.UserId, "Error", err.Error())
+		p.API.LogWarn("Error in checking if a user is present in whitelist", "user_id", args.UserId, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -438,19 +476,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), args.UserId)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	if appErr := p.API.KVSet("_code_verifier_"+args.UserId, []byte(codeVerifier)); appErr != nil {
-		p.API.LogError("Error in storing the code verifier", "error", appErr.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
+	connectURL := p.GetURL() + "/connect"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect your account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -467,14 +493,14 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
 	if err != nil {
-		p.API.LogError("Error in checking if the bot user is present in whitelist", "BotUserID", p.userID, "Error", err.Error())
+		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
 		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 	}
 
 	if !presentInWhitelist {
 		whitelistSize, err := p.store.GetSizeOfWhitelist()
 		if err != nil {
-			p.API.LogError("Error in getting the size of whitelist", "Error", err.Error())
+			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
 		}
 
@@ -483,20 +509,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	state := fmt.Sprintf("%s_%s", model.NewId(), p.userID)
-	if err := p.store.StoreOAuth2State(state); err != nil {
-		p.API.LogError("Error in storing the OAuth state", "error", err.Error())
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	codeVerifier := model.NewId()
-	appErr := p.API.KVSet("_code_verifier_"+p.GetBotUserID(), []byte(codeVerifier))
-	if appErr != nil {
-		return p.cmdError(args.UserId, args.ChannelId, genericErrorMessage)
-	}
-
-	connectURL := msteams.GetAuthURL(p.GetURL()+"/oauth-redirect", p.configuration.TenantID, p.configuration.ClientID, p.configuration.ClientSecret, state, codeVerifier)
-
+	connectURL := p.GetURL() + "/connect?isBot"
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 	return &model.CommandResponse{}, nil
 }
@@ -520,9 +533,8 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Your account has been disconnected.")
-	if err := p.store.DeleteDMAndGMChannelPromptTime(args.UserId); err != nil {
-		p.API.LogDebug("Unable to delete the last prompt timestamp for the user", "MMUserID", args.UserId, "Error", err.Error())
-	}
+
+	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
 	return &model.CommandResponse{}, nil
 }
@@ -557,16 +569,10 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 		return &model.CommandResponse{}, nil
 	}
 
-	username := parameters[0]
-	newUsername := parameters[1]
+	username := strings.TrimPrefix(parameters[0], "@")
+	newUsername := strings.TrimPrefix(parameters[1], "@")
 
-	var user *model.User
-	var appErr *model.AppError
-	if strings.HasPrefix(username, "@") {
-		user, appErr = p.API.GetUserByUsername(username[1:])
-	} else {
-		user, appErr = p.API.GetUserByUsername(username)
-	}
+	user, appErr := p.API.GetUserByUsername(username)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username+", user not found")
 		return &model.CommandResponse{}, nil
@@ -591,6 +597,7 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user.RemoteId = nil
 	user.Username = newUsername
+	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
 		p.sendBotEphemeralPost(args.UserId, args.ChannelId, "Error: Unable to promote account "+username)

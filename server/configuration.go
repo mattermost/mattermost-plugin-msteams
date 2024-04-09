@@ -28,19 +28,22 @@ type configuration struct {
 	WebhookSecret                      string `json:"webhooksecret"`
 	EnabledTeams                       string `json:"enabledteams"`
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
+	SelectiveSync                      bool   `json:"selectiveSync"`
+	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
+	SyncReactions                      bool   `json:"syncreactions"`
+	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	EnforceConnectedUsers              bool   `json:"enforceconnectedusers"`
-	AllowSkipConnectUsers              bool   `json:"allowskipconnectusers"`
 	CertificatePublic                  string `json:"certificatepublic"`
 	CertificateKey                     string `json:"certificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
-	PromptIntervalForDMsAndGMs         int    `json:"promptIntervalForDMsAndGMs"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
+	ConnectedUsersInvitePoolSize       int    `json:"connectedUsersInvitePoolSize"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
+	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
 }
 
 func (c *configuration) ProcessConfiguration() {
@@ -74,17 +77,6 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	}
 	if configuration.BufferSizeForFileStreaming <= 0 {
 		return errors.New("buffer size for file streaming should be greater than zero")
-	}
-
-	if p.store != nil {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
-		if err != nil {
-			return errors.New("failed to get the size of whitelist from the DB")
-		}
-
-		if configuration.ConnectedUsersAllowed < whitelistSize {
-			return errors.New("failed to save configuration, no. of connected users allowed should be greater than or equal to the current size of the whitelist")
-		}
 	}
 
 	return nil

@@ -12,13 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils/containere2e"
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/containere2e"
 )
 
 func TestIFrame(t *testing.T) {
-	t.Parallel()
-	mattermost, _, tearDown := containere2e.NewE2ETestPlugin(t)
+	mattermost, _, _, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 	client, err := mattermost.GetAdminClient(context.Background())
 	require.NoError(t, err)
@@ -27,8 +26,9 @@ func TestIFrame(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("iframe tab", func(t *testing.T) {
-		resp, err := client.DoAPIRequest(context.Background(), http.MethodGet, client.URL+"/plugins/com.mattermost.msteams-sync/iframe/mattermostTab", "", "")
-		require.NoError(t, err)
+		reqURL := client.URL + "/plugins/com.mattermost.msteams-sync/iframe/mattermostTab"
+		resp, err := client.DoAPIRequest(context.Background(), http.MethodGet, reqURL, "", "")
+		require.NoError(t, err, "cannot fetch url %s", reqURL)
 		defer resp.Body.Close()
 
 		bodyBytes, err := io.ReadAll(resp.Body)
@@ -44,8 +44,9 @@ func TestIFrame(t *testing.T) {
 	})
 
 	t.Run("iframe manifest", func(t *testing.T) {
-		resp, err := client.DoAPIRequest(context.Background(), http.MethodGet, client.URL+"/plugins/com.mattermost.msteams-sync/iframe-manifest", "", "")
-		require.NoError(t, err)
+		reqURL := client.URL + "/plugins/com.mattermost.msteams-sync/iframe-manifest"
+		resp, err := client.DoAPIRequest(context.Background(), http.MethodGet, reqURL, "", "")
+		require.NoError(t, err, "cannot fetch url %s", reqURL)
 		defer resp.Body.Close()
 
 		bodyBytes, err := io.ReadAll(resp.Body)

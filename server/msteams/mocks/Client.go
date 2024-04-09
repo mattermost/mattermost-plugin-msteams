@@ -5,7 +5,7 @@ package mocks
 import (
 	io "io"
 
-	clientmodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	clientmodels "github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -58,13 +58,13 @@ func (_m *Client) CreateOrGetChatForUsers(usersIDs []string) (*clientmodels.Chat
 	return r0, r1
 }
 
-// DeleteChatMessage provides a mock function with given fields: chatID, msgID
-func (_m *Client) DeleteChatMessage(chatID string, msgID string) error {
-	ret := _m.Called(chatID, msgID)
+// DeleteChatMessage provides a mock function with given fields: userID, chatID, msgID
+func (_m *Client) DeleteChatMessage(userID string, chatID string, msgID string) error {
+	ret := _m.Called(userID, chatID, msgID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(chatID, msgID)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(userID, chatID, msgID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -98,6 +98,29 @@ func (_m *Client) DeleteSubscription(subscriptionID string) error {
 	}
 
 	return r0
+}
+
+// GetAppCredentials provides a mock function with given fields: applicationID
+func (_m *Client) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	ret := _m.Called(applicationID)
+
+	var r0 []clientmodels.Credential
+	if rf, ok := ret.Get(0).(func(string) []clientmodels.Credential); ok {
+		r0 = rf(applicationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]clientmodels.Credential)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(applicationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetChannelInTeam provides a mock function with given fields: teamID, channelID

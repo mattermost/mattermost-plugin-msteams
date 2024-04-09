@@ -6,7 +6,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
-	storemodels "github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	storemodels "github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	time "time"
 )
@@ -25,41 +25,6 @@ func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
 		r0 = rf(teamID)
 	} else {
 		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// CompareAndSetJobStatus provides a mock function with given fields: jobName, oldStatus, newStatus
-func (_m *Store) CompareAndSetJobStatus(jobName string, oldStatus bool, newStatus bool) (bool, error) {
-	ret := _m.Called(jobName, oldStatus, newStatus)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, bool, bool) bool); ok {
-		r0 = rf(jobName, oldStatus, newStatus)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, bool, bool) error); ok {
-		r1 = rf(jobName, oldStatus, newStatus)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// DeleteDMAndGMChannelPromptTime provides a mock function with given fields: userID
-func (_m *Store) DeleteDMAndGMChannelPromptTime(userID string) error {
-	ret := _m.Called(userID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(userID)
-	} else {
-		r0 = ret.Error(0)
 	}
 
 	return r0
@@ -107,27 +72,18 @@ func (_m *Store) DeleteUserInfo(mmUserID string) error {
 	return r0
 }
 
-// GetAvatarCache provides a mock function with given fields: userID
-func (_m *Store) GetAvatarCache(userID string) ([]byte, error) {
-	ret := _m.Called(userID)
+// DeleteUserInvite provides a mock function with given fields: mmUserID
+func (_m *Store) DeleteUserInvite(mmUserID string) error {
+	ret := _m.Called(mmUserID)
 
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(string) []byte); ok {
-		r0 = rf(userID)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mmUserID)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(userID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // GetChannelSubscription provides a mock function with given fields: subscriptionID
@@ -222,27 +178,6 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	return r0, r1
 }
 
-// GetDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID
-func (_m *Store) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
-	ret := _m.Called(channelID, userID)
-
-	var r0 time.Time
-	if rf, ok := ret.Get(0).(func(string, string) time.Time); ok {
-		r0 = rf(channelID, userID)
-	} else {
-		r0 = ret.Get(0).(time.Time)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(channelID, userID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetGlobalSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -259,6 +194,29 @@ func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.Glob
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(subscriptionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetInvitedUser provides a mock function with given fields: mmUserID
+func (_m *Store) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	ret := _m.Called(mmUserID)
+
+	var r0 *storemodels.InvitedUser
+	if rf, ok := ret.Get(0).(func(string) *storemodels.InvitedUser); ok {
+		r0 = rf(mmUserID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storemodels.InvitedUser)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(mmUserID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -351,6 +309,27 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetSizeOfInvitedUsers provides a mock function with given fields:
+func (_m *Store) GetSizeOfInvitedUsers() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -492,13 +471,13 @@ func (_m *Store) GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	return r0, r1
 }
 
-// Init provides a mock function with given fields:
-func (_m *Store) Init() error {
-	ret := _m.Called()
+// Init provides a mock function with given fields: remoteID
+func (_m *Store) Init(remoteID string) error {
+	ret := _m.Called(remoteID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(remoteID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -793,34 +772,6 @@ func (_m *Store) SaveGlobalSubscription(subscription storemodels.GlobalSubscript
 	return r0
 }
 
-// SetAvatarCache provides a mock function with given fields: userID, photo
-func (_m *Store) SetAvatarCache(userID string, photo []byte) error {
-	ret := _m.Called(userID, photo)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, []byte) error); ok {
-		r0 = rf(userID, photo)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SetJobStatus provides a mock function with given fields: jobName, status
-func (_m *Store) SetJobStatus(jobName string, status bool) error {
-	ret := _m.Called(jobName, status)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
-		r0 = rf(jobName, status)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // SetPostLastUpdateAtByMSTeamsID provides a mock function with given fields: postID, lastUpdateAt
 func (_m *Store) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
 	ret := _m.Called(postID, lastUpdateAt)
@@ -877,13 +828,13 @@ func (_m *Store) StoreChannelLink(link *storemodels.ChannelLink) error {
 	return r0
 }
 
-// StoreDMAndGMChannelPromptTime provides a mock function with given fields: channelID, userID, timestamp
-func (_m *Store) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
-	ret := _m.Called(channelID, userID, timestamp)
+// StoreInvitedUser provides a mock function with given fields: invitedUser
+func (_m *Store) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	ret := _m.Called(invitedUser)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, time.Time) error); ok {
-		r0 = rf(channelID, userID, timestamp)
+	if rf, ok := ret.Get(0).(func(*storemodels.InvitedUser) error); ok {
+		r0 = rf(invitedUser)
 	} else {
 		r0 = ret.Error(0)
 	}

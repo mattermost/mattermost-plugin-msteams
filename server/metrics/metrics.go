@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	MetricsNamespace        = "msteams_connect"
-	MetricsSubsystemSystem  = "system"
-	MetricsSubsystemApp     = "app"
-	MetricsSubsystemHTTP    = "http"
-	MetricsSubsystemAPI     = "api"
-	MetricsSubsystemEvents  = "events"
-	MetricsSubsystemDB      = "db"
-	MetricsSubsystemMSGraph = "msgraph"
+	MetricsNamespace               = "msteams_connect"
+	MetricsSubsystemSystem         = "system"
+	MetricsSubsystemApp            = "app"
+	MetricsSubsystemHTTP           = "http"
+	MetricsSubsystemAPI            = "api"
+	MetricsSubsystemEvents         = "events"
+	MetricsSubsystemDB             = "db"
+	MetricsSubsystemMSGraph        = "msgraph"
+	MetricsSubsystemSharedChannels = "shared_channels"
 
 	MetricsCloudInstallationLabel = "installationId"
 	MetricsVersionLabel           = "version"
@@ -38,10 +39,11 @@ const (
 	DiscardedReasonUnableToUploadFileOnTeams = "unable_to_upload_file_on_teams"
 	DiscardedReasonInvalidChangeType         = "invalid_change_type"
 	DiscardedReasonIsBotUser                 = "is_bot_user"
-	DiscardedReasonUnableToGetTeamsData      = "unable_to_get_teams_data"
+	DiscardedReasonUnableToGetTeamsData      = "unable_to_get_teams_data" // #nosec  false positive
 	DiscardedReasonNotUserEvent              = "no_user_event"
 	DiscardedReasonOther                     = "other"
 	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
+	DiscardedReasonLinkedChannelsDisabled    = "linked_channels_disabled"
 	DiscardedReasonInactiveUser              = "inactive_user"
 	DiscardedReasonDuplicatedPost            = "duplicated_post"
 	DiscardedReasonAlreadyAppliedChange      = "already_applied_change"
@@ -52,10 +54,12 @@ const (
 	DiscardedReasonInvalidWebhookSecret      = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
+	DiscardedReasonSelectiveSync             = "selective_sync"
 
-	WorkerMonitor         = "monitor"
-	WorkerSyncUsers       = "sync_users"
-	WorkerActivityHandler = "activity_handler"
+	WorkerMonitor          = "monitor"
+	WorkerSyncUsers        = "sync_users"
+	WorkerActivityHandler  = "activity_handler"
+	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 )
 
 type Metrics interface {
@@ -63,16 +67,17 @@ type Metrics interface {
 
 	IncrementHTTPRequests()
 	IncrementHTTPErrors()
+	ObserveOAuthTokenInvalidated()
 	ObserveChangeEventQueueRejected()
 	ObserveWhitelistLimit(limit int)
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
 	ObserveMessage(action, source string, isDirectMessage bool)
+	ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration)
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
-	ObserveConfirmedMessage(source string, isDirectMessage bool)
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
@@ -93,6 +98,10 @@ type Metrics interface {
 	DecrementActiveWorkers(worker string)
 	ObserveWorkerDuration(worker string, elapsed float64)
 	ObserveWorker(worker string) func()
+	ObserveClientSecretEndDateTime(expireDate time.Time)
+	ObserveSyncMsgPostDelay(action string, delayMillis int64)
+	ObserveSyncMsgReactionDelay(action string, delayMillis int64)
+	ObserveSyncMsgFileDelay(action string, delayMillis int64)
 }
 
 type InstanceInfo struct {
@@ -114,16 +123,20 @@ type metrics struct {
 
 	msGraphClientTime *prometheus.HistogramVec
 
-	httpRequestsTotal prometheus.Counter
-	httpErrorsTotal   prometheus.Counter
+	httpRequestsTotal          prometheus.Counter
+	httpErrorsTotal            prometheus.Counter
+	oAuthTokenInvalidatedTotal prometheus.Counter
 
-	lifecycleEventsTotal   *prometheus.CounterVec
-	changeEventsTotal      *prometheus.CounterVec
-	messagesTotal          *prometheus.CounterVec
-	reactionsTotal         *prometheus.CounterVec
-	filesTotal             *prometheus.CounterVec
-	messagesConfirmedTotal *prometheus.CounterVec
-	subscriptionsTotal     *prometheus.CounterVec
+	lifecycleEventsTotal     *prometheus.CounterVec
+	changeEventsTotal        *prometheus.CounterVec
+	messagesTotal            *prometheus.CounterVec
+	messageDelayTime         *prometheus.HistogramVec
+	reactionsTotal           *prometheus.CounterVec
+	filesTotal               *prometheus.CounterVec
+	subscriptionsTotal       *prometheus.CounterVec
+	syncMsgPostDelayTime     *prometheus.HistogramVec
+	syncMsgReactionDelayTime *prometheus.HistogramVec
+	syncMsgFileDelayTime     *prometheus.HistogramVec
 
 	connectedUsers prometheus.Gauge
 	syntheticUsers prometheus.Gauge
@@ -134,6 +147,7 @@ type metrics struct {
 	changeEventQueueLength        *prometheus.GaugeVec
 	changeEventQueueRejectedTotal prometheus.Counter
 	activeWorkersTotal            *prometheus.GaugeVec
+	clientSecretEndDateTime       prometheus.Gauge
 
 	storeTime   *prometheus.HistogramVec
 	workersTime *prometheus.HistogramVec
@@ -227,6 +241,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.httpErrorsTotal)
 
+	m.oAuthTokenInvalidatedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemMSGraph,
+		Name:        "oauth_token_invalidated_total",
+		Help:        "The total number of times an oAuth token has been invalidated.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.oAuthTokenInvalidatedTotal)
+
 	m.changeEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
@@ -254,6 +277,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct"})
 	m.registry.MustRegister(m.messagesTotal)
 
+	m.messageDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "message_delay_seconds",
+		Help:        "The delay between a message event across platforms",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct"})
+	m.registry.MustRegister(m.messageDelayTime)
+
 	m.reactionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
@@ -272,16 +304,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesTotal)
 
-	// TODO: Why?
-	m.messagesConfirmedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemEvents,
-		Name:        "messages_confirmed_total",
-		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
-		ConstLabels: additionalLabels,
-	}, []string{"source", "is_direct"})
-	m.registry.MustRegister(m.messagesConfirmedTotal)
-
 	m.subscriptionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
@@ -290,6 +312,33 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
+
+	m.syncMsgPostDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "sync_msg_post_delay_seconds",
+		Help:        "The delay between a post event and when that event is relayed to the plugin.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgPostDelayTime)
+
+	m.syncMsgReactionDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "sync_msg_reaction_delay_seconds",
+		Help:        "The delay between a reaction event and when that event is relayed to the plugin.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgReactionDelayTime)
+
+	m.syncMsgFileDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemSharedChannels,
+		Name:        "sync_msg_file_delay_seconds",
+		Help:        "The delay between a file event and when that event is relayed to the plugin.",
+		ConstLabels: additionalLabels,
+	}, []string{"action"})
+	m.registry.MustRegister(m.syncMsgFileDelayTime)
 
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -384,6 +433,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"worker"})
 	m.registry.MustRegister(m.activeWorkersTotal)
 
+	m.clientSecretEndDateTime = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemMSGraph,
+		Name:        "client_secret_end_date_timestamp_seconds",
+		Help:        "The time the configured application credential expires.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.clientSecretEndDateTime)
+
 	m.workersTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -442,6 +500,12 @@ func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
 	}
 }
 
+func (m *metrics) ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration) {
+	if m != nil {
+		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Observe(delay.Seconds())
+	}
+}
+
 func (m *metrics) ObserveReaction(action, source string, isDirectMessage bool) {
 	if m != nil {
 		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
@@ -457,12 +521,6 @@ func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectM
 func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
 		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
-	}
-}
-
-func (m *metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	if m != nil {
-		m.messagesConfirmedTotal.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 
@@ -498,6 +556,12 @@ func (m *metrics) IncrementHTTPRequests() {
 func (m *metrics) IncrementHTTPErrors() {
 	if m != nil {
 		m.httpErrorsTotal.Inc()
+	}
+}
+
+func (m *metrics) ObserveOAuthTokenInvalidated() {
+	if m != nil {
+		m.oAuthTokenInvalidatedTotal.Inc()
 	}
 }
 
@@ -552,6 +616,34 @@ func (m *metrics) DecrementActiveWorkers(worker string) {
 func (m *metrics) ObserveWorkerDuration(worker string, elapsed float64) {
 	if m != nil {
 		m.workersTime.With(prometheus.Labels{"worker": worker}).Observe(elapsed)
+	}
+}
+
+func (m *metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
+	if m != nil {
+		if expireDate.IsZero() {
+			m.clientSecretEndDateTime.Set(0)
+		} else {
+			m.clientSecretEndDateTime.Set(float64(expireDate.UnixNano()) / 1e9)
+		}
+	}
+}
+
+func (m *metrics) ObserveSyncMsgPostDelay(action string, delayMillis int64) {
+	if m != nil {
+		m.syncMsgPostDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
+	}
+}
+
+func (m *metrics) ObserveSyncMsgReactionDelay(action string, delayMillis int64) {
+	if m != nil {
+		m.syncMsgReactionDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
+	}
+}
+
+func (m *metrics) ObserveSyncMsgFileDelay(action string, delayMillis int64) {
+	if m != nil {
+		m.syncMsgFileDelayTime.With(prometheus.Labels{"action": action}).Observe(float64(delayMillis) / 1000)
 	}
 }
 

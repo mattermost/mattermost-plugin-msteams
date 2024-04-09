@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/assets"
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 )
 
 const (
@@ -49,7 +49,7 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	})
 
 	if _, err := w.Write([]byte(html)); err != nil {
-		a.p.API.LogError("Unable to serve the iFrame", "Error", err.Error())
+		a.p.API.LogWarn("Unable to serve the iFrame", "error", err.Error())
 	}
 }
 
@@ -66,7 +66,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 
 	publicHostName, protocol, err := parseDomain(siteURL)
 	if err != nil {
-		a.p.API.LogError("SiteURL is invalid for MS Teams app manifest", "Error", err.Error())
+		a.p.API.LogError("SiteURL is invalid for MS Teams app manifest", "error", err.Error())
 		http.Error(w, "SiteURL is invalid: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -87,7 +87,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 		zipFile{name: LogoOutlineFilename, data: assets.LogoOutlineData},
 	)
 	if err != nil {
-		a.p.API.LogError("Error generating app manifest", "Error", err.Error())
+		a.p.API.LogWarn("Error generating app manifest", "error", err.Error())
 		http.Error(w, "Error generating app manifest", http.StatusInternalServerError)
 		return
 	}
@@ -96,7 +96,7 @@ func (a *API) iFrameManifest(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=com.mattermost.msteamsapp.zip")
 
 	if _, err := io.Copy(w, bufReader); err != nil {
-		a.p.API.LogError("Unable to serve the app manifest", "Error", err.Error())
+		a.p.API.LogWarn("Unable to serve the app manifest", "error", err.Error())
 	}
 }
 
@@ -142,7 +142,7 @@ var iFrameHTML = `<!DOCTYPE html>
 </head>
 
 <body>
-    <iframe 
+    <iframe
 		style="position:absolute;top:0px;width:100%;height:100vh;"
 		src="{{SITE_URL}}" title="Mattermost">
 	</iframe>
@@ -159,7 +159,7 @@ var manifestJSON = `{
 	"packageName": "{{PACKAGE_NAME}}",
 	"developer": {
 	  "name": "Mattermost",
-	  "websiteUrl": "https://github.com/mattermost/mattermost-plugin-msteams-sync",
+	  "websiteUrl": "https://github.com/mattermost/mattermost-plugin-msteams",
 	  "privacyUrl": "https://mattermost.com/privacy-policy/",
 	  "termsOfUseUrl": "https://mattermost.com/terms-of-use/"
 	},

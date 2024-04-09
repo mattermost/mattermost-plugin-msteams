@@ -9,9 +9,9 @@ package timerlayer
 import (
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"golang.org/x/oauth2"
 )
@@ -33,34 +33,6 @@ func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.CheckEnabledTeamByTeamID", success, elapsed)
 	return result
-}
-
-func (s *TimerLayer) CompareAndSetJobStatus(jobName string, oldStatus bool, newStatus bool) (bool, error) {
-	start := time.Now()
-
-	result, err := s.Store.CompareAndSetJobStatus(jobName, oldStatus, newStatus)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.CompareAndSetJobStatus", success, elapsed)
-	return result, err
-}
-
-func (s *TimerLayer) DeleteDMAndGMChannelPromptTime(userID string) error {
-	start := time.Now()
-
-	err := s.Store.DeleteDMAndGMChannelPromptTime(userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteDMAndGMChannelPromptTime", success, elapsed)
-	return err
 }
 
 func (s *TimerLayer) DeleteLinkByChannelID(channelID string) error {
@@ -105,18 +77,18 @@ func (s *TimerLayer) DeleteUserInfo(mmUserID string) error {
 	return err
 }
 
-func (s *TimerLayer) GetAvatarCache(userID string) ([]byte, error) {
+func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
 	start := time.Now()
 
-	result, err := s.Store.GetAvatarCache(userID)
+	err := s.Store.DeleteUserInvite(mmUserID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetAvatarCache", success, elapsed)
-	return result, err
+	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInvite", success, elapsed)
+	return err
 }
 
 func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
@@ -175,20 +147,6 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 	return result, err
 }
 
-func (s *TimerLayer) GetDMAndGMChannelPromptTime(channelID string, userID string) (time.Time, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetDMAndGMChannelPromptTime(channelID, userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetDMAndGMChannelPromptTime", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 
@@ -200,6 +158,20 @@ func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetGlobalSubscription", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetInvitedUser(mmUserID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetInvitedUser", success, elapsed)
 	return result, err
 }
 
@@ -256,6 +228,20 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMattermostID", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetSizeOfInvitedUsers() (int, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetSizeOfInvitedUsers()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfInvitedUsers", success, elapsed)
 	return result, err
 }
 
@@ -343,10 +329,10 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 	return result, err
 }
 
-func (s *TimerLayer) Init() error {
+func (s *TimerLayer) Init(remoteID string) error {
 	start := time.Now()
 
-	err := s.Store.Init()
+	err := s.Store.Init(remoteID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -567,34 +553,6 @@ func (s *TimerLayer) SaveGlobalSubscription(subscription storemodels.GlobalSubsc
 	return err
 }
 
-func (s *TimerLayer) SetAvatarCache(userID string, photo []byte) error {
-	start := time.Now()
-
-	err := s.Store.SetAvatarCache(userID, photo)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetAvatarCache", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) SetJobStatus(jobName string, status bool) error {
-	start := time.Now()
-
-	err := s.Store.SetJobStatus(jobName, status)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.SetJobStatus", success, elapsed)
-	return err
-}
-
 func (s *TimerLayer) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
 	start := time.Now()
 
@@ -651,17 +609,17 @@ func (s *TimerLayer) StoreChannelLink(link *storemodels.ChannelLink) error {
 	return err
 }
 
-func (s *TimerLayer) StoreDMAndGMChannelPromptTime(channelID string, userID string, timestamp time.Time) error {
+func (s *TimerLayer) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
 	start := time.Now()
 
-	err := s.Store.StoreDMAndGMChannelPromptTime(channelID, userID, timestamp)
+	err := s.Store.StoreInvitedUser(invitedUser)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
 	if err == nil {
 		success = "true"
 	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreDMAndGMChannelPromptTime", success, elapsed)
+	s.metrics.ObserveStoreMethodDuration("Store.StoreInvitedUser", success, elapsed)
 	return err
 }
 

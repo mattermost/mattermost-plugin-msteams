@@ -5,22 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
 const (
-	avatarCacheTime              = 300
-	avatarKey                    = "avatar_"
 	connectionPromptKey          = "connect_"
 	subscriptionRefreshTimeLimit = 5 * time.Minute
 	maxLimitForLinks             = 100
@@ -35,8 +30,8 @@ const (
 	postsTableName               = "msteamssync_posts"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
-	PGUniqueViolationErrorCode   = "23505"      // See https://github.com/lib/pq/blob/master/error.go#L178
-	MySQLDuplicateEntryErrorCode = uint16(1062) // see https://dev.mysql.com/doc/mysql-errors/5.7/en/server-error-reference.html#error_er_dup_entry
+	invitedUsersTableName        = "msteamssync_invited_users"
+	PGUniqueViolationErrorCode   = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
 )
 
 type SQLStore struct {
@@ -44,151 +39,19 @@ type SQLStore struct {
 	enabledTeams  func() []string
 	encryptionKey func() []byte
 	db            *sql.DB
-	driverName    string
 }
 
-func New(db *sql.DB, driverName string, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
+func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
 	return &SQLStore{
-		db:            db,
-		driverName:    driverName,
-		api:           api,
+		db:  db,
+		api: api,
+
 		enabledTeams:  enabledTeams,
 		encryptionKey: encryptionKey,
 	}
 }
 
-func (s *SQLStore) createIndexForMySQL(tableName, indexName, columnList string) error {
-	// TODO: Try to do this using only one query
-	query := `SELECT EXISTS(
-			SELECT DISTINCT index_name FROM information_schema.statistics 
-			WHERE table_schema = DATABASE()
-			AND table_name = 'tableName' AND index_name = 'indexName'
-		)`
-
-	query = strings.ReplaceAll(query, "tableName", tableName)
-	query = strings.ReplaceAll(query, "indexName", indexName)
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	var result int
-	if rows.Next() {
-		if scanErr := rows.Scan(&result); scanErr != nil {
-			return scanErr
-		}
-	}
-
-	if result == 0 {
-		indexQuery := "CREATE INDEX indexName on tableName(columnList)"
-		indexQuery = strings.ReplaceAll(indexQuery, "tableName", tableName)
-		indexQuery = strings.ReplaceAll(indexQuery, "indexName", indexName)
-		indexQuery = strings.ReplaceAll(indexQuery, "columnList", columnList)
-		_, err = s.db.Exec(indexQuery)
-	}
-
-	return err
-}
-
-func (s *SQLStore) addColumnForMySQL(tableName, columnName, columnDefinition string) error {
-	// TODO: Try to do this using only one query
-	query := `SELECT EXISTS(
-			SELECT NULL FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'tableName'
-			AND table_schema = DATABASE()
-			AND column_name = 'columnName'
-		)`
-
-	query = strings.ReplaceAll(query, "tableName", tableName)
-	query = strings.ReplaceAll(query, "columnName", columnName)
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	var result int
-	if rows.Next() {
-		if scanErr := rows.Scan(&result); scanErr != nil {
-			return scanErr
-		}
-	}
-
-	if result == 0 {
-		alterQuery := fmt.Sprintf("ALTER TABLE %s ADD %s %s", tableName, columnName, columnDefinition)
-		_, err = s.db.Exec(alterQuery)
-	}
-
-	return err
-}
-
-func (s *SQLStore) createTable(tableName, columnList string) error {
-	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
-	var err error
-	if s.driverName == model.DatabaseDriverPostgres {
-		_, err = s.db.Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList))
-	} else {
-		err = s.createIndexForMySQL(tableName, indexName, columnList)
-	}
-
-	return err
-}
-
-func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) error {
-	if s.driverName == model.DatabaseDriverPostgres {
-		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
-			return err
-		}
-	} else if err := s.addColumnForMySQL(tableName, columnName, columnDefinition); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
-	if s.driverName == model.DatabaseDriverPostgres {
-		rows, err := s.db.Query(fmt.Sprintf("SELECT constraint_name from information_schema.table_constraints where table_name = '%s' and constraint_type='PRIMARY KEY'", tableName))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		var constraintName string
-		if rows.Next() {
-			if scanErr := rows.Scan(&constraintName); scanErr != nil {
-				return scanErr
-			}
-		}
-
-		if constraintName == "" {
-			if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
-				return err
-			}
-		} else if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s, ADD PRIMARY KEY(%s)", tableName, constraintName, columnList)); err != nil {
-			return err
-		}
-	} else {
-		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", tableName)); err != nil {
-			s.api.LogDebug("Error in dropping primary key", "Error", err.Error())
-		}
-
-		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *SQLStore) Init() error {
+func (s *SQLStore) Init(remoteID string) error {
 	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
 		return err
 	}
@@ -233,22 +96,43 @@ func (s *SQLStore) Init() error {
 		return err
 	}
 
-	return s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY")
-}
-
-func (s *SQLStore) GetAvatarCache(userID string) ([]byte, error) {
-	data, appErr := s.api.KVGet(avatarKey + userID)
-	if appErr != nil {
-		return nil, appErr
+	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
 	}
-	return data, nil
-}
 
-func (s *SQLStore) SetAvatarCache(userID string, photo []byte) error {
-	appErr := s.api.KVSetWithExpiry(avatarKey+userID, photo, avatarCacheTime)
-	if appErr != nil {
-		return appErr
+	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+		return err
 	}
+
+	if err := s.addColumn(invitedUsersTableName, "invitePendingSince", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if remoteID != "" {
+		if err := s.runMigrationRemoteID(remoteID); err != nil {
+			return err
+		}
+	}
+
+	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
+	if err != nil {
+		return err
+	}
+	if !exist {
+		// dedup entries with multiples ms teams id
+		if err := s.runMSTeamUserIDDedup(); err != nil {
+			return err
+		}
+
+		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -418,27 +302,16 @@ func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(msTeamsPostID string, lastUpda
 }
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
-	if s.driverName == "postgres" {
-		query := s.getQueryBuilder().Insert(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-			postInfo.MattermostID,
-			postInfo.MSTeamsID,
-			postInfo.MSTeamsChannel,
-			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
-		if _, err := query.Exec(); err != nil {
-			return err
-		}
-	} else {
-		query := s.getQueryBuilder().Replace(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
-			postInfo.MattermostID,
-			postInfo.MSTeamsID,
-			postInfo.MSTeamsChannel,
-			postInfo.MSTeamsLastUpdateAt.UnixMicro(),
-		)
-		if _, err := query.Exec(); err != nil {
-			return err
-		}
+	query := s.getQueryBuilder().Insert(postsTableName).Columns("mmPostID, msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").Values(
+		postInfo.MattermostID,
+		postInfo.MSTeamsID,
+		postInfo.MSTeamsChannel,
+		postInfo.MSTeamsLastUpdateAt.UnixMicro(),
+	).Suffix("ON CONFLICT (mmPostID) DO UPDATE SET msTeamsPostID = EXCLUDED.msTeamsPostID, msTeamsChannelID = EXCLUDED.msTeamsChannelID, msTeamsLastUpdateAt = EXCLUDED.msTeamsLastUpdateAt")
+	if _, err := query.Exec(); err != nil {
+		return err
 	}
+
 	return nil
 }
 
@@ -522,14 +395,8 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 		return err
 	}
 
-	if s.driverName == "postgres" {
-		if _, err := s.getQueryBuilder().Insert(usersTableName).Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID, msTeamsUserID) DO UPDATE SET token = EXCLUDED.token").Exec(); err != nil {
-			return err
-		}
-	} else {
-		if _, err := s.getQueryBuilder().Replace(usersTableName).Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Exec(); err != nil {
-			return err
-		}
+	if _, err := s.getQueryBuilder().Insert(usersTableName).Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID, msTeamsUserID) DO UPDATE SET token = EXCLUDED.token").Exec(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -842,64 +709,6 @@ func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
 	return subscriptionType, nil
 }
 
-func (s *SQLStore) StoreDMAndGMChannelPromptTime(channelID, userID string, timestamp time.Time) error {
-	timeBytes, err := timestamp.MarshalJSON()
-	if err != nil {
-		return err
-	}
-
-	if err := s.api.KVSet(connectionPromptKey+channelID+"_"+userID, timeBytes); err != nil {
-		return errors.New(err.Error())
-	}
-
-	return nil
-}
-
-func (s *SQLStore) GetDMAndGMChannelPromptTime(channelID, userID string) (time.Time, error) {
-	var t time.Time
-	data, err := s.api.KVGet(connectionPromptKey + channelID + "_" + userID)
-	if err != nil {
-		return t, errors.New(err.Error())
-	}
-
-	if err := t.UnmarshalJSON(data); err != nil {
-		return t, err
-	}
-
-	return t, nil
-}
-
-func (s *SQLStore) DeleteDMAndGMChannelPromptTime(userID string) error {
-	var userKeys []string
-	page := 0
-	perPage := 100
-	for {
-		keys, err := s.api.KVList(page, perPage)
-		if err != nil {
-			return errors.New(err.Error())
-		}
-
-		for _, key := range keys {
-			if strings.HasPrefix(key, connectionPromptKey) && strings.Contains(key, userID) {
-				userKeys = append(userKeys, key)
-			}
-		}
-
-		if len(keys) < perPage {
-			break
-		}
-		page++
-	}
-
-	for _, key := range userKeys {
-		if err := s.api.KVDelete(key); err != nil {
-			return errors.New(err.Error())
-		}
-	}
-
-	return nil
-}
-
 func (s *SQLStore) RecoverPost(postID string) error {
 	query := s.getQueryBuilder().Update("Posts").Set("DeleteAt", 0).Where(sq.Eq{"Id": postID}, sq.NotEq{"DeleteAt": 0})
 	if _, err := query.Exec(); err != nil {
@@ -928,12 +737,7 @@ func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {
 }
 
 func (s *SQLStore) getQueryBuilder() sq.StatementBuilderType {
-	builder := sq.StatementBuilder
-	if s.driverName == "postgres" {
-		builder = builder.PlaceholderFormat(sq.Dollar)
-	}
-
-	return builder.RunWith(s.db)
+	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(s.db)
 }
 
 func (s *SQLStore) VerifyOAuth2State(state string) error {
@@ -961,34 +765,6 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	}
 
 	return nil
-}
-
-func (s *SQLStore) SetJobStatus(key string, status bool) error {
-	bytes, err := json.Marshal(status)
-	if err != nil {
-		return err
-	}
-
-	if appErr := s.api.KVSet(hashKey(backgroundJobPrefix, key), bytes); appErr != nil {
-		return errors.New(appErr.Error())
-	}
-	return nil
-}
-
-func (s *SQLStore) CompareAndSetJobStatus(jobName string, oldStatus, newStatus bool) (bool, error) {
-	oldDataBytes, err := json.Marshal(oldStatus)
-	if err != nil {
-		return false, err
-	}
-	newDatabytes, err := json.Marshal(newStatus)
-	if err != nil {
-		return false, err
-	}
-	isUpdated, appErr := s.api.KVCompareAndSet(hashKey(backgroundJobPrefix, jobName), oldDataBytes, newDatabytes)
-	if appErr != nil {
-		return false, errors.New(appErr.Error())
-	}
-	return isUpdated, nil
 }
 
 func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
@@ -1127,6 +903,81 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	return result != "", nil
 }
 
+func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
+	pendingSince := invitedUser.InvitePendingSince.UnixMicro()
+	lastSentAt := invitedUser.InviteLastSentAt.UnixMicro()
+
+	query := s.getQueryBuilder().
+		Insert(invitedUsersTableName).
+		Columns("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		Values(invitedUser.ID, pendingSince, lastSentAt).
+		SuffixExpr(sq.Expr("ON CONFLICT (mmUserID) DO UPDATE SET invitePendingSince = ?, inviteLastSentAt = ?", pendingSince, lastSentAt))
+
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
+	query := s.getQueryBuilder().
+		Select("mmUserID", "invitePendingSince", "inviteLastSentAt").
+		From(invitedUsersTableName).
+		Where(sq.Eq{"mmUserID": mmUserID})
+
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result *storemodels.InvitedUser
+	if rows.Next() {
+		var id string
+		var pendingSince int64
+		var lastSentAt int64
+
+		if scanErr := rows.Scan(&id, &pendingSince, &lastSentAt); scanErr != nil {
+			return nil, scanErr
+		}
+
+		result = &storemodels.InvitedUser{
+			ID:                 id,
+			InvitePendingSince: time.UnixMicro(pendingSince),
+			InviteLastSentAt:   time.UnixMicro(pendingSince),
+		}
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
+	if _, err := s.getQueryBuilder().Delete(invitedUsersTableName).Where(sq.Eq{"mmUserID": mmUserID}).Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
+	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
+	rows, err := query.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return 0, scanErr
+		}
+	}
+
+	return result, nil
+}
+
 func hashKey(prefix, hashableKey string) string {
 	if hashableKey == "" {
 		return prefix
@@ -1141,14 +992,8 @@ func hashKey(prefix, hashableKey string) string {
 // tables in the database.
 func isDuplicate(err error) bool {
 	var pqErr *pq.Error
-	var mysqlErr *mysql.MySQLError
-	switch {
-	case errors.As(errors.Cause(err), &pqErr):
+	if errors.As(errors.Cause(err), &pqErr) {
 		if pqErr.Code == PGUniqueViolationErrorCode {
-			return true
-		}
-	case errors.As(errors.Cause(err), &mysqlErr):
-		if mysqlErr.Number == MySQLDuplicateEntryErrorCode {
 			return true
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -66,6 +67,13 @@ func main() {
 	// Don't use runtime.* directly, as we may target a different archtiecture for testing.
 	defaultGoOs := os.Getenv("DEFAULT_GOOS")
 	defaultGoArch := os.Getenv("DEFAULT_GOARCH")
+
+	if defaultGoOs == "" {
+		defaultGoOs = runtime.GOOS
+	}
+	if defaultGoArch == "" {
+		defaultGoArch = runtime.GOARCH
+	}
 
 	if manifest.HasServer() {
 		// Build only the current platform if MM_SERVICESETTINGS_ENABLEDEVELOPER is set.

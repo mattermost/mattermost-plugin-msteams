@@ -2,38 +2,18 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/markdown"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/markdown"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/net/html"
 )
 
 const hostedContentsStr = "hostedContents"
 
-func (ah *ActivityHandler) GetAvatarURL(userID string) string {
-	defaultAvatarURL := ah.plugin.GetURL() + "/public/msteams-sync-icon.svg"
-	resp, err := http.Get(ah.plugin.GetURL() + "/avatar/" + userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogDebug("Unable to get user avatar", "Error", err.Error())
-		return defaultAvatarURL
-	}
-
-	if resp.Body != nil {
-		defer resp.Body.Close()
-	}
-
-	if strings.Contains(resp.Header.Get("Content-Type"), "image") {
-		return ah.plugin.GetURL() + "/avatar/" + userID
-	}
-
-	return defaultAvatarURL
-}
-
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []clientmodels.Attachment
@@ -50,7 +30,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 		}
 	}
 
-	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
+	newText, attachments, parentID, skippedFileAttachments, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -67,11 +47,9 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 	post.AddProp("msteams_sync_"+ah.plugin.GetBotUserID(), true)
 
 	if senderID == ah.plugin.GetBotUserID() {
-		post.AddProp("override_username", msg.UserDisplayName)
 		post.AddProp("from_webhook", "true")
-		post.AddProp("override_icon_url", ah.GetAvatarURL(msg.UserID))
 	}
-	return post, errorFound
+	return post, skippedFileAttachments, errorFound
 }
 
 func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
@@ -95,13 +73,13 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
 			if err != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get MM user ID from Teams user ID", "TeamsUserID", mention.UserID, "Error", err.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user ID from Teams user ID", "teams_user_id", mention.UserID, "error", err.Error())
 				continue
 			}
 
 			mmUser, getErr := ah.plugin.GetAPI().GetUser(mmUserID)
 			if getErr != nil {
-				ah.plugin.GetAPI().LogDebug("Unable to get MM user details", "MMUserID", mmUserID, "Error", getErr.DetailedError)
+				ah.plugin.GetAPI().LogWarn("Unable to get MM user details", "user_id", mmUserID, "error", getErr.DetailedError)
 				continue
 			}
 
@@ -141,7 +119,7 @@ func (ah *ActivityHandler) handleEmojis(text string) string {
 			emojiData = emojiData[emojiIdx:] + "</emoji>"
 			doc, err := html.Parse(strings.NewReader(emojiData))
 			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "EmojiData", emojiData, "Error", err.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to parse emoji data", "emoji_data", emojiData, "error", err.Error())
 				continue
 			}
 

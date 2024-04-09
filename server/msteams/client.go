@@ -20,7 +20,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -101,8 +101,9 @@ type AccessToken struct {
 }
 
 type GraphAPIError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code       string `json:"code"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
 }
 
 type ChatMessageAttachmentUser struct {
@@ -122,7 +123,11 @@ type ChatMessageAttachment struct {
 }
 
 func (e *GraphAPIError) Error() string {
-	return fmt.Sprintf("code: %s, message: %s", e.Code, e.Message)
+	return fmt.Sprintf("code: %s, status_code: %d, message: %s", e.Code, e.StatusCode, e.Message)
+}
+
+func IsOAuthError(err error) bool {
+	return strings.HasPrefix(err.Error(), "oauth2: ")
 }
 
 func NormalizeGraphAPIError(err error) error {
@@ -141,14 +146,20 @@ func NormalizeGraphAPIError(err error) error {
 				message = *terr.GetMessage()
 			}
 			return &GraphAPIError{
-				Code:    code,
-				Message: message,
+				Code:       code,
+				Message:    message,
+				StatusCode: e.ResponseStatusCode,
 			}
 		}
 	default:
+		statusCode := 0
+		if IsOAuthError(err) {
+			statusCode = 401
+		}
 		return &GraphAPIError{
-			Code:    "",
-			Message: err.Error(),
+			Code:       "",
+			Message:    err.Error(),
+			StatusCode: statusCode,
 		}
 	}
 
@@ -166,7 +177,7 @@ func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) 
 	}, nil
 }
 
-var teamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
+var TeamsDefaultScopes = []string{"https://graph.microsoft.com/.default"}
 
 func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogService) Client {
 	return &ClientImpl{
@@ -179,36 +190,15 @@ func NewApp(tenantID, clientID, clientSecret string, logService *pluginapi.LogSe
 	}
 }
 
-func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService) Client {
-	c := &ClientImpl{
+func NewManualClient(tenantID, clientID string, logService *pluginapi.LogService, client *msgraphsdk.GraphServiceClient) Client {
+	return &ClientImpl{
 		ctx:        context.Background(),
 		clientType: "token",
 		tenantID:   tenantID,
 		clientID:   clientID,
 		logService: logService,
-		client:     nil,
+		client:     client,
 	}
-
-	cred, err := azidentity.NewDeviceCodeCredential(&azidentity.DeviceCodeCredentialOptions{
-		TenantID: tenantID,
-		ClientID: clientID,
-		UserPrompt: func(ctx context.Context, message azidentity.DeviceCodeMessage) error {
-			fmt.Println(message.Message)
-			return nil
-		},
-	})
-	if err != nil {
-		fmt.Printf("Error creating credentials: %v\n", err)
-		return nil
-	}
-
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
-	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
-		return nil
-	}
-	c.client = client
-	return c
 }
 
 func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token *oauth2.Token, logService *pluginapi.LogService) Client {
@@ -226,7 +216,7 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
@@ -234,22 +224,22 @@ func NewTokenClient(redirectURL, tenantID, clientID, clientSecret string, token 
 		RedirectURL: redirectURL,
 	}
 
+	httpClient := getHTTPClient()
+
 	accessToken := AccessToken{tokenSource: conf.TokenSource(context.Background(), client.token)}
 
-	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(teamsDefaultScopes, "offline_access"))
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(accessToken, append(TeamsDefaultScopes, "offline_access"))
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
-	adapter, err := msgraphsdk.NewGraphRequestAdapter(auth)
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
 	if err != nil {
 		logService.Error("Unable to create the client from the token", "error", err)
 		return nil
 	}
 
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
 	client.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return client
@@ -259,7 +249,7 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	conf := &oauth2.Config{
 		ClientID:     tc.clientID,
 		ClientSecret: tc.clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tc.tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tc.tenantID),
@@ -267,6 +257,24 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 		RedirectURL: tc.redirectURL,
 	}
 	return conf.TokenSource(context.Background(), token).Token()
+}
+
+func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	application, err := tc.client.ApplicationsWithAppId(&applicationID).Get(tc.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	credentials := []clientmodels.Credential{}
+	credentialsList := application.GetPasswordCredentials()
+	for _, credential := range credentialsList {
+		credentials = append(credentials, clientmodels.Credential{
+			ID:          credential.GetKeyId().String(),
+			Name:        *credential.GetDisplayName(),
+			EndDateTime: *credential.GetEndDateTime(),
+			Hint:        *credential.GetHint(),
+		})
+	}
+	return credentials, nil
 }
 
 func (tc *ClientImpl) Connect() error {
@@ -287,6 +295,7 @@ func (tc *ClientImpl) Connect() error {
 						RetryDelay:    4 * time.Second,
 						MaxRetryDelay: 120 * time.Second,
 					},
+					Transport: getAuthClient(),
 				},
 			},
 		)
@@ -298,11 +307,21 @@ func (tc *ClientImpl) Connect() error {
 		return errors.New("not valid client type, this shouldn't happen ever")
 	}
 
-	client, err := msgraphsdk.NewGraphServiceClientWithCredentials(cred, teamsDefaultScopes)
+	httpClient := getHTTPClient()
+
+	auth, err := a.NewAzureIdentityAuthenticationProviderWithScopes(cred, append(TeamsDefaultScopes, "offline_access"))
 	if err != nil {
 		return err
 	}
-	tc.client = client
+
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(auth, nil, nil, httpClient)
+	if err != nil {
+		return err
+	}
+
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	tc.client = msgraphsdk.NewGraphServiceClient(&ConcurrentGraphRequestAdapter{GraphRequestAdapter: *adapter})
 
 	return nil
 }
@@ -383,7 +402,7 @@ func (tc *ClientImpl) SendMessageWithAttachments(teamID, channelID, parentID, me
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 
@@ -474,7 +493,7 @@ func (tc *ClientImpl) SendChat(chatID, message string, parentMessage *clientmode
 		if !strings.HasSuffix(att.ContentURL, extension) {
 			teamsURL, err := url.Parse(att.ContentURL)
 			if err != nil {
-				tc.logService.Error("Unable to parse URL", "Error", err.Error())
+				tc.logService.Error("Unable to parse URL", "error", err.Error())
 				continue
 			}
 
@@ -648,19 +667,19 @@ func (tc *ClientImpl) UploadFile(teamID, channelID, filename string, filesize in
 
 func (tc *ClientImpl) DeleteMessage(teamID, channelID, parentID, msgID string) error {
 	if parentID != "" {
-		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).Delete(tc.ctx, nil); err != nil {
+		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(parentID).Replies().ByChatMessageId1(msgID).SoftDelete().Post(tc.ctx, nil); err != nil {
 			return NormalizeGraphAPIError(err)
 		}
 	} else {
-		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).Delete(tc.ctx, nil); err != nil {
+		if err := tc.client.Teams().ByTeamId(teamID).Channels().ByChannelId(channelID).Messages().ByChatMessageId(msgID).SoftDelete().Post(tc.ctx, nil); err != nil {
 			return NormalizeGraphAPIError(err)
 		}
 	}
 	return nil
 }
 
-func (tc *ClientImpl) DeleteChatMessage(chatID, msgID string) error {
-	return NormalizeGraphAPIError(tc.client.Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).Delete(tc.ctx, nil))
+func (tc *ClientImpl) DeleteChatMessage(userID, chatID, msgID string) error {
+	return NormalizeGraphAPIError(tc.client.Users().ByUserId(userID).Chats().ByChatId(chatID).Messages().ByChatMessageId(msgID).SoftDelete().Post(tc.ctx, nil))
 }
 
 func (tc *ClientImpl) UpdateMessage(teamID, channelID, parentID, msgID, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
@@ -882,7 +901,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -890,7 +909,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscriptionID", subscriptionID)
+		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
@@ -1079,6 +1098,14 @@ func (tc *ClientImpl) GetChat(chatID string) (*clientmodels.Chat, error) {
 			UserID:      *(userID.(*string)),
 			Email:       *(email.(*string)),
 		})
+	}
+
+	if len(members) == 1 {
+		// messages with yourself are
+		// MS Teams - group messages
+		// Mattermost - direct messages
+		members = append(members, members[0])
+		chatType = "D"
 	}
 
 	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType}, nil
@@ -1341,7 +1368,7 @@ func (tc *ClientImpl) GetUser(userID string) (*clientmodels.User, error) {
 	}
 
 	if u.GetId() == nil {
-		tc.logService.Debug("Received empty user ID from MS Graph", "UserID", userID)
+		tc.logService.Debug("Received empty user ID from MS Graph", "user_id", userID)
 		return nil, errors.New("received empty user ID from MS Graph")
 	}
 	user := clientmodels.User{
@@ -2071,7 +2098,7 @@ func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecr
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       append(teamsDefaultScopes, "offline_access"),
+		Scopes:       append(TeamsDefaultScopes, "offline_access"),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
 			TokenURL: fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),

@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	time "time"
+
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -78,9 +80,9 @@ func (_m *Metrics) ObserveChangeEventQueueRejected() {
 	_m.Called()
 }
 
-// ObserveConfirmedMessage provides a mock function with given fields: source, isDirectMessage
-func (_m *Metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	_m.Called(source, isDirectMessage)
+// ObserveClientSecretEndDateTime provides a mock function with given fields: expireDate
+func (_m *Metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
+	_m.Called(expireDate)
 }
 
 // ObserveConnectedUsers provides a mock function with given fields: count
@@ -123,6 +125,16 @@ func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage 
 	_m.Called(action, source, isDirectMessage)
 }
 
+// ObserveMessageDelay provides a mock function with given fields: action, source, isDirectMessage, delay
+func (_m *Metrics) ObserveMessageDelay(action string, source string, isDirectMessage bool, delay time.Duration) {
+	_m.Called(action, source, isDirectMessage, delay)
+}
+
+// ObserveOAuthTokenInvalidated provides a mock function with given fields:
+func (_m *Metrics) ObserveOAuthTokenInvalidated() {
+	_m.Called()
+}
+
 // ObserveReaction provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveReaction(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
@@ -136,6 +148,21 @@ func (_m *Metrics) ObserveStoreMethodDuration(method string, success string, ela
 // ObserveSubscription provides a mock function with given fields: action
 func (_m *Metrics) ObserveSubscription(action string) {
 	_m.Called(action)
+}
+
+// ObserveSyncMsgFileDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgFileDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
+}
+
+// ObserveSyncMsgPostDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgPostDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
+}
+
+// ObserveSyncMsgReactionDelay provides a mock function with given fields: action, delayMillis
+func (_m *Metrics) ObserveSyncMsgReactionDelay(action string, delayMillis int64) {
+	_m.Called(action, delayMillis)
 }
 
 // ObserveSyntheticUsers provides a mock function with given fields: count

@@ -1,237 +1,19 @@
 package sqlstore
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/testutils"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/oauth2"
 )
-
-func setupTestStore(api *plugintest.API, driverName string) (*SQLStore, *plugintest.API, func()) {
-	store := &SQLStore{}
-	store.api = api
-	store.driverName = driverName
-	db, tearDownContainer := createTestDB(driverName)
-	store.db = db
-	_ = store.Init()
-	_ = store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
-	_ = store.createTable("Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
-	_ = store.createTable("Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255)")
-	return store, api, tearDownContainer
-}
-
-func createTestDB(driverName string) (*sql.DB, func()) {
-	// Create postgres container
-	if driverName == model.DatabaseDriverPostgres {
-		context := context.Background()
-		postgres, _ := testcontainers.GenericContainer(context,
-			testcontainers.GenericContainerRequest{
-				ContainerRequest: testcontainers.ContainerRequest{
-					Image:        "postgres",
-					ExposedPorts: []string{"5432/tcp"},
-					Env: map[string]string{
-						"POSTGRES_PASSWORD": "pass",
-						"POSTGRES_USER":     "user",
-					},
-					WaitingFor: wait.ForAll(
-						wait.ForLog("database system is ready to accept connections"),
-					),
-					SkipReaper: true,
-				},
-				Started: true,
-			})
-
-		time.Sleep(5 * time.Second)
-		host, _ := postgres.Host(context)
-		hostPort, _ := postgres.MappedPort(context, "5432/tcp")
-		conn, _ := sqlx.Connect(driverName, fmt.Sprintf("%s://user:pass@%s:%d?sslmode=disable", driverName, host, hostPort.Int()))
-		tearDownContainer := func() {
-			if err := postgres.Terminate(context); err != nil {
-				log.Fatalf("failed to terminate container: %s", err.Error())
-			}
-		}
-
-		return conn.DB, tearDownContainer
-	}
-
-	// Create MySQL container
-	context := context.Background()
-	mysql, _ := testcontainers.GenericContainer(context,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "mysql:latest",
-				ExposedPorts: []string{"3306/tcp"},
-				Env: map[string]string{
-					"MYSQL_ROOT_PASSWORD": "root",
-					"MYSQL_DATABASE":      "test",
-				},
-				WaitingFor: wait.ForAll(
-					wait.ForLog("database system is ready to accept connections"),
-				),
-				SkipReaper: true,
-			},
-			Started: true,
-		})
-
-	time.Sleep(5 * time.Second)
-	host, _ := mysql.Host(context)
-	p, _ := mysql.MappedPort(context, "3306/tcp")
-	port := p.Int()
-
-	mysqlConn, _ := sqlx.Connect(driverName, fmt.Sprintf("root:root@tcp(%s:%d)/test", host, port))
-	tearDownContainer := func() {
-		if err := mysql.Terminate(context); err != nil {
-			log.Fatalf("failed to terminate container: %s", err.Error())
-		}
-	}
-
-	return mysqlConn.DB, tearDownContainer
-}
-
-func TestStore(t *testing.T) {
-	testFunctions := map[string]func(*testing.T, *SQLStore, *plugintest.API){
-		"testStoreChannelLinkAndGetLinkByChannelID":                  testStoreChannelLinkAndGetLinkByChannelID,
-		"testListChannelLinksWithNames":                              testListChannelLinksWithNames,
-		"testGetLinkByChannelIDForInvalidID":                         testGetLinkByChannelIDForInvalidID,
-		"testStoreChannelLinkdAndGetLinkByMSTeamsChannelID":          testStoreChannelLinkdAndGetLinkByMSTeamsChannelID,
-		"testGetLinkByMSTeamsChannelIDForInvalidID":                  testGetLinkByMSTeamsChannelIDForInvalidID,
-		"testStoreChannelLinkdAndDeleteLinkByChannelID":              testStoreChannelLinkdAndDeleteLinkByChannelID,
-		"testListChannelLinks":                                       testListChannelLinks,
-		"testDeleteLinkByChannelIDForInvalidID":                      testDeleteLinkByChannelIDForInvalidID,
-		"testLinkPostsAndGetPostInfoByMSTeamsID":                     testLinkPostsAndGetPostInfoByMSTeamsID,
-		"testGetPostInfoByMSTeamsIDForInvalidID":                     testGetPostInfoByMSTeamsIDForInvalidID,
-		"testLinkPostsAndGetPostInfoByMattermostID":                  testLinkPostsAndGetPostInfoByMattermostID,
-		"testGetPostInfoByMattermostIDForInvalidID":                  testGetPostInfoByMattermostIDForInvalidID,
-		"testSetUserInfoAndTeamsToMattermostUserID":                  testSetUserInfoAndTeamsToMattermostUserID,
-		"testTeamsToMattermostUserIDForInvalidID":                    testTeamsToMattermostUserIDForInvalidID,
-		"testSetUserInfoAndMattermostToTeamsUserID":                  testSetUserInfoAndMattermostToTeamsUserID,
-		"testMattermostToTeamsUserIDForInvalidID":                    testMattermostToTeamsUserIDForInvalidID,
-		"testSetUserInfoAndGetTokenForMattermostUser":                testSetUserInfoAndGetTokenForMattermostUser,
-		"testGetTokenForMattermostUserForInvalidUserID":              testGetTokenForMattermostUserForInvalidUserID,
-		"testSetUserInfoAndGetTokenForMSTeamsUser":                   testSetUserInfoAndGetTokenForMSTeamsUser,
-		"testGetTokenForMSTeamsUserForInvalidID":                     testGetTokenForMSTeamsUserForInvalidID,
-		"testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil": testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil,
-		"testListGlobalSubscriptionsToCheck":                         testListGlobalSubscriptionsToCheck,
-		"testListChatSubscriptionsToCheck":                           testListChatSubscriptionsToCheck,
-		"testListChannelSubscriptionsToRefresh":                      testListChannelSubscriptionsToRefresh,
-		"testSaveGlobalSubscription":                                 testSaveGlobalSubscription,
-		"testSaveChatSubscription":                                   testSaveChatSubscription,
-		"testSaveChannelSubscription":                                testSaveChannelSubscription,
-		"testUpdateSubscriptionExpiresOn":                            testUpdateSubscriptionExpiresOn,
-		"testGetGlobalSubscription":                                  testGetGlobalSubscription,
-		"testGetChatSubscription":                                    testGetChatSubscription,
-		"testGetChannelSubscription":                                 testGetChannelSubscription,
-		"testGetSubscriptionType":                                    testGetSubscriptionType,
-		"testListChannelSubscriptions":                               testListChannelSubscriptions,
-		"testListGlobalSubscriptions":                                testListGlobalSubscriptions,
-		"testStoreAndGetAndDeleteDMGMPromptTime":                     testStoreAndGetAndDeleteDMGMPromptTime,
-		"testStoreAndVerifyOAuthState":                               testStoreAndVerifyOAuthState,
-		"testListConnectedUsers":                                     testListConnectedUsers,
-		"testStoreUserAndIsUserPresentAndGetSizeOfWhitelist":         testStoreUserAndIsUserPresentAndGetSizeOfWhitelist,
-		"testPrefillWhitelist":                                       testPrefillWhitelist,
-	}
-	for _, driver := range []string{model.DatabaseDriverPostgres, model.DatabaseDriverMysql} {
-		store, api, tearDownContainer := setupTestStore(&plugintest.API{}, driver)
-		for test := range testFunctions {
-			t.Run(driver+"/"+test, func(t *testing.T) {
-				testFunctions[test](t, store, api)
-			})
-		}
-
-		defer tearDownContainer()
-	}
-}
-
-func TestGetAvatarCache(t *testing.T) {
-	for _, test := range []struct {
-		Name                 string
-		SetupAPI             func(*plugintest.API)
-		ExpectedErrorMessage string
-	}{
-		{
-			Name: "GetAvatarCache: Error while getting the avatar cache",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("KVGet", avatarKey+testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the avatar cache"))
-			},
-			ExpectedErrorMessage: "unable to get the avatar cache",
-		},
-		{
-			Name: "GetAvatarCache: Valid",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("KVGet", avatarKey+testutils.GetID()).Return([]byte("mock data"), nil)
-			},
-			ExpectedErrorMessage: "",
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-			defer tearDownContainer()
-			test.SetupAPI(api)
-			resp, err := store.GetAvatarCache(testutils.GetID())
-
-			if test.ExpectedErrorMessage != "" {
-				assert.Contains(err.Error(), test.ExpectedErrorMessage)
-				assert.Nil(resp)
-			} else {
-				assert.Nil(err)
-				assert.NotNil(resp)
-			}
-		})
-	}
-}
-
-func TestSetAvatarCache(t *testing.T) {
-	for _, test := range []struct {
-		Name                 string
-		SetupAPI             func(*plugintest.API)
-		ExpectedErrorMessage string
-	}{
-		{
-			Name: "SetAvatarCache: Error while setting the avatar cache",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(testutils.GetInternalServerAppError("unable to set the avatar cache"))
-			},
-			ExpectedErrorMessage: "unable to set the avatar cache",
-		},
-		{
-			Name: "SetAvatarCache: Valid",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("KVSetWithExpiry", avatarKey+testutils.GetID(), []byte{10}, int64(avatarCacheTime)).Return(nil)
-			},
-			ExpectedErrorMessage: "",
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-			defer tearDownContainer()
-			test.SetupAPI(api)
-			err := store.SetAvatarCache(testutils.GetID(), []byte{10})
-
-			if test.ExpectedErrorMessage != "" {
-				assert.Contains(err.Error(), test.ExpectedErrorMessage)
-			} else {
-				assert.Nil(err)
-			}
-		})
-	}
-}
 
 func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	for _, test := range []struct {
@@ -285,8 +67,8 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			store, api, tearDownContainer := setupTestStore(&plugintest.API{}, model.DatabaseDriverPostgres)
-			defer tearDownContainer()
+			store, api := setupTestStore(t)
+
 			test.SetupAPI(api)
 			store.enabledTeams = test.EnabledTeams
 			resp := store.CheckEnabledTeamByTeamID("mockTeamID")
@@ -296,7 +78,8 @@ func TestCheckEnabledTeamByTeamID(t *testing.T) {
 	}
 }
 
-func testStoreChannelLinkAndGetLinkByChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
+	store, api := setupTestStore(t)
 	assert := assert.New(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
 
@@ -323,7 +106,8 @@ func testStoreChannelLinkAndGetLinkByChannelID(t *testing.T, store *SQLStore, ap
 	assert.Nil(getErr)
 }
 
-func testGetLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetLinkByChannelIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetLinkByChannelID("invalidMattermostChannelID")
@@ -331,7 +115,8 @@ func testGetLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugin
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
+	store, api := setupTestStore(t)
 	assert := assert.New(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-2"} }
 
@@ -358,7 +143,8 @@ func testStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T, store *SQLS
 	assert.Nil(getErr)
 }
 
-func testGetLinkByMSTeamsChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetLinkByMSTeamsChannelIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetLinkByMSTeamsChannelID("invalidMattermostTeamID", "invalidMSTeamsChannelID")
@@ -366,7 +152,8 @@ func testGetLinkByMSTeamsChannelIDForInvalidID(t *testing.T, store *SQLStore, _ 
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
+	store, api := setupTestStore(t)
 	assert := assert.New(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-3"} }
 
@@ -408,7 +195,8 @@ func testStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T, store *SQLStore
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testListChannelLinksWithNames(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestListChannelLinksWithNames(t *testing.T) {
+	store, api := setupTestStore(t)
 	assert := assert.New(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-4"} }
 
@@ -446,7 +234,8 @@ func testListChannelLinksWithNames(t *testing.T, store *SQLStore, api *plugintes
 	assert.Contains(links, mockChannelLink)
 }
 
-func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestListChannelLinks(t *testing.T) {
+	store, api := setupTestStore(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1", "mockMattermostTeamID-2"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
@@ -496,14 +285,16 @@ func testListChannelLinks(t *testing.T, store *SQLStore, api *plugintest.API) {
 	require.Len(t, links, 2)
 }
 
-func testDeleteLinkByChannelIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestDeleteLinkByChannelIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	delErr := store.DeleteLinkByChannelID("invalidIDMattermostChannelID")
 	assert.Nil(delErr)
 }
 
-func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	mockPostInfo := storemodels.PostInfo{
@@ -521,7 +312,8 @@ func testLinkPostsAndGetPostInfoByMSTeamsID(t *testing.T, store *SQLStore, _ *pl
 	assert.Nil(getErr)
 }
 
-func testGetPostInfoByMSTeamsIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetPostInfoByMSTeamsIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetPostInfoByMSTeamsID("invalidMSTeamsChannel", "invalidMSTeamsID")
@@ -529,7 +321,8 @@ func testGetPostInfoByMSTeamsIDForInvalidID(t *testing.T, store *SQLStore, _ *pl
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestLinkPostsAndGetPostInfoByMattermostID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	mockPostInfo := storemodels.PostInfo{
@@ -547,7 +340,8 @@ func testLinkPostsAndGetPostInfoByMattermostID(t *testing.T, store *SQLStore, _ 
 	assert.Nil(getErr)
 }
 
-func testGetPostInfoByMattermostIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetPostInfoByMattermostIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetPostInfoByMattermostID("invalidMattermostID")
@@ -555,7 +349,8 @@ func testGetPostInfoByMattermostIDForInvalidID(t *testing.T, store *SQLStore, _ 
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSetUserInfoAndTeamsToMattermostUserID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -572,7 +367,8 @@ func testSetUserInfoAndTeamsToMattermostUserID(t *testing.T, store *SQLStore, _ 
 	assert.Nil(deleteErr)
 }
 
-func testTeamsToMattermostUserIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestTeamsToMattermostUserIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.TeamsToMattermostUserID("invalidTeamsUserID")
@@ -580,7 +376,8 @@ func testTeamsToMattermostUserIDForInvalidID(t *testing.T, store *SQLStore, _ *p
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSetUserInfoAndMattermostToTeamsUserID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -597,7 +394,8 @@ func testSetUserInfoAndMattermostToTeamsUserID(t *testing.T, store *SQLStore, _ 
 	assert.Nil(delErr)
 }
 
-func testMattermostToTeamsUserIDForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestMattermostToTeamsUserIDForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.MattermostToTeamsUserID("invalidUserID")
@@ -605,7 +403,8 @@ func testMattermostToTeamsUserIDForInvalidID(t *testing.T, store *SQLStore, _ *p
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSetUserInfoAndGetTokenForMattermostUser(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -627,7 +426,8 @@ func testSetUserInfoAndGetTokenForMattermostUser(t *testing.T, store *SQLStore, 
 	assert.Nil(delErr)
 }
 
-func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -644,7 +444,8 @@ func testSetUserInfoAndGetTokenForMattermostUserWhereTokenIsNil(t *testing.T, st
 	assert.Nil(delErr)
 }
 
-func testGetTokenForMattermostUserForInvalidUserID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetTokenForMattermostUserForInvalidUserID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetTokenForMattermostUser("invalidUserID")
@@ -652,7 +453,8 @@ func testGetTokenForMattermostUserForInvalidUserID(t *testing.T, store *SQLStore
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -674,7 +476,8 @@ func testSetUserInfoAndGetTokenForMSTeamsUser(t *testing.T, store *SQLStore, _ *
 	assert.Nil(delErr)
 }
 
-func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetTokenForMSTeamsUserForInvalidID(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	resp, getErr := store.GetTokenForMSTeamsUser("invalidTeamsUserID")
@@ -682,7 +485,8 @@ func testGetTokenForMSTeamsUserForInvalidID(t *testing.T, store *SQLStore, _ *pl
 	assert.Contains(getErr.Error(), "no rows in result set")
 }
 
-func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListGlobalSubscriptionsToCheck(t *testing.T) {
+	store, _ := setupTestStore(t)
 	t.Run("no-subscriptions", func(t *testing.T) {
 		subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
 		require.NoError(t, err)
@@ -722,7 +526,8 @@ func testListGlobalSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugin
 	})
 }
 
-func testListChatSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListChatSubscriptionsToCheck(t *testing.T) {
+	store, _ := setupTestStore(t)
 	t.Run("no-subscriptions", func(t *testing.T) {
 		subscriptions, err := store.ListChatSubscriptionsToCheck()
 		require.NoError(t, err)
@@ -775,7 +580,8 @@ func testListChatSubscriptionsToCheck(t *testing.T, store *SQLStore, _ *pluginte
 	})
 }
 
-func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListChannelSubscriptionsToRefresh(t *testing.T) {
+	store, _ := setupTestStore(t)
 	t.Run("no-subscriptions", func(t *testing.T) {
 		subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
 		require.NoError(t, err)
@@ -836,7 +642,8 @@ func testListChannelSubscriptionsToRefresh(t *testing.T, store *SQLStore, _ *plu
 	})
 }
 
-func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSaveGlobalSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -850,7 +657,8 @@ func testSaveGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API
 	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")
 }
 
-func testSaveChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSaveChatSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveChatSubscription(testutils.GetChatSubscription("test1", "user-1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -872,7 +680,8 @@ func testSaveChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) 
 	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
 }
 
-func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestSaveChannelSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -894,7 +703,8 @@ func testSaveChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.AP
 	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test4")
 }
 
-func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestUpdateSubscriptionExpiresOn(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id-1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -918,7 +728,8 @@ func testUpdateSubscriptionExpiresOn(t *testing.T, store *SQLStore, _ *plugintes
 	require.Len(t, subscriptions, 1)
 }
 
-func testGetGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetGlobalSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -954,7 +765,8 @@ func testGetGlobalSubscription(t *testing.T, store *SQLStore, _ *plugintest.API)
 	})
 }
 
-func testGetChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetChatSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -990,7 +802,8 @@ func testGetChatSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	})
 }
 
-func testGetChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetChannelSubscription(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -1029,7 +842,8 @@ func testGetChannelSubscription(t *testing.T, store *SQLStore, _ *plugintest.API
 	})
 }
 
-func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestGetSubscriptionType(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -1072,7 +886,8 @@ func testGetSubscriptionType(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	})
 }
 
-func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListChannelSubscriptions(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveChannelSubscription(testutils.GetChannelSubscription("test1", "team-id", "channel-id", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 
@@ -1083,7 +898,8 @@ func testListChannelSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.A
 	require.Len(t, subscriptions, 1)
 }
 
-func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListGlobalSubscriptions(t *testing.T) {
+	store, _ := setupTestStore(t)
 	err := store.SaveGlobalSubscription(testutils.GetGlobalSubscription("test1", time.Now().Add(1*time.Minute)))
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
@@ -1093,28 +909,8 @@ func testListGlobalSubscriptions(t *testing.T, store *SQLStore, _ *plugintest.AP
 	require.Len(t, subscriptions, 1)
 }
 
-func testStoreAndGetAndDeleteDMGMPromptTime(t *testing.T, store *SQLStore, api *plugintest.API) {
-	testTime := time.Now()
-	key := connectionPromptKey + "mockMattermostChannelID-1_mockMattermostUserID-1"
-	api.On("KVSet", key, mock.Anything).Return(nil)
-	err := store.StoreDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1", testTime)
-	assert.Nil(t, err)
-
-	timeBytes, err := testTime.MarshalJSON()
-	assert.Nil(t, err)
-	api.On("KVGet", key).Return(timeBytes, nil)
-
-	timestamp, err := store.GetDMAndGMChannelPromptTime("mockMattermostChannelID-1", "mockMattermostUserID-1")
-	assert.Nil(t, err)
-	assert.True(t, timestamp.Equal(testTime))
-
-	api.On("KVList", 0, 100).Return([]string{key}, nil).Once()
-	api.On("KVDelete", key).Return(nil).Once()
-	err = store.DeleteDMAndGMChannelPromptTime("mockMattermostUserID-1")
-	assert.Nil(t, err)
-}
-
-func testStoreAndVerifyOAuthState(t *testing.T, store *SQLStore, api *plugintest.API) {
+func TestStoreAndVerifyOAuthState(t *testing.T) {
+	store, api := setupTestStore(t)
 	assert := assert.New(t)
 	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
 
@@ -1133,7 +929,8 @@ func testStoreAndVerifyOAuthState(t *testing.T, store *SQLStore, api *plugintest
 	assert.Nil(err)
 }
 
-func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestListConnectedUsers(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -1174,7 +971,8 @@ func testListConnectedUsers(t *testing.T, store *SQLStore, _ *plugintest.API) {
 	assert.Nil(delErr)
 }
 
-func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
 	count, getErr := store.GetSizeOfWhitelist()
@@ -1211,7 +1009,8 @@ func testStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T, store *SQL
 	assert.Nil(err)
 }
 
-func testPrefillWhitelist(t *testing.T, store *SQLStore, _ *plugintest.API) {
+func TestPrefillWhitelist(t *testing.T) {
+	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams-sync/server/store/storemodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
@@ -99,6 +99,16 @@ func GetUser(role, email string) *model.User {
 		Username: "test-user",
 		Roles:    role,
 		Email:    email,
+	}
+}
+
+func GetRemoteUser(role, email, remoteID string) *model.User {
+	return &model.User{
+		Id:       GetID(),
+		Username: "test-user",
+		Roles:    role,
+		Email:    email,
+		RemoteId: &remoteID,
 	}
 }
 
