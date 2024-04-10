@@ -184,7 +184,6 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 
 	message := "Your connection to Microsoft Teams has been lost. "
 	p.SendConnectMessage(channel.Id, userID, message)
-
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {

@@ -369,7 +369,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
-
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
 		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
