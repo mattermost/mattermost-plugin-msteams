@@ -448,7 +448,7 @@ func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, me
 	}
 }
 
-func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID string) model.Post {
+func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID string) *model.Post {
 	t.Helper()
 
 	websocketClient := th.GetWebsocketClientForUser(t, userID)
@@ -470,7 +470,7 @@ func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID stri
 				require.NoError(t, err)
 
 				assert.Equal(t, channelID, post.ChannelId)
-				return post
+				return &post
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("failed to get websocket event for ephemeral message")

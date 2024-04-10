@@ -9,6 +9,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
@@ -928,7 +929,9 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 		assertNoCommandResponse(t, commandResponse)
 		ephemeralPost := th.retrieveEphemeralPost(t, args.UserId, args.ChannelId)
 
-		expectedMessage := fmt.Sprintf(`\[Click here to connect your account\]\(%s/connect\?post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
+		expectedMessage := fmt.Sprintf(`\[Click here to connect the bot account\]\(%s/connect\?isBot&post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
+		mlog.Debug(ephemeralPost.Message)
+		mlog.Debug(expectedMessage)
 		result, _ := regexp.MatchString(expectedMessage, ephemeralPost.Message)
 		assert.True(t, result)
 	})
