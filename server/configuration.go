@@ -44,6 +44,7 @@ type configuration struct {
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
 	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
+	DisableCheckCredentials            bool   `json:"disableCheckCredentials"`
 	RunAsLoadTest                      bool   `json:"runasloadtest"`
 	MaxIncomingPosts                   int    `json:"maxincomingposts"`
 	MinIncomingPosts                   int    `json:"minincomingposts"`
