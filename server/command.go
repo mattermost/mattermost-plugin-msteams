@@ -507,7 +507,7 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	p.SendConnectBotMessage(args.ChannelId, args.UserId, "")
+	p.SendConnectBotMessage(args.ChannelId, args.UserId)
 	return &model.CommandResponse{}, nil
 }
 

@@ -340,7 +340,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	postID := query.Get(QueryParamPostID)
 	if channelID == "" || postID == "" {
 		a.p.API.LogWarn("Missing channelID or postID from query paramaeters", "channelID", channelID, "postID", postID)
-		http.Error(w, "Missing required query paramters.", http.StatusBadRequest)
+		http.Error(w, "Missing required query parameters.", http.StatusBadRequest)
 	}
 
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
@@ -565,14 +565,13 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
-	a.p.API.DeleteEphemeralPost(mmUserID, stateArr[2])
 
 	post := &model.Post{
 		Id:        stateArr[2],
 		Message:   "You have successfully connected your Microsoft Teams account.",
 		ChannelId: stateArr[3],
 	}
-	_ = a.p.GetAPI().SendEphemeralPost(mmUser.Id, post)
+	_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
 	connectURL := a.p.GetURL() + "/primary-platform"
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
