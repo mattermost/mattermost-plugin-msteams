@@ -70,30 +70,30 @@ func (p *Plugin) messageDeletedHandler(post *model.Post) error {
 			shouldSync, appErr := p.ChatSpansPlatforms(post.ChannelId)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
+				return appErr
 			} else if !shouldSync {
-				return
+				return nil
 			}
 		}
 
 		if err := p.DeleteChat(post); err != nil {
 			p.API.LogWarn("Unable to delete chat", "error", err.Error())
-			return
+			return err
 		}
 	} else {
 		link, err := p.store.GetLinkByChannelID(post.ChannelId)
 		if err != nil || link == nil {
-			return
+			return nil
 		}
 
 		if !p.getConfiguration().SyncLinkedChannels {
-			return
+			return nil
 		}
 
 		user, _ := p.API.GetUser(post.UserId)
 		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
 			p.API.LogWarn("Unable to delete message", "error", err.Error())
-			return
+			return err
 		}
 	}
 	return nil
