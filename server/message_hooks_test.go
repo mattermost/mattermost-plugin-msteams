@@ -2825,7 +2825,7 @@ func TestUserWillLogin(t *testing.T) {
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					return *user.RemoteId == ""
+					return !user.IsRemote()
 				})).Once().Return(nil, nil)
 				api.On("LogInfo", "Promoted synthetic user", "user_id", testutils.GetID()).Once()
 			},
@@ -2844,7 +2844,7 @@ func TestUserWillLogin(t *testing.T) {
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					return *user.RemoteId == ""
+					return !user.IsRemote()
 				})).Once().Return(nil, model.NewAppError("UpdateUser", "err from test", nil, "", 500))
 				api.On("LogWarn", "Failed to promote synthetic user", "user_id", testutils.GetID(), "err", "err from test").Once()
 			},
