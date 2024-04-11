@@ -573,12 +573,6 @@ func (p *Plugin) onActivate() error {
 				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 			}
 		}()
-
-		p.whitelistClusterMutex.Lock()
-		defer p.whitelistClusterMutex.Unlock()
-		if err2 := p.store.PrefillWhitelist(); err2 != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
-		}
 	}()
 
 	go p.start(false)

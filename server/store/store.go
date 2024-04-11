@@ -11,6 +11,36 @@ import (
 
 type Store interface {
 	Init(remoteID string) error
+
+	// teams
+	CheckEnabledTeamByTeamID(teamID string) bool
+
+	// users
+	TeamsToMattermostUserID(userID string) (string, error)
+	MattermostToTeamsUserID(userID string) (string, error)
+	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
+	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
+	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
+	UserHasConnected(mmUserID string) (bool, error)
+	GetHasConnectedCount() (int, error)
+	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
+	DeleteUserInfo(mmUserID string) error
+
+	// auth
+	StoreOAuth2State(state string) error
+	VerifyOAuth2State(state string) error
+
+	// invites
+	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
+	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
+	DeleteUserInvite(mmUserID string) error
+	GetInvitedCount() (int, error)
+	StoreUserInWhitelist(userID string) error
+
+	// stats
+	GetStats() (*storemodels.Stats, error)
+
+	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)
 	ListChannelLinks() ([]storemodels.ChannelLink, error)
 	ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error)
@@ -22,13 +52,9 @@ type Store interface {
 	LinkPosts(postInfo storemodels.PostInfo) error
 	SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error
 	SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error
-	GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
-	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
-	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
-	DeleteUserInfo(mmUserID string) error
-	TeamsToMattermostUserID(userID string) (string, error)
-	MattermostToTeamsUserID(userID string) (string, error)
-	CheckEnabledTeamByTeamID(teamID string) bool
+	RecoverPost(postID string) error
+
+	// subscriptions
 	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
 	ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
@@ -44,19 +70,6 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
-	RecoverPost(postID string) error
-	StoreOAuth2State(state string) error
-	VerifyOAuth2State(state string) error
-	GetStats() (*storemodels.Stats, error)
-	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
-	PrefillWhitelist() error
-	GetSizeOfWhitelist() (int, error)
-	StoreUserInWhitelist(userID string) error
-	IsUserPresentInWhitelist(userID string) (bool, error)
-	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
-	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
-	DeleteUserInvite(mmUserID string) error
-	GetSizeOfInvitedUsers() (int, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 }

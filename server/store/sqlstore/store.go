@@ -16,22 +16,23 @@ import (
 )
 
 const (
-	connectionPromptKey          = "connect_"
-	subscriptionRefreshTimeLimit = 5 * time.Minute
-	maxLimitForLinks             = 100
-	subscriptionTypeUser         = "user"
-	subscriptionTypeChannel      = "channel"
-	subscriptionTypeAllChats     = "allChats"
-	oAuth2StateTimeToLive        = 300 // seconds
-	oAuth2KeyPrefix              = "oauth2_"
-	backgroundJobPrefix          = "background_job"
-	usersTableName               = "msteamssync_users"
-	linksTableName               = "msteamssync_links"
-	postsTableName               = "msteamssync_posts"
-	subscriptionsTableName       = "msteamssync_subscriptions"
-	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
-	invitedUsersTableName        = "msteamssync_invited_users"
-	PGUniqueViolationErrorCode   = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
+	connectionPromptKey             = "connect_"
+	subscriptionRefreshTimeLimit    = 5 * time.Minute
+	maxLimitForLinks                = 100
+	subscriptionTypeUser            = "user"
+	subscriptionTypeChannel         = "channel"
+	subscriptionTypeAllChats        = "allChats"
+	oAuth2StateTimeToLive           = 300 // seconds
+	oAuth2KeyPrefix                 = "oauth2_"
+	backgroundJobPrefix             = "background_job"
+	usersTableName                  = "msteamssync_users"
+	linksTableName                  = "msteamssync_links"
+	postsTableName                  = "msteamssync_posts"
+	subscriptionsTableName          = "msteamssync_subscriptions"
+	whitelistedUsersLegacyTableName = "msteamssync_whitelisted_users" // LEGACY-UNUSED
+	whitelistTableName              = "msteamssync_whitelist"
+	invitedUsersTableName           = "msteamssync_invited_users"
+	PGUniqueViolationErrorCode      = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
 )
 
 type SQLStore struct {
@@ -96,7 +97,8 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 
-	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
+	// UNUSED
+	if err := s.createTable(whitelistedUsersLegacyTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
 		return err
 	}
 
@@ -109,6 +111,18 @@ func (s *SQLStore) Init(remoteID string) error {
 	}
 
 	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "lastConnectAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "lastDisconnectAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.createTable(whitelistTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
 		return err
 	}
 
@@ -131,6 +145,10 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
 			return err
 		}
+	}
+
+	if err := s.ensureMigrationWhitelistedUsers(); err != nil {
+		return err
 	}
 
 	return nil
@@ -373,6 +391,28 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 		return nil, err
 	}
 	return &token, nil
+}
+
+func (s *SQLStore) UserHasConnected(mmUserID string) (bool, error) {
+	query := s.getQueryBuilder().
+		Select("lastConnectAt").
+		From(usersTableName).
+		Where(sq.Eq{"mmUserID": mmUserID})
+
+	row := query.QueryRow()
+
+	var result int64
+	err := row.Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	if result != 0 {
+		// is or has connected at some point in time
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
@@ -818,43 +858,11 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	return connectedUsers, nil
 }
 
-func (s *SQLStore) PrefillWhitelist() error {
-	page := 0
-	perPage := 100
-	for {
-		query := s.getQueryBuilder().Select("mmuserid").From(usersTableName).Where(sq.NotEq{"token": ""}).Offset(uint64(page * perPage)).Limit(uint64(perPage))
-		rows, err := query.Query()
-		if err != nil {
-			return err
-		}
-
-		count := 0
-		for rows.Next() {
-			count++
-			var connectedUserID string
-			if err := rows.Scan(&connectedUserID); err != nil {
-				s.api.LogDebug("Unable to scan the result", "Error", err.Error())
-				continue
-			}
-
-			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
-			}
-		}
-
-		rows.Close()
-		if count < perPage {
-			break
-		}
-
-		page++
-	}
-
-	return nil
-}
-
-func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
-	query := s.getQueryBuilder().Select("count(*)").From(whitelistedUsersTableName)
+func (s *SQLStore) GetHasConnectedCount() (int, error) {
+	query := s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.And{sq.NotEq{"lastConnectAt": ""}, sq.NotEq{"lastConnectAt": nil}})
 	rows, err := query.Query()
 	if err != nil {
 		return 0, err
@@ -872,7 +880,7 @@ func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
 }
 
 func (s *SQLStore) StoreUserInWhitelist(userID string) error {
-	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
+	query := s.getQueryBuilder().Insert(whitelistTableName).Columns("mmUserID").Values(userID)
 	if _, err := query.Exec(); err != nil {
 		if isDuplicate(err) {
 			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
@@ -885,8 +893,8 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	return nil
 }
 
-func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
-	query := s.getQueryBuilder().Select("mmUserID").From(whitelistedUsersTableName).Where(sq.Eq{"mmUserID": userID})
+func (s *SQLStore) IsUserWhitelisted(userID string) (bool, error) {
+	query := s.getQueryBuilder().Select("mmUserID").From(whitelistTableName).Where(sq.Eq{"mmUserID": userID})
 	rows, err := query.Query()
 	if err != nil {
 		return false, err
@@ -960,7 +968,7 @@ func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 	return nil
 }
 
-func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
+func (s *SQLStore) GetInvitedCount() (int, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
 	rows, err := query.Query()
 	if err != nil {

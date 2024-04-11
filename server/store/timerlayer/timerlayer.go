@@ -161,6 +161,34 @@ func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.
 	return result, err
 }
 
+func (s *TimerLayer) GetHasConnectedCount() (int, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetHasConnectedCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetHasConnectedCount", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetInvitedCount() (int, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetInvitedCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetInvitedCount", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
 	start := time.Now()
 
@@ -228,34 +256,6 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetPostInfoByMattermostID", success, elapsed)
-	return result, err
-}
-
-func (s *TimerLayer) GetSizeOfInvitedUsers() (int, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetSizeOfInvitedUsers()
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfInvitedUsers", success, elapsed)
-	return result, err
-}
-
-func (s *TimerLayer) GetSizeOfWhitelist() (int, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetSizeOfWhitelist()
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSizeOfWhitelist", success, elapsed)
 	return result, err
 }
 
@@ -341,20 +341,6 @@ func (s *TimerLayer) Init(remoteID string) error {
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.Init", success, elapsed)
 	return err
-}
-
-func (s *TimerLayer) IsUserPresentInWhitelist(userID string) (bool, error) {
-	start := time.Now()
-
-	result, err := s.Store.IsUserPresentInWhitelist(userID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.IsUserPresentInWhitelist", success, elapsed)
-	return result, err
 }
 
 func (s *TimerLayer) LinkPosts(postInfo storemodels.PostInfo) error {
@@ -481,20 +467,6 @@ func (s *TimerLayer) MattermostToTeamsUserID(userID string) (string, error) {
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.MattermostToTeamsUserID", success, elapsed)
 	return result, err
-}
-
-func (s *TimerLayer) PrefillWhitelist() error {
-	start := time.Now()
-
-	err := s.Store.PrefillWhitelist()
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.PrefillWhitelist", success, elapsed)
-	return err
 }
 
 func (s *TimerLayer) RecoverPost(postID string) error {
@@ -691,6 +663,20 @@ func (s *TimerLayer) UpdateSubscriptionLastActivityAt(subscriptionID string, las
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.UpdateSubscriptionLastActivityAt", success, elapsed)
 	return err
+}
+
+func (s *TimerLayer) UserHasConnected(mmUserID string) (bool, error) {
+	start := time.Now()
+
+	result, err := s.Store.UserHasConnected(mmUserID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.UserHasConnected", success, elapsed)
+	return result, err
 }
 
 func (s *TimerLayer) VerifyOAuth2State(state string) error {

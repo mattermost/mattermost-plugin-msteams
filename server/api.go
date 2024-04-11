@@ -466,23 +466,9 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	a.p.whitelistClusterMutex.Lock()
 	defer a.p.whitelistClusterMutex.Unlock()
 
-	inWhitelist, err := a.p.store.IsUserPresentInWhitelist(mmUserID)
+	hasConnected, err := a.p.store.UserHasConnected(mmUserID)
 	if err != nil {
 		a.p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
-	if err != nil {
-		a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	invitedSize, err := a.p.store.GetSizeOfInvitedUsers()
-	if err != nil {
-		a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -494,11 +480,37 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !inWhitelist && (whitelistSize+invitedSize) >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
+	if !hasConnected && invitedUser == nil {
+		numHasConnected, err := a.p.store.GetHasConnectedCount()
+		if err != nil {
+			a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		numInvited, err := a.p.store.GetInvitedCount()
+		if err != nil {
+			a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		if (numHasConnected + numInvited) >= a.p.getConfiguration().ConnectedUsersAllowed {
+			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+				a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
+			}
+			http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
+		a.p.API.LogWarn("Unable to store the user in whitelist", "user_id", mmUserID, "error", err.Error())
 		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 		}
-		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 

@@ -457,14 +457,14 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	genericErrorMessage := "Error in trying to connect the account, please try again."
-	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(args.UserId)
+	hasConnected, err := p.store.UserHasConnected(args.UserId)
 	if err != nil {
 		p.API.LogWarn("Error in checking if a user is present in whitelist", "user_id", args.UserId, "error", err.Error())
 		return p.cmdError(args, genericErrorMessage)
 	}
 
-	if !presentInWhitelist {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
+	if !hasConnected {
+		whitelistSize, err := p.store.GetHasConnectedCount()
 		if err != nil {
 			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args, genericErrorMessage)
@@ -489,14 +489,14 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
-	presentInWhitelist, err := p.store.IsUserPresentInWhitelist(p.userID)
+	hasConnected, err := p.store.UserHasConnected(p.userID)
 	if err != nil {
 		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
 		return p.cmdError(args, genericErrorMessage)
 	}
 
-	if !presentInWhitelist {
-		whitelistSize, err := p.store.GetSizeOfWhitelist()
+	if !hasConnected {
+		whitelistSize, err := p.store.GetHasConnectedCount()
 		if err != nil {
 			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
 			return p.cmdError(args, genericErrorMessage)

@@ -201,6 +201,48 @@ func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.Glob
 	return r0, r1
 }
 
+// GetHasConnectedCount provides a mock function with given fields:
+func (_m *Store) GetHasConnectedCount() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetInvitedCount provides a mock function with given fields:
+func (_m *Store) GetInvitedCount() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetInvitedUser provides a mock function with given fields: mmUserID
 func (_m *Store) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
 	ret := _m.Called(mmUserID)
@@ -309,48 +351,6 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(postID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetSizeOfInvitedUsers provides a mock function with given fields:
-func (_m *Store) GetSizeOfInvitedUsers() (int, error) {
-	ret := _m.Called()
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetSizeOfWhitelist provides a mock function with given fields:
-func (_m *Store) GetSizeOfWhitelist() (int, error) {
-	ret := _m.Called()
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -483,27 +483,6 @@ func (_m *Store) Init(remoteID string) error {
 	}
 
 	return r0
-}
-
-// IsUserPresentInWhitelist provides a mock function with given fields: userID
-func (_m *Store) IsUserPresentInWhitelist(userID string) (bool, error) {
-	ret := _m.Called(userID)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = rf(userID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(userID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // LinkPosts provides a mock function with given fields: postInfo
@@ -700,20 +679,6 @@ func (_m *Store) MattermostToTeamsUserID(userID string) (string, error) {
 	}
 
 	return r0, r1
-}
-
-// PrefillWhitelist provides a mock function with given fields:
-func (_m *Store) PrefillWhitelist() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // RecoverPost provides a mock function with given fields: postID
@@ -917,6 +882,27 @@ func (_m *Store) UpdateSubscriptionLastActivityAt(subscriptionID string, lastAct
 	}
 
 	return r0
+}
+
+// UserHasConnected provides a mock function with given fields: mmUserID
+func (_m *Store) UserHasConnected(mmUserID string) (bool, error) {
+	ret := _m.Called(mmUserID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(mmUserID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(mmUserID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // VerifyOAuth2State provides a mock function with given fields: state

@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -95,6 +96,69 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 		Exec()
 
 	return err
+}
+
+func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
+	rows, err := s.getQueryBuilder().
+		Select("1").
+		Prefix("SELECT EXISTS (").
+		From(whitelistedUsersLegacyTableName).
+		Suffix(")").
+		Query()
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var hasRowsToProcess bool
+	if rows.Next() {
+		if scanErr := rows.Scan(&hasRowsToProcess); scanErr != nil {
+			return scanErr
+		}
+	}
+
+	if !hasRowsToProcess {
+		// migration already done, no rows to process
+		return nil
+	}
+
+	s.api.LogInfo("Migrating old whitelist rows")
+
+	now := time.Now()
+
+	// presently- or previously-connected
+	_, err = s.getQueryBuilder().
+		Update(usersTableName).
+		Set("lastConnectAt", now.UnixMicro()).
+		Where(sq.Or{
+			sq.And{sq.NotEq{"token": ""}, sq.NotEq{"token": nil}},
+			sq.Expr("mmUserID IN (SELECT mmUserID FROM " + whitelistedUsersLegacyTableName + ")"),
+		}).
+		Exec()
+	if err != nil {
+		return err
+	}
+
+	// previously-connected
+	_, err = s.getQueryBuilder().
+		Update(usersTableName).
+		Set("lastDisconnectAt", now.UnixMicro()).
+		Where(sq.And{
+			sq.Or{sq.Eq{"token": ""}, sq.Eq{"token": nil}},
+			sq.Expr("mmUserID IN (SELECT mmUserID FROM " + whitelistedUsersLegacyTableName + ")"),
+		}).
+		Exec()
+	if err != nil {
+		return err
+	}
+
+	_, err = s.getQueryBuilder().Delete(whitelistedUsersLegacyTableName).Exec()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SQLStore) createTable(tableName, columnList string) error {

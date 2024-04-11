@@ -2,10 +2,12 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import manifest from './manifest';
+import ListConnectedUsers from 'components/admin_console/getConnectedUsersSetting';
+import InviteWhitelistSetting from 'components/admin_console/inviteWhitelistSetting';
+import MSTeamsAppManifestSetting from 'components/admin_console/appManifestSetting';
+
 import Client from './client';
-import ListConnectedUsers from './components/getConnectedUsersSetting';
-import MSTeamsAppManifestSetting from './components/appManifestSetting';
+import manifest from './manifest';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -61,6 +63,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
+        registry.registerAdminConsoleCustomSetting('inviteWhitelistUpload', InviteWhitelistSetting);
         this.userActivityWatch();
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438

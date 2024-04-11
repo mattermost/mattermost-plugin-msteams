@@ -36,12 +36,12 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	p.whitelistClusterMutex.Lock()
 	defer p.whitelistClusterMutex.Unlock()
 
-	userInWhitelist, err := p.store.IsUserPresentInWhitelist(user.Id)
+	hasConnected, err := p.store.UserHasConnected(user.Id)
 	if err != nil {
 		return false, errors.Wrapf(err, "error getting user in whitelist")
 	}
 
-	if userInWhitelist {
+	if hasConnected {
 		// user already connected
 		return false, nil
 	}
@@ -118,19 +118,19 @@ func (p *Plugin) shouldSendInviteMessage(
 }
 
 func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
-	nWhitelisted, err := p.store.GetSizeOfWhitelist()
+	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
 		return false, 0, errors.Wrapf(err, "error in getting the size of whitelist")
 	}
-	nInvited, err := p.store.GetSizeOfInvitedUsers()
+	nInvited, err := p.store.GetInvitedCount()
 	if err != nil {
 		return false, 0, errors.Wrapf(err, "error in getting the number of invited users")
 	}
 
-	if (nWhitelisted + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
 		// only invite up to max connected
 		return false, 0, nil
 	}
 
-	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nWhitelisted, nil
+	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nConnected, nil
 }
