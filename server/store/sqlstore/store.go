@@ -116,6 +116,10 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.runMigrationRemoteID(remoteID); err != nil {
 			return err
 		}
+
+		if err := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); err != nil {
+			return err
+		}
 	}
 
 	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
