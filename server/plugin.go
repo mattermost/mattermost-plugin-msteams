@@ -51,6 +51,8 @@ const (
 	updateMetricsTaskFrequency = 15 * time.Minute
 )
 
+var NotConnectedError = errors.New("not connected user")
+
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
 type Plugin struct {
 	plugin.MattermostPlugin
@@ -189,7 +191,7 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
 	token, _ := p.store.GetTokenForMattermostUser(userID)
 	if token == nil {
-		return nil, errors.New("not connected user")
+		return nil, NotConnectedError
 	}
 
 	client := p.clientBuilderWithToken(p.GetURL()+"/oauth-redirect", p.getConfiguration().TenantID, p.getConfiguration().ClientID, p.getConfiguration().ClientSecret, token, &p.apiClient.Log)

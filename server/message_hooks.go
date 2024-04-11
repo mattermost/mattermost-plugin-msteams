@@ -513,8 +513,12 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		if chatMembersSpanPlatforms {
-			p.handlePromptForConnection(srcUser, post.ChannelId)
+		if errors.Is(err, NotConnectedError) {
+			if chatMembersSpanPlatforms {
+				p.handlePromptForConnection(srcUser, post.ChannelId)
+			}
+		} else {
+			p.SendConnectMessage(post.ChannelId, srcUser, "Your connection to Microsoft Teams has been lost. ")
 		}
 		return "", err
 	}
