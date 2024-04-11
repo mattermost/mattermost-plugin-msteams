@@ -24,6 +24,9 @@ func (p *Plugin) ChatShouldSync(channelID string) (bool, *model.AppError) {
 // ChatMembersSpanPlatforms determines if the given channel members span both Mattermost and
 // MS Teams. Chats between users on the same platform are skipped if selective sync is enabled.
 func (p *Plugin) ChatMembersSpanPlatforms(members model.ChannelMembers) (bool, *model.AppError) {
+	if len(members) == 1 {
+		return false, GetInternalServerAppError("Invalid function call, requires multiple members")
+	}
 	atLeastOneLocalUser := false
 	atLeastOneRemoteUser := false
 	for _, m := range members {
