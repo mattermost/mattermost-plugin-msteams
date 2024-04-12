@@ -28,6 +28,7 @@ const (
 	usersTableName               = "msteamssync_users"
 	linksTableName               = "msteamssync_links"
 	postsTableName               = "msteamssync_posts"
+	activityQueueTableName       = "msteamssync_activity_queue"
 	subscriptionsTableName       = "msteamssync_subscriptions"
 	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
 	invitedUsersTableName        = "msteamssync_invited_users"
@@ -53,6 +54,10 @@ func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey
 
 func (s *SQLStore) Init(remoteID string) error {
 	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.createTable(activityQueueTableName, "id VARCHAR(255) NOT NULL PRIMARY KEY, createdAt TIMESTAMP DEFAULT NOW(), activity TEXT, tries INT"); err != nil {
 		return err
 	}
 
@@ -961,6 +966,67 @@ func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *SQLStore) EnqueueActivities(activitiesIDs, activities []string) error {
+	query := s.getQueryBuilder().Insert(activityQueueTableName).Columns("id", "activity", "tries")
+	for idx, activity := range activities {
+		query = query.Values(activitiesIDs[idx], activity, 0)
+	}
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) DequeueActivity(activityId string) error {
+	query := s.getQueryBuilder().Delete(activityQueueTableName).Where(sq.Eq{"id": activityId})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) ProcessQueuedActivity(activityCallback func(activity string) error) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	query := "DELETE FROM " + activityQueueTableName + " USING (SELECT * FROM " + activityQueueTableName + " LIMIT 1 FOR UPDATE SKIP LOCKED) q WHERE q.id =  " + activityQueueTableName + ".id RETURNING " + activityQueueTableName + ".activity"
+
+	row := tx.QueryRow(query)
+
+	var data string
+	if err := row.Scan(&data); err != nil {
+		return err
+	}
+
+	if err := activityCallback(data); err != nil {
+		_ = tx.Rollback()
+
+		query := s.getQueryBuilder().Update(activityQueueTableName).Set("tries", "INC(tries)")
+		if _, err := query.Exec(); err != nil {
+			return err
+		}
+
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		query := s.getQueryBuilder().Update(activityQueueTableName).Set("tries", "INC(tries)")
+		if _, err := query.Exec(); err != nil {
+			return err
+		}
+
+		return err
+	}
 	return nil
 }
 

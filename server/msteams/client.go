@@ -79,14 +79,15 @@ type ClientImpl struct {
 }
 
 type Activity struct {
-	Resource                       string
-	ClientState                    string
-	ChangeType                     string
-	LifecycleEvent                 string
-	SubscriptionExpirationDateTime time.Time
-	SubscriptionID                 string
-	EncryptedContent               *EncryptedContent
-	Content                        []byte
+	ID                             string            `json:"id"`
+	Resource                       string            `json:"resource"`
+	ClientState                    string            `json:"clientState"`
+	ChangeType                     string            `json:"changeType"`
+	LifecycleEvent                 string            `json:"lifecycleEvent"`
+	SubscriptionExpirationDateTime time.Time         `json:"subscriptionExpirationDateTime"`
+	SubscriptionID                 string            `json:"subscriptionId"`
+	EncryptedContent               *EncryptedContent `json:"encryptedContent"`
+	Content                        []byte            `json:"content"`
 }
 
 type EncryptedContent struct {

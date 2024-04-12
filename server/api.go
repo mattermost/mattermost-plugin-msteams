@@ -172,6 +172,9 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 	requireEncryptedContent := a.p.getConfiguration().CertificateKey != ""
 	errors := ""
+	activitiesToHandle := make([]msteams.Activity, 0, len(activities.Value))
+	activitiesToHandleData := make([]string, 0, len(activities.Value))
+	activitiesToHandleIds := make([]string, 0, len(activities.Value))
 	for _, activity := range activities.Value {
 		if activity.EncryptedContent != nil {
 			content, err := a.processEncryptedContent(*activity.EncryptedContent)
@@ -189,15 +192,29 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 			errors += "Invalid webhook secret"
 			continue
 		}
-
-		if err := a.p.activityHandler.Handle(activity); err != nil {
-			a.p.API.LogWarn("Unable to process created activity", "activity", activity, "error", err.Error())
+		activity.ID = model.NewId()
+		activitiesToHandleIds = append(activitiesToHandleIds, activity.ID)
+		activitiesToHandle = append(activitiesToHandle, activity)
+		data, err := json.Marshal(activity)
+		if err != nil {
 			errors += err.Error() + "\n"
+			continue
 		}
+		activitiesToHandleData = append(activitiesToHandleData, string(data))
 	}
 	if errors != "" {
 		http.Error(w, errors, http.StatusBadRequest)
 		return
+	}
+
+	if err := a.store.EnqueueActivities(activitiesToHandleIds, activitiesToHandleData); err != nil {
+		a.p.API.LogWarn("Unable to enqueue activities", "error", err.Error())
+	}
+	for _, activity := range activitiesToHandle {
+		if err := a.p.activityHandler.Handle(activity); err != nil {
+			a.p.API.LogWarn("Unable to process created activity", "activity", activity, "error", err.Error())
+			errors += err.Error() + "\n"
+		}
 	}
 
 	w.WriteHeader(http.StatusAccepted)
