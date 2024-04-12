@@ -362,6 +362,12 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
+	if userID == "" {
+		a.p.API.LogWarn("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
 	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
@@ -528,7 +534,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -568,7 +574,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -620,7 +626,7 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -739,7 +745,7 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
