@@ -1,6 +1,5 @@
-import Client from 'client';
-import {ClientError} from 'mattermost-redux/client/client4';
 import React, {ChangeEvent, useRef, useState} from 'react';
+import Client from 'client';
 
 type Props = {
     label: string;
