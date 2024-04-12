@@ -171,6 +171,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
@@ -212,6 +213,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
