@@ -40,6 +40,7 @@ type pluginMock struct {
 	teamsUserClient            msteams.Client
 	metrics                    metrics.Metrics
 	selectiveSync              bool
+	remoteID                   string
 }
 
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
@@ -54,6 +55,7 @@ func (pm *pluginMock) GetBufferSizeForStreaming() int                  { return 
 func (pm *pluginMock) GetBotUserID() string                            { return pm.botUserID }
 func (pm *pluginMock) GetURL() string                                  { return pm.url }
 func (pm *pluginMock) IsRemoteUser(user *model.User) bool              { return user.RemoteId != nil }
+func (pm *pluginMock) GetRemoteID() string                             { return pm.remoteID }
 func (pm *pluginMock) GetMetrics() metrics.Metrics                     { return pm.metrics }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
 func (pm *pluginMock) GetClientForUser(string) (msteams.Client, error) { return pm.userClient, nil }
@@ -81,6 +83,7 @@ func newTestHandler() *ActivityHandler {
 		syncGuestUsers:             false,
 		maxSizeForCompleteDownload: 20,
 		bufferSizeForStreaming:     20,
+		remoteID:                   "remote-id",
 	})
 }
 
@@ -118,6 +121,9 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 						return false
 					}
 					if user.Email != testutils.GetTestEmail() {
+						return false
+					}
+					if !user.EmailVerified {
 						return false
 					}
 					return true

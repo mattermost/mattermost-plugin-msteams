@@ -51,55 +51,6 @@ func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey
 	}
 }
 
-func (s *SQLStore) createTable(tableName, columnList string) error {
-	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) createIndex(tableName, indexName, columnList string) error {
-	if _, err := s.db.Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) error {
-	if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s", tableName, columnName, columnDefinition)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *SQLStore) addPrimaryKey(tableName, columnList string) error {
-	rows, err := s.db.Query(fmt.Sprintf("SELECT constraint_name from information_schema.table_constraints where table_name = '%s' and constraint_type='PRIMARY KEY'", tableName))
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	var constraintName string
-	if rows.Next() {
-		if scanErr := rows.Scan(&constraintName); scanErr != nil {
-			return scanErr
-		}
-	}
-
-	if constraintName == "" {
-		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY(%s)", tableName, columnList)); err != nil {
-			return err
-		}
-	} else if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s, ADD PRIMARY KEY(%s)", tableName, constraintName, columnList)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *SQLStore) Init(remoteID string) error {
 	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
 		return err
@@ -165,7 +116,27 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.runMigrationRemoteID(remoteID); err != nil {
 			return err
 		}
+
+		if err := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); err != nil {
+			return err
+		}
 	}
+
+	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
+	if err != nil {
+		return err
+	}
+	if !exist {
+		// dedup entries with multiples ms teams id
+		if err := s.runMSTeamUserIDDedup(); err != nil {
+			return err
+		}
+
+		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

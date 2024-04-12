@@ -322,6 +322,21 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := r.Header.Get("Mattermost-User-ID")
+	connectBot := r.URL.Query().Has("isBot")
+	if connectBot {
+		if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+			a.p.API.LogWarn("Attempt to connect the bot account, by non system admin.", "user_id", userID)
+			http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+			return
+		}
+		userID = a.p.GetBotUserID()
+	}
+
+	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
+		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
 
 	state := fmt.Sprintf("%s_%s", model.NewId(), userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
@@ -331,7 +346,8 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codeVerifier := model.NewId()
-	if appErr := a.p.API.KVSet("_code_verifier_"+userID, []byte(codeVerifier)); appErr != nil {
+	codeVerifierKey := "_code_verifier_" + userID
+	if appErr := a.p.API.KVSet(codeVerifierKey, []byte(codeVerifier)); appErr != nil {
 		a.p.API.LogWarn("Error in storing the code verifier", "error", appErr.Message)
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
@@ -638,19 +654,14 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 	}
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
+
 	if primaryPlatform != PreferenceValuePlatformMM && primaryPlatform != PreferenceValuePlatformMSTeams {
 		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 		return
 	}
 
-	err := a.p.API.UpdatePreferencesForUser(userID, []model.Preference{{
-		UserId:   userID,
-		Category: PreferenceCategoryPlugin,
-		Name:     PreferenceNamePlatform,
-		Value:    primaryPlatform,
-	}})
-
+	err := a.p.setPrimaryPlatform(userID, primaryPlatform)
 	if err != nil {
 		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
 		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
