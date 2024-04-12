@@ -13,3 +13,15 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 	}).Exec()
 	return err
 }
+
+func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
+	_, err := s.getQueryBuilder().
+		Update("Users").
+		Set("EmailVerified", true).
+		Where(sq.And{
+			sq.Eq{"RemoteID": remoteID},
+			sq.Eq{"EmailVerified": false},
+		}).Exec()
+
+	return err
+}
