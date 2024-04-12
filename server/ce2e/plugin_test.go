@@ -551,69 +551,6 @@ func TestSelectiveSync(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				err = mockClient.MockBatch("edit-message", []containere2e.BatchRequest{
-					{
-						Method: http.MethodPatch,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}, {
-						Method: http.MethodGet,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}},
-					[]containere2e.BatchResponse{
-						{
-							StatusCode: http.StatusNoContent,
-							Body: map[string]any{
-								"id":                   newPostID,
-								"messageType":          "message",
-								"createdDateTime":      time.Now().Format(time.RFC3339),
-								"lastModifiedDateTime": time.Now().Format(time.RFC3339),
-								"from": map[string]any{
-									"user": map[string]any{
-										"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
-										"id":               "ms-" + tc.fromUser.Username,
-										"displayName":      tc.fromUser.Username,
-										"userIdentityType": "aadUser",
-										"tenantId":         "tenant-id",
-									},
-								},
-								"body": map[string]any{
-									"contentType": "text",
-									"content":     "Hello World",
-								},
-								"channelIdentity": map[string]any{
-									"channelId": newDMID,
-								},
-							},
-						},
-						{
-							StatusCode: http.StatusOK,
-							Body: map[string]any{
-								"id":                   newPostID,
-								"messageType":          "message",
-								"createdDateTime":      time.Now().Format(time.RFC3339),
-								"lastModifiedDateTime": time.Now().Format(time.RFC3339),
-								"from": map[string]any{
-									"user": map[string]any{
-										"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
-										"id":               "ms-" + tc.fromUser.Username,
-										"displayName":      tc.fromUser.Username,
-										"userIdentityType": "aadUser",
-										"tenantId":         "tenant-id",
-									},
-								},
-								"body": map[string]any{
-									"contentType": "text",
-									"content":     "Hello World",
-								},
-								"channelIdentity": map[string]any{
-									"channelId": newDMID,
-								},
-							},
-						},
-					},
-				)
-				require.NoError(t, err)
-
 				fakePost := map[string]any{
 					"id":                   newPostID,
 					"messageType":          "message",
@@ -636,6 +573,27 @@ func TestSelectiveSync(t *testing.T) {
 						"channelId": newDMID,
 					},
 				}
+
+				err = mockClient.MockBatch("edit-message", []containere2e.BatchRequest{
+					{
+						Method: http.MethodPatch,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}, {
+						Method: http.MethodGet,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}},
+					[]containere2e.BatchResponse{
+						{
+							StatusCode: http.StatusNoContent,
+							Body:       fakePost,
+						},
+						{
+							StatusCode: http.StatusOK,
+							Body:       fakePost,
+						},
+					},
+				)
+				require.NoError(t, err)
 
 				require.NoError(t, mockClient.Get("get-posted-message", "/v1.0/chats/"+newDMID+"/messages/"+newPostID, fakePost))
 
