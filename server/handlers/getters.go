@@ -115,11 +115,12 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 		username := "msteams_" + slug.Make(userDisplayName)
 
 		newMMUser := &model.User{
-			Username:  username,
-			FirstName: userDisplayName,
-			Email:     user.Mail,
-			Password:  ah.plugin.GenerateRandomPassword(),
-			RemoteId:  &shortUserID,
+			Username:      username,
+			FirstName:     userDisplayName,
+			Email:         user.Mail,
+			Password:      ah.plugin.GenerateRandomPassword(),
+			RemoteId:      &shortUserID,
+			EmailVerified: true,
 		}
 		newMMUser.SetDefaultNotifications()
 		newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
