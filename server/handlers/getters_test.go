@@ -123,6 +123,9 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 					if user.Email != testutils.GetTestEmail() {
 						return false
 					}
+					if !user.EmailVerified {
+						return false
+					}
 					return true
 				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
 				api.On("UpdatePreferencesForUser", "new-user-id", mock.MatchedBy(func(preferences model.Preferences) bool {
