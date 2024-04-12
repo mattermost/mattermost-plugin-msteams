@@ -152,7 +152,7 @@
                 "key": "connectedUsersInvites",
                 "display_name": "Connection Invites",
                 "type": "dropdown",
-                "help_text": "When enabled, the bot will send direct messages inviting users to connect their MS Teams account. \nRollout will incrementally send invites to users as they login or become active, up to the maximum pending specified below. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. \nImmediate will send connection invites to uninvited whitelisted users who have not connected their accounts as they are added to the whitelist.",
+                "help_text": "When enabled, the bot will send direct messages inviting users to connect their account. \nRollout will incrementally send invites to users as they login or become active, up to the maximum pending specified below. As invited users connect, spaces in the invite pool will open up and more invites will be sent out.",
                 "default": "disabled",
                 "options": [
                     {
@@ -166,10 +166,6 @@
                     {
                         "display_name": "Rollout — Restricted: send connection invites to whitelisted users as they login or become active",
                         "value": "rolloutRestricted"
-                    },
-                    {
-                        "display_name": "Immediate — Restricted: send connection invites to all whitelisted users as they are added to the whitelist",
-                        "value": "immediateRestricted"
                     }
                 ]
             },
@@ -177,8 +173,8 @@
                 "key": "connectedUsersInvitePoolSize",
                 "display_name": "Rollout Max. Pending Invitations",
                 "type": "number",
-                "help_text": "Rollout invite pool size: the maximum number of connection invites that may be pending at a given time. (Only applies to Connection Invites: Rollout)",
-                "default": 0
+                "help_text": "Rollout invite pool size: the maximum number of connection invites that may be pending at a given time.",
+                "default": 10
             },
             {
                 "key": "inviteWhitelistUpload",

@@ -63,6 +63,20 @@ func (s *TimerLayer) DeleteSubscription(subscriptionID string) error {
 	return err
 }
 
+func (s *TimerLayer) DeleteUserFromWhitelist(userID string) error {
+	start := time.Now()
+
+	err := s.Store.DeleteUserFromWhitelist(userID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserFromWhitelist", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) DeleteUserInfo(mmUserID string) error {
 	start := time.Now()
 
@@ -88,6 +102,20 @@ func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInvite", success, elapsed)
+	return err
+}
+
+func (s *TimerLayer) DeleteWhitelist() error {
+	start := time.Now()
+
+	err := s.Store.DeleteWhitelist()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.DeleteWhitelist", success, elapsed)
 	return err
 }
 
@@ -329,6 +357,48 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 	return result, err
 }
 
+func (s *TimerLayer) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetUserConnectStatus(mmUserID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetUserConnectStatus", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetWhitelistCount() (int, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetWhitelistCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetWhitelistCount", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetWhitelistEmails(page int, perPage int) ([]string, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetWhitelistEmails(page, perPage)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetWhitelistEmails", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) Init(remoteID string) error {
 	start := time.Now()
 
@@ -341,6 +411,20 @@ func (s *TimerLayer) Init(remoteID string) error {
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.Init", success, elapsed)
 	return err
+}
+
+func (s *TimerLayer) IsUserWhitelisted(userID string) (bool, error) {
+	start := time.Now()
+
+	result, err := s.Store.IsUserWhitelisted(userID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.IsUserWhitelisted", success, elapsed)
+	return result, err
 }
 
 func (s *TimerLayer) LinkPosts(postInfo storemodels.PostInfo) error {

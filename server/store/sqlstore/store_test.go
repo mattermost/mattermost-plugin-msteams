@@ -971,40 +971,44 @@ func TestListConnectedUsers(t *testing.T) {
 	assert.Nil(delErr)
 }
 
-// func TestStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T) {
-// 	store, _ := setupTestStore(t)
-// 	assert := assert.New(t)
+func TestWhitelistIO(t *testing.T) {
+	store, _ := setupTestStore(t)
+	assert := assert.New(t)
 
-// 	count, getErr := store.GetSizeOfWhitelist()
-// 	assert.Equal(0, count)
-// 	assert.Nil(getErr)
+	count, getErr := store.GetWhitelistCount()
+	assert.Equal(0, count)
+	assert.Nil(getErr)
 
-// 	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
-// 	assert.Nil(storeErr)
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID() + "1")
+	assert.Nil(storeErr)
 
-// 	count, getErr = store.GetSizeOfWhitelist()
-// 	assert.Equal(1, count)
-// 	assert.Nil(getErr)
+	count, getErr = store.GetWhitelistCount()
+	assert.Equal(1, count)
+	assert.Nil(getErr)
 
-// 	present, presentErr := store.IsUserPresentInWhitelist(testutils.GetUserID())
-// 	assert.Equal(true, present)
-// 	assert.Nil(presentErr)
+	present, presentErr := store.IsUserWhitelisted(testutils.GetUserID() + "1")
+	assert.Equal(true, present)
+	assert.Nil(presentErr)
 
-// 	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
-// 	assert.Equal(false, present)
-// 	assert.Nil(presentErr)
+	present, presentErr = store.IsUserWhitelisted(testutils.GetTeamsUserID() + "1")
+	assert.Equal(false, present)
+	assert.Nil(presentErr)
 
-// 	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
-// 	assert.Nil(storeErr)
+	storeErr = store.StoreUserInWhitelist(testutils.GetUserID() + "2")
+	assert.Nil(storeErr)
 
-// 	count, getErr = store.GetSizeOfWhitelist()
-// 	assert.Equal(2, count)
-// 	assert.Nil(getErr)
+	count, getErr = store.GetWhitelistCount()
+	assert.Equal(2, count)
+	assert.Nil(getErr)
 
-// 	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
-// 	assert.Equal(true, present)
-// 	assert.Nil(presentErr)
+	present, presentErr = store.IsUserWhitelisted(testutils.GetUserID() + "2")
+	assert.Equal(true, present)
+	assert.Nil(presentErr)
 
-// 	_, err := store.getQueryBuilder().Delete(whitelistedUsersLegacyTableName).Exec()
-// 	assert.Nil(err)
-// }
+	err := store.DeleteWhitelist()
+	assert.Nil(err)
+
+	count, getErr = store.GetWhitelistCount()
+	assert.Equal(0, count)
+	assert.Nil(getErr)
+}

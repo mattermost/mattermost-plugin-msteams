@@ -1,6 +1,8 @@
 package storemodels
 
-import "time"
+import (
+	"time"
+)
 
 type Stats struct {
 	ConnectedUsers int64
@@ -56,6 +58,13 @@ type ConnectedUser struct {
 	FirstName        string
 	LastName         string
 	Email            string
+}
+
+type UserConnectStatus struct {
+	ID               string
+	Connected        bool
+	LastConnectAt    time.Time
+	LastDisconnectAt time.Time
 }
 
 type InvitedUser struct {

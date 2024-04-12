@@ -42,7 +42,7 @@ const (
 	botDisplayName               = "MS Teams"
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	connectClusterMutexKey       = "connect_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 	metricsJobName               = "metrics"
@@ -74,7 +74,7 @@ type Plugin struct {
 
 	store                     store.Store
 	subscriptionsClusterMutex *cluster.Mutex
-	whitelistClusterMutex     *cluster.Mutex
+	connectClusterMutex       *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
 	checkCredentialsJob       *cluster.Job
@@ -480,7 +480,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.connectClusterMutex, err = cluster.NewMutex(p.API, connectClusterMutexKey)
 	if err != nil {
 		return err
 	}

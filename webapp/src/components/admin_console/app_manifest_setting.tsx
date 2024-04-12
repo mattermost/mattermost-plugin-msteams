@@ -23,14 +23,16 @@ export default class MSTeamsAppManifestSetting extends React.PureComponent<Props
                 <p>
                     {'Mattermost embedded in MS Teams can be used together with MSTeams Sync, or independently.'}
                 </p>
-                <button
+                <a
+                    href='/plugins/com.mattermost.msteams-sync/iframe-manifest'
                     className='btn btn-primary'
+                    rel='noreferrer'
+                    target='_self'
                     style={styles.buttonBorder}
-                    onClick={this.handleClick}
-                    disabled={this.props.disabled}
+                    download={true}
                 >
                     {this.props.label}
-                </button>
+                </a>
             </div>
         );
     }

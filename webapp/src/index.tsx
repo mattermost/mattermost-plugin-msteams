@@ -2,9 +2,9 @@ import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
-import ListConnectedUsers from 'components/admin_console/getConnectedUsersSetting';
-import InviteWhitelistSetting from 'components/admin_console/inviteWhitelistSetting';
-import MSTeamsAppManifestSetting from 'components/admin_console/appManifestSetting';
+import ListConnectedUsers from 'components/admin_console/get_connected_users_setting';
+import InviteWhitelistSetting from 'components/admin_console/invite_whitelist_setting';
+import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_setting';
 
 import Client from './client';
 import manifest from './manifest';

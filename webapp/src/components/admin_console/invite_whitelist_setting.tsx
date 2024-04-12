@@ -1,3 +1,5 @@
+import Client from 'client';
+import {ClientError} from 'mattermost-redux/client/client4';
 import React, {ChangeEvent, useRef, useState} from 'react';
 
 type Props = {
@@ -5,20 +7,46 @@ type Props = {
     disabled: boolean;
 };
 
-const InviteWhitelistSetting = ({label}: Props) => {
+const InviteWhitelistSetting = ({label, disabled}: Props) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pendingFile, setPendingFile] = useState<File>();
+    const [statusMsg, setStatusMsg] = useState('');
 
     const onChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
 
         if (file) {
             setPendingFile(file);
+            setStatusMsg('');
+        }
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
 
-    const doUpload = () => {
+    const doUpload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
 
+        if (!pendingFile) {
+            return;
+        }
+
+        setStatusMsg('Uploading');
+
+        try {
+            await Client.uploadWhitelist(pendingFile);
+            setStatusMsg('Upload successful - whitelist updated');
+        } catch (err: any) {
+            if (err.message) {
+                setStatusMsg(err.message);
+            } else {
+                setStatusMsg('error while uploading');
+            }
+        }
+
+        // eslint-disable-next-line no-undefined
+        setPendingFile(undefined);
     };
 
     return (
@@ -49,24 +77,24 @@ const InviteWhitelistSetting = ({label}: Props) => {
                 >
                     {'Upload'}
                 </button>
-
                 <div className='help-text m-0'>
-                    {pendingFile?.name}
+                    {statusMsg || pendingFile?.name}
                 </div>
-
                 <p className='help-text'>
-                    {'Upload a CSV file containing mattermost user-emails that may receive invites to connect to MS Teams. NOTE: This will replace the entire whitelist, be sure it is complete before uploading.'}
+                    {'Upload a CSV file containing mattermost user-emails that may receive invites to connect to MS Teams. NOTE: This will replace the entire whitelist, not add to it.'}
                 </p>
-
-                <p className='help-text'>
-                    {'To view the current whitelist: '}
-                    <button
-                        type='button'
-                        className={'btn btn-primary btn-sm'}
+                <div style={styles.divMargin}>
+                    <a
+                        href='/plugins/com.mattermost.msteams-sync/whitelist/download'
+                        className='btn btn-primary btn-sm'
+                        rel='noreferrer'
+                        target='_self'
+                        download={true}
                     >
                         {'Download Whitelist'}
-                    </button>
-                </p>
+                    </a>
+
+                </div>
 
             </div>
         </div>

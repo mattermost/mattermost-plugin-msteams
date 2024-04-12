@@ -22,6 +22,7 @@ type Store interface {
 	GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error)
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	UserHasConnected(mmUserID string) (bool, error)
+	GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error)
 	GetHasConnectedCount() (int, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	DeleteUserInfo(mmUserID string) error
@@ -30,12 +31,17 @@ type Store interface {
 	StoreOAuth2State(state string) error
 	VerifyOAuth2State(state string) error
 
-	// invites
+	// invites & whitelist
 	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
 	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
 	DeleteUserInvite(mmUserID string) error
 	GetInvitedCount() (int, error)
 	StoreUserInWhitelist(userID string) error
+	IsUserWhitelisted(userID string) (bool, error)
+	DeleteUserFromWhitelist(userID string) error
+	GetWhitelistCount() (int, error)
+	GetWhitelistEmails(page int, perPage int) ([]string, error)
+	DeleteWhitelist() error
 
 	// stats
 	GetStats() (*storemodels.Stats, error)

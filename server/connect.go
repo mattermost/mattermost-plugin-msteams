@@ -9,6 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	ConnectedUsersInvitesDisabled          = "disabled"
+	ConnectedUsersInvitesRollout           = "rollout"
+	ConnectedUsersInvitesRolloutRestricted = "rolloutRestricted"
+)
+
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
 	if err != nil {
@@ -23,7 +29,7 @@ func (p *Plugin) botSendDirectMessage(userID, message string) error {
 }
 
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
-	if p.getConfiguration().ConnectedUsersInvitePoolSize == 0 {
+	if p.getConfiguration().ConnectedUsersInvites == ConnectedUsersInvitesDisabled {
 		// connection invites disabled
 		return false, nil
 	}
@@ -33,12 +39,23 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user")
 	}
 
-	p.whitelistClusterMutex.Lock()
-	defer p.whitelistClusterMutex.Unlock()
+	if p.getConfiguration().ConnectedUsersInvites == ConnectedUsersInvitesRolloutRestricted {
+		isWhitelisted, whitelistErr := p.store.IsUserWhitelisted(userID)
+		if whitelistErr != nil {
+			return false, errors.Wrapf(whitelistErr, "error getting user in whitelist")
+		}
+
+		if !isWhitelisted {
+			return false, nil
+		}
+	}
+
+	p.connectClusterMutex.Lock()
+	defer p.connectClusterMutex.Unlock()
 
 	hasConnected, err := p.store.UserHasConnected(user.Id)
 	if err != nil {
-		return false, errors.Wrapf(err, "error getting user in whitelist")
+		return false, errors.Wrapf(err, "error checking user connected status")
 	}
 
 	if hasConnected {
@@ -120,11 +137,11 @@ func (p *Plugin) shouldSendInviteMessage(
 func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting the size of whitelist")
+		return false, 0, errors.Wrapf(err, "error in getting has-connected count")
 	}
 	nInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting the number of invited users")
+		return false, 0, errors.Wrapf(err, "error in getting invited count")
 	}
 
 	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
@@ -133,4 +150,36 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	}
 
 	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nConnected, nil
+}
+
+func (p *Plugin) CanConnect(mmUserID string) (bool, error) {
+	hasConnected, err := p.store.UserHasConnected(mmUserID)
+	if err != nil {
+		p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
+		return false, err
+	}
+
+	invitedUser, err := p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
+		return false, err
+	}
+
+	if hasConnected || invitedUser != nil {
+		return true, nil
+	}
+
+	numHasConnected, err := p.store.GetHasConnectedCount()
+	if err != nil {
+		p.API.LogWarn("Unable to get has connected count", "error", err.Error())
+		return false, err
+	}
+
+	numInvited, err := p.store.GetInvitedCount()
+	if err != nil {
+		p.API.LogWarn("Unable to get invited count", "error", err.Error())
+		return false, err
+	}
+
+	return (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed, nil
 }

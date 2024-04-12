@@ -21,6 +21,10 @@ class ClientClass {
         await this.doGet(`${this.url}/notify-connect`);
     };
 
+    uploadWhitelist = async (fileData: File) => {
+        await this.uploadFile(`${this.url}/whitelist`, fileData);
+    };
+
     fetchSiteStats = async (): Promise<SiteStats | null> => {
         const data = await this.doGet(`${this.url}/stats/site`);
         if (!data) {
@@ -112,6 +116,33 @@ class ClientClass {
 
         if (response.ok) {
             return response.json();
+        }
+
+        const text = await response.text();
+
+        throw new ClientError(Client4.url, {
+            message: text || '',
+            status_code: response.status,
+            url,
+        });
+    };
+
+    uploadFile = async (url: string, fileData: File, headers: {[key: string]: any} = {}) => {
+        headers['X-Timezone-Offset'] = new Date().getTimezoneOffset();
+
+        const formData = new FormData();
+        formData.append('file', fileData);
+
+        const options = {
+            method: 'put',
+            body: formData,
+            headers,
+        };
+
+        const response = await fetch(url, Client4.getOptions(options));
+
+        if (response.ok) {
+            return response;
         }
 
         const text = await response.text();

@@ -101,9 +101,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	rows, err := s.getQueryBuilder().
 		Select("1").
-		Prefix("SELECT EXISTS (").
-		From(whitelistedUsersLegacyTableName).
-		Suffix(")").
+		Prefix("SELECT EXISTS (").From(whitelistedUsersLegacyTableName).Suffix(")").
 		Query()
 	if err != nil {
 		return err
@@ -126,7 +124,10 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 
 	now := time.Now()
 
-	// presently- or previously-connected
+	// all presently-whitelisted users should already in the users table,
+	// as being added to the old whitelist only happened after successful connection.
+
+	// has-connected users (presently and previously)
 	_, err = s.getQueryBuilder().
 		Update(usersTableName).
 		Set("lastConnectAt", now.UnixMicro()).
@@ -139,7 +140,7 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 		return err
 	}
 
-	// previously-connected
+	// only previously-connected
 	_, err = s.getQueryBuilder().
 		Update(usersTableName).
 		Set("lastDisconnectAt", now.UnixMicro()).
