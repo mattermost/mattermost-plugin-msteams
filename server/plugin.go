@@ -872,7 +872,7 @@ func (p *Plugin) syncUsers() {
 	}
 
 	if p.getConfiguration().RunAsLoadTest {
-		loadtest.FakeConnectUsersForLoadTest(p.getConfiguration().ConnectedUsersAllowed)
+		loadtest.FakeConnectSysadminAndBot(p.getConfiguration().ConnectedUsersAllowed)
 	}
 	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
@@ -1000,10 +1000,6 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 
 func (p *Plugin) UserHasLoggedIn(c *plugin.Context, user *model.User) {
 	if p.getConfiguration().RunAsLoadTest {
-		if connectedUsers, err := p.store.GetConnectedUsersCount(); err != nil || connectedUsers >= int64(p.getConfiguration().ConnectedUsersAllowed) {
-			return
-		}
-		p.API.LogDebug("Connecting user to MS Teams for load test")
-		loadtest.FakeConnectUserForLoadTest(user.Id)
+		loadtest.FakeConnectUserIfNeeded(user.Id, p.getConfiguration().ConnectedUsersAllowed)
 	}
 }

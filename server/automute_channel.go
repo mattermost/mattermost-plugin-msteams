@@ -15,16 +15,12 @@ func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.Ch
 	_, _ = p.updateAutomutingOnUserJoinedChannel(c, channelMember.UserId, channelMember.ChannelId)
 
 	if p.getConfiguration().RunAsLoadTest {
-		connectedUsers, err := p.store.GetConnectedUsersCount()
-		maxAllowed := int64(p.getConfiguration().ConnectedUsersAllowed)
-		if err != nil || connectedUsers >= maxAllowed {
-			return
+		userIDs := []string{channelMember.UserId}
+		if actor != nil {
+			userIDs = append(userIDs, actor.Id)
 		}
-		p.API.LogDebug("Connecting user to MS Teams for load test")
-		loadtest.FakeConnectUserForLoadTest(channelMember.UserId)
-		if actor != nil && (connectedUsers+1) < maxAllowed {
-			loadtest.FakeConnectUserForLoadTest(actor.Id)
-		}
+
+		loadtest.FakeConnectUsersIfNeeded(userIDs, p.getConfiguration().ConnectedUsersAllowed)
 	}
 }
 
@@ -60,12 +56,13 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 			return
 		}
 
+		userIDs := []string{}
 		for _, m := range members {
-			if connectedUsers, err := p.store.GetConnectedUsersCount(); err != nil || connectedUsers >= int64(p.getConfiguration().ConnectedUsersAllowed) {
-				return
-			}
-			p.API.LogDebug("Connecting user to MS Teams for load test")
-			loadtest.FakeConnectUserForLoadTest(m.UserId)
+			userIDs = append(userIDs, m.UserId)
+		}
+
+		if len(userIDs) > 0 {
+			loadtest.FakeConnectUsersIfNeeded(userIDs, p.getConfiguration().ConnectedUsersAllowed)
 		}
 	}
 }

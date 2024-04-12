@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
@@ -32,7 +32,7 @@ func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, e
 		secret:                secret,
 		tenantId:              tenantId,
 		baseUrl:               baseUrl,
-		userTokenMap:          make(LoadTestUserTokenMap),
+		userTokenMap:          sync.Map{},
 		Enabled:               enabled,
 		simulateIncomingPosts: simulateIncomingPosts,
 		maxIncomingPosts:      maxIncomingPosts,
@@ -124,55 +124,56 @@ func (rt *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	return NewErrorResponse(404, "Mock route not implemented")
 }
 
-func FakeConnectUserForLoadTest(mmUserId string) error {
+func FakeConnectUserForLoadTest(mmUserId string) {
 	if teamsUserID, _ := Settings.store.MattermostToTeamsUserID(mmUserId); teamsUserID == "" {
+		log("Connecting user to MS Teams for load test")
 		msUserId := "ms_teams-" + mmUserId
 		fakeToken := &oauth2.Token{
 			Expiry:      time.Now().Add(24 * 30 * time.Hour),
 			TokenType:   "fake",
 			AccessToken: model.NewRandomString(26),
 		}
-		if err := Settings.store.SetUserInfo(mmUserId, msUserId, fakeToken); err != nil {
-			return err
-		}
+		Settings.store.SetUserInfo(mmUserId, msUserId, fakeToken)
 	}
-
-	return nil
 }
 
-func FakeConnectUsersForLoadTest(connectedUsersAllowed int) {
+func FakeConnectUserIfNeeded(userID string, connectedUsersAllowed int) {
+	if connectedUsers, err := Settings.store.GetConnectedUsersCount(); err != nil || connectedUsers >= int64(connectedUsersAllowed) {
+		return
+	}
+
+	token, _ := Settings.store.GetTokenForMattermostUser(userID)
+	if token == nil {
+		FakeConnectUserForLoadTest(userID)
+		return
+	}
+}
+
+func FakeConnectUsersIfNeeded(userIDs []string, connectedUsersAllowed int) {
 	connectedUsers, err := Settings.store.GetConnectedUsersCount()
 	if err != nil {
-		Settings.api.LogWarn("Unable to connect users during setup load test", "error", err)
 		return
 	}
 
-	if connectedUsers >= int64(connectedUsersAllowed) {
-		Settings.api.LogWarn("Setup users during load test: Max allowed connected users already reached", "error", err)
-		return
+	allowed := int64(connectedUsersAllowed)
+	for i, userID := range userIDs {
+		if (connectedUsers + int64(i)) < allowed {
+			token, _ := Settings.store.GetTokenForMattermostUser(userID)
+			if token == nil {
+				FakeConnectUserForLoadTest(userID)
+			}
+		}
 	}
+}
 
-	mmUsers, appErr := Settings.api.GetUsers(&model.UserGetOptions{Page: 0, PerPage: connectedUsersAllowed, Sort: "username"})
-	if appErr != nil {
-		Settings.api.LogWarn("Unable to get MM users during setup load test", "error", appErr.Error())
-		return
-	}
-
+func FakeConnectSysadminAndBot(connectedUsersAllowed int) {
+	mmUsersIDs := []string{}
 	mmAdmin, appErr := Settings.api.GetUserByUsername("sysadmin")
 	if appErr != nil {
 		Settings.api.LogWarn("Unable to get MM sysadmin during setup load test", "error", appErr.Error())
 		return
 	}
-
-	id := mmAdmin.Id
-
-	contains := func(u *model.User) bool {
-		return u.Id == id
-	}
-
-	if ok := slices.ContainsFunc(mmUsers, contains); !ok {
-		mmUsers = slices.Replace(mmUsers, 0, 1, mmAdmin)
-	}
+	mmUsersIDs = append(mmUsersIDs, mmAdmin.Id)
 
 	msBot, appErr := Settings.api.GetUserByUsername("msteams")
 	if appErr != nil {
@@ -180,16 +181,6 @@ func FakeConnectUsersForLoadTest(connectedUsersAllowed int) {
 		return
 	}
 
-	id = msBot.Id
-	if ok := slices.ContainsFunc(mmUsers, contains); !ok {
-		mmUsers = slices.Replace(mmUsers, 1, 2, mmAdmin)
-	}
-
-	for _, mmUser := range mmUsers {
-		err := FakeConnectUserForLoadTest(mmUser.Id)
-		if err != nil {
-			Settings.api.LogWarn("Unable to store Mattermost user ID vs Teams user ID in fake connect for load test", "user_id", mmUser.Id, "error", err.Error())
-			continue
-		}
-	}
+	mmUsersIDs = append(mmUsersIDs, msBot.Id)
+	FakeConnectUsersIfNeeded(mmUsersIDs, connectedUsersAllowed)
 }

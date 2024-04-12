@@ -1,6 +1,8 @@
 package loadtest
 
 import (
+	"sync"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	plugin "github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -12,8 +14,6 @@ type LoadTestUserTokenData struct {
 	TeamsUserId string
 }
 
-type LoadTestUserTokenMap map[string]LoadTestUserTokenData
-
 type LoadTestSettings struct {
 	api                   plugin.API
 	store                 store.Store
@@ -24,26 +24,26 @@ type LoadTestSettings struct {
 	baseUrl               string
 	tenantId              string
 	Enabled               bool
-	userTokenMap          LoadTestUserTokenMap
+	userTokenMap          sync.Map
 	maxIncomingPosts      int
 	minIncomingPosts      int
 	simulateIncomingPosts bool
 }
 
 func (s *LoadTestSettings) AddTokenToMap(accessToken, mmUserId, msUserId string) {
-	s.userTokenMap[accessToken] = LoadTestUserTokenData{
+	s.userTokenMap.Store(accessToken, LoadTestUserTokenData{
 		AccessToken: accessToken,
 		UserId:      mmUserId,
 		TeamsUserId: msUserId,
-	}
+	})
 }
 
 func (s *LoadTestSettings) MapHasToken(accessToken string) bool {
-	_, ok := s.userTokenMap[accessToken]
+	_, ok := s.userTokenMap.Load(accessToken)
 	return ok
 }
 
 func (s *LoadTestSettings) GetUserTokenData(accessToken string) (LoadTestUserTokenData, bool) {
-	data, ok := s.userTokenMap[accessToken]
-	return data, ok
+	data, ok := s.userTokenMap.Load(accessToken)
+	return data.(LoadTestUserTokenData), ok
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"gitlab.com/golang-commonmark/markdown"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/loadtest"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -133,6 +134,10 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
+		}
+
+		if p.getConfiguration().RunAsLoadTest && len(dstUsers) > 0 {
+			loadtest.FakeConnectUsersIfNeeded(dstUsers, p.getConfiguration().ConnectedUsersAllowed)
 		}
 
 		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
