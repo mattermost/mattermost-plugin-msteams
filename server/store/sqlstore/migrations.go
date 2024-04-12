@@ -8,7 +8,7 @@ import (
 )
 
 func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
-	_, err := s.getQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
+	_, err := s.getMasterQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
 		sq.NotEq{"RemoteID": nil},
 		sq.NotEq{"RemoteID": ""},
 		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
@@ -18,7 +18,7 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 }
 
 func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
-	_, err := s.getQueryBuilder().
+	_, err := s.getMasterQueryBuilder().
 		Update("Users").
 		Set("EmailVerified", true).
 		Where(sq.And{
@@ -36,7 +36,7 @@ const (
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
 	// get all users with duplicate msteamsuserid
-	rows, err := s.getQueryBuilder().Select(
+	rows, err := s.getMasterQueryBuilder().Select(
 		"mmuserid",
 		"msteamsuserid",
 		"remoteid",
@@ -102,7 +102,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	}
 
 	s.api.LogInfo("Deleting duplicates")
-	_, err = s.getQueryBuilder().Delete(usersTableName).
+	_, err = s.getMasterQueryBuilder().Delete(usersTableName).
 		Where(orCond).
 		Exec()
 

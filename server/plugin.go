@@ -525,8 +525,14 @@ func (p *Plugin) onActivate() error {
 			return dbErr
 		}
 
+		replica, repErr := p.apiClient.Store.GetReplicaDB()
+		if repErr != nil {
+			return repErr
+		}
+
 		store := sqlstore.New(
 			db,
+			replica,
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },

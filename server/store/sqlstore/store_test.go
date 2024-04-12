@@ -214,9 +214,9 @@ func TestListChannelLinksWithNames(t *testing.T) {
 		Creator:               "mockCreator",
 	}
 
-	_, err := store.getQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
 	assert.Nil(err)
-	_, err = store.getQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
+	_, err = store.getMasterQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
 	assert.Nil(err)
 
 	links, err := store.ListChannelLinksWithNames()
@@ -947,7 +947,7 @@ func TestListConnectedUsers(t *testing.T) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	_, err := store.getQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
 	assert.Nil(err)
 
 	resp, getErr := store.GetConnectedUsers(0, 100)
@@ -1005,7 +1005,7 @@ func TestStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T) {
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
+	_, err := store.getMasterQueryBuilder().Delete(whitelistedUsersTableName).Exec()
 	assert.Nil(err)
 }
 
@@ -1038,7 +1038,7 @@ func TestPrefillWhitelist(t *testing.T) {
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 
-	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
+	_, err := store.getMasterQueryBuilder().Delete(whitelistedUsersTableName).Exec()
 	assert.Nil(err)
 
 	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
