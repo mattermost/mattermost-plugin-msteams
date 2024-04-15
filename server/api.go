@@ -468,19 +468,28 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	a.p.connectClusterMutex.Lock()
 	defer a.p.connectClusterMutex.Unlock()
 
-	canConnect, err := a.p.CanConnect(mmUserID)
+	hasRightToConnect, err := a.p.UserHasRightToConnect(mmUserID)
 	if err != nil {
-		a.p.API.LogWarn("Unable to check permission to connect", "error", err.Error())
+		a.p.API.LogWarn("Unable to check if user has the right to connect", "error", err.Error())
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	if !canConnect {
-		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
+	if !hasRightToConnect {
+		canOpenlyConnect, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
+		if openConnectErr != nil {
+			a.p.API.LogWarn("Unable to check if user can openly connect", "error", openConnectErr.Error())
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
 		}
-		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
-		return
+
+		if !canOpenlyConnect {
+			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+				a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
+			}
+			http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
@@ -494,7 +503,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = a.p.store.DeleteUserFromWhitelist(mmUserID); err != nil {
-		a.p.API.LogWarn("Unable to clear user from whitelist", "user_id", mmUserID, "error", err.Error())
+		a.p.API.LogWarn("Unable to remove user from whitelist", "user_id", mmUserID, "error", err.Error())
 	}
 
 	w.Header().Add("Content-Type", "text/html")

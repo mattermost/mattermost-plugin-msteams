@@ -142,6 +142,27 @@
                 "default": 20
             },
             {
+                "key": "newConnections",
+                "display_name": "New Connections",
+                "type": "dropdown",
+                "help_text": "When enabled, any user who has not connected will be allowed to connect their account. When set to Rollout, the bot will incrementally send connection invite direct messages to users as they login or become active; as invited users connect, spaces in the invite pool will open up and more invites will be sent out. \nRollout (open) — all users may connect and receive invites. \nRollout (open-restricted) — all users may connect, but only whitelisted users may receive invites.",
+                "default": "enabled",
+                "options": [
+					{
+                        "display_name": "Enabled: allow all users to connect, and do not send connection invites",
+                        "value": "enabled"
+                    },
+                    {
+                        "display_name": "Rollout (open): allow all users to connect, and send connection invites to any user as they login or become active",
+                        "value": "rolloutOpen"
+                    },
+					{
+                        "display_name": "Rollout (open-restricted): allow all users to connect, and send connection invites to whitelisted users as they login or become active",
+                        "value": "rolloutOpenRestricted"
+                    }
+                ]
+            },
+			{
                 "key": "connectedUsersAllowed",
                 "display_name": "Max Connected Users",
                 "type": "number",
@@ -149,31 +170,10 @@
                 "default": 1000
             },
             {
-                "key": "connectedUsersInvites",
-                "display_name": "Connection Invites",
-                "type": "dropdown",
-                "help_text": "When enabled, the bot will send direct messages inviting users to connect their account. \nRollout will incrementally send invites to users as they login or become active, up to the maximum pending specified below. As invited users connect, spaces in the invite pool will open up and more invites will be sent out.",
-                "default": "disabled",
-                "options": [
-                    {
-                        "display_name": "Disabled",
-                        "value": "disabled"
-                    },
-                    {
-                        "display_name": "Rollout — Unrestricted: send connection invites to any user as they login or become active",
-                        "value": "rollout"
-                    },
-                    {
-                        "display_name": "Rollout — Restricted: send connection invites to whitelisted users as they login or become active",
-                        "value": "rolloutRestricted"
-                    }
-                ]
-            },
-            {
                 "key": "connectedUsersInvitePoolSize",
                 "display_name": "Rollout Max. Pending Invitations",
                 "type": "number",
-                "help_text": "Rollout invite pool size: the maximum number of connection invites that may be pending at a given time.",
+                "help_text": "Set the maximum number of connection invites that may be pending at a given time during Rollout. As invited users connect, spaces in the invite pool will open up and more invites will be sent out as configured above.",
                 "default": 10
             },
             {

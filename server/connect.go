@@ -152,33 +152,33 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nConnected, nil
 }
 
-func (p *Plugin) CanConnect(mmUserID string) (bool, error) {
+func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 	hasConnected, err := p.store.UserHasConnected(mmUserID)
 	if err != nil {
-		p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error in checking if user has connected or not")
 	}
 
 	invitedUser, err := p.store.GetInvitedUser(mmUserID)
 	if err != nil {
-		p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Error in getting user invite")
 	}
 
 	if hasConnected || invitedUser != nil {
 		return true, nil
 	}
 
+	return false, nil
+}
+
+func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, error) {
 	numHasConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		p.API.LogWarn("Unable to get has connected count", "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Unable to get has connected count")
 	}
 
 	numInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		p.API.LogWarn("Unable to get invited count", "error", err.Error())
-		return false, err
+		return false, errors.Wrapf(err, "Unable to get invited count")
 	}
 
 	return (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed, nil

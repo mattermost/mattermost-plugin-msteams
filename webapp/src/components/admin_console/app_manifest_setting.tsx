@@ -8,34 +8,28 @@ type Props = {
     disabled: boolean;
 };
 
-export default class MSTeamsAppManifestSetting extends React.PureComponent<Props> {
-    handleClick = () => {
-        window.location.href = '/plugins/com.mattermost.msteams-sync/iframe-manifest';
-    };
-
-    render() {
-        return (
-            <div>
-                <p>
-                    {'To embed Mattermost within Microsoft Teams, an application manifest can be downloaded and installed as a MS Teams app. '}
-                    {'Clicking the Download button below will generate an application manifest that will embed this instance of Mattermost. '}
-                </p>
-                <p>
-                    {'Mattermost embedded in MS Teams can be used together with MSTeams Sync, or independently.'}
-                </p>
-                <a
-                    href='/plugins/com.mattermost.msteams-sync/iframe-manifest'
-                    className='btn btn-primary'
-                    rel='noreferrer'
-                    target='_self'
-                    style={styles.buttonBorder}
-                    download={true}
-                >
-                    {this.props.label}
-                </a>
-            </div>
-        );
-    }
+export default function MSTeamsAppManifestSetting(props: Props) {
+    return (
+        <div>
+            <p>
+                {'To embed Mattermost within Microsoft Teams, an application manifest can be downloaded and installed as a MS Teams app. '}
+                {'Clicking the Download button below will generate an application manifest that will embed this instance of Mattermost. '}
+            </p>
+            <p>
+                {'Mattermost embedded in MS Teams can be used together with MSTeams Sync, or independently.'}
+            </p>
+            <a
+                href='/plugins/com.mattermost.msteams-sync/iframe-manifest'
+                className='btn btn-primary'
+                rel='noreferrer'
+                target='_self'
+                style={styles.buttonBorder}
+                download={true}
+            >
+                {props.label}
+            </a>
+        </div>
+    );
 }
 
 const styles = {

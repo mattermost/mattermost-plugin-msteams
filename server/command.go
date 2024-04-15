@@ -457,20 +457,21 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	genericErrorMessage := "Error in trying to connect the account, please try again."
-	hasConnected, err := p.store.UserHasConnected(args.UserId)
+
+	hasRightToConnect, err := p.UserHasRightToConnect(args.UserId)
 	if err != nil {
-		p.API.LogWarn("Error in checking if a user is present in whitelist", "user_id", args.UserId, "error", err.Error())
+		p.API.LogWarn("Error in checking if the user has the right to connect", "user_id", args.UserId, "error", err.Error())
 		return p.cmdError(args, genericErrorMessage)
 	}
 
-	if !hasConnected {
-		whitelistSize, err := p.store.GetHasConnectedCount()
-		if err != nil {
-			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
+	if !hasRightToConnect {
+		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(args.UserId)
+		if openConnectErr != nil {
+			p.API.LogWarn("Error in checking if the user can openly connect", "user_id", args.UserId, "error", openConnectErr.Error())
 			return p.cmdError(args, genericErrorMessage)
 		}
 
-		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
+		if !canOpenlyConnect {
 			return p.cmdError(args, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
 		}
 	}
@@ -489,6 +490,25 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
+
+	hasRightToConnect, err := p.UserHasRightToConnect(p.userID)
+	if err != nil {
+		p.API.LogWarn("Error in checking if the bot user has the right to connect", "bot_user_id", p.userID, "error", err.Error())
+		return p.cmdError(args, genericErrorMessage)
+	}
+
+	if !hasRightToConnect {
+		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(p.userID)
+		if openConnectErr != nil {
+			p.API.LogWarn("Error in checking if the bot user can openly connect", "bot_user_id", p.userID, "error", openConnectErr.Error())
+			return p.cmdError(args, genericErrorMessage)
+		}
+
+		if !canOpenlyConnect {
+			return p.cmdError(args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
+		}
+	}
+
 	hasConnected, err := p.store.UserHasConnected(p.userID)
 	if err != nil {
 		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
