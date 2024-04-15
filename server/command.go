@@ -509,24 +509,6 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		}
 	}
 
-	hasConnected, err := p.store.UserHasConnected(p.userID)
-	if err != nil {
-		p.API.LogWarn("Error in checking if the bot user is present in whitelist", "bot_user_id", p.userID, "error", err.Error())
-		return p.cmdError(args, genericErrorMessage)
-	}
-
-	if !hasConnected {
-		whitelistSize, err := p.store.GetHasConnectedCount()
-		if err != nil {
-			p.API.LogWarn("Error in getting the size of whitelist", "error", err.Error())
-			return p.cmdError(args, genericErrorMessage)
-		}
-
-		if whitelistSize >= p.getConfiguration().ConnectedUsersAllowed {
-			return p.cmdError(args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
-		}
-	}
-
 	connectURL := p.GetURL() + "/connect?isBot"
 	return p.cmdSuccess(args, fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL))
 }
