@@ -26,7 +26,6 @@ import (
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	if p.IsRemoteUser(user) && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
 		*user.RemoteId = ""
-		user.EmailVerified = true
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
 			p.API.LogWarn("Unable to promote synthetic user", "user_id", user.Id, "error", appErr.Error())
 			return "Unable to promote synthetic user"
@@ -172,6 +171,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
@@ -213,6 +213,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
