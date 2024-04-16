@@ -142,8 +142,8 @@
                 "default": 20
             },
             {
-                "key": "newConnections",
-                "display_name": "New Connections",
+                "key": "newUserConnections",
+                "display_name": "New User Connections",
                 "type": "dropdown",
                 "help_text": "When enabled, any user who has not connected will be allowed to connect their account. When set to Rollout, the bot will incrementally send connection invite direct messages to users as they login or become active; as invited users connect, spaces in the invite pool will open up and more invites will be sent out. \nRollout (open) — all users may connect and receive invites. \nRollout (open-restricted) — all users may connect, but only whitelisted users may receive invites.",
                 "default": "enabled",

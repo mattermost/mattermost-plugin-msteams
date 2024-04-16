@@ -29,7 +29,7 @@ func (p *Plugin) botSendDirectMessage(userID, message string) error {
 }
 
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
-	if p.getConfiguration().ConnectedUsersInvites == NewConnectionsEnabled {
+	if p.getConfiguration().NewUserConnections == NewConnectionsEnabled {
 		// new connections allowed, but invites disabled
 		return false, nil
 	}
@@ -39,7 +39,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user")
 	}
 
-	if p.getConfiguration().ConnectedUsersInvites == NewConnectionsRolloutOpenRestricted {
+	if p.getConfiguration().NewUserConnections == NewConnectionsRolloutOpenRestricted {
 		// new connections allowed, but invites restricted to whitelist
 		isWhitelisted, whitelistErr := p.store.IsUserWhitelisted(userID)
 		if whitelistErr != nil {
