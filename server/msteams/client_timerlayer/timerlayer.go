@@ -51,10 +51,10 @@ func (c *ClientTimerLayer) CreateOrGetChatForUsers(usersIDs []string) (*clientmo
 	return result, err
 }
 
-func (c *ClientTimerLayer) DeleteChatMessage(chatID string, msgID string) error {
+func (c *ClientTimerLayer) DeleteChatMessage(userID string, chatID string, msgID string) error {
 	start := time.Now()
 
-	err := c.Client.DeleteChatMessage(chatID, msgID)
+	err := c.Client.DeleteChatMessage(userID, chatID, msgID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

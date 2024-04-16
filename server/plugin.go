@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
@@ -180,10 +181,12 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		p.API.LogWarn("Unable to get direct channel for send message to user", "user_id", userID, "error", appErr.Error())
 		return
 	}
+
+	connectURL := p.GetURL() + "/connect"
 	_, appErr = p.API.CreatePost(&model.Post{
 		UserId:    p.GetBotUserID(),
 		ChannelId: channel.Id,
-		Message:   "Your connection to Microsoft Teams has been lost. Please reconnect using `/msteams connect` slash command in any Mattermost channel.",
+		Message:   "Your connection to Microsoft Teams has been lost. " + fmt.Sprintf("[Click here to reconnect your account](%s).", connectURL),
 	})
 	if appErr != nil {
 		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
@@ -310,20 +313,22 @@ func (p *Plugin) start(isRestart bool) {
 		p.syncUserJob = job
 	}
 
-	checkCredentialsJob, err := cluster.Schedule(
-		p.API,
-		checkCredentialsJobName,
-		cluster.MakeWaitForRoundedInterval(24*time.Hour),
-		p.checkCredentials,
-	)
-	if err != nil {
-		p.API.LogError("error in scheduling the check credentials job", "error", err)
-		return
-	}
-	p.checkCredentialsJob = checkCredentialsJob
+	if !p.getConfiguration().DisableCheckCredentials {
+		checkCredentialsJob, jobErr := cluster.Schedule(
+			p.API,
+			checkCredentialsJobName,
+			cluster.MakeWaitForRoundedInterval(24*time.Hour),
+			p.checkCredentials,
+		)
+		if jobErr != nil {
+			p.API.LogError("error in scheduling the check credentials job", "error", jobErr)
+			return
+		}
+		p.checkCredentialsJob = checkCredentialsJob
 
-	// Run the job above right away so we immediately populate metrics.
-	p.checkCredentials()
+		// Run the job above right away so we immediately populate metrics.
+		p.checkCredentials()
+	}
 
 	// Unregister and re-register slash command to reflect any configuration changes.
 	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
@@ -387,6 +392,13 @@ func (p *Plugin) stop(isRestart bool) {
 	}
 
 	p.stopSyncUsersJob()
+
+	if p.checkCredentialsJob != nil {
+		if err := p.checkCredentialsJob.Close(); err != nil {
+			p.API.LogError("Failed to close background check credentials job", "error", err)
+		}
+		p.checkCredentialsJob = nil
+	}
 
 	if !isRestart && p.metricsJob != nil {
 		if err := p.metricsJob.Close(); err != nil {
@@ -477,7 +489,7 @@ func (p *Plugin) onActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/icon.png"))
+	}, pluginapi.ProfileImageBytes(assets.Icon))
 	if err != nil {
 		return err
 	}
@@ -486,7 +498,7 @@ func (p *Plugin) onActivate() error {
 		Displayname:  pluginID,
 		PluginID:     pluginID,
 		CreatorID:    p.userID,
-		AutoShareDMs: true,
+		AutoShareDMs: false,
 		AutoInvited:  true,
 	})
 	if err != nil {
@@ -615,19 +627,20 @@ func (p *Plugin) syncUsers() {
 	done := p.GetMetrics().ObserveWorker(metrics.WorkerSyncUsers)
 	defer done()
 
+	// Get the users registered in MS Teams
 	msUsers, err := p.GetClientForApp().ListUsers()
 	if err != nil {
 		p.API.LogWarn("Unable to list MS Teams users during sync user job", "error", err.Error())
 		return
 	}
 
-	p.GetMetrics().ObserveUpstreamUsers(int64(len(msUsers)))
 	mmUsers, appErr := p.API.GetUsers(&model.UserGetOptions{Page: 0, PerPage: math.MaxInt32})
 	if appErr != nil {
 		p.API.LogWarn("Unable to get MM users during sync user job", "error", appErr.Error())
 		return
 	}
 
+	// Map MM users with MS Teams users
 	mmUsersMap := make(map[string]*model.User, len(mmUsers))
 	for _, u := range mmUsers {
 		mmUsersMap[u.Email] = u
@@ -635,14 +648,23 @@ func (p *Plugin) syncUsers() {
 
 	configuration := p.getConfiguration()
 	syncGuestUsers := configuration.SyncGuestUsers
+	var activeMSTeamsUsersCount int64
 	for _, msUser := range msUsers {
+		if msUser.IsAccountEnabled {
+			activeMSTeamsUsersCount++
+		}
+
 		userSuffixID := 1
+
+		// The email field is mandatory in MM, if there is no email we skip the user
 		if msUser.Mail == "" {
 			continue
 		}
 
+		// Determine if the user is already present
 		mmUser, isUserPresent := mmUsersMap[msUser.Mail]
 
+		// Set the authData if promoting syntetic users
 		authData := ""
 		if configuration.AutomaticallyPromoteSyntheticUsers {
 			switch configuration.SyntheticUserAuthData {
@@ -654,18 +676,32 @@ func (p *Plugin) syncUsers() {
 				authData = msUser.UserPrincipalName
 			}
 		}
-		if isUserPresent {
-			if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
-				if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
-					p.API.LogWarn("Unable to store Mattermost user ID vs Teams user ID in sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-				}
-			}
 
+		username := "msteams_" + slug.Make(msUser.DisplayName)
+		if isUserPresent {
+			// Update the user if needed
 			if p.IsRemoteUser(mmUser) {
+				if !syncGuestUsers && msUser.Type == msteamsUserTypeGuest {
+					if mmUser.DeleteAt == 0 {
+						// if the user is a guest and should not sync, deactivate it
+						p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
+						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
+							p.API.LogWarn("Unable to deactivate the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						}
+					}
+					continue
+				}
+
+				if teamsUserID, _ := p.store.MattermostToTeamsUserID(mmUser.Id); teamsUserID == "" {
+					if err = p.store.SetUserInfo(mmUser.Id, msUser.ID, nil); err != nil {
+						p.API.LogWarn("Unable to store Mattermost user ID vs Teams user ID in sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+					}
+				}
+
 				if msUser.IsAccountEnabled {
 					// Activate the deactivated Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt != 0 {
-						p.API.LogInfo("Activating the inactive user", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
+						p.API.LogInfo("Activating the inactive user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "type", msUser.Type)
 						if err := p.API.UpdateUserActive(mmUser.Id, true); err != nil {
 							p.API.LogWarn("Unable to activate the user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -673,7 +709,7 @@ func (p *Plugin) syncUsers() {
 				} else {
 					// Deactivate the active Mattermost user corresponding to the MS Teams user.
 					if mmUser.DeleteAt == 0 {
-						p.API.LogInfo("Deactivating the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
+						p.API.LogInfo("Deactivating the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "type", msUser.Type)
 						if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
 							p.API.LogWarn("Unable to deactivate the Mattermost user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 						}
@@ -688,6 +724,7 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
+				// Update AuthService/AuthData if it changed
 				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
 					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
 					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
@@ -697,39 +734,63 @@ func (p *Plugin) syncUsers() {
 						p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 					}
 				}
-			}
-		}
 
-		if msUser.Type == msteamsUserTypeGuest {
-			// Check if syncing of MS Teams guest users is disabled.
-			if !syncGuestUsers {
-				if isUserPresent && p.IsRemoteUser(mmUser) && mmUser.DeleteAt == 0 {
-					// Deactivate the Mattermost user corresponding to the MS Teams guest user.
-					p.API.LogInfo("Deactivating the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
-					if err := p.API.UpdateUserActive(mmUser.Id, false); err != nil {
-						p.API.LogWarn("Unable to deactivate the guest user account", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-					}
+				// Update the user profile if needed
+				shouldUpdate := false
+				if !strings.HasPrefix(mmUser.Username, "msteams_") && username != mmUser.Username {
+					mmUser.Username = username
+					shouldUpdate = true
 				}
 
-				continue
-			}
-		}
+				if mmUser.FirstName != msUser.DisplayName {
+					mmUser.FirstName = msUser.DisplayName
+					shouldUpdate = true
+				}
 
-		username := "msteams_" + slug.Make(msUser.DisplayName)
-		if !isUserPresent {
+				if shouldUpdate {
+					for {
+						p.API.LogInfo("Updating user profile", "user_id", mmUser.Id, "teams_user_id", msUser.ID)
+						_, err := p.API.UpdateUser(mmUser)
+						if err != nil {
+							if err.Id == "app.user.save.username_exists.app_error" {
+								// When there is already a user with the same username, start using the suffix
+								mmUser.Username = username + "-" + fmt.Sprint(userSuffixID)
+								userSuffixID++
+								continue
+							}
+
+							p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+							break
+						}
+
+						break
+					}
+				}
+			}
+		} else if !msUser.IsAccountEnabled {
+			continue
+		} else {
+			// If we are not sync'ing guests, but the user is a MS Team guest, deactivate it from the get go
+			deleteAt := int64(0)
+			if !syncGuestUsers && msUser.Type == msteamsUserTypeGuest {
+				deleteAt = model.GetMillis()
+			}
+
 			newMMUser := &model.User{
-				Email:     msUser.Mail,
-				RemoteId:  &p.remoteID,
-				FirstName: msUser.DisplayName,
-				Username:  username,
+				Email:         msUser.Mail,
+				RemoteId:      &p.remoteID,
+				FirstName:     msUser.DisplayName,
+				Username:      username,
+				EmailVerified: true,
+				DeleteAt:      deleteAt,
 			}
 
 			if configuration.AutomaticallyPromoteSyntheticUsers && authData != "" {
-				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
+				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService, "as_guest", msUser.Type == msteamsUserTypeGuest)
 				newMMUser.AuthService = configuration.SyntheticUserAuthService
 				newMMUser.AuthData = &authData
 			} else {
-				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID)
+				p.API.LogInfo("Creating new synthetic user", "teams_user_id", msUser.ID, "as_guest", msUser.Type == msteamsUserTypeGuest)
 				newMMUser.Password = p.GenerateRandomPassword()
 			}
 
@@ -772,37 +833,9 @@ func (p *Plugin) syncUsers() {
 			if err = p.store.SetUserInfo(newUser.Id, msUser.ID, nil); err != nil {
 				p.API.LogWarn("Unable to set user info during sync user job", "user_id", newUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
 			}
-		} else if p.IsRemoteUser(mmUser) {
-			shouldUpdate := false
-			if !strings.HasPrefix(mmUser.Username, "msteams_") && username != mmUser.Username {
-				mmUser.Username = username
-				shouldUpdate = true
-			}
-
-			if mmUser.FirstName != msUser.DisplayName {
-				mmUser.FirstName = msUser.DisplayName
-				shouldUpdate = true
-			}
-
-			if shouldUpdate {
-				for {
-					_, err := p.API.UpdateUser(mmUser)
-					if err != nil {
-						if err.Id == "app.user.save.username_exists.app_error" {
-							mmUser.Username = username + "-" + fmt.Sprint(userSuffixID)
-							userSuffixID++
-							continue
-						}
-
-						p.API.LogWarn("Unable to update user during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-						break
-					}
-
-					break
-				}
-			}
 		}
 	}
+	p.GetMetrics().ObserveUpstreamUsers(activeMSTeamsUsersCount)
 }
 
 func generateSecret() (string, error) {
@@ -846,6 +879,10 @@ func getRandomString(characterSet string, length int) string {
 // IsRemoteUser returns true if the given user is a remote user managed by this plugin.
 func (p *Plugin) IsRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId == p.remoteID
+}
+
+func (p *Plugin) GetRemoteID() string {
+	return p.remoteID
 }
 
 func (p *Plugin) updateMetrics() {

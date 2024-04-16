@@ -38,6 +38,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 			EncryptionKey:     "encryptionkey",
 			CertificatePublic: "",
 			CertificateKey:    "",
+			DisableSyncMsg:    true,
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
@@ -68,6 +69,9 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("Conn", true).Return("connection-id", nil)
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
 	plugin.API.(*plugintest.API).On("EnsureBotUser", bot).Return("bot-user-id", nil).Times(1)
+	plugin.API.(*plugintest.API).On("SetProfileImage", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
+	plugin.API.(*plugintest.API).On("RegisterPluginForSharedChannels", mock.Anything).Return("remote-id", nil).Times(1)
+	plugin.API.(*plugintest.API).On("UnregisterPluginForSharedChannels", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVList", 0, 1000000000).Return([]string{}, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte{0x1}, mock.Anything).Return(true, nil).Maybe()
@@ -257,6 +261,7 @@ func TestSyncUsers(t *testing.T) {
 					{
 						ID:          testutils.GetTeamsUserID(),
 						DisplayName: "mockDisplayName",
+						Mail:        "mockEmail@msteams.com",
 					},
 				}, nil).Times(1)
 			},
@@ -280,8 +285,10 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]clientmodels.User{
 					{
-						ID:          testutils.GetTeamsUserID(),
-						DisplayName: "mockDisplayName",
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
 					},
 				}, nil).Times(1)
 			},
@@ -302,6 +309,7 @@ func TestSyncUsers(t *testing.T) {
 				api.On("CreateUser", mock.AnythingOfType("*model.User")).Return(&model.User{
 					Id: testutils.GetID(),
 				}, nil).Times(1)
+				api.On("UpdatePreferencesForUser", mock.AnythingOfType("string"), mock.AnythingOfType("[]model.Preference")).Return(nil).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(testutils.GetInternalServerAppError("unable to store the user info")).Times(1)
@@ -309,8 +317,82 @@ func TestSyncUsers(t *testing.T) {
 			SetupClient: func(client *mocks.Client) {
 				client.On("ListUsers").Return([]clientmodels.User{
 					{
-						ID:          testutils.GetTeamsUserID(),
-						DisplayName: "mockDisplayName",
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
+					},
+				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
+			},
+		},
+		{
+			Name: "SyncUsers: create new user",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUsers", &model.UserGetOptions{
+					Page:    0,
+					PerPage: math.MaxInt32,
+				}).Return([]*model.User{
+					testutils.GetUser(model.SystemAdminRoleId, "test@test.com"),
+				}, nil).Times(1)
+				api.On("CreateUser", mock.MatchedBy(func(u *model.User) bool {
+					return u.EmailVerified == true &&
+						u.FirstName == "mockDisplayName" &&
+						u.Username == "msteams_mockdisplayname"
+				})).Return(&model.User{
+					Id: testutils.GetID(),
+				}, nil).Times(1)
+				api.On("UpdatePreferencesForUser", mock.AnythingOfType("string"), mock.AnythingOfType("[]model.Preference")).Return(nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(nil).Times(1)
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("ListUsers").Return([]clientmodels.User{
+					{
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "mockEmail@msteams.com",
+						IsAccountEnabled: true,
+					},
+				}, nil).Times(1)
+			},
+			SetupMetrics: func(metrics *metricsmocks.Metrics) {
+				metrics.On("ObserveWorker", "sync_users").Times(1).Return(func() {})
+				metrics.On("ObserveUpstreamUsers", int64(1)).Times(1)
+			},
+		},
+		{
+			Name: "SyncUsers: update existing user",
+			SetupAPI: func(api *plugintest.API) {
+				api.On("GetUsers", &model.UserGetOptions{
+					Page:    0,
+					PerPage: math.MaxInt32,
+				}).Return([]*model.User{
+					testutils.GetRemoteUser(model.SystemAdminRoleId, "test@test.com", "remote-id"),
+				}, nil).Times(1)
+				api.On("GetUser", testutils.GetUserID()).Return(testutils.GetRemoteUser(model.SystemAdminRoleId, "test@test.com", "remote-id"), nil).Once()
+				api.On("UpdateUser", mock.MatchedBy(func(u *model.User) bool {
+					return u.FirstName == "mockDisplayName" &&
+						u.Username == "msteams_mockdisplayname"
+				})).Return(&model.User{
+					Id: testutils.GetID(),
+				}, nil).Times(1)
+			},
+			SetupStore: func(store *storemocks.Store) {
+				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetTeamsUserID(), nil).Times(1)
+				store.On("SetUserInfo", testutils.GetID(), testutils.GetTeamsUserID(), mock.AnythingOfType("*oauth2.Token")).Return(nil).Times(1)
+			},
+			SetupClient: func(client *mocks.Client) {
+				client.On("ListUsers").Return([]clientmodels.User{
+					{
+						ID:               testutils.GetTeamsUserID(),
+						DisplayName:      "mockDisplayName",
+						Mail:             "test@test.com",
+						IsAccountEnabled: true,
 					},
 				}, nil).Times(1)
 			},

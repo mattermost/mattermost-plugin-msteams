@@ -13,7 +13,7 @@ import (
 
 const hostedContentsStr = "hostedContents"
 
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, isUpdatedActivity bool) (*model.Post, bool, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []clientmodels.Attachment
@@ -30,7 +30,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 		}
 	}
 
-	newText, attachments, parentID, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
+	newText, attachments, parentID, skippedFileAttachments, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, isUpdatedActivity)
 	text = newText
 	if parentID != "" {
 		rootID = parentID
@@ -49,7 +49,7 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 	if senderID == ah.plugin.GetBotUserID() {
 		post.AddProp("from_webhook", "true")
 	}
-	return post, errorFound
+	return post, skippedFileAttachments, errorFound
 }
 
 func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {

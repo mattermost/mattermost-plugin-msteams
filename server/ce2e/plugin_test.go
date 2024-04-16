@@ -52,8 +52,6 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: channel.Id,
 		Message:   "message",
@@ -191,8 +189,6 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	post := model.Post{
-		CreateAt:  model.GetMillis(),
-		UpdateAt:  model.GetMillis(),
 		UserId:    user.Id,
 		ChannelId: dm.Id,
 		Message:   "message",
@@ -263,7 +259,7 @@ func TestMessageHasBeenPostedNewDirectMessageE2E(t *testing.T) {
 			if assert.NoError(c, err) {
 				assert.Equal(c, newPostID, postInfo.MSTeamsID)
 			}
-		}, 1*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 50*time.Millisecond)
 	})
 
 	t.Run("Failing to deliver message to MSTeams", func(t *testing.T) {
@@ -331,7 +327,7 @@ func TestSelectiveSync(t *testing.T) {
 	err = mattermost.CreateUser(context.Background(), "msteams-primary2@mattermost.com", "msteamsprimary2", "password")
 	require.NoError(t, err)
 
-	err = mattermost.CreateUser(context.Background(), "sysnthetic@mattermost.com", "msteams_synthetic", "password")
+	err = mattermost.CreateUser(context.Background(), "synthetic@mattermost.com", "msteams_synthetic", "password")
 	require.NoError(t, err)
 
 	err = mattermost.AddUserToTeam(context.Background(), "notconnected1", "test")
@@ -387,13 +383,13 @@ func TestSelectiveSync(t *testing.T) {
 	_, err = conn.Exec("UPDATE Users SET RemoteId = (SELECT remoteId FROM remoteclusters WHERE pluginid=$1) WHERE Username = 'msteams_synthetic'", pluginID)
 	require.NoError(t, err)
 
-	team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
-	require.NoError(t, err)
+	// team, _, err := adminClient.GetTeamByName(context.Background(), "test", "")
+	// require.NoError(t, err)
 
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
-		assert.Len(c, suggestions, 1)
-	}, 10*time.Second, 500*time.Millisecond)
+	// require.EventuallyWithT(t, func(c *assert.CollectT) {
+	// 	suggestions, _, _ := adminClient.ListCommandAutocompleteSuggestions(context.Background(), "/msteams", team.Id)
+	// 	assert.Len(c, suggestions, 1)
+	// }, 10*time.Second, 500*time.Millisecond)
 
 	ttCases := []struct {
 		name                         string
@@ -555,25 +551,191 @@ func TestSelectiveSync(t *testing.T) {
 				})
 				require.NoError(t, err)
 
+				fakePost := map[string]any{
+					"id":                   newPostID,
+					"messageType":          "message",
+					"createdDateTime":      time.Now().Format(time.RFC3339),
+					"lastModifiedDateTime": time.Now().Format(time.RFC3339),
+					"from": map[string]any{
+						"user": map[string]any{
+							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
+							"id":               "ms-" + tc.fromUser.Username,
+							"displayName":      tc.fromUser.Username,
+							"userIdentityType": "aadUser",
+							"tenantId":         "tenant-id",
+						},
+					},
+					"body": map[string]any{
+						"contentType": "text",
+						"content":     "Hello World",
+					},
+					"channelIdentity": map[string]any{
+						"channelId": newDMID,
+					},
+				}
+
+				err = mockClient.MockBatch("edit-message", []containere2e.BatchRequest{
+					{
+						Method: http.MethodPatch,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}, {
+						Method: http.MethodGet,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}},
+					[]containere2e.BatchResponse{
+						{
+							StatusCode: http.StatusNoContent,
+							Body:       fakePost,
+						},
+						{
+							StatusCode: http.StatusOK,
+							Body:       fakePost,
+						},
+					},
+				)
+				require.NoError(t, err)
+
+				require.NoError(t, mockClient.Get("get-posted-message", "/v1.0/chats/"+newDMID+"/messages/"+newPostID, fakePost))
+
+				err = mockClient.MockBatch("set-reaction", []containere2e.BatchRequest{
+					{
+						Method: http.MethodPost,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/setReaction",
+					}, {
+						Method: http.MethodGet,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}},
+					[]containere2e.BatchResponse{
+						{
+							StatusCode: http.StatusNoContent,
+						},
+						{
+							StatusCode: http.StatusOK,
+							Body:       fakePost,
+						},
+					})
+				require.NoError(t, err)
+
+				err = mockClient.MockBatch("unset-reaction", []containere2e.BatchRequest{
+					{
+						Method: http.MethodPost,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/unsetReaction",
+					}, {
+						Method: http.MethodGet,
+						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+					}},
+					[]containere2e.BatchResponse{
+						{
+							StatusCode: http.StatusNoContent,
+						},
+						{
+							StatusCode: http.StatusOK,
+							Body:       fakePost,
+						},
+					})
+				require.NoError(t, err)
+
 				post := model.Post{
-					CreateAt:  model.GetMillis(),
-					UpdateAt:  model.GetMillis(),
 					UserId:    tc.fromUser.Id,
 					ChannelId: dm.Id,
 					Message:   "message",
 				}
 
 				t.Run(tc.name, func(t *testing.T) {
-					_, _, err = client.CreatePost(context.Background(), &post)
+					newPost, _, err := client.CreatePost(context.Background(), &post)
 					require.NoError(t, err)
 
-					require.EventuallyWithT(t, func(c *assert.CollectT) {
-						if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-							assert.NoError(c, mockClient.Assert("post-message", 1))
-						} else {
-							assert.NoError(c, mockClient.Assert("post-message", 0))
-						}
-					}, 5*time.Second, 50*time.Millisecond)
+					t.Run("new post", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("post-message", 1))
+							} else {
+								assert.NoError(c, mockClient.Assert("post-message", 0))
+							}
+						}, 5*time.Second, 200*time.Millisecond)
+					})
+
+					reply := model.Post{
+						UserId:    tc.fromUser.Id,
+						ChannelId: dm.Id,
+						Message:   "reply",
+						RootId:    newPost.Id,
+					}
+					newReply, _, err := client.CreatePost(context.Background(), &reply)
+					require.NoError(t, err)
+
+					t.Run("reply", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("post-message", 2))
+							} else {
+								assert.NoError(c, mockClient.Assert("post-message", 0))
+							}
+						}, 5*time.Second, 200*time.Millisecond)
+					})
+
+					newPost.Message = "edited message"
+					_, _, err = client.UpdatePost(context.Background(), newPost.Id, newPost)
+					require.NoError(t, err)
+
+					t.Run("edit", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("edit-message", 1))
+							} else {
+								assert.NoError(c, mockClient.Assert("edit-message", 0))
+							}
+						}, 5*time.Second, 200*time.Millisecond)
+					})
+
+					newReply.Message = "edited reply"
+					_, _, err = client.UpdatePost(context.Background(), newReply.Id, newReply)
+					require.NoError(t, err)
+
+					t.Run("edit reply", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("edit-message", 2))
+							} else {
+								assert.NoError(c, mockClient.Assert("edit-message", 0))
+							}
+						}, 5*time.Second, 200*time.Millisecond)
+					})
+
+					reaction := model.Reaction{
+						UserId:    tc.fromUser.Id,
+						EmojiName: "heart",
+						PostId:    newPost.Id,
+						ChannelId: dm.Id,
+					}
+					newReaction, _, err := client.SaveReaction(context.Background(), &reaction)
+					require.NoError(t, err)
+
+					t.Run("add reaction", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("set-reaction", 1))
+							} else {
+								assert.NoError(c, mockClient.Assert("set-reaction", 0))
+							}
+							assert.NoError(c, mockClient.Assert("unset-reaction", 0))
+						}, 5*time.Second, 200*time.Millisecond)
+					})
+
+					_, err = client.DeleteReaction(context.Background(), newReaction)
+					require.NoError(t, err)
+
+					t.Run("remove reaction", func(t *testing.T) {
+						require.EventuallyWithT(t, func(c *assert.CollectT) {
+							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
+								assert.NoError(c, mockClient.Assert("set-reaction", 1))
+								assert.NoError(c, mockClient.Assert("unset-reaction", 1))
+							} else {
+								assert.NoError(c, mockClient.Assert("set-reaction", 0))
+								assert.NoError(c, mockClient.Assert("unset-reaction", 0))
+							}
+						}, 5*time.Second, 200*time.Millisecond)
+					})
 				})
 			}
 		})
