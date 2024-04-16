@@ -568,9 +568,9 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 	} else if len(post.FileIds) > 0 {
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
+			RootId:    post.RootId,
 			UserId:    p.GetBotUserID(),
 			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
 			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
@@ -662,9 +662,9 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	} else if len(post.FileIds) > 0 {
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
+			RootId:    post.RootId,
 			UserId:    p.GetBotUserID(),
 			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
 			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", channelID, "post_id", post.Id, "error", appErr)
