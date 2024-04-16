@@ -742,11 +742,6 @@ func (p *Plugin) syncUsers() {
 					shouldUpdate = true
 				}
 
-				if !mmUser.EmailVerified {
-					mmUser.EmailVerified = true
-					shouldUpdate = true
-				}
-
 				if shouldUpdate {
 					for {
 						p.API.LogInfo("Updating user profile", "user_id", mmUser.Id, "teams_user_id", msUser.ID)

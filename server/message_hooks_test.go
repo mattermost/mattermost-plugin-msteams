@@ -2811,22 +2811,13 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "Autopromotion works",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.EmailVerified == false {
-						return false
-					}
-
-					if *user.RemoteId != "" {
-						return false
-					}
-
-					return true
+					return !user.IsRemote()
 				})).Once().Return(nil, nil)
 				api.On("LogInfo", "Promoted synthetic user", "user_id", testutils.GetID()).Once()
 			},
@@ -2839,22 +2830,13 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "UpdateUser failed during autopromotion",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.EmailVerified == false {
-						return false
-					}
-
-					if *user.RemoteId != "" {
-						return false
-					}
-
-					return true
+					return !user.IsRemote()
 				})).Once().Return(nil, model.NewAppError("UpdateUser", "err from test", nil, "", 500))
 				api.On("LogWarn", "Failed to promote synthetic user", "user_id", testutils.GetID(), "err", "err from test").Once()
 			},
@@ -2865,8 +2847,7 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "No autopromotion",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: false,

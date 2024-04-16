@@ -9,7 +9,7 @@ func (p *Plugin) PreferencesHaveChanged(c *plugin.Context, preferences []model.P
 	p.updateAutomutingOnPreferencesChanged(c, preferences)
 }
 
-func (p *Plugin) updateAutomutingOnPreferencesChanged(c *plugin.Context, preferences []model.Preference) {
+func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, preferences []model.Preference) {
 	userIDsToEnable, userIDsToDisable := getUsersWhoChangedPlatform(preferences)
 
 	for _, userID := range userIDsToEnable {
