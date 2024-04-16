@@ -126,32 +126,3 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 
 	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nWhitelisted, nil
 }
-
-func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
-	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channelID)
-	connectMessage := fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
-	if len(message) > 0 {
-		connectMessage = message + " " + connectMessage
-	}
-	post := &model.Post{
-		Id:        postID,
-		ChannelId: channelID,
-		UserId:    p.GetBotUserID(),
-		Message:   connectMessage,
-	}
-	p.API.SendEphemeralPost(userID, post)
-}
-
-func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
-	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?isBot&post_id=%s&channel_id=%s", postID, channelID)
-	connectMessage := fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL)
-	post := &model.Post{
-		Id:        postID,
-		ChannelId: channelID,
-		UserId:    p.GetBotUserID(),
-		Message:   connectMessage,
-	}
-	p.API.SendEphemeralPost(userID, post)
-}

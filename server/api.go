@@ -565,9 +565,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
 
+	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
 	post := &model.Post{
 		Id:        stateArr[2],
-		Message:   "You have successfully connected your Microsoft Teams account.",
+		Message:   userConnectedMessage,
 		ChannelId: stateArr[3],
 	}
 	_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
