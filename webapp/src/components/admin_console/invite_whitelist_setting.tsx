@@ -35,8 +35,21 @@ const InviteWhitelistSetting = ({label, disabled}: Props) => {
         setStatusMsg('Uploading');
 
         try {
-            await Client.uploadWhitelist(pendingFile);
-            setStatusMsg('Upload successful - whitelist updated');
+            const {count, failed, failedLines} = await Client.uploadWhitelist(pendingFile);
+
+            let msg = `Upload successful - whitelist replaced, size: ${count}`;
+
+            if (failed || failedLines) {
+                if (failed?.length) {
+                    msg += `\n Could not find emails: ${failed.join(', ')}`;
+                }
+                if (failedLines?.length) {
+                    msg += `\n Could not parse lines: ${failedLines.join(', ')}`;
+                }
+                msg += '\n Please verify data and try again';
+            }
+
+            setStatusMsg(msg);
         } catch (err: any) {
             if (err.message) {
                 setStatusMsg(err.message);

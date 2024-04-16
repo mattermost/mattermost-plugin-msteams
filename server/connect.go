@@ -159,12 +159,16 @@ func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 		return false, errors.Wrapf(err, "Error in checking if user has connected or not")
 	}
 
+	if hasConnected {
+		return true, nil
+	}
+
 	invitedUser, err := p.store.GetInvitedUser(mmUserID)
 	if err != nil {
 		return false, errors.Wrapf(err, "Error in getting user invite")
 	}
 
-	if hasConnected || invitedUser != nil {
+	if invitedUser != nil {
 		return true, nil
 	}
 

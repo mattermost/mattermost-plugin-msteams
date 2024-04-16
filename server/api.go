@@ -14,6 +14,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -42,14 +43,21 @@ type Activities struct {
 }
 
 const (
-	DefaultPage               = 0
-	MaxPerPage                = 100
-	QueryParamPage            = "page"
-	QueryParamPerPage         = "per_page"
-	QueryParamPrimaryPlatform = "primary_platform"
+	DefaultPage                   = 0
+	MaxPerPage                    = 100
+	MaxUpdateWhitelistCsvParseErr = 10
+	QueryParamPage                = "page"
+	QueryParamPerPage             = "per_page"
+	QueryParamPrimaryPlatform     = "primary_platform"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
+
+type UpdateWhitelistResult struct {
+	Count       int      `json:"count"`
+	Failed      []string `json:"failed"`
+	FailedLines []string `json:"failedLines"`
+}
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
@@ -650,8 +658,8 @@ func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 
 	whitelist, err := a.p.getWhitelistEmails()
 	if err != nil {
-		a.p.API.LogWarn("Unable to get connected users list", "error", err.Error())
-		http.Error(w, "unable to get connected users list", http.StatusInternalServerError)
+		a.p.API.LogWarn("Unable to get whitelist", "error", err.Error())
+		http.Error(w, "unable to get whitelist", http.StatusInternalServerError)
 		return
 	}
 
@@ -706,51 +714,57 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error reading whitelist", http.StatusBadRequest)
 		return
 	}
+	defer file.Close()
 
 	reader := csv.NewReader(file)
 	columns, err := reader.Read()
 	if err != nil || strings.ToLower(columns[0]) != "email" || len(columns) != 1 {
 		a.p.API.LogWarn("Error parsing whitelist csv header")
-		http.Error(w, "error parsing whitelist - bad csv header", http.StatusBadRequest)
+		http.Error(w, "error parsing whitelist - please check header and try again", http.StatusBadRequest)
 		return
 	}
 
-	records, err := reader.ReadAll()
-	if err != nil {
-		a.p.API.LogWarn("Error parsing whitelist csv data")
-		http.Error(w, "error parsing whitelist", http.StatusBadRequest)
+	var emails []string
+	var csvLineErrs []string
+	i := 1
+	for {
+		i++
+		row, readErr := reader.Read()
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			csvLineErrs = append(csvLineErrs, strconv.Itoa(i))
+		}
+		emails = append(emails, row[0])
 	}
 
-	var users []*model.User
+	if len(csvLineErrs) > MaxUpdateWhitelistCsvParseErr {
+		a.p.API.LogWarn("Error parsing whitelist csv data")
+		http.Error(w, "error parsing whitelist - please check data at line(s) "+strings.Join(csvLineErrs, ", ")+" and try again", http.StatusBadRequest)
+		return
+	}
 
-	for _, row := range records {
-		email := row[0]
-
-		user, err := a.p.API.GetUserByEmail(email)
-		if err != nil {
-			a.p.API.LogWarn("Error getting user")
-			http.Error(w, "error processing whitelist - could not find user with email: "+email, http.StatusInternalServerError)
+	count, failed, err := a.p.store.SetWhitelist(emails, MaxPerPage)
+	if err != nil {
+		a.p.API.LogWarn("Error processing whitelist")
+		if len(failed) > 0 {
+			http.Error(w, "error processing whitelist - could not find user(s): "+strings.Join(failed, ", "), http.StatusInternalServerError)
 			return
 		}
-
-		users = append(users, user)
-	}
-
-	if err := a.p.store.DeleteWhitelist(); err != nil {
-		a.p.API.LogWarn("Error deleting whitelist")
 		http.Error(w, "error processing whitelist", http.StatusInternalServerError)
 		return
 	}
 
-	for _, user := range users {
-		if err := a.p.store.StoreUserInWhitelist(user.Id); err != nil {
-			a.p.API.LogWarn("Error adding user to whitelist")
-			http.Error(w, "error processing whitelist", http.StatusInternalServerError)
-			return
-		}
-	}
-
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&UpdateWhitelistResult{
+		Count:       count,
+		Failed:      failed,
+		FailedLines: csvLineErrs,
+	}); err != nil {
+		a.p.API.LogWarn("Error writing update whitelist response")
+	}
 }
 
 func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {

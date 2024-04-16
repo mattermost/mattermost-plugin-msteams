@@ -3,6 +3,7 @@
 package store
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
@@ -37,11 +38,13 @@ type Store interface {
 	DeleteUserInvite(mmUserID string) error
 	GetInvitedCount() (int, error)
 	StoreUserInWhitelist(userID string) error
+	StoreUsersInWhitelist(userID []string, tx *sql.Tx) error
 	IsUserWhitelisted(userID string) (bool, error)
 	DeleteUserFromWhitelist(userID string) error
 	GetWhitelistCount() (int, error)
 	GetWhitelistEmails(page int, perPage int) ([]string, error)
-	DeleteWhitelist() error
+	DeleteWhitelist(tx *sql.Tx) error
+	SetWhitelist(emails []string, batchSize int) (int, []string, error)
 
 	// stats
 	GetStats() (*storemodels.Stats, error)

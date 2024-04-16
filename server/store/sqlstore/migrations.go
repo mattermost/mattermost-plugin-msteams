@@ -111,23 +111,9 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 }
 
 func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
-	rows, err := s.getQueryBuilder().
-		Select("1").
-		Prefix("SELECT EXISTS (").From(whitelistedUsersLegacyTableName).Suffix(")").
-		Query()
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+	oldWhitelistToProcess, err := s.tableExist(whitelistedUsersLegacyTableName)
 
-	var hasRowsToProcess bool
-	if rows.Next() {
-		if scanErr := rows.Scan(&hasRowsToProcess); scanErr != nil {
-			return scanErr
-		}
-	}
-
-	if !hasRowsToProcess {
+	if !oldWhitelistToProcess {
 		// migration already done, no rows to process
 		return nil
 	}
@@ -165,7 +151,7 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 		return err
 	}
 
-	_, err = s.getQueryBuilder().Delete(whitelistedUsersLegacyTableName).Exec()
+	err = s.deleteTable(whitelistedUsersLegacyTableName)
 
 	if err != nil {
 		return err
@@ -176,6 +162,14 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 
 func (s *SQLStore) createTable(tableName, columnList string) error {
 	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) deleteTable(tableName string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 		return err
 	}
 
@@ -208,6 +202,16 @@ func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) err
 
 func (s *SQLStore) indexExist(tableName, indexName string) (bool, error) {
 	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_indexes WHERE tablename = '%s' AND indexname = '%s'", tableName, indexName))
+	if err != nil {
+		return false, err
+	}
+
+	defer rows.Close()
+	return rows.Next(), nil
+}
+
+func (s *SQLStore) tableExist(tableName string) (bool, error) {
+	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '%s'", tableName))
 	if err != nil {
 		return false, err
 	}

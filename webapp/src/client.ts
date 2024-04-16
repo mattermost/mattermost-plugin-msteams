@@ -22,7 +22,7 @@ class ClientClass {
     };
 
     uploadWhitelist = async (fileData: File) => {
-        await this.uploadFile(`${this.url}/whitelist`, fileData);
+        return this.uploadFile(`${this.url}/whitelist`, fileData);
     };
 
     fetchSiteStats = async (): Promise<SiteStats | null> => {
@@ -142,7 +142,7 @@ class ClientClass {
         const response = await fetch(url, Client4.getOptions(options));
 
         if (response.ok) {
-            return response;
+            return response.json();
         }
 
         const text = await response.text();
