@@ -580,7 +580,6 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 
 	user.RemoteId = nil
 	user.Username = newUsername
-	user.EmailVerified = true
 	_, appErr = p.API.UpdateUser(user)
 	if appErr != nil {
 		p.API.LogWarn("Unable to update the user during promotion", "user_id", user.Id, "error", appErr.Error())
