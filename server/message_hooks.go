@@ -60,7 +60,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatSpansPlatforms(post.ChannelId)
+			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
@@ -119,14 +119,18 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		chatMembersSpanPlatforms, appErr := p.ChatMembersSpanPlatforms(members)
-		if appErr != nil {
-			p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-			return
-		}
+		isSelfPost := len(members) == 1
+		chatMembersSpanPlatforms := false
+		if !isSelfPost {
+			chatMembersSpanPlatforms, appErr = p.ChatMembersSpanPlatforms(members)
+			if appErr != nil {
+				p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+				return
+			}
 
-		if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
-			return
+			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+				return
+			}
 		}
 
 		dstUsers := []string{}
