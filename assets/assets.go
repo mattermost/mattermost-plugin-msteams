@@ -12,3 +12,6 @@ var LogoColorData []byte
 
 //go:embed mm-logo-outline.png
 var LogoOutlineData []byte
+
+//go:embed icon.png
+var Icon []byte
