@@ -9,8 +9,6 @@ import (
 )
 
 func TestChatShouldSync(t *testing.T) {
-	t.Skip("pending upstream changes: https://mattermost.atlassian.net/browse/MM-57018")
-
 	th := setupTestHelper(t)
 
 	t.Run("invalid channel id", func(t *testing.T) {
