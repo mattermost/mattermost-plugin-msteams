@@ -24,7 +24,7 @@ func (p *Plugin) UserHasJoinedChannel(c *plugin.Context, channelMember *model.Ch
 	}
 }
 
-func (p *Plugin) updateAutomutingOnUserJoinedChannel(c *plugin.Context, userID string, channelID string) (bool, error) {
+func (p *Plugin) updateAutomutingOnUserJoinedChannel(_ *plugin.Context, userID string, channelID string) (bool, error) {
 	if automuteEnabled := p.getAutomuteIsEnabledForUser(userID); !automuteEnabled {
 		return false, nil
 	}

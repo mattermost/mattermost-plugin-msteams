@@ -832,7 +832,7 @@ func (p *Plugin) syncUsers() {
 				newUser, appErr = p.API.CreateUser(newMMUser)
 				if appErr != nil {
 					if appErr.Id == "app.user.save.username_exists.app_error" {
-						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+						newMMUser.Username = fmt.Sprintf("%s-%d", username, userSuffixID)
 						userSuffixID++
 						continue
 					}
