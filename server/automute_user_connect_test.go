@@ -2,11 +2,14 @@ package main
 
 import (
 	"testing"
+	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 func TestUpdateAutomutingOnUserConnect(t *testing.T) {
@@ -118,20 +121,30 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 }
 
 func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+
 	setup := func(t *testing.T) (*Plugin, *model.User, *model.Channel) {
 		t.Helper()
+		th.Reset(t)
 
-		p := newAutomuteTestPlugin(t)
+		user := th.SetupUser(t, team)
+		err := th.p.store.SetUserInfo(user.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+		require.NoError(t, err)
 
-		user := &model.User{Id: model.NewId()}
-		mockUserConnected(p, user.Id)
+		linkedChannel := th.SetupPublicChannel(t, team, WithMembers(user))
 
-		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, "")
-		require.Nil(t, appErr)
-		mockLinkedChannel(p, channel)
+		channelLink := storemodels.ChannelLink{
+			MattermostTeamID:    team.Id,
+			MattermostChannelID: linkedChannel.Id,
+			MSTeamsTeam:         model.NewId(),
+			MSTeamsChannel:      model.NewId(),
+			Creator:             user.Id,
+		}
+		err = th.p.store.StoreChannelLink(&channelLink)
+		require.NoError(t, err)
 
-		return p, user, channel
+		return th.p, user, linkedChannel
 	}
 
 	t.Run("should disable automute when a user disconnects who previously had automuting enabled", func(t *testing.T) {
@@ -199,10 +212,7 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 	t.Run("should not unmute a manually muted unlinked channel when a user disconnects", func(t *testing.T) {
 		p, user, _ := setup(t)
 
-		unlinkedChannel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		_, appErr := p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, "")
-		require.Nil(t, appErr)
-		mockUnlinkedChannel(p, unlinkedChannel)
+		unlinkedChannel := th.SetupPublicChannel(t, team, WithMembers(user))
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
