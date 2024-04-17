@@ -42,7 +42,7 @@ const (
 	botDisplayName               = "MS Teams"
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	connectClusterMutexKey       = "connect_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 	metricsJobName               = "metrics"
@@ -74,7 +74,7 @@ type Plugin struct {
 
 	store                     store.Store
 	subscriptionsClusterMutex *cluster.Mutex
-	whitelistClusterMutex     *cluster.Mutex
+	connectClusterMutex       *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
 	checkCredentialsJob       *cluster.Job
@@ -482,7 +482,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.connectClusterMutex, err = cluster.NewMutex(p.API, connectClusterMutexKey)
 	if err != nil {
 		return err
 	}
@@ -575,12 +575,6 @@ func (p *Plugin) onActivate() error {
 				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 			}
 		}()
-
-		p.whitelistClusterMutex.Lock()
-		defer p.whitelistClusterMutex.Unlock()
-		if err2 := p.store.PrefillWhitelist(); err2 != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
-		}
 	}()
 
 	go p.start(false)
