@@ -6,8 +6,6 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
-	sql "database/sql"
-
 	storemodels "github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	time "time"
@@ -95,20 +93,6 @@ func (_m *Store) DeleteUserInvite(mmUserID string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(mmUserID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// DeleteWhitelist provides a mock function with given fields: tx
-func (_m *Store) DeleteWhitelist(tx *sql.Tx) error {
-	ret := _m.Called(tx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*sql.Tx) error); ok {
-		r0 = rf(tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -897,34 +881,18 @@ func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.
 	return r0
 }
 
-// SetWhitelist provides a mock function with given fields: emails, batchSize
-func (_m *Store) SetWhitelist(emails []string, batchSize int) (int, []string, error) {
-	ret := _m.Called(emails, batchSize)
+// SetWhitelist provides a mock function with given fields: userIDs, batchSize
+func (_m *Store) SetWhitelist(userIDs []string, batchSize int) error {
+	ret := _m.Called(userIDs, batchSize)
 
-	var r0 int
-	if rf, ok := ret.Get(0).(func([]string, int) int); ok {
-		r0 = rf(emails, batchSize)
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, int) error); ok {
+		r0 = rf(userIDs, batchSize)
 	} else {
-		r0 = ret.Get(0).(int)
+		r0 = ret.Error(0)
 	}
 
-	var r1 []string
-	if rf, ok := ret.Get(1).(func([]string, int) []string); ok {
-		r1 = rf(emails, batchSize)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]string)
-		}
-	}
-
-	var r2 error
-	if rf, ok := ret.Get(2).(func([]string, int) error); ok {
-		r2 = rf(emails, batchSize)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0
 }
 
 // StoreChannelLink provides a mock function with given fields: link
@@ -976,20 +944,6 @@ func (_m *Store) StoreUserInWhitelist(userID string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StoreUsersInWhitelist provides a mock function with given fields: userID, tx
-func (_m *Store) StoreUsersInWhitelist(userID []string, tx *sql.Tx) error {
-	ret := _m.Called(userID, tx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func([]string, *sql.Tx) error); ok {
-		r0 = rf(userID, tx)
 	} else {
 		r0 = ret.Error(0)
 	}

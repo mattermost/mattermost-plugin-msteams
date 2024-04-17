@@ -43,12 +43,13 @@ type Activities struct {
 }
 
 const (
-	DefaultPage                   = 0
-	MaxPerPage                    = 100
-	MaxUpdateWhitelistCsvParseErr = 10
-	QueryParamPage                = "page"
-	QueryParamPerPage             = "per_page"
-	QueryParamPrimaryPlatform     = "primary_platform"
+	DefaultPage                            = 0
+	MaxPerPage                             = 100
+	UpdateWhitelistCsvParseErr             = 0
+	UpdateWhitelistNotFoundEmailsThreshold = 10
+	QueryParamPage                         = "page"
+	QueryParamPerPage                      = "per_page"
+	QueryParamPrimaryPlatform              = "primary_platform"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
@@ -724,9 +725,11 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var emails []string
+	var ids []string
+	var failed []string
+
 	var csvLineErrs []string
-	i := 1
+	var i = 1
 	for {
 		i++
 		row, readErr := reader.Read()
@@ -736,22 +739,30 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 		if readErr != nil {
 			csvLineErrs = append(csvLineErrs, strconv.Itoa(i))
 		}
-		emails = append(emails, row[0])
+		email := row[0]
+		user, err := a.p.API.GetUserByEmail(email)
+		if err != nil {
+			a.p.API.LogWarn("Error processing whitelist - could not find email", "line", i)
+			failed = append(failed, email)
+		}
+
+		ids = append(ids, user.Id)
 	}
 
-	if len(csvLineErrs) > MaxUpdateWhitelistCsvParseErr {
-		a.p.API.LogWarn("Error parsing whitelist csv data")
+	if len(csvLineErrs) > UpdateWhitelistCsvParseErr {
+		a.p.API.LogWarn("Error parsing whitelist csv data", "lines", csvLineErrs)
 		http.Error(w, "error parsing whitelist - please check data at line(s) "+strings.Join(csvLineErrs, ", ")+" and try again", http.StatusBadRequest)
 		return
 	}
 
-	count, failed, err := a.p.store.SetWhitelist(emails, MaxPerPage)
-	if err != nil {
-		a.p.API.LogWarn("Error processing whitelist")
-		if len(failed) > 0 {
-			http.Error(w, "error processing whitelist - could not find user(s): "+strings.Join(failed, ", "), http.StatusInternalServerError)
-			return
-		}
+	if len(failed) > UpdateWhitelistNotFoundEmailsThreshold {
+		a.p.API.LogWarn("Error: too many users not found", "threshold", UpdateWhitelistNotFoundEmailsThreshold, "failed", len(failed))
+		http.Error(w, "error processing whitelist - could not find user(s): "+strings.Join(failed, ", "), http.StatusInternalServerError)
+		return
+	}
+
+	if err := a.p.store.SetWhitelist(ids, MaxPerPage); err != nil {
+		a.p.API.LogWarn("Error processing whitelist", "error", err.Error())
 		http.Error(w, "error processing whitelist", http.StatusInternalServerError)
 		return
 	}
@@ -759,7 +770,7 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(&UpdateWhitelistResult{
-		Count:       count,
+		Count:       len(ids),
 		Failed:      failed,
 		FailedLines: csvLineErrs,
 	}); err != nil {

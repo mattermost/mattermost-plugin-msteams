@@ -19,7 +19,7 @@ const (
 	connectionPromptKey             = "connect_"
 	subscriptionRefreshTimeLimit    = 5 * time.Minute
 	maxLimitForLinks                = 100
-	setWhitelistFailureThreshold    = 10
+	setWhitelistFailureThreshold    = 0
 	subscriptionTypeUser            = "user"
 	subscriptionTypeChannel         = "channel"
 	subscriptionTypeAllChats        = "allChats"
@@ -957,7 +957,7 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	return nil
 }
 
-func (s *SQLStore) StoreUsersInWhitelist(userIDs []string, tx *sql.Tx) error {
+func (s *SQLStore) storeUsersInWhitelist(userIDs []string, tx *sql.Tx) error {
 	query := s.getQueryBuilder().
 		Insert(whitelistTableName).
 		Columns("mmUserID").
@@ -975,11 +975,11 @@ func (s *SQLStore) StoreUsersInWhitelist(userIDs []string, tx *sql.Tx) error {
 	return nil
 }
 
-func (s *SQLStore) SetWhitelist(emails []string, batchSize int) (int /*failed emails*/, []string, error) {
+func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
 	var err error
 	tx, err := s.db.Begin()
 	if err != nil {
-		return 0, nil, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -996,40 +996,25 @@ func (s *SQLStore) SetWhitelist(emails []string, batchSize int) (int /*failed em
 		}
 	}()
 
-	if err = s.DeleteWhitelist(tx); err != nil {
+	if err = s.deleteWhitelist(tx); err != nil {
 		s.api.LogWarn("Error deleting whitelist")
-		return 0, nil, err
+		return err
 	}
-
-	var successful int
-	var failed []string
 
 	var currentBatch []string
 
-	for i, email := range emails {
-		if user, err := s.api.GetUserByEmail(email); err != nil {
-			failed = append(failed, email)
-		} else if user != nil {
-			currentBatch = append(currentBatch, user.Id)
-		}
-
-		if len(failed) >= setWhitelistFailureThreshold {
-			s.api.LogWarn("Error finding users")
-			err = errors.New("Error processing whitelist: failure threshold reached")
-			return 0, failed, err
-		}
-
-		if len(currentBatch) >= batchSize || i == len(emails)-1 {
-			if err = s.StoreUsersInWhitelist(currentBatch, tx); err != nil {
+	for i, id := range userIDs {
+		currentBatch = append(currentBatch, id)
+		if len(currentBatch) >= batchSize || i == len(userIDs)-1 {
+			if err = s.storeUsersInWhitelist(currentBatch, tx); err != nil {
 				s.api.LogWarn("Error adding batched users to whitelist", "error", err.Error(), "userIds", currentBatch)
-				return 0, failed, err
+				return err
 			}
-			successful += len(currentBatch)
 			clear(currentBatch)
 		}
 	}
 
-	return successful, failed, nil
+	return nil
 }
 
 func (s *SQLStore) IsUserWhitelisted(userID string) (bool, error) {
@@ -1103,7 +1088,7 @@ func (s *SQLStore) GetWhitelistEmails(page, perPage int) ([]string, error) {
 	return result, nil
 }
 
-func (s *SQLStore) DeleteWhitelist(tx *sql.Tx) error {
+func (s *SQLStore) deleteWhitelist(tx *sql.Tx) error {
 	if _, err := s.getQueryBuilder().Delete(whitelistTableName).RunWith(tx).Exec(); err != nil {
 		return err
 	}

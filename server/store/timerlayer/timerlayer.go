@@ -8,7 +8,7 @@ package timerlayer
 
 import (
 	"time"
-	"database/sql"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
@@ -102,20 +102,6 @@ func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.DeleteUserInvite", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) DeleteWhitelist(tx *sql.Tx) error {
-	start := time.Now()
-
-	err := s.Store.DeleteWhitelist(tx)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.DeleteWhitelist", success, elapsed)
 	return err
 }
 
@@ -651,10 +637,10 @@ func (s *TimerLayer) SetUserInfo(userID string, msTeamsUserID string, token *oau
 	return err
 }
 
-func (s *TimerLayer) SetWhitelist(emails []string, batchSize int) (int, []string, error) {
+func (s *TimerLayer) SetWhitelist(userIDs []string, batchSize int) error {
 	start := time.Now()
 
-	result, resultVar1, err := s.Store.SetWhitelist(emails, batchSize)
+	err := s.Store.SetWhitelist(userIDs, batchSize)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -662,7 +648,7 @@ func (s *TimerLayer) SetWhitelist(emails []string, batchSize int) (int, []string
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.SetWhitelist", success, elapsed)
-	return result, resultVar1, err
+	return err
 }
 
 func (s *TimerLayer) StoreChannelLink(link *storemodels.ChannelLink) error {
@@ -718,20 +704,6 @@ func (s *TimerLayer) StoreUserInWhitelist(userID string) error {
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.StoreUserInWhitelist", success, elapsed)
-	return err
-}
-
-func (s *TimerLayer) StoreUsersInWhitelist(userID []string, tx *sql.Tx) error {
-	start := time.Now()
-
-	err := s.Store.StoreUsersInWhitelist(userID, tx)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.StoreUsersInWhitelist", success, elapsed)
 	return err
 }
 
