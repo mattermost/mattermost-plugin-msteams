@@ -20,8 +20,8 @@ type PluginIface struct {
 	mock.Mock
 }
 
-// ChatSpansPlatforms provides a mock function with given fields: channelID
-func (_m *PluginIface) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+// ChatShouldSync provides a mock function with given fields: channelID
+func (_m *PluginIface) ChatShouldSync(channelID string) (bool, *model.AppError) {
 	ret := _m.Called(channelID)
 
 	var r0 bool

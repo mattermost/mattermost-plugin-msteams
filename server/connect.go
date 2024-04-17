@@ -9,9 +9,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	NewConnectionsEnabled               = "enabled"
+	NewConnectionsRolloutOpen           = "rolloutOpen"
+	NewConnectionsRolloutOpenRestricted = "rolloutOpenRestricted"
+)
+
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
-	if p.getConfiguration().ConnectedUsersInvitePoolSize == 0 {
-		// connection invites disabled
+	if p.getConfiguration().NewUserConnections == NewConnectionsEnabled {
+		// new connections allowed, but invites disabled
 		return false, nil
 	}
 
@@ -20,15 +26,27 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user")
 	}
 
-	p.whitelistClusterMutex.Lock()
-	defer p.whitelistClusterMutex.Unlock()
+	if p.getConfiguration().NewUserConnections == NewConnectionsRolloutOpenRestricted {
+		// new connections allowed, but invites restricted to whitelist
+		isWhitelisted, whitelistErr := p.store.IsUserWhitelisted(userID)
+		if whitelistErr != nil {
+			return false, errors.Wrapf(whitelistErr, "error getting user in whitelist")
+		}
 
-	userInWhitelist, err := p.store.IsUserPresentInWhitelist(user.Id)
-	if err != nil {
-		return false, errors.Wrapf(err, "error getting user in whitelist")
+		if !isWhitelisted {
+			return false, nil
+		}
 	}
 
-	if userInWhitelist {
+	p.connectClusterMutex.Lock()
+	defer p.connectClusterMutex.Unlock()
+
+	hasConnected, err := p.store.UserHasConnected(user.Id)
+	if err != nil {
+		return false, errors.Wrapf(err, "error checking user connected status")
+	}
+
+	if hasConnected {
 		// user already connected
 		return false, nil
 	}
@@ -110,19 +128,59 @@ func (p *Plugin) shouldSendInviteMessage(
 }
 
 func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
-	nWhitelisted, err := p.store.GetSizeOfWhitelist()
+	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting the size of whitelist")
+		return false, 0, errors.Wrapf(err, "error in getting has-connected count")
 	}
-	nInvited, err := p.store.GetSizeOfInvitedUsers()
+	nInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting the number of invited users")
+		return false, 0, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	if (nWhitelisted + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
 		// only invite up to max connected
 		return false, 0, nil
 	}
 
-	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nWhitelisted, nil
+	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nConnected, nil
+}
+
+func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
+	hasConnected, err := p.store.UserHasConnected(mmUserID)
+	if err != nil {
+		return false, errors.Wrapf(err, "error in checking if user has connected or not")
+	}
+
+	if hasConnected {
+		return true, nil
+	}
+
+	invitedUser, err := p.store.GetInvitedUser(mmUserID)
+	if err != nil {
+		return false, errors.Wrapf(err, "error in getting user invite")
+	}
+
+	if invitedUser != nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, error) {
+	numHasConnected, err := p.store.GetHasConnectedCount()
+	if err != nil {
+		return false, errors.Wrapf(err, "error in getting has connected count")
+	}
+
+	numInvited, err := p.store.GetInvitedCount()
+	if err != nil {
+		return false, errors.Wrapf(err, "error in getting invited count")
+	}
+
+	if (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+		return false, nil
+	}
+
+	return true, nil
 }

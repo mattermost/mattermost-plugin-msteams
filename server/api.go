@@ -14,6 +14,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -42,16 +43,24 @@ type Activities struct {
 }
 
 const (
-	DefaultPage               = 0
-	MaxPerPage                = 100
-	QueryParamPage            = "page"
-	QueryParamPerPage         = "per_page"
-	QueryParamPrimaryPlatform = "primary_platform"
-	QueryParamChannelID       = "channel_id"
-	QueryParamPostID          = "post_id"
+	DefaultPage                               = 0
+	MaxPerPage                                = 100
+	UpdateWhitelistCsvParseErrThreshold       = 0
+	UpdateWhitelistNotFoundEmailsErrThreshold = 10
+	QueryParamPage                            = "page"
+	QueryParamPerPage                         = "per_page"
+	QueryParamPrimaryPlatform                 = "primary_platform"
+	QueryParamChannelID                       = "channel_id"
+	QueryParamPostID                          = "post_id"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
+
+type UpdateWhitelistResult struct {
+	Count       int      `json:"count"`
+	Failed      []string `json:"failed"`
+	FailedLines []string `json:"failedLines"`
+}
 
 func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
@@ -72,6 +81,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
 	router.HandleFunc("/connected-users/download", api.getConnectedUsersFile).Methods(http.MethodGet)
+	router.HandleFunc("/whitelist", api.updateWhitelist).Methods(http.MethodPut)
+	router.HandleFunc("/whitelist/download", api.getWhitelistEmailsFile).Methods(http.MethodGet)
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
@@ -399,6 +410,12 @@ func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
+	if userID == "" {
+		a.p.API.LogWarn("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
 	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
@@ -496,64 +513,45 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.connectClusterMutex.Lock()
+	defer a.p.connectClusterMutex.Unlock()
+
+	hasRightToConnect, err := a.p.UserHasRightToConnect(mmUserID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to check if user has the right to connect", "error", err.Error())
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if !hasRightToConnect {
+		canOpenlyConnect, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
+		if openConnectErr != nil {
+			a.p.API.LogWarn("Unable to check if user can openly connect", "error", openConnectErr.Error())
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		if !canOpenlyConnect {
+			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
+				a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
+			}
+			http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+			return
+		}
+	}
+
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
 		a.p.API.LogWarn("Unable to store the token", "error", err.Error())
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
 
-	a.p.whitelistClusterMutex.Lock()
-	defer a.p.whitelistClusterMutex.Unlock()
-
-	inWhitelist, err := a.p.store.IsUserPresentInWhitelist(mmUserID)
-	if err != nil {
-		a.p.API.LogWarn("Error in checking whitelist", "user_id", mmUserID, "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	whitelistSize, err := a.p.store.GetSizeOfWhitelist()
-	if err != nil {
-		a.p.API.LogWarn("Unable to get whitelist size", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	invitedSize, err := a.p.store.GetSizeOfInvitedUsers()
-	if err != nil {
-		a.p.API.LogWarn("Unable to get invited size", "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	invitedUser, err := a.p.store.GetInvitedUser(mmUserID)
-	if err != nil {
-		a.p.API.LogWarn("Error in getting invited user", "user_id", mmUserID, "error", err.Error())
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if !inWhitelist && (whitelistSize+invitedSize) >= a.p.getConfiguration().ConnectedUsersAllowed && invitedUser == nil {
-		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
-		}
-		http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
-		return
-	}
-
-	if err = a.p.store.StoreUserInWhitelist(mmUserID); err != nil {
-		a.p.API.LogWarn("Unable to store the user in whitelist", "user_id", mmUserID, "error", err.Error())
-		if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
-			a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
-		}
-
-		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
-		return
-	}
-
-	err = a.p.store.DeleteUserInvite(mmUserID)
-	if err != nil {
+	if err = a.p.store.DeleteUserInvite(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
+	}
+
+	if err = a.p.store.DeleteUserFromWhitelist(mmUserID); err != nil {
+		a.p.API.LogWarn("Unable to remove user from whitelist", "user_id", mmUserID, "error", err.Error())
 	}
 
 	w.Header().Add("Content-Type", "text/html")
@@ -577,7 +575,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -617,7 +615,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -668,8 +666,148 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+	if userID == "" {
+		a.p.API.LogWarn("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	whitelist, err := a.p.getWhitelistEmails()
+	if err != nil {
+		a.p.API.LogWarn("Unable to get whitelist", "error", err.Error())
+		http.Error(w, "unable to get whitelist", http.StatusInternalServerError)
+		return
+	}
+
+	b := &bytes.Buffer{}
+	csvWriter := csv.NewWriter(b)
+	if err := csvWriter.Write([]string{"Email"}); err != nil {
+		a.p.API.LogWarn("Unable to write headers in CSV file", "error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	for _, email := range whitelist {
+		if err := csvWriter.Write([]string{email}); err != nil {
+			a.p.API.LogWarn("Unable to write data in CSV file", "error", err.Error())
+			http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		a.p.API.LogWarn("Unable to flush the data in writer", "error", err.Error())
+		http.Error(w, "unable to write data in CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment;filename=invite-whitelist.csv")
+	if _, err := w.Write(b.Bytes()); err != nil {
+		a.p.API.LogWarn("Unable to write the data", "error", err.Error())
+		http.Error(w, "unable to write the data", http.StatusInternalServerError)
+	}
+}
+
+func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+	if userID == "" {
+		a.p.API.LogWarn("Not authorized")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
+		a.p.API.LogWarn("Insufficient permissions", "user_id", userID)
+		http.Error(w, "not able to authorize the user", http.StatusForbidden)
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		a.p.API.LogWarn("Error reading whitelist file")
+		http.Error(w, "error reading whitelist", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	columns, err := reader.Read()
+	if err != nil || strings.ToLower(columns[0]) != "email" || len(columns) != 1 {
+		a.p.API.LogWarn("Error parsing whitelist csv header")
+		http.Error(w, "error parsing whitelist - please check header and try again", http.StatusBadRequest)
+		return
+	}
+
+	var ids []string
+	var failed []string
+
+	var csvLineErrs []string
+	var i = 1 // offset, start line 1
+	for {
+		i++
+		row, readErr := reader.Read()
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			csvLineErrs = append(csvLineErrs, strconv.Itoa(i))
+			continue
+		}
+		if len(csvLineErrs) > UpdateWhitelistCsvParseErrThreshold {
+			break
+		}
+		email := row[0]
+		user, err := a.p.API.GetUserByEmail(email)
+		if err != nil {
+			a.p.API.LogWarn("Error could not find user with email", "line", i)
+			failed = append(failed, email)
+			continue
+		}
+
+		ids = append(ids, user.Id)
+	}
+
+	if len(csvLineErrs) > UpdateWhitelistCsvParseErrThreshold {
+		a.p.API.LogWarn("Error parsing whitelist csv data", "lines", csvLineErrs)
+		http.Error(w, "error parsing whitelist - please check data at line(s) "+strings.Join(csvLineErrs, ", ")+" and try again", http.StatusBadRequest)
+		return
+	}
+
+	if len(failed) > UpdateWhitelistNotFoundEmailsErrThreshold {
+		a.p.API.LogWarn("Error: too many users not found", "threshold", UpdateWhitelistNotFoundEmailsErrThreshold, "failed", len(failed))
+		http.Error(w, "error - could not find user(s): "+strings.Join(failed, ", "), http.StatusInternalServerError)
+		return
+	}
+
+	if err := a.p.store.SetWhitelist(ids, MaxPerPage); err != nil {
+		a.p.API.LogWarn("Error processing whitelist", "error", err.Error())
+		http.Error(w, "error processing whitelist - please check data and try again", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&UpdateWhitelistResult{
+		Count:       len(ids),
+		Failed:      failed,
+		FailedLines: csvLineErrs,
+	}); err != nil {
+		a.p.API.LogWarn("Error writing update whitelist response")
+	}
+}
+
 func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-Id")
+	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -713,6 +851,27 @@ func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	}
 
 	return connectedUserList, nil
+}
+
+func (p *Plugin) getWhitelistEmails() ([]string, error) {
+	page := DefaultPage
+	perPage := MaxPerPage
+	var result []string
+	for {
+		emails, err := p.store.GetWhitelistEmails(page, perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, emails...)
+		if len(emails) < perPage {
+			break
+		}
+
+		page++
+	}
+
+	return result, nil
 }
 
 // handleStaticFiles handles the static files under the assets directory.

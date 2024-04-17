@@ -136,7 +136,7 @@ func (th *testHelper) clearDatabase(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM msteamssync_users")
 	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM msteamssync_whitelisted_users")
+	_, err = db.Exec("DELETE FROM msteamssync_whitelist")
 	require.NoError(t, err)
 }
 
