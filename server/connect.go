@@ -93,16 +93,20 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		invitedUser.InvitePendingSince = currentTime
 	}
 
-	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
-		return errors.Wrapf(err, "error storing user in invite list")
-	}
-
 	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
 	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
-	p.SendConnectMessage(channel.Id, user.Id, message)
+
+	postID := model.NewId()
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channel.Id)
+	connectMessage := message + " " + fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
+	p.botSendDirectMessage(user.Id, connectMessage)
+
+	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
+		return errors.Wrapf(err, "error storing user in invite list")
+	}
 
 	return nil
 }
