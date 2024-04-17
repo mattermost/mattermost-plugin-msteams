@@ -112,6 +112,9 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 
 func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	oldWhitelistToProcess, err := s.tableExist(whitelistedUsersLegacyTableName)
+	if err != nil {
+		return err
+	}
 
 	if !oldWhitelistToProcess {
 		// migration already done, no rows to process

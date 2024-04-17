@@ -1009,6 +1009,8 @@ func TestWhitelistIO(t *testing.T) {
 	assert.Nil(txErr)
 	delErr := store.deleteWhitelist(tx)
 	assert.Nil(delErr)
+	txCommitErr := tx.Commit()
+	assert.Nil(txCommitErr)
 
 	count, getErr = store.GetWhitelistCount()
 	assert.Equal(0, count)
