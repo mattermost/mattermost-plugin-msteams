@@ -111,6 +111,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 }
 
 func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
+	s.api.LogInfo("Start: migrating old whitelist rows")
 	oldWhitelistToProcess, err := s.tableExist(whitelistedUsersLegacyTableName)
 	if err != nil {
 		return err
@@ -118,6 +119,7 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 
 	if !oldWhitelistToProcess {
 		// migration already done, no rows to process
+		s.api.LogInfo("Didn't run migration: old whitelist rows")
 		return nil
 	}
 
@@ -159,6 +161,8 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	if err != nil {
 		return err
 	}
+
+	s.api.LogInfo("Finished run migration: old whitelist rows")
 
 	return nil
 }

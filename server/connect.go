@@ -16,15 +16,20 @@ const (
 )
 
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
+	p.API.LogInfo("Start MaybeSendInviteMessage")
 	if p.getConfiguration().NewUserConnections == NewConnectionsEnabled {
 		// new connections allowed, but invites disabled
+		p.API.LogInfo("Error enabled")
+
 		return false, nil
 	}
 
+	p.API.LogInfo("MaybeSendInviteMessage2")
 	user, err := p.apiClient.User.Get(userID)
 	if err != nil {
 		return false, errors.Wrapf(err, "error getting user")
 	}
+	p.API.LogInfo("MaybeSendInviteMessage3")
 
 	if p.getConfiguration().NewUserConnections == NewConnectionsRolloutOpenRestricted {
 		// new connections allowed, but invites restricted to whitelist
@@ -33,10 +38,15 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 			return false, errors.Wrapf(whitelistErr, "error getting user in whitelist")
 		}
 
+		p.API.LogInfo("Error whitelisted", "whitelisted", isWhitelisted)
+
 		if !isWhitelisted {
+			p.API.LogInfo("Error has connected")
 			return false, nil
 		}
 	}
+
+	p.API.LogInfo("MaybeSendInviteMessage4")
 
 	p.connectClusterMutex.Lock()
 	defer p.connectClusterMutex.Unlock()
@@ -48,6 +58,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 	if hasConnected {
 		// user already connected
+		p.API.LogInfo("Error has connected")
 		return false, nil
 	}
 
@@ -70,13 +81,18 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 
 		if !moreInvitesAllowed {
 			// user not connected, but invite threshold is presently met
+			p.API.LogInfo("Error no more invites")
+
 			return false, nil
 		}
 
 		nWhitelisted = n
 	}
 
+	p.API.LogInfo("MaybeSendInviteMessage5")
+
 	if !p.shouldSendInviteMessage(pendingSince, now, user.GetTimezoneLocation()) {
+		p.API.LogInfo("Inner should send MaybeSendInviteMessage")
 		return false, nil
 	}
 
@@ -84,10 +100,13 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error sending invite")
 	}
 
+	p.API.LogInfo("MaybeSendInviteMessage end")
+
 	return true, nil
 }
 
 func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time, nWhitelisted int) error {
+	p.API.LogInfo("SendInviteMessage start")
 	invitedUser := &storemodels.InvitedUser{ID: user.Id, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
 	if invitedUser.InvitePendingSince.IsZero() {
 		invitedUser.InvitePendingSince = currentTime
@@ -97,12 +116,18 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		return errors.Wrapf(err, "error storing user in invite list")
 	}
 
+	p.API.LogInfo("SendInviteMessage mid")
+
 	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
+	p.API.LogInfo("SendInviteMessage channel", "channel", channel)
+
 	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
 	p.SendConnectMessage(channel.Id, user.Id, message)
+
+	p.API.LogInfo("SendInviteMessage end")
 
 	return nil
 }
@@ -112,18 +137,23 @@ func (p *Plugin) shouldSendInviteMessage(
 	currentTime time.Time,
 	timezone *time.Location,
 ) bool {
+	p.API.LogInfo("shouldSendInviteMessage start ")
+
 	now := currentTime.In(timezone)
 
 	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		p.API.LogInfo("shouldSendInviteMessage no weekends ")
 		// don't send on weekends
 		return false
 	}
 
 	if !pendingSince.IsZero() {
+		p.API.LogInfo("shouldSendInviteMessage only send once")
 		// only send once
 		return false
 	}
 
+	p.API.LogInfo("shouldSendInviteMessage end ")
 	return true
 }
 
@@ -139,6 +169,9 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 
 	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
 		// only invite up to max connected
+
+		p.API.LogInfo("Error inner no more invites allowed")
+
 		return false, 0, nil
 	}
 

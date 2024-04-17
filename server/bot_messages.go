@@ -38,7 +38,9 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 		UserId:    p.GetBotUserID(),
 		Message:   connectMessage,
 	}
-	p.API.SendEphemeralPost(userID, post)
+	postpost := p.API.SendEphemeralPost(userID, post)
+
+	p.API.LogInfo("SendConnectMessage end", "channelID", channelID, "post", postpost)
 }
 
 func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {

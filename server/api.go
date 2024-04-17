@@ -409,6 +409,7 @@ func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
+	a.p.API.LogWarn("Error HI")
 
 	if userID == "" {
 		a.p.API.LogWarn("Not authorized")
@@ -416,11 +417,15 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.API.LogWarn("Error HI2")
+
 	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
 		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
 	}
+
+	a.p.API.LogInfo("Error did not send could not compute", "user_id", userID)
 }
 
 func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
