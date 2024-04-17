@@ -321,8 +321,8 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	return user
 }
 
-func (th *testHelper) ConnectUser(t *testing.T, userID string) {
-	err := th.p.store.SetUserInfo(userID, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+func (th *testHelper) ConnectUser(t *testing.T, userID string, teamID string) {
+	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 	require.NoError(t, err)
 }
 
