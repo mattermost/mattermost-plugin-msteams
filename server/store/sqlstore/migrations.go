@@ -214,7 +214,7 @@ func (s *SQLStore) indexExist(tableName, indexName string) (bool, error) {
 }
 
 func (s *SQLStore) tableExist(tableName string) (bool, error) {
-	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '%s'", tableName))
+	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_tables WHERE schemaname = current_schema() AND tablename = '%s'", tableName))
 	if err != nil {
 		return false, err
 	}
