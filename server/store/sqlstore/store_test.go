@@ -1005,8 +1005,10 @@ func TestWhitelistIO(t *testing.T) {
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	err := store.DeleteWhitelist()
-	assert.Nil(err)
+	tx, txErr := store.db.Begin()
+	assert.Nil(txErr)
+	delErr := store.deleteWhitelist(tx)
+	assert.Nil(delErr)
 
 	count, getErr = store.GetWhitelistCount()
 	assert.Equal(0, count)
