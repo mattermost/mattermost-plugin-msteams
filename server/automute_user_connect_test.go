@@ -10,22 +10,22 @@ import (
 )
 
 func TestUpdateAutomutingOnUserConnect(t *testing.T) {
+	th := setupTestHelper(t)
+
 	setup := func(t *testing.T) (*Plugin, *model.User, *model.Channel) {
 		t.Helper()
+		th.Reset(t)
 
-		p := newAutomuteTestPlugin(t)
+		team := th.SetupTeam(t)
 
-		user := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, user.Id)
+		user := th.SetupUser(t, team)
 
-		channel, _ := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		_, appErr := p.API.AddUserToChannel(channel.Id, user.Id, "")
-		require.Nil(t, appErr)
-		mockLinkedChannel(p, channel)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+		th.LinkChannel(t, team, channel, user)
 
-		assertChannelNotAutomuted(t, p, channel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 
-		return p, user, channel
+		return th.p, user, channel
 	}
 
 	t.Run("should do nothing when a user connects without their primary platform set", func(t *testing.T) {
