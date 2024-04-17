@@ -568,6 +568,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		Id:        stateArr[2],
 		Message:   userConnectedMessage,
 		ChannelId: stateArr[3],
+		UserId:    a.p.GetBotUserID(),
+		CreateAt:  model.GetMillis(),
 	}
 	_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
 	connectURL := a.p.GetURL() + "/primary-platform"
