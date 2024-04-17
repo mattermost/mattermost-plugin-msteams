@@ -527,6 +527,10 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	if err != nil {
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
+	err = p.setPrimaryPlatform(args.UserId, PreferenceValuePlatformMM)
+	if err != nil {
+		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
+	}
 
 	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
