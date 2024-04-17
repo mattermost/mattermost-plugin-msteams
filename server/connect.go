@@ -101,8 +101,14 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 
 	postID := model.NewId()
 	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channel.Id)
-	connectMessage := message + " " + fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
-	if err := p.botSendDirectMessage(user.Id, connectMessage); err != nil {
+	connectMessage := fmt.Sprintf("%s [Click here to connect your account](%s)", message, connectURL)
+	invitePost := &model.Post{
+		Id:        postID,
+		Message:   connectMessage,
+		UserId:    p.userID,
+		ChannelId: channel.Id,
+	}
+	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
 		return errors.Wrapf(err, "error sending bot message")
 	}
 

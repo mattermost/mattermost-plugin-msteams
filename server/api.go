@@ -573,9 +573,11 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	_, appErr = a.p.GetAPI().GetPost(stateArr[2])
 	if appErr == nil {
 		_, appErr = a.p.GetAPI().UpdatePost(post)
+		if appErr != nil {
+			a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+		}
 	} else {
 		_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
-
 	}
 
 	connectURL := a.p.GetURL() + "/primary-platform"
