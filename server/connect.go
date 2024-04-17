@@ -97,18 +97,20 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
-	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
 
-	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channel.Id)
-	connectMessage := fmt.Sprintf("%s [Click here to connect your account](%s)", message, connectURL)
+	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
 	invitePost := &model.Post{
-		Id:        postID,
-		Message:   connectMessage,
+		Message:   message,
 		UserId:    p.userID,
 		ChannelId: channel.Id,
 	}
 	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
+		return errors.Wrapf(err, "error sending bot message")
+	}
+
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, channel.Id)
+	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s)", invitePost.Message, connectURL)
+	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
 		return errors.Wrapf(err, "error sending bot message")
 	}
 
