@@ -82,6 +82,7 @@ func setupTestStore(t *testing.T) (*SQLStore, *plugintest.API) {
 	store := &SQLStore{}
 	store.api = api
 	store.db = db
+	store.replica = db
 
 	err := store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	require.NoError(t, err)
