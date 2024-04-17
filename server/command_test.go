@@ -446,11 +446,16 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 
 		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 		require.NoError(t, err)
+		err = th.p.setPrimaryPlatform(user1.Id, PreferenceValuePlatformMSTeams)
+		require.NoError(t, err)
 
 		commandResponse, appErr := th.p.executeDisconnectCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
+
+		require.Equal(t, PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
+
 	})
 }
 
