@@ -123,6 +123,8 @@ func (s *SQLStore) Init(remoteID string) error {
 	}
 
 	if remoteID != "" {
+		s.api.LogDebug("[migrations] found remote ID, running corresponding migrations")
+
 		if err := s.runMigrationRemoteID(remoteID); err != nil {
 			return err
 		}
@@ -130,6 +132,8 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); err != nil {
 			return err
 		}
+	} else {
+		s.api.LogDebug("[migrations] remote ID not found, skipping migrations")
 	}
 
 	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
@@ -137,6 +141,8 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 	if !exist {
+		s.api.LogDebug("[migrations] users unique user ID index not found, running corresponding migrations")
+
 		// dedup entries with multiples ms teams id
 		if err := s.runMSTeamUserIDDedup(); err != nil {
 			return err
@@ -145,6 +151,8 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
 			return err
 		}
+	} else {
+		s.api.LogDebug("[migrations] users unique user ID index found, skipping migrations")
 	}
 
 	if err := s.ensureMigrationWhitelistedUsers(); err != nil {

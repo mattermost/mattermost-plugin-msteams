@@ -12,6 +12,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -78,6 +79,13 @@ func createTestDB() (*sql.DB, func(), error) {
 
 func setupTestStore(t *testing.T) (*SQLStore, *plugintest.API) {
 	api := &plugintest.API{}
+	// mock logger calls
+	api.On("LogInfo", mock.AnythingOfType("string")).Return()
+	api.On("LogInfo", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogDebug", mock.AnythingOfType("string")).Return()
+	api.On("LogDebug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.AnythingOfType("string")).Return()
+	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
 
 	store := &SQLStore{}
 	store.api = api

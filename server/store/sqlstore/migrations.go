@@ -9,16 +9,27 @@ import (
 )
 
 func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
+	s.api.LogInfo("[migrations] runMigrationRemoteID started")
+	start := time.Now()
+
 	_, err := s.getQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
 		sq.NotEq{"RemoteID": nil},
 		sq.NotEq{"RemoteID": ""},
 		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
 		sq.Like{"Username": "msteams_%"},
 	}).Exec()
+
+	if err == nil {
+		s.api.LogInfo("[migrations] runMigrationRemoteID finished", "elapsed", time.Since(start))
+	}
+
 	return err
 }
 
 func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
+	s.api.LogInfo("[migrations] runSetEmailVerifiedToTrueForRemoteUsers started")
+	start := time.Now()
+
 	_, err := s.getQueryBuilder().
 		Update("Users").
 		Set("EmailVerified", true).
@@ -26,6 +37,10 @@ func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) erro
 			sq.Eq{"RemoteID": remoteID},
 			sq.Eq{"EmailVerified": false},
 		}).Exec()
+
+	if err == nil {
+		s.api.LogInfo("[migrations] runSetEmailVerifiedToTrueForRemoteUsers finished", "elapsed", time.Since(start))
+	}
 
 	return err
 }
@@ -36,6 +51,9 @@ const (
 )
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
+	s.api.LogInfo("[migrations] runMSTeamUserIDDedup started")
+	start := time.Now()
+
 	// get all users with duplicate msteamsuserid
 	rows, err := s.getQueryBuilder().Select(
 		"mmuserid",
@@ -107,10 +125,17 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 		Where(orCond).
 		Exec()
 
+	if err == nil {
+		s.api.LogInfo("[migrations] runMSTeamUserIDDedup finished", "elapsed", time.Since(start))
+	}
+
 	return err
 }
 
 func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
+	s.api.LogInfo("[migrations] ensureMigrationWhitelistedUsers started")
+	start := time.Now()
+
 	oldWhitelistToProcess, err := s.tableExist(whitelistedUsersLegacyTableName)
 	if err != nil {
 		return err
@@ -159,6 +184,8 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	if err != nil {
 		return err
 	}
+
+	s.api.LogInfo("[migrations] ensureMigrationWhitelistedUsers finished", "elapsed", time.Since(start))
 
 	return nil
 }
