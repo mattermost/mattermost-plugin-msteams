@@ -156,7 +156,7 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 	hasConnected, err := p.store.UserHasConnected(mmUserID)
 	if err != nil {
-		return false, errors.Wrapf(err, "Error in checking if user has connected or not")
+		return false, errors.Wrapf(err, "error in checking if user has connected or not")
 	}
 
 	if hasConnected {
@@ -165,7 +165,7 @@ func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 
 	invitedUser, err := p.store.GetInvitedUser(mmUserID)
 	if err != nil {
-		return false, errors.Wrapf(err, "Error in getting user invite")
+		return false, errors.Wrapf(err, "error in getting user invite")
 	}
 
 	if invitedUser != nil {
@@ -178,13 +178,17 @@ func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, error) {
 	numHasConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		return false, errors.Wrapf(err, "Unable to get has connected count")
+		return false, errors.Wrapf(err, "error in getting has connected count")
 	}
 
 	numInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		return false, errors.Wrapf(err, "Unable to get invited count")
+		return false, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	return (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed, nil
+	if (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+		return false, nil
+	}
+
+	return true, nil
 }
