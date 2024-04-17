@@ -321,8 +321,8 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	return user
 }
 
-func (th *testHelper) ConnectUser(t *testing.T, userID string) {
-	err := th.p.store.SetUserInfo(userID, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+func (th *testHelper) ConnectUser(t *testing.T, userID string, teamID string) {
+	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 	require.NoError(t, err)
 }
 
@@ -446,4 +446,67 @@ func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, me
 			t.Fatal("failed to get websocket event for ephemeral message")
 		}
 	}
+}
+
+func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID string) *model.Post {
+	t.Helper()
+
+	websocketClient := th.GetWebsocketClientForUser(t, userID)
+
+	for {
+		select {
+		case event, ok := <-websocketClient.EventChannel:
+			if !ok {
+				t.Fatal("channel closed before getting websocket event for ephemeral message")
+			}
+
+			if event.EventType() == model.WebsocketEventEphemeralMessage {
+				data := event.GetData()
+				postJSON, ok := data["post"].(string)
+				require.True(t, ok, "failed to find post in ephemeral message websocket event")
+
+				var post model.Post
+				err := json.Unmarshal([]byte(postJSON), &post)
+				require.NoError(t, err)
+
+				assert.Equal(t, channelID, post.ChannelId)
+				return &post
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("failed to get websocket event for ephemeral message")
+		}
+	}
+}
+
+func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expectedMessage string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.Message == expectedMessage {
+				return
+			}
+		}
+		t.Errorf("failed to find post with expected message: %s", expectedMessage)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
+func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.Never(t, func() bool {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		return len(postList.Posts) > 0
+	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -25,7 +26,6 @@ func assertNoCommandResponse(t *testing.T, actual *model.CommandResponse) {
 
 func assertEphemeralResponse(th *testHelper, t *testing.T, args *model.CommandArgs, message string) {
 	t.Helper()
-
 	th.assertEphemeralMessage(t, args.UserId, args.ChannelId, message)
 }
 
@@ -842,7 +842,11 @@ func TestExecuteConnectCommand(t *testing.T) {
 		require.Nil(t, appErr)
 
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, fmt.Sprintf("[Click here to connect your account](%s/connect)", th.p.GetURL()))
+		ephemeralPost := th.retrieveEphemeralPost(t, args.UserId, args.ChannelId)
+
+		expectedMessage := fmt.Sprintf(`\[Click here to connect your account\]\(%s/connect\?post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
+		result, _ := regexp.MatchString(expectedMessage, ephemeralPost.Message)
+		assert.True(t, result)
 	})
 }
 
@@ -922,7 +926,11 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeConnectBotCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, fmt.Sprintf("[Click here to connect the bot account](%s/connect?isBot)", th.p.GetURL()))
+		ephemeralPost := th.retrieveEphemeralPost(t, args.UserId, args.ChannelId)
+
+		expectedMessage := fmt.Sprintf(`\[Click here to connect the bot account\]\(%s/connect\?isBot&post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
+		result, _ := regexp.MatchString(expectedMessage, ephemeralPost.Message)
+		assert.True(t, result)
 	})
 }
 

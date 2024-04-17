@@ -182,15 +182,8 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		return
 	}
 
-	connectURL := p.GetURL() + "/connect"
-	_, appErr = p.API.CreatePost(&model.Post{
-		UserId:    p.GetBotUserID(),
-		ChannelId: channel.Id,
-		Message:   "Your connection to Microsoft Teams has been lost. " + fmt.Sprintf("[Click here to reconnect your account](%s).", connectURL),
-	})
-	if appErr != nil {
-		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
-	}
+	message := "Your connection to Microsoft Teams has been lost. "
+	p.SendConnectMessage(channel.Id, userID, message)
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {

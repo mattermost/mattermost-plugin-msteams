@@ -15,19 +15,6 @@ const (
 	NewConnectionsRolloutOpenRestricted = "rolloutOpenRestricted"
 )
 
-func (p *Plugin) botSendDirectMessage(userID, message string) error {
-	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
-	}
-
-	return p.apiClient.Post.CreatePost(&model.Post{
-		Message:   message,
-		UserId:    p.userID,
-		ChannelId: channel.Id,
-	})
-}
-
 func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	if p.getConfiguration().NewUserConnections == NewConnectionsEnabled {
 		// new connections allowed, but invites disabled
@@ -110,9 +97,14 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		return errors.Wrapf(err, "error storing user in invite list")
 	}
 
-	connectURL := p.GetURL() + "/connect"
+	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
+	}
+	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
+	p.SendConnectMessage(channel.Id, user.Id, message)
 
-	return p.botSendDirectMessage(user.Id, fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. [Click here to connect your account](%s).", user.Username, connectURL))
+	return nil
 }
 
 func (p *Plugin) shouldSendInviteMessage(

@@ -23,6 +23,8 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 			continue
 		}
 
+		p.notifyUserTeamsPrimary(userID)
+
 		if _, err := p.enableAutomute(userID); err != nil {
 			p.API.LogWarn(
 				"Unable to mute channels for a user who set their primary platform to Teams",
@@ -33,6 +35,8 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 	}
 
 	for _, userID := range userIDsToDisable {
+		p.notifyUserMattermostPrimary(userID)
+
 		_, err := p.disableAutomute(userID)
 		if err != nil {
 			p.API.LogWarn(
