@@ -875,7 +875,7 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	stats, err := p.store.GetStats()
+	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
 	}
