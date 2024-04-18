@@ -93,16 +93,30 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		invitedUser.InvitePendingSince = currentTime
 	}
 
-	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
-		return errors.Wrapf(err, "error storing user in invite list")
-	}
-
 	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
+
 	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
-	p.SendConnectMessage(channel.Id, user.Id, message)
+	invitePost := &model.Post{
+		Message:   message,
+		UserId:    p.userID,
+		ChannelId: channel.Id,
+	}
+	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
+		return errors.Wrapf(err, "error sending bot message")
+	}
+
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, channel.Id)
+	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s)", invitePost.Message, connectURL)
+	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
+		return errors.Wrapf(err, "error sending bot message")
+	}
+
+	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
+		return errors.Wrapf(err, "error storing user in invite list")
+	}
 
 	return nil
 }
