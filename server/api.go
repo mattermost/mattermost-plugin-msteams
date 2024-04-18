@@ -807,7 +807,7 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.p.API.LogWarn("Whitelist updated", "size", len(ids))
+	a.p.API.LogInfo("Whitelist updated", "size", len(ids))
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
