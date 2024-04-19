@@ -1006,11 +1006,12 @@ func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
 	for i, id := range userIDs {
 		currentBatch = append(currentBatch, id)
 		if len(currentBatch) >= batchSize || i == len(userIDs)-1 {
+			// batch threshold met, or end of list
 			if err = s.storeUsersInWhitelist(currentBatch, tx); err != nil {
 				s.api.LogDebug("Error adding batched users to whitelist", "error", err.Error(), "userIds", currentBatch)
 				return err
 			}
-			clear(currentBatch)
+			currentBatch = nil
 		}
 	}
 
