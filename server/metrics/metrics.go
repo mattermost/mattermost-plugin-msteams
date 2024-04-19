@@ -385,7 +385,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "mattermost_primary",
-		Help:        "The total number of users who selected Mattermost as their primary platform.",
+		Help:        "The total number of active users who selected Mattermost as their primary platform.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.mattermostPrimary)
@@ -394,7 +394,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "msteams_primary",
-		Help:        "The total number of users who selected Microsoft Teams as their primary platform.",
+		Help:        "The total number of active users who selected Microsoft Teams as their primary platform.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.msTeamsPrimary)
