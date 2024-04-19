@@ -1027,6 +1027,19 @@ func TestGetStats(t *testing.T) {
 	}
 	assert := require.New(t)
 
+	cleanup := func() {
+		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		assert.Nil(err)
+	}
+	cleanup()
+	defer cleanup()
+
 	const remoteID = "remote-id"
 	const category = "pp_pluginid"
 
@@ -1072,7 +1085,7 @@ func TestGetStats(t *testing.T) {
 
 		// create 4 channels
 		for i := 0; i < 4; i++ {
-			store.StoreChannelLink(&storemodels.ChannelLink{
+			err := store.StoreChannelLink(&storemodels.ChannelLink{
 				MattermostTeamID:      model.NewId(),
 				MattermostTeamName:    "team name " + fmt.Sprint(i),
 				MattermostChannelID:   model.NewId(),
@@ -1081,6 +1094,7 @@ func TestGetStats(t *testing.T) {
 				MSTeamsChannel:        model.NewId(),
 				Creator:               model.NewId(),
 			})
+			assert.Nil(err)
 		}
 
 		stats, getErr := store.GetStats(remoteID, category)
