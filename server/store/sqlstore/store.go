@@ -909,10 +909,12 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var platform string
 		var count int64
-		if err := row.Scan(&platform, &count); err != nil {
+		if err := rows.Scan(&platform, &count); err != nil {
 			return nil, err
 		}
 
@@ -925,11 +927,11 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 	}
 
 	return &storemodels.Stats{
-		LinkedChannels: linkedChannels,
-		ConnectedUsers: connectedUsers,
-		SyntheticUsers: syntheticUsers,
-		MMPrimary:      mmPrimary,
-		MSTeamsPrimary: msTeamPrimary,
+		LinkedChannels:    linkedChannels,
+		ConnectedUsers:    connectedUsers,
+		SyntheticUsers:    syntheticUsers,
+		MattermostPrimary: mmPrimary,
+		MSTeamsPrimary:    msTeamPrimary,
 	}, nil
 }
 
