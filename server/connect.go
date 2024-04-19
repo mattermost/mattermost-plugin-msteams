@@ -98,7 +98,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
 
-	message := fmt.Sprintf("@%s, you're invited to use the MS Teams connected experience. ", user.Username)
+	message := fmt.Sprintf("@%s, you’re invited to use the Microsoft Teams connected experience for Mattermost. ", user.Username)
 	invitePost := &model.Post{
 		Message:   message,
 		UserId:    p.userID,
@@ -109,7 +109,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	}
 
 	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, channel.Id)
-	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s)", invitePost.Message, connectURL)
+	invitePost.Message = fmt.Sprintf("%s [Click here to activate the integration in a minute or less](%s). For best results, follow the prompts to pick your primary app and then disable notifications for the other app.", invitePost.Message, connectURL)
 	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
 		return errors.Wrapf(err, "error sending bot message")
 	}
