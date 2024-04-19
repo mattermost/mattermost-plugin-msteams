@@ -888,7 +888,7 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 
 	query = s.getQueryBuilder().Select("count(id)").From("users").Where(sq.And{
 		sq.Eq{"RemoteId": remoteID},
-		sq.Eq{"DeleteAt": 0},
+		sq.Or{sq.Eq{"DeleteAt": 0}, sq.Eq{"DeleteAt": nil}},
 	})
 	row = query.QueryRow()
 	var syntheticUsers int64
