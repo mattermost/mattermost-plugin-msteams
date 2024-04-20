@@ -26,6 +26,7 @@ const (
 	oAuth2StateTimeToLive           = 300 // seconds
 	oAuth2KeyPrefix                 = "oauth2_"
 	backgroundJobPrefix             = "background_job"
+	systemSettingsTableName         = "msteamssync_system_settings"
 	usersTableName                  = "msteamssync_users"
 	linksTableName                  = "msteamssync_links"
 	postsTableName                  = "msteamssync_posts"
@@ -56,100 +57,37 @@ func New(db, replica *sql.DB, api plugin.API, enabledTeams func() []string, encr
 }
 
 func (s *SQLStore) Init(remoteID string) error {
-	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
-		return err
+	if err := s.Migrate(remoteID); err != nil {
+		return fmt.Errorf("error running database migrations: %w", err)
 	}
 
-	if err := s.createTable(linksTableName, "mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255), creator VARCHAR(255)"); err != nil {
-		return err
+	return nil
+}
+
+func (s *SQLStore) getSystemSetting(key string) (string, error) {
+	scanner := s.getQueryBuilder().
+		Select("value").
+		From(systemSettingsTableName).
+		Where(sq.Eq{"id": key}).
+		QueryRow()
+
+	var result string
+	err := scanner.Scan(&result)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
 	}
 
-	if err := s.addColumn(linksTableName, "creator", "VARCHAR(255)"); err != nil {
-		return err
-	}
+	return result, nil
+}
 
-	if err := s.createTable(usersTableName, "mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT"); err != nil {
-		return err
-	}
-
-	if err := s.addPrimaryKey(usersTableName, "mmUserID, msTeamsUserID"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(postsTableName, "mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(linksTableName, "idx_msteamssync_links_msteamsteamid_msteamschannelid", "msTeamsTeamID, msTeamsChannelID"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(usersTableName, "idx_msteamssync_users_msteamsuserid", "msTeamsUserID"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(postsTableName, "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(subscriptionsTableName, "certificate", "TEXT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(subscriptionsTableName, "lastActivityAt", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(invitedUsersTableName, "invitePendingSince", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "lastConnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "lastDisconnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(whitelistTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
-		return err
-	}
-
-	if remoteID != "" {
-		if err := s.runMigrationRemoteID(remoteID); err != nil {
-			return err
-		}
-
-		if err := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); err != nil {
-			return err
-		}
-	}
-
-	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
+func (s *SQLStore) setSystemSetting(id, value string) error {
+	_, err := s.getQueryBuilder().
+		Insert(systemSettingsTableName).
+		Columns("id", "value").
+		Values(id, value).
+		Suffix("ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value").
+		Exec()
 	if err != nil {
-		return err
-	}
-	if !exist {
-		// dedup entries with multiples ms teams id
-		if err := s.runMSTeamUserIDDedup(); err != nil {
-			return err
-		}
-
-		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
-			return err
-		}
-	}
-
-	if err := s.ensureMigrationWhitelistedUsers(); err != nil {
 		return err
 	}
 

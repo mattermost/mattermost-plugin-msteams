@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -78,19 +79,28 @@ func createTestDB() (*sql.DB, func(), error) {
 
 func setupTestStore(t *testing.T) (*SQLStore, *plugintest.API) {
 	api := &plugintest.API{}
+	api.On("LogDebug", mock.AnythingOfType("string")).Return()
+	api.On("LogDebug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogDebug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	api.On("LogInfo", mock.AnythingOfType("string")).Return()
+	api.On("LogInfo", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogInfo", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.AnythingOfType("string")).Return()
+	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 	store := &SQLStore{}
 	store.api = api
 	store.db = db
 	store.replica = db
 
-	err := store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
+	err := createTable(store, "Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	require.NoError(t, err)
-	err = store.createTable("Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
+	err = createTable(store, "Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	require.NoError(t, err)
-	err = store.createTable("Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255), remoteid VARCHAR(26), createat BIGINT, deleteat BIGINT")
+	err = createTable(store, "Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255), remoteid VARCHAR(26), createat BIGINT, deleteat BIGINT")
 	require.NoError(t, err)
-	err = store.createTable("Preferences", "userid VARCHAR(26) NOT NULL, category VARCHAR(32) NOT NULL, name VARCHAR(32) NOT NULL, value VARCHAR(2000) NULL")
+	err = createTable(store, "Preferences", "userid VARCHAR(26) NOT NULL, category VARCHAR(32) NOT NULL, name VARCHAR(32) NOT NULL, value VARCHAR(2000) NULL")
 	require.NoError(t, err)
 	err = store.Init("")
 	require.NoError(t, err)

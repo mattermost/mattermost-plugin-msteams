@@ -46,7 +46,7 @@ func TestRunMSTeamUserIDDedup(t *testing.T) {
 
 	_, err := store.db.Exec("DROP INDEX IF EXISTS idx_msteamssync_users_msteamsuserid_unq")
 	assert.NoError(err)
-	defer func() { _ = store.createMSTeamsUserIDUniqueIndex() }()
+	defer func() { _ = createMSTeamsUserIDUniqueIndex(store) }()
 
 	res, err := store.getQueryBuilder(store.db).Insert("users").
 		Columns("id", "createat", "remoteid").
