@@ -1056,8 +1056,8 @@ func TestGetStats(t *testing.T) {
 	t.Run("values set", func(t *testing.T) {
 		// create 5 users connected users, 3 on MM and 2 using Teams
 		for i := 0; i < 5; i++ {
-			userId := model.NewId()
-			err := store.SetUserInfo(userId, model.NewId(), &oauth2.Token{
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
 				AccessToken: model.NewId(),
 			})
 			assert.Nil(err)
@@ -1069,17 +1069,17 @@ func TestGetStats(t *testing.T) {
 
 			_, err = store.getQueryBuilder().Insert("preferences").
 				Columns("userid, category, name, value").
-				Values(userId, category, storemodels.PreferenceNamePlatform, platform).
+				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
 				Exec()
 			assert.Nil(err)
 		}
 
 		// create 3 users synthetic users
 		for i := 0; i < 3; i++ {
-			userId := model.NewId()
+			userID := model.NewId()
 			_, err := store.getQueryBuilder().Insert("Users").
 				Columns("Id, remoteid").
-				Values(userId, remoteID).Exec()
+				Values(userID, remoteID).Exec()
 			assert.Nil(err)
 		}
 
