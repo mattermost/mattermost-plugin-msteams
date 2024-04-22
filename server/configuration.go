@@ -39,6 +39,7 @@ type configuration struct {
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
+	NewUserConnections                 string `json:"newUserConnections"`
 	ConnectedUsersInvitePoolSize       int    `json:"connectedUsersInvitePoolSize"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`

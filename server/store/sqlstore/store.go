@@ -16,23 +16,25 @@ import (
 )
 
 const (
-	connectionPromptKey          = "connect_"
-	subscriptionRefreshTimeLimit = 5 * time.Minute
-	maxLimitForLinks             = 100
-	subscriptionTypeUser         = "user"
-	subscriptionTypeChannel      = "channel"
-	subscriptionTypeAllChats     = "allChats"
-	oAuth2StateTimeToLive        = 300 // seconds
-	oAuth2KeyPrefix              = "oauth2_"
-	backgroundJobPrefix          = "background_job"
-	usersTableName               = "msteamssync_users"
-	linksTableName               = "msteamssync_links"
-	postsTableName               = "msteamssync_posts"
-	activityQueueTableName       = "msteamssync_activity_queue"
-	subscriptionsTableName       = "msteamssync_subscriptions"
-	whitelistedUsersTableName    = "msteamssync_whitelisted_users"
-	invitedUsersTableName        = "msteamssync_invited_users"
-	PGUniqueViolationErrorCode   = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
+	connectionPromptKey             = "connect_"
+	subscriptionRefreshTimeLimit    = 5 * time.Minute
+	maxLimitForLinks                = 100
+	setWhitelistFailureThreshold    = 0
+	subscriptionTypeUser            = "user"
+	subscriptionTypeChannel         = "channel"
+	subscriptionTypeAllChats        = "allChats"
+	oAuth2StateTimeToLive           = 300 // seconds
+	oAuth2KeyPrefix                 = "oauth2_"
+	backgroundJobPrefix             = "background_job"
+	usersTableName                  = "msteamssync_users"
+	linksTableName                  = "msteamssync_links"
+	postsTableName                  = "msteamssync_posts"
+	activityQueueTableName          = "msteamssync_activity_queue"
+	subscriptionsTableName          = "msteamssync_subscriptions"
+	whitelistedUsersLegacyTableName = "msteamssync_whitelisted_users" // LEGACY-UNUSED
+	whitelistTableName              = "msteamssync_whitelist"
+	invitedUsersTableName           = "msteamssync_invited_users"
+	PGUniqueViolationErrorCode      = "23505" // See https://github.com/lib/pq/blob/master/error.go#L178
 )
 
 type SQLStore struct {
@@ -101,10 +103,6 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 
-	if err := s.createTable(whitelistedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
-		return err
-	}
-
 	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
 		return err
 	}
@@ -114,6 +112,18 @@ func (s *SQLStore) Init(remoteID string) error {
 	}
 
 	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "lastConnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "lastDisconnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+
+	if err := s.createTable(whitelistTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
 		return err
 	}
 
@@ -140,6 +150,10 @@ func (s *SQLStore) Init(remoteID string) error {
 		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
 			return err
 		}
+	}
+
+	if err := s.ensureMigrationWhitelistedUsers(); err != nil {
+		return err
 	}
 
 	return nil
@@ -384,6 +398,82 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 	return &token, nil
 }
 
+func (s *SQLStore) UserHasConnected(mmUserID string) (bool, error) {
+	connectStatus, err := s.GetUserConnectStatus(mmUserID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return !connectStatus.LastConnectAt.IsZero(), nil
+}
+
+func (s *SQLStore) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error) {
+	query := s.getQueryBuilder().
+		Select("mmUserID", "token", "lastConnectAt", "lastDisconnectAt").
+		From(usersTableName).
+		Where(sq.Eq{"mmUserID": mmUserID})
+
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := &storemodels.UserConnectStatus{}
+	if rows.Next() {
+		var encryptedToken string
+		var lastConnectAt int64
+		var lastDisconnectAt int64
+
+		if scanErr := rows.Scan(&result.ID, &encryptedToken, &lastConnectAt, &lastDisconnectAt); scanErr != nil {
+			return nil, scanErr
+		}
+
+		if encryptedToken != "" {
+			result.Connected = true
+		}
+
+		if lastConnectAt != 0 {
+			result.LastConnectAt = time.UnixMicro(lastConnectAt)
+		}
+
+		if lastDisconnectAt != 0 {
+			result.LastDisconnectAt = time.UnixMicro(lastDisconnectAt)
+		}
+	}
+
+	return result, nil
+}
+
+func computeStatusTimes(status *storemodels.UserConnectStatus, nextIsConnected bool) (int64, int64, error) {
+	var lastConnectAt int64
+	var lastDisconnectAt int64
+
+	now := time.Now()
+
+	if nextIsConnected {
+		// connected
+		lastConnectAt = now.UnixMicro() // bump always if new token
+
+		if !status.LastDisconnectAt.IsZero() {
+			lastDisconnectAt = status.LastDisconnectAt.UnixMicro() // no change, pass-through
+		}
+	} else {
+		if !status.LastConnectAt.IsZero() {
+			lastConnectAt = status.LastConnectAt.UnixMicro() // pass-through
+		}
+
+		if status.Connected {
+			lastDisconnectAt = now.UnixMicro() // bump only on actual disconnect
+		} else if !status.LastDisconnectAt.IsZero() {
+			lastDisconnectAt = status.LastDisconnectAt.UnixMicro() // no change, pass-through
+		}
+	}
+
+	return lastConnectAt, lastDisconnectAt, nil
+}
+
 func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
 	var encryptedToken string
 	if token != nil {
@@ -400,11 +490,21 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 		}
 	}
 
+	currentConnectStatus, err := s.GetUserConnectStatus(userID)
+	if err != nil {
+		return err
+	}
+
+	lastConnectAt, lastDisconnectAt, err := computeStatusTimes(currentConnectStatus, encryptedToken != "")
+	if err != nil {
+		return err
+	}
+
 	if err := s.DeleteUserInfo(userID); err != nil {
 		return err
 	}
 
-	if _, err := s.getQueryBuilder().Insert(usersTableName).Columns("mmUserID, msTeamsUserID, token").Values(userID, msTeamsUserID, encryptedToken).Suffix("ON CONFLICT (mmUserID, msTeamsUserID) DO UPDATE SET token = EXCLUDED.token").Exec(); err != nil {
+	if _, err := s.getQueryBuilder().Insert(usersTableName).Columns("mmUserID, msTeamsUserID, token, lastConnectAt, lastDisconnectAt").Values(userID, msTeamsUserID, encryptedToken, lastConnectAt, lastDisconnectAt).Suffix("ON CONFLICT (mmUserID, msTeamsUserID) DO UPDATE SET token = EXCLUDED.token, lastConnectAt = EXCLUDED.lastConnectAt, lastDisconnectAt = EXCLUDED.lastDisconnectAt").Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -827,43 +927,11 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	return connectedUsers, nil
 }
 
-func (s *SQLStore) PrefillWhitelist() error {
-	page := 0
-	perPage := 100
-	for {
-		query := s.getQueryBuilder().Select("mmuserid").From(usersTableName).Where(sq.NotEq{"token": ""}).Offset(uint64(page * perPage)).Limit(uint64(perPage))
-		rows, err := query.Query()
-		if err != nil {
-			return err
-		}
-
-		count := 0
-		for rows.Next() {
-			count++
-			var connectedUserID string
-			if err := rows.Scan(&connectedUserID); err != nil {
-				s.api.LogDebug("Unable to scan the result", "Error", err.Error())
-				continue
-			}
-
-			if err := s.StoreUserInWhitelist(connectedUserID); err != nil {
-				s.api.LogDebug("Unable to store user in whitelist", "UserID", connectedUserID, "Error", err.Error())
-			}
-		}
-
-		rows.Close()
-		if count < perPage {
-			break
-		}
-
-		page++
-	}
-
-	return nil
-}
-
-func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
-	query := s.getQueryBuilder().Select("count(*)").From(whitelistedUsersTableName)
+func (s *SQLStore) GetHasConnectedCount() (int, error) {
+	query := s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.And{sq.NotEq{"lastConnectAt": 0}})
 	rows, err := query.Query()
 	if err != nil {
 		return 0, err
@@ -881,7 +949,7 @@ func (s *SQLStore) GetSizeOfWhitelist() (int, error) {
 }
 
 func (s *SQLStore) StoreUserInWhitelist(userID string) error {
-	query := s.getQueryBuilder().Insert(whitelistedUsersTableName).Columns("mmUserID").Values(userID)
+	query := s.getQueryBuilder().Insert(whitelistTableName).Columns("mmUserID").Values(userID)
 	if _, err := query.Exec(); err != nil {
 		if isDuplicate(err) {
 			s.api.LogDebug("UserID already present in whitelist", "UserID", userID)
@@ -894,8 +962,69 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	return nil
 }
 
-func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
-	query := s.getQueryBuilder().Select("mmUserID").From(whitelistedUsersTableName).Where(sq.Eq{"mmUserID": userID})
+func (s *SQLStore) storeUsersInWhitelist(userIDs []string, tx *sql.Tx) error {
+	query := s.getQueryBuilder().
+		Insert(whitelistTableName).
+		Columns("mmUserID").
+		RunWith(tx)
+
+	for _, userID := range userIDs {
+		query = query.Values(userID)
+	}
+
+	if _, err := query.Exec(); err != nil {
+		// TODO handle duplicates
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
+	var err error
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			s.api.LogDebug("Error processing whitelist, rolling back tx", "error", err.Error())
+			err = tx.Rollback()
+			if err != nil {
+				s.api.LogError("Error rolling back add whitelist tx", "error", err.Error())
+			}
+			return
+		}
+		err = tx.Commit()
+		if err != nil {
+			s.api.LogDebug("Error committing tx", "error", err.Error())
+		}
+	}()
+
+	if err = s.deleteWhitelist(tx); err != nil {
+		s.api.LogDebug("Error deleting whitelist")
+		return err
+	}
+
+	var currentBatch []string
+
+	for i, id := range userIDs {
+		currentBatch = append(currentBatch, id)
+		if len(currentBatch) >= batchSize || i == len(userIDs)-1 {
+			// batch threshold met, or end of list
+			if err = s.storeUsersInWhitelist(currentBatch, tx); err != nil {
+				s.api.LogDebug("Error adding batched users to whitelist", "error", err.Error(), "userIds", currentBatch)
+				return err
+			}
+			currentBatch = nil
+		}
+	}
+
+	return nil
+}
+
+func (s *SQLStore) IsUserWhitelisted(userID string) (bool, error) {
+	query := s.getQueryBuilder().Select("mmUserID").From(whitelistTableName).Where(sq.Eq{"mmUserID": userID})
 	rows, err := query.Query()
 	if err != nil {
 		return false, err
@@ -910,6 +1039,67 @@ func (s *SQLStore) IsUserPresentInWhitelist(userID string) (bool, error) {
 	}
 
 	return result != "", nil
+}
+
+func (s *SQLStore) DeleteUserFromWhitelist(mmUserID string) error {
+	if _, err := s.getQueryBuilder().Delete(whitelistTableName).Where(sq.Eq{"mmUserID": mmUserID}).Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) GetWhitelistCount() (int, error) {
+	query := s.getQueryBuilder().Select("count(*)").From(whitelistTableName)
+	rows, err := query.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var result int
+	if rows.Next() {
+		if scanErr := rows.Scan(&result); scanErr != nil {
+			return 0, scanErr
+		}
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) GetWhitelistEmails(page, perPage int) ([]string, error) {
+	query := s.getQueryBuilder().
+		Select("Users.Email").
+		From(whitelistTableName).
+		LeftJoin("Users ON Users.Id = msteamssync_whitelist.mmuserid").
+		Offset(uint64(page * perPage)).
+		Limit(uint64(perPage))
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			s.api.LogDebug("Unable to scan the result", "Error", err.Error())
+			continue
+		}
+
+		result = append(result, email)
+	}
+
+	return result, nil
+}
+
+func (s *SQLStore) deleteWhitelist(tx *sql.Tx) error {
+	if _, err := s.getQueryBuilder().Delete(whitelistTableName).RunWith(tx).Exec(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
@@ -941,24 +1131,27 @@ func (s *SQLStore) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, er
 	}
 	defer rows.Close()
 
-	var result *storemodels.InvitedUser
 	if rows.Next() {
-		var id string
+		var result = &storemodels.InvitedUser{}
 		var pendingSince int64
 		var lastSentAt int64
 
-		if scanErr := rows.Scan(&id, &pendingSince, &lastSentAt); scanErr != nil {
+		if scanErr := rows.Scan(&result.ID, &pendingSince, &lastSentAt); scanErr != nil {
 			return nil, scanErr
 		}
 
-		result = &storemodels.InvitedUser{
-			ID:                 id,
-			InvitePendingSince: time.UnixMicro(pendingSince),
-			InviteLastSentAt:   time.UnixMicro(pendingSince),
+		if pendingSince != 0 {
+			result.InvitePendingSince = time.UnixMicro(pendingSince)
 		}
+
+		if lastSentAt != 0 {
+			result.InvitePendingSince = time.UnixMicro(lastSentAt)
+		}
+
+		return result, nil
 	}
 
-	return result, nil
+	return nil, nil
 }
 
 func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
@@ -1030,7 +1223,7 @@ func (s *SQLStore) ProcessQueuedActivity(activityCallback func(activity string) 
 	return nil
 }
 
-func (s *SQLStore) GetSizeOfInvitedUsers() (int, error) {
+func (s *SQLStore) GetInvitedCount() (int, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
 	rows, err := query.Query()
 	if err != nil {
