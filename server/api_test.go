@@ -799,10 +799,11 @@ func TestConnect(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			endPoint := "/connect"
+			endPoint := "/connect?"
 			if test.isBot {
-				endPoint += "?isBot"
+				endPoint += "isBot&"
 			}
+			endPoint += "channel_id=123&post_id=456"
 			r := httptest.NewRequest(http.MethodGet, endPoint, nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)

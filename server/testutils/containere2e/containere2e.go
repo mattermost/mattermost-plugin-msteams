@@ -2,14 +2,13 @@ package containere2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -95,6 +94,10 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		t.Fatal(err)
 	}
 
+	if os.Getenv("INSPECT_MOCKSERVER") != "" {
+		t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
+	}
+
 	mockClient, err := NewMockClient(mockAPIURL)
 	if err != nil {
 		_ = mockserverContainer.Terminate(context.Background())
@@ -113,6 +116,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"webhooksecret":              "webhook-secret",
 		"syncdirectmessages":         true,
 		"synclinkedchannels":         true,
+		"syncreactions":              true,
 		"disableSyncMsg":             false,
 		"useSharedChannels":          true,
 	}
@@ -152,16 +156,15 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	require.NoError(t, err)
 
+	if os.Getenv("INSPECT_MOCKSERVER") != "" {
+		t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
+	}
+
 	tearDown := func() {
 		if os.Getenv("INSPECT_MOCKSERVER") != "" {
 			t.Logf("Mockserver URL: %s\n", mockAPIURL+"/mockserver/dashboard")
-			minutesString := os.Getenv("INSPECT_MOCKSERVER")
-			minutes, err := strconv.Atoi(minutesString)
-			if err != nil {
-				time.Sleep(time.Duration(minutes) * time.Minute)
-			} else {
-				time.Sleep(5 * time.Minute)
-			}
+			t.Logf("Press the Enter Key to stop the mock server and continue to the test results!")
+			fmt.Scanln()
 		}
 
 		require.NoError(t, mockserverContainer.Terminate(context.Background()))

@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -14,6 +15,18 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
 		sq.Like{"Username": "msteams_%"},
 	}).Exec()
+	return err
+}
+
+func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
+	_, err := s.getQueryBuilder().
+		Update("Users").
+		Set("EmailVerified", true).
+		Where(sq.And{
+			sq.Eq{"RemoteID": remoteID},
+			sq.Eq{"EmailVerified": false},
+		}).Exec()
+
 	return err
 }
 
@@ -97,8 +110,69 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	return err
 }
 
+func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
+	oldWhitelistToProcess, err := s.tableExist(whitelistedUsersLegacyTableName)
+	if err != nil {
+		return err
+	}
+
+	if !oldWhitelistToProcess {
+		// migration already done, no rows to process
+		return nil
+	}
+
+	s.api.LogInfo("Migrating old whitelist rows")
+
+	now := time.Now()
+
+	// all presently-whitelisted users should already in the users table,
+	// as being added to the old whitelist only happened after successful connection.
+
+	// has-connected users (presently and previously)
+	_, err = s.getQueryBuilder().
+		Update(usersTableName).
+		Set("lastConnectAt", now.UnixMicro()).
+		Where(sq.Or{
+			sq.And{sq.NotEq{"token": ""}, sq.NotEq{"token": nil}},
+			sq.Expr("mmUserID IN (SELECT mmUserID FROM " + whitelistedUsersLegacyTableName + ")"),
+		}).
+		Exec()
+	if err != nil {
+		return err
+	}
+
+	// only previously-connected
+	_, err = s.getQueryBuilder().
+		Update(usersTableName).
+		Set("lastDisconnectAt", now.UnixMicro()).
+		Where(sq.And{
+			sq.Or{sq.Eq{"token": ""}, sq.Eq{"token": nil}},
+			sq.Expr("mmUserID IN (SELECT mmUserID FROM " + whitelistedUsersLegacyTableName + ")"),
+		}).
+		Exec()
+	if err != nil {
+		return err
+	}
+
+	err = s.deleteTable(whitelistedUsersLegacyTableName)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *SQLStore) createTable(tableName, columnList string) error {
 	if _, err := s.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, columnList)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) deleteTable(tableName string) error {
+	if _, err := s.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 		return err
 	}
 
@@ -131,6 +205,16 @@ func (s *SQLStore) addColumn(tableName, columnName, columnDefinition string) err
 
 func (s *SQLStore) indexExist(tableName, indexName string) (bool, error) {
 	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_indexes WHERE tablename = '%s' AND indexname = '%s'", tableName, indexName))
+	if err != nil {
+		return false, err
+	}
+
+	defer rows.Close()
+	return rows.Next(), nil
+}
+
+func (s *SQLStore) tableExist(tableName string) (bool, error) {
+	rows, err := s.db.Query(fmt.Sprintf("SELECT 1 FROM pg_tables WHERE schemaname = current_schema() AND tablename = '%s'", tableName))
 	if err != nil {
 		return false, err
 	}

@@ -18,194 +18,251 @@
     "settings_schema": {
         "header": "",
         "footer": "",
-        "settings": [{
-          "key": "tenantId",
-          "display_name": "Tenant ID",
-          "type": "text",
-          "help_text": "Microsoft Teams Tenant ID",
-          "default": ""
-        },{
-          "key": "clientId",
-          "display_name": "Client ID",
-          "type": "text",
-          "help_text": "Microsoft Teams Client ID",
-          "default": ""
-        },{
-          "key": "clientSecret",
-          "display_name": "Client Secret",
-          "type": "text",
-          "help_text": "Microsoft Teams Client Secret",
-          "default": ""
-        },{
-          "key": "encryptionKey",
-          "display_name": "At Rest Encryption Key:",
-          "type": "generated",
-          "help_text": "The AES encryption key used to encrypt stored access tokens"
-        },{
-          "key": "webhookSecret",
-          "display_name": "Webhook secret",
-          "type": "generated",
-          "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
-        },{
-          "key": "certificatePublic",
-          "display_name": "Certificate Public",
-          "type": "longtext",
-          "help_text": "Certificate public part"
-        },{
-          "key": "certificateKey",
-          "display_name": "Certificate Key",
-          "type": "longtext",
-          "help_text": "Certificate private key"
-        },{
-          "key": "evaluationAPI",
-          "display_name": "Use the evaluation API pay model",
-          "type": "bool",
-          "help_text": "The evaluation API pay model only allows you to get a limited number of change notifications. Be sure your system keeps them low if you enable this setting",
-          "default": false
-        },{
-          "key": "syncUsers",
-          "display_name": "Sync users",
-          "type": "number",
-          "help_text": "Set the number of minutes between users sync (Leave it empty to disable users sync)",
-          "default": 0
-        },{
-          "key": "syncGuestUsers",
-          "display_name": "Sync guest users",
-          "type": "bool",
-          "help_text": "Set the value to 'true' to sync MS Teams guest users",
-          "default": false
-        },{
-          "key": "syncDirectMessages",
-          "display_name": "Sync direct and group messages",
-          "type": "bool",
-          "help_text": "Sync direct and group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
-          "default": false
-        },{
-          "key": "selectiveSync",
-          "display_name": "Selective sync",
-          "type": "bool",
-          "help_text": "Skip syncing messages between users on the same platform.",
-          "default": false
-        },{
-          "key": "syncLinkedChannels",
-          "display_name": "Sync linked channels",
-          "type": "bool",
-          "help_text": "Sync messages from channels linked between Mattermost and MS Teams",
-          "default": false
-        },{
-          "key": "syncReactions",
-          "display_name": "Sync reactions",
-          "type": "bool",
-          "help_text": "Sync reactions on messages",
-          "default": false
-        },{
-          "key": "syncFileAttachments",
-          "display_name": "Sync file attachments",
-          "type": "bool",
-          "help_text": "Sync file attachments on messages",
-          "default": false
-        },{
-          "key": "enabledTeams",
-          "display_name": "Enabled Teams",
-          "type": "text",
-          "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
-          "default": ""
-        },{
-          "key": "maxSizeForCompleteDownload",
-          "display_name": "Maximum size of attachments to support complete one time download (in MB)",
-          "type": "number",
-          "help_text": "Set the maximum size for attachments that can be loaded into the memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost",
-          "default": 20
-        },{
-          "key": "bufferSizeForFileStreaming",
-          "display_name": "Buffer size for streaming files (in MB)",
-          "type": "number",
-          "help_text": "Set the buffer size for streaming files from MS Teams to Mattermost",
-          "default": 20
-        },{
-          "key": "connectedUsersAllowed",
-          "display_name": "Max Connected Users",
-          "type": "number",
-          "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, the user is added to a white-list and may reconnect at any time.",
-          "default": 1000
-        },{
-          "key": "connectedUsersInvitePoolSize",
-          "display_name": "Connection Invites: Max Pending Invitations",
-          "type": "number",
-          "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite direct messages will be sent to users as they login, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. (Set to 0 or leave empty to disable connection invites.)",
-          "default": 0
-        },{
-            "key": "automaticallyPromoteSyntheticUsers",
-            "display_name": "Automatically Promote Synthetic Users",
-            "type": "bool",
-            "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
-            "default": false
-        },{
-            "key": "disableSyncMsg",
-            "display_name": "Disable using the sync msg infrastructure for tracking message changes",
-            "type": "bool",
-            "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
-            "default": false
-        },{
-            "key": "useSharedChannels",
-            "display_name": "Reliable Message Delivery",
-            "type": "bool",
-            "help_text": "When true, the plugin will ensure reliable message delivery to msteams retrying when is needed.",
-            "default": false
-        },{
-            "key": "disableCheckCredentials",
-            "display_name": "Disable periodically checking the validity of the application credentials",
-            "type": "bool",
-            "help_text": "When true, the plugin will not periodically check the validity of the application credentials.",
-            "default": false
-        },{
-            "key": "syntheticUserAuthService",
-            "display_name": "Synthetic User Auth Service",
-            "type": "dropdown",
-              "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'SAML'.",
-              "default": "saml",
-              "options": [
-                  {
-                      "display_name": "SAML",
-                      "value": "saml"
-                  },
-                  {
-                      "display_name": "AD/LDAP",
-                      "value": "ldap"
-                  }
-              ]
-        },{
-            "key": "syntheticUserAuthData",
-            "display_name": "Synthetic User Auth Data",
-            "type": "dropdown",
-              "help_text": "Select the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID Attribute. ",
-              "default": "ID",
-              "options": [
-                  {
-                      "display_name": "ID",
-                      "value": "ID"
-                  },
-                  {
-                      "display_name": "Mail",
-                      "value": "Mail"
-                  },
-                  {
-                      "display_name": "User Principal Name",
-                      "value": "UserPrincipalName"
-                  }
-              ]
-        },{
-            "key": "appManifestDownload",
-            "display_name": "Download Manifest",
-            "type": "custom",
-            "help_text": "",
-            "default": ""
-        },{
-          "key": "ConnectedUsersReportDownload",
-          "display_name": "Download Report",
-          "type": "custom",
-          "help_text": "",
-          "default": ""
-        }]
+        "settings": [
+            {
+                "key": "tenantId",
+                "display_name": "Tenant ID",
+                "type": "text",
+                "help_text": "Microsoft Teams Tenant ID",
+                "default": ""
+            },
+            {
+                "key": "clientId",
+                "display_name": "Client ID",
+                "type": "text",
+                "help_text": "Microsoft Teams Client ID",
+                "default": ""
+            },
+            {
+                "key": "clientSecret",
+                "display_name": "Client Secret",
+                "type": "text",
+                "help_text": "Microsoft Teams Client Secret",
+                "default": ""
+            },
+            {
+                "key": "encryptionKey",
+                "display_name": "At Rest Encryption Key:",
+                "type": "generated",
+                "help_text": "The AES encryption key used to encrypt stored access tokens"
+            },
+            {
+                "key": "webhookSecret",
+                "display_name": "Webhook secret",
+                "type": "generated",
+                "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
+            },
+            {
+                "key": "certificatePublic",
+                "display_name": "Certificate Public",
+                "type": "longtext",
+                "help_text": "Certificate public part"
+            },
+            {
+                "key": "certificateKey",
+                "display_name": "Certificate Key",
+                "type": "longtext",
+                "help_text": "Certificate private key"
+            },
+            {
+                "key": "evaluationAPI",
+                "display_name": "Use the evaluation API pay model",
+                "type": "bool",
+                "help_text": "The evaluation API pay model only allows you to get a limited number of change notifications. Be sure your system keeps them low if you enable this setting",
+                "default": false
+            },
+            {
+                "key": "syncUsers",
+                "display_name": "Sync users",
+                "type": "number",
+                "help_text": "Set the number of minutes between users sync (Leave it empty to disable users sync)",
+                "default": 0
+            },
+            {
+                "key": "syncGuestUsers",
+                "display_name": "Sync guest users",
+                "type": "bool",
+                "help_text": "Set the value to 'true' to sync MS Teams guest users",
+                "default": false
+            },
+            {
+                "key": "syncDirectMessages",
+                "display_name": "Sync direct and group messages",
+                "type": "bool",
+                "help_text": "Sync direct and group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
+                "default": false
+            },
+            {
+                "key": "selectiveSync",
+                "display_name": "Selective sync",
+                "type": "bool",
+                "help_text": "Skip syncing messages between users on the same platform.",
+                "default": false
+            },
+            {
+                "key": "syncLinkedChannels",
+                "display_name": "Sync linked channels",
+                "type": "bool",
+                "help_text": "Sync messages from channels linked between Mattermost and MS Teams",
+                "default": false
+            },
+            {
+                "key": "syncReactions",
+                "display_name": "Sync reactions",
+                "type": "bool",
+                "help_text": "Sync reactions on messages",
+                "default": false
+            },
+            {
+                "key": "syncFileAttachments",
+                "display_name": "Sync file attachments",
+                "type": "bool",
+                "help_text": "Sync file attachments on messages",
+                "default": false
+            },
+            {
+                "key": "enabledTeams",
+                "display_name": "Enabled Teams",
+                "type": "text",
+                "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
+                "default": ""
+            },
+            {
+                "key": "maxSizeForCompleteDownload",
+                "display_name": "Maximum size of attachments to support complete one time download (in MB)",
+                "type": "number",
+                "help_text": "Set the maximum size for attachments that can be loaded into the memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost",
+                "default": 20
+            },
+            {
+                "key": "bufferSizeForFileStreaming",
+                "display_name": "Buffer size for streaming files (in MB)",
+                "type": "number",
+                "help_text": "Set the buffer size for streaming files from MS Teams to Mattermost",
+                "default": 20
+            },
+            {
+                "key": "newUserConnections",
+                "display_name": "New User Connections",
+                "type": "dropdown",
+                "help_text": "When enabled, any user who has not connected will be allowed to connect their account. When set to Rollout, the bot will incrementally send connection invite direct messages to users as they login or become active; as invited users connect, spaces in the invite pool will open up and more invites will be sent out. \nRollout (open) — all users may connect and receive invites. \nRollout (open-restricted) — all users may connect, but only whitelisted users may receive invites.",
+                "default": "enabled",
+                "options": [
+					{
+                        "display_name": "Enabled: allow all users to connect, and do not send connection invites",
+                        "value": "enabled"
+                    },
+                    {
+                        "display_name": "Rollout (open): allow all users to connect, and send connection invites to any user as they login or become active",
+                        "value": "rolloutOpen"
+                    },
+					{
+                        "display_name": "Rollout (open-restricted): allow all users to connect, and send connection invites to whitelisted users as they login or become active",
+                        "value": "rolloutOpenRestricted"
+                    }
+                ]
+            },
+			{
+                "key": "connectedUsersAllowed",
+                "display_name": "Max Connected Users",
+                "type": "number",
+                "help_text": "The maximum number of users that may connect their MS Teams account. Once connected, users may reconnect at any time if they become disconnected.",
+                "default": 1000
+            },
+            {
+                "key": "connectedUsersInvitePoolSize",
+                "display_name": "Rollout Max. Pending Invitations",
+                "type": "number",
+                "help_text": "Set the maximum number of connection invites that may be pending at a given time during Rollout. As invited users connect, spaces in the invite pool will open up and more invites will be sent out as configured above.",
+                "default": 10
+            },
+            {
+                "key": "inviteWhitelistUpload",
+                "display_name": "Connection Invites: Whitelist",
+                "type": "custom",
+                "help_text": "",
+                "default": ""
+            },
+            {
+                "key": "automaticallyPromoteSyntheticUsers",
+                "display_name": "Automatically Promote Synthetic Users",
+                "type": "bool",
+                "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
+                "default": false
+            },
+            {
+                "key": "disableSyncMsg",
+                "display_name": "Disable using the sync msg infrastructure for tracking message changes",
+                "type": "bool",
+                "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
+                "default": false
+            },
+            {
+                "key": "useSharedChannels",
+                "display_name": "Reliable Message Delivery",
+                "type": "bool",
+                "help_text": "When true, the plugin will ensure reliable message delivery to msteams retrying when is needed.",
+                "default": false
+            },
+            {
+                "key": "disableCheckCredentials",
+                "display_name": "Disable periodically checking the validity of the application credentials",
+                "type": "bool",
+                "help_text": "When true, the plugin will not periodically check the validity of the application credentials.",
+                "default": false
+            },
+            {
+                "key": "syntheticUserAuthService",
+                "display_name": "Synthetic User Auth Service",
+                "type": "dropdown",
+                "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'SAML'.",
+                "default": "saml",
+                "options": [
+                    {
+                        "display_name": "SAML",
+                        "value": "saml"
+                    },
+                    {
+                        "display_name": "AD/LDAP",
+                        "value": "ldap"
+                    }
+                ]
+            },
+            {
+                "key": "syntheticUserAuthData",
+                "display_name": "Synthetic User Auth Data",
+                "type": "dropdown",
+                "help_text": "Select the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID Attribute. ",
+                "default": "ID",
+                "options": [
+                    {
+                        "display_name": "ID",
+                        "value": "ID"
+                    },
+                    {
+                        "display_name": "Mail",
+                        "value": "Mail"
+                    },
+                    {
+                        "display_name": "User Principal Name",
+                        "value": "UserPrincipalName"
+                    }
+                ]
+            },
+            {
+                "key": "appManifestDownload",
+                "display_name": "Download Manifest",
+                "type": "custom",
+                "help_text": "",
+                "default": ""
+            },
+            {
+                "key": "ConnectedUsersReportDownload",
+                "display_name": "Download Report",
+                "type": "custom",
+                "help_text": "",
+                "default": ""
+            }
+        ]
     }
 }

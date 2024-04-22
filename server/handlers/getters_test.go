@@ -66,7 +66,7 @@ func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
 func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
-func (pm *pluginMock) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+func (pm *pluginMock) ChatShouldSync(channelID string) (bool, *model.AppError) {
 	return true, nil
 }
 
@@ -121,6 +121,9 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 						return false
 					}
 					if user.Email != testutils.GetTestEmail() {
+						return false
+					}
+					if !user.EmailVerified {
 						return false
 					}
 					return true
