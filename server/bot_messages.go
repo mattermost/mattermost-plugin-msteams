@@ -21,8 +21,10 @@ func (p *Plugin) botSendDirectMessage(userID, message string) error {
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	message := "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "
-	p.SendConnectMessage(channelID, userID, message)
+	// For now, don't display the connect message
+
+	// message := "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "
+	// p.SendConnectMessage(channelID, userID, message)
 }
 
 func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
