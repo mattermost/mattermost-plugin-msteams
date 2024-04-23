@@ -171,7 +171,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		p, user, linkedChannel, unlinkedChannel, _ := setup(t)
 
 		connectedUser := th.SetupUser(t, team)
-		th.ConnectUser(t, connectedUser.Id, "t"+connectedUser.Id)
+		th.ConnectUser(t, connectedUser.Id)
 
 		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, connectedUser.Id, "")
 		require.Nil(t, appErr)
