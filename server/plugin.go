@@ -718,20 +718,23 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				user, err := p.API.GetUser(mmUser.Id)
-				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-					continue
-				}
+				if configuration.AutomaticallyPromoteSyntheticUsers {
+					// We need to retrieve the user individually because `GetUsers` does not return AuthData
+					user, err := p.API.GetUser(mmUser.Id)
+					if err != nil {
+						p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						continue
+					}
 
-				// Update AuthService/AuthData if it changed
-				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
-					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
-						AuthService: configuration.SyntheticUserAuthService,
-						AuthData:    &authData,
-					}); err != nil {
-						p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+					// Update AuthService/AuthData if it changed
+					if mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData) {
+						p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
+						if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+							AuthService: configuration.SyntheticUserAuthService,
+							AuthData:    &authData,
+						}); err != nil {
+							p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						}
 					}
 				}
 
