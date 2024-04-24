@@ -85,11 +85,6 @@ func (_m *Metrics) ObserveClientSecretEndDateTime(expireDate time.Time) {
 	_m.Called(expireDate)
 }
 
-// ObserveConfirmedMessage provides a mock function with given fields: source, isDirectMessage
-func (_m *Metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	_m.Called(source, isDirectMessage)
-}
-
 // ObserveConnectedUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
@@ -128,6 +123,11 @@ func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success str
 // ObserveMessage provides a mock function with given fields: action, source, isDirectMessage
 func (_m *Metrics) ObserveMessage(action string, source string, isDirectMessage bool) {
 	_m.Called(action, source, isDirectMessage)
+}
+
+// ObserveMessageDelay provides a mock function with given fields: action, source, isDirectMessage, delay
+func (_m *Metrics) ObserveMessageDelay(action string, source string, isDirectMessage bool, delay time.Duration) {
+	_m.Called(action, source, isDirectMessage, delay)
 }
 
 // ObserveOAuthTokenInvalidated provides a mock function with given fields:

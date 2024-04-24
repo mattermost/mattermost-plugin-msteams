@@ -15,6 +15,17 @@ type MockClient struct {
 	api string
 }
 
+type BatchRequest struct {
+	Method string `json:"method"`
+	URL    string `json:"url"`
+}
+
+type BatchResponse struct {
+	ID         string         `json:"id"`
+	StatusCode int            `json:"status"`
+	Body       map[string]any `json:"body"`
+}
+
 func NewMockClient(api string) (*MockClient, error) {
 	mock := &MockClient{api: api}
 	if err := mock.init(); err != nil {
@@ -107,6 +118,10 @@ func (m *MockClient) init() error {
 		return err
 	}
 
+	if err = m.MockNotFound(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -118,12 +133,67 @@ func (m *MockClient) Post(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodPost, id, url, http.StatusOK, body)
 }
 
+func (m *MockClient) Patch(id string, url string, body map[string]any) error {
+	return m.Mock(http.MethodPatch, id, url, http.StatusOK, body)
+}
+
 func (m *MockClient) Put(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodPut, id, url, http.StatusOK, body)
 }
 
 func (m *MockClient) Delete(id string, url string, body map[string]any) error {
 	return m.Mock(http.MethodDelete, id, url, http.StatusOK, body)
+}
+
+func (m *MockClient) MockBatch(id string, requests []BatchRequest, responses []BatchResponse) error {
+	for idx := range responses {
+		responses[idx].ID = "{{#jsonPath}}$.requests[" + fmt.Sprint(idx) + "].id{{/jsonPath}}{{jsonPathResult}}"
+	}
+
+	responseData, err := json.Marshal(map[string]any{
+		"statusCode": 200,
+		"body": map[string]any{
+			"type":        "JSON",
+			"contentType": "application/json",
+			"string":      map[string]any{"responses": responses},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	mockExpectation := map[string]any{
+		"id":       id,
+		"priority": 10,
+		"httpRequest": map[string]any{
+			"method": http.MethodPost,
+			"path":   "/v1.0/$batch",
+			"body": map[string]any{
+				"type":      "JSON",
+				"matchType": "ONLY_MATCHING_FIELDS",
+				"json":      map[string][]BatchRequest{"requests": requests},
+			},
+		},
+		"httpResponseTemplate": map[string]any{
+			"templateType": "MUSTACHE",
+			"template":     string(responseData),
+		},
+	}
+
+	testMock, err := json.Marshal(mockExpectation)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("PUT", m.api+"/mockserver/expectation", bytes.NewReader(testMock))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
 }
 
 func (m *MockClient) MockError(id string, method string, errorCode int, url string) error {
@@ -141,13 +211,9 @@ func (m *MockClient) MockError(id string, method string, errorCode int, url stri
 }
 
 func (m *MockClient) Mock(method string, id string, url string, statusCode int, body map[string]any) error {
-	bodyData, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
 	mockExpectation := map[string]any{
 		"id":       id,
-		"priority": 0,
+		"priority": 10,
 		"httpRequest": map[string]any{
 			"method": method,
 			"path":   url,
@@ -157,7 +223,39 @@ func (m *MockClient) Mock(method string, id string, url string, statusCode int, 
 			"body": map[string]any{
 				"type":        "STRING",
 				"contentType": "application/json",
-				"string":      string(bodyData),
+				"string":      body,
+			},
+		},
+	}
+
+	testMock, err := json.Marshal(mockExpectation)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("PUT", m.api+"/mockserver/expectation", bytes.NewReader(testMock))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (m *MockClient) MockNotFound() error {
+	mockExpectation := map[string]any{
+		"id":          "init-not-found",
+		"priority":    0,
+		"httpRequest": map[string]any{},
+		"httpResponse": map[string]any{
+			"statusCode": http.StatusNotFound,
+			"body": map[string]any{
+				"type":        "STRING",
+				"contentType": "text/plain",
+				"string":      "",
 			},
 		},
 	}

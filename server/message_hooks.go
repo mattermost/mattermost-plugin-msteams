@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -25,7 +26,6 @@ import (
 func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 	if p.IsRemoteUser(user) && p.getConfiguration().AutomaticallyPromoteSyntheticUsers {
 		*user.RemoteId = ""
-		user.EmailVerified = true
 		if _, appErr := p.API.UpdateUser(user); appErr != nil {
 			p.API.LogWarn("Unable to promote synthetic user", "user_id", user.Id, "error", appErr.Error())
 			return "Unable to promote synthetic user"
@@ -60,7 +60,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatSpansPlatforms(post.ChannelId)
+			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
@@ -119,14 +119,18 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		chatMembersSpanPlatforms, appErr := p.ChatMembersSpanPlatforms(members)
-		if appErr != nil {
-			p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-			return
-		}
+		isSelfPost := len(members) == 1
+		chatMembersSpanPlatforms := false
+		if !isSelfPost {
+			chatMembersSpanPlatforms, appErr = p.ChatMembersSpanPlatforms(members)
+			if appErr != nil {
+				p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+				return
+			}
 
-		if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
-			return
+			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+				return
+			}
 		}
 
 		dstUsers := []string{}
@@ -171,6 +175,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
@@ -212,6 +217,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
+		return
 	} else if postInfo == nil {
 		return
 	}
@@ -567,9 +573,9 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 	} else if len(post.FileIds) > 0 {
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
+			RootId:    post.RootId,
 			UserId:    p.GetBotUserID(),
 			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
 			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
@@ -596,17 +602,14 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 	}
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, true)
+	p.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMattermost, true, newMessage.CreateAt.Sub(time.UnixMilli(post.CreateAt)))
+
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: chat.ID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
 	return newMessage.ID, nil
-}
-
-func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	message := fmt.Sprintf("[Click here to connect your account](%s).", p.GetURL()+"/connect")
-	p.sendBotEphemeralPost(userID, channelID, "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "+message)
 }
 
 func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Post) (string, error) {
@@ -659,9 +662,9 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	} else if len(post.FileIds) > 0 {
 		_, appErr := p.API.CreatePost(&model.Post{
 			ChannelId: post.ChannelId,
+			RootId:    post.RootId,
 			UserId:    p.GetBotUserID(),
 			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-			CreateAt:  post.CreateAt,
 		})
 		if appErr != nil {
 			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", channelID, "post_id", post.Id, "error", appErr)
@@ -680,6 +683,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	}
 
 	p.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMattermost, false)
+	p.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMattermost, false, newMessage.CreateAt.Sub(time.UnixMilli(post.CreateAt)))
 	if post.Id != "" {
 		if err := p.store.LinkPosts(storemodels.PostInfo{MattermostID: post.Id, MSTeamsChannel: channelID, MSTeamsID: newMessage.ID, MSTeamsLastUpdateAt: newMessage.LastUpdateAt}); err != nil {
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)

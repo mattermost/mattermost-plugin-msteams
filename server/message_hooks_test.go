@@ -1276,11 +1276,7 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1314,11 +1310,7 @@ func TestSendChat(t *testing.T) {
 				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
-					UserId:    "bot-user-id",
-					ChannelId: testutils.GetChannelID(),
-					Message:   "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. [Click here to connect your account](/plugins/com.mattermost.msteams-sync/connect).",
-				}).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
+				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
@@ -1417,6 +1409,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1461,6 +1454,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1498,6 +1492,7 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1532,6 +1527,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1567,6 +1563,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", mock.AnythingOfType("float64")).Once()
@@ -1616,6 +1613,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "false", mock.AnythingOfType("float64")).Once()
@@ -1658,6 +1656,7 @@ func TestSendChat(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", true).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
@@ -1745,6 +1744,7 @@ func TestSend(t *testing.T) {
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1773,6 +1773,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1802,6 +1803,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedMessage: "mockMessageID",
@@ -1831,6 +1833,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "false", mock.AnythingOfType("float64")).Once()
 			},
@@ -1868,6 +1871,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -1905,6 +1909,7 @@ func TestSend(t *testing.T) {
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMattermost, "", false).Times(1)
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
+				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UploadFile", "true", mock.AnythingOfType("float64")).Once()
 				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", mock.AnythingOfType("float64")).Once()
 			},
@@ -2806,22 +2811,13 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "Autopromotion works",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.EmailVerified == false {
-						return false
-					}
-
-					if *user.RemoteId != "" {
-						return false
-					}
-
-					return true
+					return !user.IsRemote()
 				})).Once().Return(nil, nil)
 				api.On("LogInfo", "Promoted synthetic user", "user_id", testutils.GetID()).Once()
 			},
@@ -2834,22 +2830,13 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "UpdateUser failed during autopromotion",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: true,
 			SetupAPI: func(api *plugintest.API) {
 				api.On("UpdateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.EmailVerified == false {
-						return false
-					}
-
-					if *user.RemoteId != "" {
-						return false
-					}
-
-					return true
+					return !user.IsRemote()
 				})).Once().Return(nil, model.NewAppError("UpdateUser", "err from test", nil, "", 500))
 				api.On("LogWarn", "Failed to promote synthetic user", "user_id", testutils.GetID(), "err", "err from test").Once()
 			},
@@ -2860,8 +2847,7 @@ func TestUserWillLogin(t *testing.T) {
 		{
 			Name: "No autopromotion",
 			User: &model.User{
-				Id:            testutils.GetID(),
-				EmailVerified: false,
+				Id: testutils.GetID(),
 			},
 			UserIsRemote:                       true,
 			AutomaticallyPromoteSyntheticUsers: false,

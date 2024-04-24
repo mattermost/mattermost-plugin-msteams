@@ -74,10 +74,10 @@ type Metrics interface {
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
 	ObserveMessage(action, source string, isDirectMessage bool)
+	ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration)
 	ObserveReaction(action, source string, isDirectMessage bool)
 	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
 	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
-	ObserveConfirmedMessage(source string, isDirectMessage bool)
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
@@ -130,9 +130,9 @@ type metrics struct {
 	lifecycleEventsTotal     *prometheus.CounterVec
 	changeEventsTotal        *prometheus.CounterVec
 	messagesTotal            *prometheus.CounterVec
+	messageDelayTime         *prometheus.HistogramVec
 	reactionsTotal           *prometheus.CounterVec
 	filesTotal               *prometheus.CounterVec
-	messagesConfirmedTotal   *prometheus.CounterVec
 	subscriptionsTotal       *prometheus.CounterVec
 	syncMsgPostDelayTime     *prometheus.HistogramVec
 	syncMsgReactionDelayTime *prometheus.HistogramVec
@@ -277,6 +277,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action", "source", "is_direct"})
 	m.registry.MustRegister(m.messagesTotal)
 
+	m.messageDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "message_delay_seconds",
+		Help:        "The delay between a message event across platforms",
+		ConstLabels: additionalLabels,
+	}, []string{"action", "source", "is_direct"})
+	m.registry.MustRegister(m.messageDelayTime)
+
 	m.reactionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemEvents,
@@ -294,16 +303,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action", "source", "is_direct", "discarded_reason"})
 	m.registry.MustRegister(m.filesTotal)
-
-	// TODO: Why?
-	m.messagesConfirmedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemEvents,
-		Name:        "messages_confirmed_total",
-		Help:        "The total number of messages confirmed to be sent from Mattermost to MS Teams and vice versa.",
-		ConstLabels: additionalLabels,
-	}, []string{"source", "is_direct"})
-	m.registry.MustRegister(m.messagesConfirmedTotal)
 
 	m.subscriptionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
@@ -501,6 +500,12 @@ func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
 	}
 }
 
+func (m *metrics) ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration) {
+	if m != nil {
+		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Observe(delay.Seconds())
+	}
+}
+
 func (m *metrics) ObserveReaction(action, source string, isDirectMessage bool) {
 	if m != nil {
 		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
@@ -516,12 +521,6 @@ func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectM
 func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
 	if m != nil {
 		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
-	}
-}
-
-func (m *metrics) ObserveConfirmedMessage(source string, isDirectMessage bool) {
-	if m != nil {
-		m.messagesConfirmedTotal.With(prometheus.Labels{"source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
 	}
 }
 

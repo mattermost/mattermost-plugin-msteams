@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"encoding/base32"
 	"fmt"
 
 	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -109,17 +107,16 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 		}
 
 		userDisplayName := user.DisplayName
-		memberUUID := uuid.Parse(user.ID)
-		encoding := base32.NewEncoding("ybndrfg8ejkmcpqxot1uwisza345h769").WithPadding(base32.NoPadding)
-		shortUserID := encoding.EncodeToString(memberUUID)
+		remoteID := ah.plugin.GetRemoteID()
 		username := "msteams_" + slug.Make(userDisplayName)
 
 		newMMUser := &model.User{
-			Username:  username,
-			FirstName: userDisplayName,
-			Email:     user.Mail,
-			Password:  ah.plugin.GenerateRandomPassword(),
-			RemoteId:  &shortUserID,
+			Username:      username,
+			FirstName:     userDisplayName,
+			Email:         user.Mail,
+			Password:      ah.plugin.GenerateRandomPassword(),
+			RemoteId:      &remoteID,
+			EmailVerified: true,
 		}
 		newMMUser.SetDefaultNotifications()
 		newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
@@ -130,7 +127,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 
 			if appErr != nil {
 				if appErr.Id == "app.user.save.username_exists.app_error" {
-					newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+					newMMUser.Username = fmt.Sprintf("%s-%d", username, userSuffixID)
 					userSuffixID++
 					continue
 				}

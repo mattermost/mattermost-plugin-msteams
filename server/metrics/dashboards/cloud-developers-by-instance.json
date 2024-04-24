@@ -63,7 +63,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 333,
+  "id": 362,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -82,8 +82,8 @@
     },
     {
       "datasource": {
-        "type": "datasource",
-        "uid": "-- Mixed --"
+        "type": "grafana-postgresql-datasource",
+        "uid": "P26CC1605805D4DDB"
       },
       "fieldConfig": {
         "defaults": {
@@ -92,8 +92,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -137,68 +136,8 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT name FROM installation WHERE id IN ('${namespace}') LIMIT 50 ",
+          "rawSql": "SELECT COALESCE((SELECT name FROM installation WHERE id = '${namespace}' LIMIT 1), '${namespace}')",
           "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [
-                  {
-                    "name": "name",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50,
-            "whereJsonTree": {
-              "children1": [
-                {
-                  "id": "a89aabba-cdef-4012-b456-718cfa4edce2",
-                  "properties": {
-                    "field": "id",
-                    "fieldSrc": "field",
-                    "operator": "select_any_in",
-                    "value": [
-                      "$namespace"
-                    ],
-                    "valueSrc": [
-                      "value"
-                    ],
-                    "valueType": [
-                      "text"
-                    ]
-                  },
-                  "type": "rule"
-                }
-              ],
-              "id": "a88bb99b-89ab-4cde-b012-318cfa4e3aee",
-              "type": "group"
-            },
-            "whereString": "id IN ('$namespace')"
-          },
-          "table": "installation"
-        },
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "PD3C1F3F471EC7DA9"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "hide": false,
-          "rawQuery": true,
-          "rawSql": "SELECT name FROM installation WHERE id IN ('${namespace}') LIMIT 50 ",
-          "refId": "B",
           "sql": {
             "columns": [
               {
@@ -257,6 +196,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -292,12 +232,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
+                "color": "green"
               }
             ]
           },
@@ -362,8 +297,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -428,8 +362,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -509,8 +442,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -575,8 +507,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -652,8 +583,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -723,8 +653,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -789,8 +718,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "yellow",
@@ -908,8 +836,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -982,7 +909,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[5m] offset 7d)) ",
+          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[5m] offset 7d)) ",
           "hide": false,
           "instant": false,
           "legendFormat": "Last Week",
@@ -995,7 +922,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[5m])) by (instance)",
+          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[5m])) by (instance)",
           "hide": false,
           "instant": false,
           "legendFormat": "{{instance}}",
@@ -1008,38 +935,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[5m]))",
+          "expr": "sum(rate(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "Total",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m])) by (instance)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{instance [Legacy]}}",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m]))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
         }
       ],
       "title": "DB Calls (per second)",
@@ -1105,8 +1006,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1276,8 +1176,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1316,7 +1215,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "instant": false,
           "legendFormat": "p99 ({{instance}})",
           "range": true,
@@ -1328,38 +1227,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_db_store_time_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
           "hide": false,
           "instant": false,
           "legendFormat": "p50 ({{instance}})",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_db_store_time_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p99 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_db_store_time_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p50 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
         }
       ],
       "title": "DB Latency",
@@ -1426,8 +1299,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1484,32 +1356,6 @@
           "legendFormat": "p50 ({{instance}})",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_api_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p99 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_api_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p50 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
         }
       ],
       "title": "API Latency",
@@ -1576,8 +1422,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1621,19 +1466,6 @@
           "legendFormat": "{{method}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m])) by (method)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{method}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "DB Calls by Count",
@@ -1700,8 +1532,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1760,19 +1591,6 @@
           "legendFormat": "{{handler}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_api_time_count{namespace=~\"$namespace\"}[5m])) by (handler)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{handler}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "API Requests by Count",
@@ -1830,8 +1648,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1879,19 +1696,6 @@
           "legendFormat": "{{method}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_sum{namespace=\"$namespace\"}[5m])) by (method) / sum(increase(msteams_connect_db_store_time_count{namespace=\"$namespace\"}[5m])) by (method)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{method}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "DB calls by Duration",
@@ -1958,8 +1762,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2007,19 +1810,6 @@
           "legendFormat": "{{handler}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_api_time_sum{namespace=~\"$namespace\"}[5m])) by (handler) / sum(increase(msteams_connect_api_time_count{namespace=~\"$namespace\"}[5m])) by (handler)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{handler}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "API Requests by Duration",
@@ -2129,6 +1919,111 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "log": 2,
+              "type": "log"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 49
+      },
+      "id": 66,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(msteams_connect_api_time_seconds_sum{namespace=~\"$namespace\",status_code!=\"200\",status_code!=\"202\",status_code!=\"303\",status_code!=\"304\"}[5m])) by (handler, status_code) / sum(increase(msteams_connect_api_time_seconds_count{namespace=~\"$namespace\",status_code!=\"200\",status_code!=\"202\",status_code!=\"303\",status_code!=\"304\"}[5m])) by (handler, status_code)",
+          "instant": false,
+          "legendFormat": "{{handler}} -- {{status_code}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "API Failed Requests",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "thresholds"
           },
           "custom": {
@@ -2226,7 +2121,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 58
       },
       "id": 59,
       "options": {
@@ -2300,7 +2195,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 67
       },
       "id": 38,
       "panels": [],
@@ -2410,7 +2305,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 59
+        "y": 68
       },
       "id": 40,
       "options": {
@@ -2463,32 +2358,6 @@
           "legendFormat": "Total",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\"}[5m])) by (instance)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Requests ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\"}[5m]))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "MS Graph Client Requests",
@@ -2610,7 +2479,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 59
+        "y": 68
       },
       "id": 41,
       "options": {
@@ -2651,32 +2520,6 @@
           "legendFormat": "Total",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success!=\"true\"}[5m])) by (instance)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Errors ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\",success!=\"true\"}[5m]))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         },
         {
           "datasource": {
@@ -2773,7 +2616,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 68
+        "y": 77
       },
       "id": 23,
       "options": {
@@ -2800,19 +2643,6 @@
           "legendFormat": "{{method}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_client_time_count{namespace=~\"$namespace\"}[5m])) by (method)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{method}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "MS Graph Client Requests by Count",
@@ -2896,7 +2726,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 68
+        "y": 77
       },
       "id": 22,
       "options": {
@@ -2936,32 +2766,6 @@
           "legendFormat": "p50 ({{instance}})",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_msgraph_client_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p99 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(msteams_connect_msgraph_client_time_bucket{namespace=~\"$namespace\"}[5m])) by (instance,le))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "p50 ({{instance}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
         }
       ],
       "title": "MS Graph Client Latency",
@@ -3045,7 +2849,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 77
+        "y": 86
       },
       "id": 24,
       "options": {
@@ -3161,7 +2965,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 77
+        "y": 86
       },
       "id": 53,
       "options": {
@@ -3257,7 +3061,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 86
+        "y": 95
       },
       "id": 57,
       "options": {
@@ -3295,7 +3099,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 103
       },
       "id": 26,
       "panels": [],
@@ -3397,7 +3201,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 104
       },
       "id": 25,
       "options": {
@@ -3517,7 +3321,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 103
+        "y": 112
       },
       "id": 27,
       "options": {
@@ -3544,19 +3348,6 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason=\"\"}[5m])) by (change_type)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{change_type}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "Processed Change Events (per second)",
@@ -3626,7 +3417,7 @@
         "h": 8,
         "w": 9,
         "x": 10,
-        "y": 103
+        "y": 112
       },
       "id": 28,
       "options": {
@@ -3653,19 +3444,6 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_processed_change_event_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{discarded_reason}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "Discarded Change Events (per second)",
@@ -3725,7 +3503,7 @@
         "h": 8,
         "w": 5,
         "x": 19,
-        "y": 103
+        "y": 112
       },
       "id": 42,
       "options": {
@@ -3826,7 +3604,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 111
+        "y": 120
       },
       "id": 29,
       "options": {
@@ -3853,19 +3631,6 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_event_total{namespace=\"$namespace\"}[5m])) by (event_type)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{event_type}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "Processed Lifecycle Events (per second)",
@@ -3935,7 +3700,7 @@
         "h": 8,
         "w": 9,
         "x": 10,
-        "y": 111
+        "y": 120
       },
       "id": 30,
       "options": {
@@ -4021,7 +3786,7 @@
         "h": 8,
         "w": 5,
         "x": 19,
-        "y": 111
+        "y": 120
       },
       "id": 43,
       "options": {
@@ -4122,7 +3887,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 119
+        "y": 128
       },
       "id": 37,
       "options": {
@@ -4149,19 +3914,6 @@
           "legendFormat": "{{action}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_subscriptions_count{namespace=\"$namespace\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{action}} [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "Subscriptions (per second)",
@@ -4231,7 +3983,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 127
+        "y": 136
       },
       "id": 31,
       "options": {
@@ -4284,45 +4036,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Messages (Mattermost -> MSTeams, per second)",
@@ -4392,7 +4105,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 127
+        "y": 136
       },
       "id": 32,
       "options": {
@@ -4445,45 +4158,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_messages_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Messages (MSTeams -> Mattermost, per second)",
@@ -4553,7 +4227,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 135
+        "y": 144
       },
       "id": 33,
       "options": {
@@ -4605,45 +4279,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Reactions (Mattermost -> MSTeams, per second)",
@@ -4713,7 +4348,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 135
+        "y": 144
       },
       "id": 34,
       "options": {
@@ -4766,45 +4401,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_reactions_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Reactions (MSTeams -> Mattermost, per second)",
@@ -4874,7 +4470,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 143
+        "y": 152
       },
       "id": 35,
       "options": {
@@ -4927,45 +4523,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"mattermost\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Files (Mattermost -> MSTeams, per second)",
@@ -5035,7 +4592,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 143
+        "y": 152
       },
       "id": 36,
       "options": {
@@ -5088,45 +4645,6 @@
           "legendFormat": "Total ({{action}})",
           "range": true,
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\",is_direct=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Direct ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\",is_direct!=\"true\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Channel ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "B (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_files_count{namespace=\"$namespace\",source=\"msteams\"}[5m])) by (action)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total ({{action}}) [Legacy]",
-          "range": true,
-          "refId": "C (Legacy)"
         }
       ],
       "title": "Files (MSTeams -> Mattermost, per second)",
@@ -5138,7 +4656,345 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 151
+        "y": 160
+      },
+      "id": 62,
+      "panels": [],
+      "title": "Shared Channels",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 161
+      },
+      "id": 63,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P27C405C01959D762"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_shared_channels_sync_msg_post_delay_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le))",
+          "instant": false,
+          "legendFormat": "Post Delay (p99)",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P27C405C01959D762"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_shared_channels_sync_msg_reaction_delay_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Reaction Delay (p99)",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P27C405C01959D762"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(msteams_connect_shared_channels_sync_msg_file_delay_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "File Delay (p99)",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Sync Msg Delay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 161
+      },
+      "id": 64,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P3497915E6DC419FB"
+          },
+          "editorMode": "code",
+          "expr": "mattermost_shared_channels_task_queue_size{namespace=\"$namespace\"}",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Task Queue Size (Server-wide)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 169
+      },
+      "id": 65,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P3497915E6DC419FB"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(mattermost_shared_channels_task_in_queue_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "instant": false,
+          "legendFormat": "p99",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P3497915E6DC419FB"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum(rate(mattermost_shared_channels_task_in_queue_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (instance,le))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "p50",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Task in Queue Duration (Server-wide)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 177
       },
       "id": 17,
       "panels": [],
@@ -5213,7 +5069,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 152
+        "y": 178
       },
       "id": 18,
       "options": {
@@ -5313,7 +5169,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 152
+        "y": 178
       },
       "id": 19,
       "options": {
@@ -5357,7 +5213,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 160
+        "y": 186
       },
       "id": 10,
       "panels": [],
@@ -5440,7 +5296,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 161
+        "y": 187
       },
       "id": 11,
       "options": {
@@ -5480,32 +5336,6 @@
           "legendFormat": "Total",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "go_goroutines{namespace=~\"$namespace\",endpoint=\"msteamsmetrics\"}",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{instance}}",
-          "range": true,
-          "refId": "A (Legacy)"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(go_goroutines{namespace=~\"$namespace\",endpoint=\"msteamsmetrics\"})",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Total",
-          "range": true,
-          "refId": "B (Legacy)"
         }
       ],
       "title": "Goroutines",
@@ -5597,7 +5427,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 161
+        "y": 187
       },
       "id": 16,
       "options": {
@@ -5624,19 +5454,6 @@
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "go_memstats_heap_inuse_bytes{namespace=~\"$namespace\",endpoint=\"msteamsmetrics\"}",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{instance}}",
-          "range": true,
-          "refId": "A (Legacy)"
         }
       ],
       "title": "Heap Utilization",
@@ -5714,7 +5531,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 169
+        "y": 195
       },
       "id": 55,
       "options": {
@@ -5810,7 +5627,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 169
+        "y": 195
       },
       "id": 56,
       "options": {
@@ -5919,7 +5736,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 177
+        "y": 203
       },
       "id": 61,
       "options": {
@@ -5970,7 +5787,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 185
+        "y": 211
       },
       "id": 51,
       "panels": [],
@@ -5986,7 +5803,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 186
+        "y": 212
       },
       "id": 52,
       "options": {
@@ -6015,7 +5832,7 @@
       "type": "logs"
     }
   ],
-  "refresh": "5s",
+  "refresh": "auto",
   "schemaVersion": 39,
   "tags": [
     "mattermost",
@@ -6109,8 +5926,8 @@
       {
         "current": {
           "selected": false,
-          "text": "Prometheus Test",
-          "value": "P3497915E6DC419FB"
+          "text": "Prometheus Prod",
+          "value": "P27C405C01959D762"
         },
         "description": "The Prometheus data source from which to query.",
         "hide": 0,
@@ -6260,7 +6077,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "MS Teams (By Instance)",
-  "uid": "c97b2768-e8bd-42fb-92e4-ad26dbf943db",
-  "version": 54,
+  "uid": "f77e362f-f819-45eb-8ebe-29a3a7743199",
+  "version": 9,
   "weekStart": ""
 }
