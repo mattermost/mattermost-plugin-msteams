@@ -35,7 +35,16 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 	}
 
 	for _, userID := range userIDsToDisable {
-		p.notifyUserMattermostPrimary(userID)
+		if connected, err := p.isUserConnected(userID); err != nil {
+			p.API.LogWarn(
+				"Unable to determine if user connected",
+				"user_id", userID,
+				"error", err.Error(),
+			)
+		} else if connected {
+			// Don't notify if disconnected
+			p.notifyUserMattermostPrimary(userID)
+		}
 
 		_, err := p.disableAutomute(userID)
 		if err != nil {
