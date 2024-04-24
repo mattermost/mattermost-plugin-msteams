@@ -81,6 +81,9 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	disconnect := model.NewAutocompleteData("disconnect", "", "Disconnect your Mattermost account from your MS Teams account")
 	cmd.AddCommand(disconnect)
 
+	status := model.NewAutocompleteData("status", "", "Show your connection status")
+	cmd.AddCommand(status)
+
 	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
 	connectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(connectBot)
@@ -152,10 +155,14 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executePromoteUserCommand(args, parameters)
 	}
 
-	if p.getConfiguration().SyncLinkedChannels {
-		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, disconnect, disconnect-bot and promote.")
+	if action == "status" {
+		return p.executeStatusCommand(args)
 	}
-	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, disconnect, disconnect-bot and promote.")
+
+	if p.getConfiguration().SyncLinkedChannels {
+		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+	}
+	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, status, disconnect, disconnect-bot and promote.")
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
@@ -595,6 +602,17 @@ func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters [
 	}
 
 	return p.cmdSuccess(args, "Account "+username+" has been promoted and updated the username to "+newUsername)
+}
+
+func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	if storedToken, err := p.store.GetTokenForMattermostUser(args.UserId); err != nil {
+		// TODO: We will need to distinguish real errors from "row not found" later.
+		return p.cmdSuccess(args, "Your account is not connected to Teams.")
+	} else if storedToken != nil {
+		return p.cmdSuccess(args, "Your account is connected to Teams.")
+	}
+
+	return p.cmdSuccess(args, "Your account is not connected to Teams.")
 }
 
 func getAutocompletePath(path string) string {
