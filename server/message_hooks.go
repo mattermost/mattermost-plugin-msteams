@@ -194,7 +194,7 @@ func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) error {
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
-		return
+		return err
 	} else if postInfo == nil {
 		return nil
 	}
@@ -246,7 +246,7 @@ func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) error {
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
-		return
+		return err
 	} else if postInfo == nil {
 		return nil
 	}
