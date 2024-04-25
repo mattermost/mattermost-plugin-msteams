@@ -1132,3 +1132,41 @@ func TestSetUsersLastChatReceivedAt(t *testing.T) {
 		assert.EqualValues(25, getLastChatReceivedAtForUser(mmUserID2))
 	}
 }
+
+func TestGetExtraStats(t *testing.T) {
+	store, _ := setupTestStore(t)
+	assert := require.New(t)
+
+	// reset all the stats
+	_, err := store.getQueryBuilder().Update(usersTableName).
+		Set("LastChatReceivedAt", 0).
+		Set("LastChatSentAt", 0).
+		Exec()
+	assert.Nil(err)
+
+	users := []string{model.NewId(), model.NewId(), model.NewId()}
+	for _, mmUserID := range users {
+		err := store.SetUserInfo(mmUserID, "teams-"+mmUserID, nil)
+		assert.Nil(err)
+	}
+	// Give them all a last chat received at in the test range
+	err = store.SetUsersLastChatReceivedAt(users, 25)
+	assert.Nil(err)
+
+	// Have user 2 and 3 sent at be in the range
+	err = store.SetUserLastChatSentAt(users[0], 10)
+	assert.Nil(err)
+	err = store.SetUserLastChatSentAt(users[1], 20)
+	assert.Nil(err)
+	err = store.SetUserLastChatSentAt(users[2], 30)
+	assert.Nil(err)
+
+	stats := &storemodels.Stats{}
+	from := time.UnixMicro(19)
+	to := time.UnixMicro(35)
+	err = store.GetExtraStats(stats, from, to)
+	assert.Nil(err)
+
+	assert.EqualValues(2, stats.ActiveUsersSending)
+	assert.EqualValues(3, stats.ActiveUsersReceiving)
+}

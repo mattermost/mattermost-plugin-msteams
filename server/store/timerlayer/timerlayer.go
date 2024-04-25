@@ -161,6 +161,20 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 	return result, err
 }
 
+func (s *TimerLayer) GetExtraStats(stats *storemodels.Stats, from time.Time, to time.Time) error {
+	start := time.Now()
+
+	err := s.Store.GetExtraStats(stats, from, to)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetExtraStats", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 
@@ -637,10 +651,10 @@ func (s *TimerLayer) SetUserInfo(userID string, msTeamsUserID string, token *oau
 	return err
 }
 
-func (s *TimerLayer) SetUserLastChatReceivedAt(mmUserId string, receivedAt int64) error {
+func (s *TimerLayer) SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error {
 	start := time.Now()
 
-	err := s.Store.SetUserLastChatReceivedAt(mmUserId, receivedAt)
+	err := s.Store.SetUserLastChatReceivedAt(mmUserID, receivedAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -651,10 +665,10 @@ func (s *TimerLayer) SetUserLastChatReceivedAt(mmUserId string, receivedAt int64
 	return err
 }
 
-func (s *TimerLayer) SetUserLastChatSentAt(mmUserId string, sentAt int64) error {
+func (s *TimerLayer) SetUserLastChatSentAt(mmUserID string, sentAt int64) error {
 	start := time.Now()
 
-	err := s.Store.SetUserLastChatSentAt(mmUserId, sentAt)
+	err := s.Store.SetUserLastChatSentAt(mmUserID, sentAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -665,10 +679,10 @@ func (s *TimerLayer) SetUserLastChatSentAt(mmUserId string, sentAt int64) error 
 	return err
 }
 
-func (s *TimerLayer) SetUsersLastChatReceivedAt(mmUsersId []string, receivedAt int64) error {
+func (s *TimerLayer) SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error {
 	start := time.Now()
 
-	err := s.Store.SetUsersLastChatReceivedAt(mmUsersId, receivedAt)
+	err := s.Store.SetUsersLastChatReceivedAt(mmUserIDs, receivedAt)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

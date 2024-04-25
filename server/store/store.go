@@ -48,6 +48,7 @@ type Store interface {
 
 	// stats
 	GetStats() (*storemodels.Stats, error)
+	GetExtraStats(stats *storemodels.Stats, from time.Time, to time.Time) error
 
 	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)

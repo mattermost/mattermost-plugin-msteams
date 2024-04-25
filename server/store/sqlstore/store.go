@@ -908,6 +908,40 @@ func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
 	}, nil
 }
 
+func (s *SQLStore) GetExtraStats(stats *storemodels.Stats, from, to time.Time) error {
+	// make sure from is before to, if not swap them
+	if from.After(to) {
+		from, to = to, from
+	}
+
+	// count active users that sent a message between from and to using the msteams user's lastchatsentat
+	var activeUsersSending int64
+	err := s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatSentAt": from.UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatSentAt": to.UnixMicro()}).
+		QueryRow().Scan(&activeUsersSending)
+	if err != nil {
+		return err
+	}
+	stats.ActiveUsersSending = activeUsersSending
+
+	var activeUsersReceiving int64
+	err = s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatReceivedAt": from.UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatReceivedAt": to.UnixMicro()}).
+		QueryRow().Scan(&activeUsersReceiving)
+	if err != nil {
+		return err
+	}
+	stats.ActiveUsersReceiving = activeUsersReceiving
+
+	return nil
+}
+
 func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error) {
 	query := s.getQueryBuilder().Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From(usersTableName).LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
 	rows, err := query.Query()

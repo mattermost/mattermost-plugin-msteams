@@ -384,7 +384,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
 					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(errors.New("unable to update the post")).Times(1)
-				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, mmCreateAtTime).Return(nil)
+				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, mmCreateAtTime*1000).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
@@ -445,7 +445,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
 					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(nil).Times(1)
-				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, mmCreateAtTime).Return(nil)
+				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, mmCreateAtTime*1000).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)

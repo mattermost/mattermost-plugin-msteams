@@ -5,9 +5,11 @@ import (
 )
 
 type Stats struct {
-	ConnectedUsers int64
-	SyntheticUsers int64
-	LinkedChannels int64
+	ActiveUsersSending   int64
+	ActiveUsersReceiving int64
+	ConnectedUsers       int64
+	SyntheticUsers       int64
+	LinkedChannels       int64
 }
 
 type ChannelLink struct {

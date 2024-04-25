@@ -882,9 +882,16 @@ func (p *Plugin) updateMetrics() {
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
 	}
+	now := time.Now()
+	err = p.store.GetExtraStats(stats, time.Now().AddDate(0, 0, -7), now)
+	if err != nil {
+		p.API.LogWarn("failed to update extra computed metrics", "error", err)
+	}
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+	p.GetMetrics().ObserveActiveUsersSending(stats.ActiveUsersSending)
+	p.GetMetrics().ObserveActiveUsersReceiving(stats.ActiveUsersReceiving)
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
