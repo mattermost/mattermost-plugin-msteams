@@ -160,15 +160,15 @@ func buildMessageContent(channelId, msgId, message, otherUserId string) MSConten
 	return content
 }
 
-func buildPostActivityForDM(channelId, msUserId, message string, count int) (*MSActivities, error) {
+func buildPostActivityForDM(data PostToChatJob) (*MSActivities, error) {
 	var contentJson []byte
 	var err error
 	msgId := model.NewId()
-	text := fmt.Sprintf("%s\nAnswer #%d", message, count)
+	text := fmt.Sprintf("%s\nAnswer #%d", data.message, data.count)
 
 	if Settings.simulateIncomingPosts {
-		otherUserId := "ms_teams-" + getOtherUserFromChannelId(channelId, msUserId)
-		content := buildMessageContent(channelId, msgId, text, otherUserId)
+		otherUserId := "ms_teams-" + getOtherUserFromChannelId(data.channelId, data.msUserId)
+		content := buildMessageContent(data.channelId, msgId, text, otherUserId)
 
 		contentJson, err = json.Marshal(content)
 		if err != nil {
@@ -185,7 +185,7 @@ func buildPostActivityForDM(channelId, msUserId, message string, count int) (*MS
 				SubscriptionExpirationDateTime: "2036-11-20T18:23:45.9356913Z", // hard coded as included in the response for init subscriptions
 				ClientState:                    Settings.webhookSecret,
 				ChangeType:                     "created",
-				Resource:                       "chats('" + channelId + "')/messages('" + msgId + "')",
+				Resource:                       "chats('" + data.channelId + "')/messages('" + msgId + "')",
 				TenantID:                       Settings.tenantId,
 				Content:                        contentJson,
 			},
@@ -195,14 +195,14 @@ func buildPostActivityForDM(channelId, msUserId, message string, count int) (*MS
 	return activities, nil
 }
 
-func buildPostActivityForGM(channelId, msUserId, message string, count int) (*MSActivities, error) {
+func buildPostActivityForGM(data PostToChatJob) (*MSActivities, error) {
 	var contentJson []byte
 	var err error
 	msgId := model.NewId()
-	text := fmt.Sprintf("%s\nAnswer #%d", message, count)
+	text := fmt.Sprintf("%s\nAnswer #%d", data.message, data.count)
 	if Settings.simulateIncomingPosts {
-		otherUserId := "ms_teams-" + getRandomUserFromChannelId(channelId, strings.Replace(msUserId, "ms_teams-", "", 1))
-		content := buildMessageContent(channelId, msgId, text, otherUserId)
+		otherUserId := "ms_teams-" + getRandomUserFromChannelId(data.channelId, strings.Replace(data.msUserId, "ms_teams-", "", 1))
+		content := buildMessageContent(data.channelId, msgId, text, otherUserId)
 
 		contentJson, err = json.Marshal(content)
 		if err != nil {
@@ -219,7 +219,7 @@ func buildPostActivityForGM(channelId, msUserId, message string, count int) (*MS
 				SubscriptionExpirationDateTime: "2036-11-20T18:23:45.9356913Z", // hard coded as included in the response for init subscriptions
 				ClientState:                    Settings.webhookSecret,
 				ChangeType:                     "created",
-				Resource:                       "chats('" + channelId + "')/messages('" + msgId + "')",
+				Resource:                       "chats('" + data.channelId + "')/messages('" + msgId + "')",
 				TenantID:                       Settings.tenantId,
 				Content:                        contentJson,
 			},
