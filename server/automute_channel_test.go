@@ -5,32 +5,32 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+
 	setup := func(t *testing.T, automuteEnabled bool) (*Plugin, *model.User, *model.Channel, *model.Channel) {
 		t.Helper()
+		th.Reset(t)
 
-		p := newAutomuteTestPlugin(t)
-
-		user := &model.User{Id: model.NewId()}
-		mockUserConnected(p, user.Id)
-
-		err := p.setAutomuteIsEnabledForUser(user.Id, automuteEnabled)
+		user := th.SetupUser(t, team)
+		err := th.p.store.SetUserInfo(user.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 		require.NoError(t, err)
 
-		linkedChannel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		require.Nil(t, appErr)
-		mockLinkedChannel(p, linkedChannel)
+		err = th.p.setAutomuteIsEnabledForUser(user.Id, automuteEnabled)
+		require.NoError(t, err)
 
-		unlinkedChannel, appErr := p.API.CreateChannel(&model.Channel{Id: model.NewId(), Type: model.ChannelTypeOpen})
-		require.Nil(t, appErr)
-		mockUnlinkedChannel(p, unlinkedChannel)
+		linkedChannel := th.SetupPublicChannel(t, team)
 
-		return p, user, linkedChannel, unlinkedChannel
+		th.LinkChannel(t, team, linkedChannel, user)
+
+		unlinkedChannel := th.SetupPublicChannel(t, team)
+
+		return th.p, user, linkedChannel, unlinkedChannel
 	}
 
 	t.Run("when a user with automuting enabled joins a linked channel, the channel should be muted for that user", func(t *testing.T) {
@@ -39,12 +39,7 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, user.Id, user.Id)
 		require.Nil(t, appErr)
 
-		assert.EventuallyWithT(t, func(t *assert.CollectT) {
-			member, appErr := p.API.GetChannelMember(linkedChannel.Id, user.Id)
-			require.Nil(t, appErr)
-
-			assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
-		}, 1*time.Second, 10*time.Millisecond)
+		assertChannelAutomuted(t, th.p, linkedChannel.Id, user.Id)
 	})
 
 	t.Run("when a user without automuting enabled joins a linked channel, nothing should happen", func(t *testing.T) {
@@ -53,10 +48,7 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, user.Id, user.Id)
 		require.Nil(t, appErr)
 
-		member, appErr := p.API.GetChannelMember(linkedChannel.Id, user.Id)
-		require.Nil(t, appErr)
-
-		assert.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, linkedChannel.Id, user.Id)
 	})
 
 	t.Run("when a user with automuting enabled joins a non-linked channel, nothing should happen", func(t *testing.T) {
@@ -65,10 +57,7 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 		_, appErr := p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, user.Id)
 		require.Nil(t, appErr)
 
-		member, appErr := p.API.GetChannelMember(unlinkedChannel.Id, user.Id)
-		require.Nil(t, appErr)
-
-		assert.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, unlinkedChannel.Id, user.Id)
 	})
 
 	t.Run("when a user without automuting enabled joins a non-linked channel, nothing should happen", func(t *testing.T) {
@@ -77,176 +66,115 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 		_, appErr := p.API.AddUserToChannel(unlinkedChannel.Id, user.Id, user.Id)
 		require.Nil(t, appErr)
 
-		member, appErr := p.API.GetChannelMember(unlinkedChannel.Id, user.Id)
-		require.Nil(t, appErr)
-
-		assert.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, unlinkedChannel.Id, user.Id)
 	})
 
 	t.Run("should do nothing when an unconnected user joins a linked channel", func(t *testing.T) {
 		p, _, linkedChannel, _ := setup(t, true)
 
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, unconnectedUser.Id)
+		unconnectedUser := th.SetupUser(t, team)
 
 		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, unconnectedUser.Id)
 		require.Nil(t, appErr)
 
-		member, appErr := p.API.GetChannelMember(linkedChannel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-
-		assert.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, linkedChannel.Id, unconnectedUser.Id)
 	})
 
 	t.Run("should do nothing when an unconnected user joins an unlinked channel", func(t *testing.T) {
 		p, _, _, unlinkedChannel := setup(t, true)
 
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, unconnectedUser.Id)
+		unconnectedUser := th.SetupUser(t, team)
 
 		_, appErr := p.API.AddUserToChannel(unlinkedChannel.Id, unconnectedUser.Id, unconnectedUser.Id)
 		require.Nil(t, appErr)
 
-		member, appErr := p.API.GetChannelMember(unlinkedChannel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-
-		assert.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, unlinkedChannel.Id, unconnectedUser.Id)
 	})
 
 	t.Run("when a user with automuting enabled joins a linked channel, the channel should only be muted for them", func(t *testing.T) {
 		p, user, linkedChannel, _ := setup(t, true)
 
-		connectedUser := &model.User{Id: model.NewId()}
-		mockUserConnected(p, connectedUser.Id)
+		connectedUser := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUser.Id)
+
 		_, appErr := p.API.AddUserToChannel(linkedChannel.Id, connectedUser.Id, connectedUser.Id)
 		require.Nil(t, appErr)
 
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserConnected(p, unconnectedUser.Id)
+		unconnectedUser := th.SetupUser(t, team)
+
 		_, appErr = p.API.AddUserToChannel(linkedChannel.Id, unconnectedUser.Id, connectedUser.Id)
 		require.Nil(t, appErr)
 
 		_, appErr = p.API.AddUserToChannel(linkedChannel.Id, user.Id, user.Id)
 		require.Nil(t, appErr)
 
-		time.Sleep(1 * time.Second)
-
-		connectedMember, appErr := p.API.GetChannelMember(linkedChannel.Id, connectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
-
-		unconnectedMember, appErr := p.API.GetChannelMember(linkedChannel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelAutomuted(t, th.p, linkedChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, linkedChannel.Id, connectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, linkedChannel.Id, unconnectedUser.Id)
 	})
 }
 
 func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+
 	t.Run("when a DM is created, should mute it for users with automuting enabled", func(t *testing.T) {
-		p := newAutomuteTestPlugin(t)
+		th.Reset(t)
 
-		channel := &model.Channel{
-			Id:   model.NewId(),
-			Type: model.ChannelTypeDirect,
-		}
+		connectedUser := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUser.Id)
+		unconnectedUser := th.SetupUser(t, team)
 
-		connectedUser := &model.User{Id: model.NewId()}
-		mockUserConnected(p, connectedUser.Id)
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, unconnectedUser.Id)
-
-		err := p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
 		require.NoError(t, err)
 
-		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
-		mockAPI := p.API.(*AutomuteAPIMock)
-		mockAPI.addMockChannelMember(channel.Id, connectedUser.Id)
-		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, unconnectedUser.Id)
+		require.Nil(t, err)
 
-		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
-
-		connectedMember, appErr := p.API.GetChannelMember(channel.Id, connectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadMention, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
-
-		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelAutomuted(t, th.p, channel.Id, connectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
 	})
 
 	t.Run("when a GM is created, should mute it for users with automuting enabled", func(t *testing.T) {
-		p := newAutomuteTestPlugin(t)
+		th.Reset(t)
 
-		channel := &model.Channel{
-			Id:   model.NewId(),
-			Type: model.ChannelTypeGroup,
-		}
+		connectedUserWithAutomute := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUserWithAutomute.Id)
+		connectedUserWithoutAutomute := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUserWithoutAutomute.Id)
+		unconnectedUser := th.SetupUser(t, team)
 
-		connectedUserWithAutomute := &model.User{Id: model.NewId()}
-		mockUserConnected(p, connectedUserWithAutomute.Id)
-		connectedUserWithoutAutomute := &model.User{Id: model.NewId()}
-		mockUserConnected(p, connectedUserWithoutAutomute.Id)
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, unconnectedUser.Id)
-
-		err := p.setAutomuteIsEnabledForUser(connectedUserWithAutomute.Id, true)
+		err := th.p.setAutomuteIsEnabledForUser(connectedUserWithAutomute.Id, true)
 		require.NoError(t, err)
 
-		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
-		mockAPI := p.API.(*AutomuteAPIMock)
-		mockAPI.addMockChannelMember(channel.Id, connectedUserWithAutomute.Id)
-		mockAPI.addMockChannelMember(channel.Id, connectedUserWithoutAutomute.Id)
-		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+		channel, err := th.p.API.GetGroupChannel([]string{connectedUserWithAutomute.Id, connectedUserWithoutAutomute.Id, unconnectedUser.Id})
+		require.Nil(t, err)
 
-		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
-
-		connectedMemberWithAutomute, appErr := p.API.GetChannelMember(channel.Id, connectedUserWithAutomute.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadMention, connectedMemberWithAutomute.NotifyProps[model.MarkUnreadNotifyProp])
-
-		connectedMemberWithoutAutomute, appErr := p.API.GetChannelMember(channel.Id, connectedUserWithoutAutomute.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMemberWithoutAutomute.NotifyProps[model.MarkUnreadNotifyProp])
-
-		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelAutomuted(t, th.p, channel.Id, connectedUserWithAutomute.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUserWithoutAutomute.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
 	})
 
 	t.Run("when a regular channel is created, should do nothing", func(t *testing.T) {
-		p := newAutomuteTestPlugin(t)
+		th.Reset(t)
 
-		channel := &model.Channel{
-			Id:   model.NewId(),
-			Type: model.ChannelTypePrivate,
-		}
+		connectedUser := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUser.Id)
+		unconnectedUser := th.SetupUser(t, team)
 
-		connectedUser := &model.User{Id: model.NewId()}
-		mockUserConnected(p, connectedUser.Id)
-		unconnectedUser := &model.User{Id: model.NewId()}
-		mockUserNotConnected(p, unconnectedUser.Id)
-
-		err := p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
 		require.NoError(t, err)
 
-		// Add channel members manually first because they'll be channel members before ChannelHasBeenCreated is called
-		mockAPI := p.API.(*AutomuteAPIMock)
-		mockAPI.addMockChannelMember(channel.Id, connectedUser.Id)
-		mockAPI.addMockChannelMember(channel.Id, unconnectedUser.Id)
+		channel := th.SetupPrivateChannel(t, team, WithMembers(connectedUser, unconnectedUser))
 
-		p.ChannelHasBeenCreated(&plugin.Context{}, channel)
-
-		connectedMember, appErr := p.API.GetChannelMember(channel.Id, connectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, connectedMember.NotifyProps[model.MarkUnreadNotifyProp])
-
-		unconnectedMember, appErr := p.API.GetChannelMember(channel.Id, unconnectedUser.Id)
-		require.Nil(t, appErr)
-		assert.Equal(t, model.ChannelMarkUnreadAll, unconnectedMember.NotifyProps[model.MarkUnreadNotifyProp])
+		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
 	})
 }
 
 func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
+	th := setupTestHelper(t)
+
 	const (
 		NotMuted = iota
 		ManuallyMuted
@@ -296,34 +224,26 @@ func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
 		},
 	} {
 		t.Run("when a channel is linked, "+name, func(t *testing.T) {
-			p := newAutomuteTestPlugin(t)
+			th.Reset(t)
 
-			channel, appErr := p.API.CreateChannel(&model.Channel{
-				Id:   model.NewId(),
-				Type: model.ChannelTypeOpen,
-			})
-			require.Nil(t, appErr)
-
-			mockUnlinkedChannel(p, channel)
-
-			user := &model.User{Id: model.NewId()}
+			team := th.SetupTeam(t)
+			user := th.SetupUser(t, team)
+			channel := th.SetupPublicChannel(t, team)
 
 			if testCase.connected {
-				mockUserConnected(p, user.Id)
-			} else {
-				mockUserNotConnected(p, user.Id)
+				th.ConnectUser(t, user.Id)
 			}
 
 			if testCase.automuteEnabled {
-				err := p.setAutomuteIsEnabledForUser(user.Id, true)
+				err := th.p.setAutomuteIsEnabledForUser(user.Id, true)
 				require.NoError(t, err)
 			}
 
-			_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			_, appErr := th.p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
 			require.Nil(t, appErr)
 
 			if testCase.manuallyMuted {
-				appErr = p.API.PatchChannelMembersNotifications(
+				appErr = th.p.API.PatchChannelMembersNotifications(
 					[]*model.ChannelMemberIdentifier{
 						{
 							ChannelId: channel.Id,
@@ -338,40 +258,33 @@ func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
 			}
 
 			// Ensure the channel starts correctly muted
-			member, appErr := p.API.GetChannelMember(channel.Id, user.Id)
-			require.Nil(t, appErr)
-
 			if testCase.manuallyMuted {
-				require.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelManuallyMuted(t, th.p, channel.Id, user.Id)
 			} else {
-				require.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 			}
 
-			err := p.updateAutomutingOnChannelLinked(channel.Id)
+			err := th.p.updateAutomutingOnChannelLinked(channel.Id)
 			require.NoError(t, err)
 
 			// Confirm the channel was correctly muted or not
 			switch testCase.expect {
 			case NotMuted:
-				assertChannelNotAutomuted(t, p, channel.Id, user.Id)
+				assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 
 			case ManuallyMuted:
-				member, appErr = p.API.GetChannelMember(channel.Id, user.Id)
-				require.Nil(t, appErr)
-
-				assert.Equal(t, "", member.NotifyProps[NotifyPropAutomuted])
-				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelManuallyMuted(t, th.p, channel.Id, user.Id)
 
 			case Automuted:
-				assertChannelAutomuted(t, p, channel.Id, user.Id)
-				assert.Equal(t, "true", member.NotifyProps[NotifyPropAutomuted])
-				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelAutomuted(t, th.p, channel.Id, user.Id)
 			}
 		})
 	}
 }
 
 func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
+	th := setupTestHelper(t)
+
 	const (
 		NotMuted = iota
 		ManuallyMuted
@@ -421,34 +334,28 @@ func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
 		},
 	} {
 		t.Run("when a channel is unlinked, "+name, func(t *testing.T) {
-			p := newAutomuteTestPlugin(t)
+			th.Reset(t)
 
-			channel, appErr := p.API.CreateChannel(&model.Channel{
-				Id:   model.NewId(),
-				Type: model.ChannelTypeOpen,
-			})
-			require.Nil(t, appErr)
+			team := th.SetupTeam(t)
+			user := th.SetupUser(t, team)
+			channel := th.SetupPublicChannel(t, team)
 
-			mockLinkedChannel(p, channel)
-
-			user := &model.User{Id: model.NewId()}
+			th.LinkChannel(t, team, channel, user)
 
 			if testCase.connected {
-				mockUserConnected(p, user.Id)
-			} else {
-				mockUserNotConnected(p, user.Id)
+				th.ConnectUser(t, user.Id)
 			}
 
 			if testCase.automuteEnabled {
-				err := p.setAutomuteIsEnabledForUser(user.Id, true)
+				err := th.p.setAutomuteIsEnabledForUser(user.Id, true)
 				require.NoError(t, err)
 			}
 
-			_, appErr = p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
+			_, appErr := th.p.API.AddUserToChannel(channel.Id, user.Id, user.Id)
 			require.Nil(t, appErr)
 
 			if testCase.manuallyMuted {
-				appErr = p.API.PatchChannelMembersNotifications(
+				appErr = th.p.API.PatchChannelMembersNotifications(
 					[]*model.ChannelMemberIdentifier{
 						{
 							ChannelId: channel.Id,
@@ -462,35 +369,27 @@ func TestUpdateAutomutingOnChannelUnlinked(t *testing.T) {
 				require.Nil(t, appErr)
 			}
 
-			// Ensure the channel starts correctly muted
-			member, appErr := p.API.GetChannelMember(channel.Id, user.Id)
-			require.Nil(t, appErr)
-
 			if testCase.automuteEnabled {
-				assertChannelAutomuted(t, p, channel.Id, user.Id)
+				assertChannelAutomuted(t, th.p, channel.Id, user.Id)
 			} else if testCase.manuallyMuted {
-				require.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelManuallyMuted(t, th.p, channel.Id, user.Id)
 			} else {
-				require.Equal(t, model.ChannelMarkUnreadAll, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 			}
 
-			err := p.updateAutomutingOnChannelUnlinked(channel.Id)
+			err := th.p.updateAutomutingOnChannelUnlinked(channel.Id)
 			require.NoError(t, err)
 
 			// Confirm the channel was correctly unmuted or not
-			member, appErr = p.API.GetChannelMember(channel.Id, user.Id)
-			require.Nil(t, appErr)
-
 			switch testCase.expect {
 			case NotMuted:
-				assertChannelNotAutomuted(t, p, channel.Id, user.Id)
+				assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 
 			case ManuallyMuted:
-				assert.Equal(t, "", member.NotifyProps[NotifyPropAutomuted])
-				assert.Equal(t, model.ChannelMarkUnreadMention, member.NotifyProps[model.MarkUnreadNotifyProp])
+				assertChannelManuallyMuted(t, th.p, channel.Id, user.Id)
 
 			case Automuted:
-				assertChannelAutomuted(t, p, channel.Id, user.Id)
+				assertChannelAutomuted(t, th.p, channel.Id, user.Id)
 			}
 		})
 	}
