@@ -971,79 +971,48 @@ func TestListConnectedUsers(t *testing.T) {
 	assert.Nil(delErr)
 }
 
-func TestStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T) {
+func TestWhitelistIO(t *testing.T) {
 	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
-	count, getErr := store.GetSizeOfWhitelist()
+	count, getErr := store.GetWhitelistCount()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
-	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID() + "1")
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetWhitelistCount()
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 
-	present, presentErr := store.IsUserPresentInWhitelist(testutils.GetUserID())
+	present, presentErr := store.IsUserWhitelisted(testutils.GetUserID() + "1")
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	present, presentErr = store.IsUserWhitelisted(testutils.GetTeamsUserID() + "1")
 	assert.Equal(false, present)
 	assert.Nil(presentErr)
 
-	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
+	storeErr = store.StoreUserInWhitelist(testutils.GetUserID() + "2")
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetWhitelistCount()
 	assert.Equal(2, count)
 	assert.Nil(getErr)
 
-	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	present, presentErr = store.IsUserWhitelisted(testutils.GetUserID() + "2")
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
-	assert.Nil(err)
-}
+	tx, txErr := store.db.Begin()
+	assert.Nil(txErr)
+	delErr := store.deleteWhitelist(tx)
+	assert.Nil(delErr)
+	txCommitErr := tx.Commit()
+	assert.Nil(txCommitErr)
 
-func TestPrefillWhitelist(t *testing.T) {
-	store, _ := setupTestStore(t)
-	assert := assert.New(t)
-	store.encryptionKey = func() []byte {
-		return make([]byte, 16)
-	}
-
-	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken-1",
-		RefreshToken: "mockRefreshToken-1",
-	}
-
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
-	assert.Nil(storeErr)
-
-	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
-	assert.Nil(storeErr)
-
-	count, getErr := store.GetSizeOfWhitelist()
+	count, getErr = store.GetWhitelistCount()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
-
-	prefillErr := store.PrefillWhitelist()
-	assert.Nil(prefillErr)
-
-	count, getErr = store.GetSizeOfWhitelist()
-	assert.Equal(1, count)
-	assert.Nil(getErr)
-
-	_, err := store.getQueryBuilder().Delete(whitelistedUsersTableName).Exec()
-	assert.Nil(err)
-
-	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
-	assert.Nil(delErr)
-
-	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
-	assert.Nil(delErr)
 }

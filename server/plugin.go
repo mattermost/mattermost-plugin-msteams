@@ -43,7 +43,7 @@ const (
 	botDisplayName               = "MS Teams"
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	connectClusterMutexKey       = "connect_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 	metricsJobName               = "metrics"
@@ -75,7 +75,7 @@ type Plugin struct {
 
 	store                     store.Store
 	subscriptionsClusterMutex *cluster.Mutex
-	whitelistClusterMutex     *cluster.Mutex
+	connectClusterMutex       *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
 	checkCredentialsJob       *cluster.Job
@@ -183,15 +183,8 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		return
 	}
 
-	connectURL := p.GetURL() + "/connect"
-	_, appErr = p.API.CreatePost(&model.Post{
-		UserId:    p.GetBotUserID(),
-		ChannelId: channel.Id,
-		Message:   "Your connection to Microsoft Teams has been lost. " + fmt.Sprintf("[Click here to reconnect your account](%s).", connectURL),
-	})
-	if appErr != nil {
-		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
-	}
+	message := "Your connection to Microsoft Teams has been lost. "
+	p.SendConnectMessage(channel.Id, userID, message)
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
@@ -492,7 +485,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.connectClusterMutex, err = cluster.NewMutex(p.API, connectClusterMutexKey)
 	if err != nil {
 		return err
 	}
@@ -603,12 +596,6 @@ func (p *Plugin) onActivate() error {
 				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 			}
 		}()
-
-		p.whitelistClusterMutex.Lock()
-		defer p.whitelistClusterMutex.Unlock()
-		if err2 := p.store.PrefillWhitelist(); err2 != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
-		}
 	}()
 
 	go p.start(false)
@@ -748,20 +735,23 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				user, err := p.API.GetUser(mmUser.Id)
-				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-					continue
-				}
+				if configuration.AutomaticallyPromoteSyntheticUsers {
+					// We need to retrieve the user individually because `GetUsers` does not return AuthData
+					user, err := p.API.GetUser(mmUser.Id)
+					if err != nil {
+						p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						continue
+					}
 
-				// Update AuthService/AuthData if it changed
-				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
-					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
-						AuthService: configuration.SyntheticUserAuthService,
-						AuthData:    &authData,
-					}); err != nil {
-						p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+					// Update AuthService/AuthData if it changed
+					if mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData) {
+						p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
+						if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+							AuthService: configuration.SyntheticUserAuthService,
+							AuthData:    &authData,
+						}); err != nil {
+							p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						}
 					}
 				}
 
