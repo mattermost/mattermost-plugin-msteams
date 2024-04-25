@@ -6,6 +6,7 @@ import (
 
 	"testing"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -1015,4 +1016,119 @@ func TestWhitelistIO(t *testing.T) {
 	count, getErr = store.GetWhitelistCount()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
+}
+
+func TestSetUserLastChatSentAt(t *testing.T) {
+	store, _ := setupTestStore(t)
+	assert := require.New(t)
+
+	mmUserID := model.NewId()
+	err := store.SetUserInfo(mmUserID, "ms-"+mmUserID, nil)
+	assert.Nil(err)
+
+	getLastChatSentAtForUser := func(mmUserID string) int64 {
+		t.Helper()
+		var lastChatSentAt int64
+		err = store.getQueryBuilder().
+			Select("LastChatSentAt").
+			From(usersTableName).
+			Where(sq.Eq{"mmuseriD": mmUserID}).
+			QueryRow().
+			Scan(&lastChatSentAt)
+		assert.Nil(err)
+		return lastChatSentAt
+	}
+
+	{
+		// Initial SetUserLastChatSentAt
+		err = store.SetUserLastChatSentAt(mmUserID, 10)
+		assert.Nil(err)
+		assert.EqualValues(10, getLastChatSentAtForUser(mmUserID))
+	}
+	{
+		// Don't update if sentAt is less than current
+		err = store.SetUserLastChatSentAt(mmUserID, 5)
+		assert.Nil(err)
+		assert.EqualValues(10, getLastChatSentAtForUser(mmUserID))
+	}
+	{
+		// Update if sentAt is greater than current
+		err = store.SetUserLastChatSentAt(mmUserID, 15)
+		assert.Nil(err)
+		assert.EqualValues(15, getLastChatSentAtForUser(mmUserID))
+	}
+}
+
+func TestSetUsersLastChatReceivedAt(t *testing.T) {
+	store, _ := setupTestStore(t)
+	assert := require.New(t)
+
+	mmUserID1 := model.NewId()
+	err := store.SetUserInfo(mmUserID1, "ms-"+mmUserID1, nil)
+	assert.Nil(err)
+	mmUserID2 := model.NewId()
+	err = store.SetUserInfo(mmUserID2, "ms-"+mmUserID2, nil)
+	assert.Nil(err)
+	mmUserID3 := model.NewId()
+	err = store.SetUserInfo(mmUserID3, "ms-"+mmUserID3, nil)
+	assert.Nil(err)
+	allMMUsers := []string{mmUserID1, mmUserID2, mmUserID3}
+
+	getLastChatReceivedAtForUser := func(mmUserID string) int64 {
+		t.Helper()
+		var lastChatReceivedAt int64
+		err = store.getQueryBuilder().
+			Select("LastChatReceivedAt").
+			From(usersTableName).
+			Where(sq.Eq{"mmuseriD": mmUserID}).
+			QueryRow().
+			Scan(&lastChatReceivedAt)
+		assert.Nil(err)
+		return lastChatReceivedAt
+	}
+
+	{
+		// Initial SetUsersLastChatReceivedAt
+		err = store.SetUsersLastChatReceivedAt(allMMUsers, 10)
+		assert.Nil(err)
+		for _, mmUserID := range allMMUsers {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(mmUserID))
+		}
+	}
+	{
+		// Don't update if receivedAt is less than current
+		err = store.SetUsersLastChatReceivedAt(allMMUsers, 5)
+		assert.Nil(err)
+		for _, mmUserID := range allMMUsers {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(mmUserID))
+		}
+	}
+	{
+		// Update if sentAt is greater than current
+		err = store.SetUsersLastChatReceivedAt(allMMUsers, 15)
+		assert.Nil(err)
+		for _, mmUserID := range allMMUsers {
+			assert.EqualValues(15, getLastChatReceivedAtForUser(mmUserID))
+		}
+	}
+	{
+		// Update if sentAt is greater than current for some users
+		// u2 will have 25, u1 and u3 will have 20.
+		// Updating them all to 22 will result in u1 and u3 having 22
+		// but 2 should keep its 25
+		err = store.SetUserLastChatReceivedAt(mmUserID2, 25)
+		assert.Nil(err)
+		assert.EqualValues(25, getLastChatReceivedAtForUser(mmUserID2))
+
+		err = store.SetUsersLastChatReceivedAt([]string{mmUserID1, mmUserID3}, 20)
+		assert.Nil(err)
+		assert.EqualValues(20, getLastChatReceivedAtForUser(mmUserID1))
+		assert.EqualValues(20, getLastChatReceivedAtForUser(mmUserID3))
+
+		err = store.SetUsersLastChatReceivedAt(allMMUsers, 22)
+		assert.Nil(err)
+		assert.EqualValues(22, getLastChatReceivedAtForUser(mmUserID1))
+		assert.EqualValues(22, getLastChatReceivedAtForUser(mmUserID3))
+		assert.EqualValues(25, getLastChatReceivedAtForUser(mmUserID2))
+	}
 }

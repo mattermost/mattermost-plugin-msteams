@@ -151,6 +151,14 @@ func (s *SQLStore) Init(remoteID string) error {
 		return err
 	}
 
+	if err := s.addColumn(usersTableName, "LastChatSentAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "LastChatReceivedAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1196,4 +1204,38 @@ func isDuplicate(err error) bool {
 	}
 
 	return false
+}
+
+func (s *SQLStore) SetUserLastChatSentAt(mmUserID string, sentAt int64) error {
+	query := s.getQueryBuilder().
+		Update(usersTableName).
+		Set("LastChatSentAt", sentAt).
+		Where(sq.And{
+			sq.Eq{"mmUserID": mmUserID},
+			sq.Lt{"LastChatSentAt": sentAt}, // Make sure we store the latest value
+		})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error {
+	return s.SetUsersLastChatReceivedAt([]string{mmUserID}, receivedAt)
+}
+
+func (s *SQLStore) SetUsersLastChatReceivedAt(mmUsersID []string, receivedAt int64) error {
+	query := s.getQueryBuilder().
+		Update(usersTableName).
+		Set("LastChatReceivedAt", receivedAt).
+		Where(sq.And{
+			sq.Eq{"mmUserID": mmUsersID},
+			sq.Lt{"LastChatReceivedAt": receivedAt}, // Make sure we store the latest value
+		})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
 }

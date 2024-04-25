@@ -1393,6 +1393,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(testutils.GetInternalServerAppError("unable to store the post")).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
@@ -1437,6 +1438,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Once()
@@ -1482,6 +1484,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
@@ -1516,6 +1519,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
@@ -1552,6 +1556,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
@@ -1590,6 +1595,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Once()
@@ -1640,6 +1646,7 @@ func TestSendChat(t *testing.T) {
 					MSTeamsChannel: testutils.GetChatID(),
 					MSTeamsID:      "mockMessageID",
 				}).Return(nil).Times(1)
+				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)

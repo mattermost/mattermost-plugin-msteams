@@ -637,6 +637,48 @@ func (s *TimerLayer) SetUserInfo(userID string, msTeamsUserID string, token *oau
 	return err
 }
 
+func (s *TimerLayer) SetUserLastChatReceivedAt(mmUserId string, receivedAt int64) error {
+	start := time.Now()
+
+	err := s.Store.SetUserLastChatReceivedAt(mmUserId, receivedAt)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.SetUserLastChatReceivedAt", success, elapsed)
+	return err
+}
+
+func (s *TimerLayer) SetUserLastChatSentAt(mmUserId string, sentAt int64) error {
+	start := time.Now()
+
+	err := s.Store.SetUserLastChatSentAt(mmUserId, sentAt)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.SetUserLastChatSentAt", success, elapsed)
+	return err
+}
+
+func (s *TimerLayer) SetUsersLastChatReceivedAt(mmUsersId []string, receivedAt int64) error {
+	start := time.Now()
+
+	err := s.Store.SetUsersLastChatReceivedAt(mmUsersId, receivedAt)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.SetUsersLastChatReceivedAt", success, elapsed)
+	return err
+}
+
 func (s *TimerLayer) SetWhitelist(userIDs []string, batchSize int) error {
 	start := time.Now()
 

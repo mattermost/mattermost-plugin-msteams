@@ -26,6 +26,9 @@ type Store interface {
 	GetHasConnectedCount() (int, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	DeleteUserInfo(mmUserID string) error
+	SetUserLastChatSentAt(mmUserID string, sentAt int64) error
+	SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error
+	SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error
 
 	// auth
 	StoreOAuth2State(state string) error

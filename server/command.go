@@ -159,10 +159,23 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeStatusCommand(args)
 	}
 
+	if action == "errapi" {
+		return p.executeErrAPI(args)
+	}
+
 	if p.getConfiguration().SyncLinkedChannels {
 		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, status, disconnect, disconnect-bot and promote.")
 	}
 	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+}
+
+func (p *Plugin) executeErrAPI(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+	user, err := p.GetClientForApp().GetUser("invalid")
+	if err != nil {
+		p.GetAPI().LogWarn("Error in getting user", "error", err.Error())
+		return p.cmdError(args, "Error in getting user")
+	}
+	return p.cmdSuccess(args, fmt.Sprintf("User: %v", user))
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {

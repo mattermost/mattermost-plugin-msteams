@@ -881,6 +881,48 @@ func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.
 	return r0
 }
 
+// SetUserLastChatReceivedAt provides a mock function with given fields: mmUserId, receivedAt
+func (_m *Store) SetUserLastChatReceivedAt(mmUserId string, receivedAt int64) error {
+	ret := _m.Called(mmUserId, receivedAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = rf(mmUserId, receivedAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetUserLastChatSentAt provides a mock function with given fields: mmUserId, sentAt
+func (_m *Store) SetUserLastChatSentAt(mmUserId string, sentAt int64) error {
+	ret := _m.Called(mmUserId, sentAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = rf(mmUserId, sentAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetUsersLastChatReceivedAt provides a mock function with given fields: mmUsersId, receivedAt
+func (_m *Store) SetUsersLastChatReceivedAt(mmUsersId []string, receivedAt int64) error {
+	ret := _m.Called(mmUsersId, receivedAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, int64) error); ok {
+		r0 = rf(mmUsersId, receivedAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetWhitelist provides a mock function with given fields: userIDs, batchSize
 func (_m *Store) SetWhitelist(userIDs []string, batchSize int) error {
 	ret := _m.Called(userIDs, batchSize)
