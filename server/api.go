@@ -350,13 +350,14 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	channelID := query.Get(QueryParamChannelID)
 	postID := query.Get(QueryParamPostID)
 	if channelID == "" || postID == "" {
-		a.p.API.LogWarn("Missing channelID or postID from query paramaeters", "channelID", channelID, "postID", postID)
+		a.p.API.LogWarn("Missing channelID or postID from query parameters", "channel_id", channelID, "post_id", postID)
 		http.Error(w, "Missing required query parameters.", http.StatusBadRequest)
+		return
 	}
 
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
 		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
-		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusForbidden)
 		return
 	}
 
