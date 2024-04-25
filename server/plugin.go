@@ -882,6 +882,7 @@ func (p *Plugin) updateMetrics() {
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
 	}
+	// TODO: When #616 is merged, move GetExtraStats in normal GetStats
 	now := time.Now()
 	err = p.store.GetExtraStats(stats, time.Now().AddDate(0, 0, -7), now)
 	if err != nil {
