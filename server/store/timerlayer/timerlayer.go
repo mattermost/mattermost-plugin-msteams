@@ -273,10 +273,10 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 	return result, err
 }
 
-func (s *TimerLayer) GetStats() (*storemodels.Stats, error) {
+func (s *TimerLayer) GetStats(remoteID string, preferenceCategory string) (*storemodels.Stats, error) {
 	start := time.Now()
 
-	result, err := s.Store.GetStats()
+	result, err := s.Store.GetStats(remoteID, preferenceCategory)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

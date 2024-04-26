@@ -44,7 +44,7 @@ type Store interface {
 	SetWhitelist(userIDs []string, batchSize int) error
 
 	// stats
-	GetStats() (*storemodels.Stats, error)
+	GetStats(remoteID, preferenceCategory string) (*storemodels.Stats, error)
 
 	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)

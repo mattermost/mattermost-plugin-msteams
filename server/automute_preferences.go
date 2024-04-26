@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
@@ -50,10 +51,10 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 
 func getUsersWhoChangedPlatform(preferences []model.Preference) (usersWithTeamsPrimary []string, usersWithMMPrimary []string) {
 	for _, preference := range preferences {
-		if preference.Category == PreferenceCategoryPlugin && preference.Name == PreferenceNamePlatform {
-			if preference.Value == PreferenceValuePlatformMM {
+		if preference.Category == PreferenceCategoryPlugin && preference.Name == storemodels.PreferenceNamePlatform {
+			if preference.Value == storemodels.PreferenceValuePlatformMM {
 				usersWithMMPrimary = append(usersWithMMPrimary, preference.UserId)
-			} else if preference.Value == PreferenceValuePlatformMSTeams {
+			} else if preference.Value == storemodels.PreferenceValuePlatformMSTeams {
 				usersWithTeamsPrimary = append(usersWithTeamsPrimary, preference.UserId)
 			}
 		}

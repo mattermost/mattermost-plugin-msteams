@@ -871,7 +871,7 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	return nil
 }
 
-func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
+func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.Stats, error) {
 	query := s.getQueryBuilder().Select("count(mmChannelID)").From(linksTableName)
 	row := query.QueryRow()
 	var linkedChannels int64
@@ -886,17 +886,54 @@ func (s *SQLStore) GetStats() (*storemodels.Stats, error) {
 		return nil, err
 	}
 
-	query = s.getQueryBuilder().Select("count(id)").From("users").Where(sq.NotEq{"RemoteId": ""}).Where(sq.Like{"Username": "msteams_%"}).Where(sq.Eq{"DeleteAt": 0})
+	query = s.getQueryBuilder().Select("count(id)").From("users").Where(sq.And{
+		sq.Eq{"RemoteId": remoteID},
+		sq.Or{sq.Eq{"DeleteAt": 0}, sq.Eq{"DeleteAt": nil}},
+	})
 	row = query.QueryRow()
 	var syntheticUsers int64
 	if err := row.Scan(&syntheticUsers); err != nil {
 		return nil, err
 	}
 
+	var msTeamPrimary int64
+	var mmPrimary int64
+	query = s.getQueryBuilder().Select("p.value", "count(*)").
+		From("preferences p").
+		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
+		Where(sq.And{
+			sq.Eq{"p.category": preferenceCategory},
+			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
+			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
+		}).
+		GroupBy("p.value")
+	rows, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var platform string
+		var count int64
+		if err := rows.Scan(&platform, &count); err != nil {
+			return nil, err
+		}
+
+		switch platform {
+		case storemodels.PreferenceValuePlatformMM:
+			mmPrimary = count
+		case storemodels.PreferenceValuePlatformMSTeams:
+			msTeamPrimary = count
+		}
+	}
+
 	return &storemodels.Stats{
-		LinkedChannels: linkedChannels,
-		ConnectedUsers: connectedUsers,
-		SyntheticUsers: syntheticUsers,
+		LinkedChannels:    linkedChannels,
+		ConnectedUsers:    connectedUsers,
+		SyntheticUsers:    syntheticUsers,
+		MattermostPrimary: mmPrimary,
+		MSTeamsPrimary:    msTeamPrimary,
 	}, nil
 }
 

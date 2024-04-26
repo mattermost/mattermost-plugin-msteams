@@ -57,8 +57,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -73,8 +73,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -93,8 +93,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -109,8 +109,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -154,8 +154,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   unconnectedUser.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -189,8 +189,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -232,8 +232,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -248,8 +248,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -267,14 +267,14 @@ func TestGetUsersWhoChangedPlatform(t *testing.T) {
 		{
 			UserId:   "user1",
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMM,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMM,
 		},
 		{
 			UserId:   "user2",
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMSTeams,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMSTeams,
 		},
 		{
 			UserId:   "user3",
