@@ -1146,7 +1146,7 @@ func TestGetExtraStats(t *testing.T) {
 
 	users := []string{model.NewId(), model.NewId(), model.NewId()}
 	for _, mmUserID := range users {
-		err := store.SetUserInfo(mmUserID, "teams-"+mmUserID, nil)
+		err = store.SetUserInfo(mmUserID, "teams-"+mmUserID, nil)
 		assert.Nil(err)
 	}
 	// Give them all a last chat received at in the test range
