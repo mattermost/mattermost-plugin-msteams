@@ -170,6 +170,40 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUser.Id)
 		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
 	})
+
+	t.Run("when a DM is created, should not mute it for DMs with guest users", func(t *testing.T) {
+		th.Reset(t)
+
+		connectedUser := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUser.Id)
+		guestUser := th.SetupGuestUser(t, team)
+
+		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		require.NoError(t, err)
+
+		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, guestUser.Id)
+		require.Nil(t, err)
+
+		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, guestUser.Id)
+	})
+
+	t.Run("when a DM is created, should not mute it for DMs with bots", func(t *testing.T) {
+		th.Reset(t)
+
+		connectedUser := th.SetupUser(t, team)
+		th.ConnectUser(t, connectedUser.Id)
+		bot := th.CreateBot()
+
+		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
+		require.NoError(t, err)
+
+		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, bot.UserId)
+		require.Nil(t, err)
+
+		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, bot.UserId)
+	})
 }
 
 func TestUpdateAutomutingOnChannelLinked(t *testing.T) {
