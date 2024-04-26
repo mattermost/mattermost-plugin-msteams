@@ -830,7 +830,7 @@ func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
 
 	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
 
-	if primaryPlatform != PreferenceValuePlatformMM && primaryPlatform != PreferenceValuePlatformMSTeams {
+	if primaryPlatform != storemodels.PreferenceValuePlatformMM && primaryPlatform != storemodels.PreferenceValuePlatformMSTeams {
 		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
 		http.Error(w, "invalid primary platform", http.StatusBadRequest)
 		return
@@ -927,7 +927,7 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := a.p.store.GetStats()
+	stats, err := a.p.store.GetStats(a.p.GetRemoteID(), a.p.GetPreferenceCategoryName())
 	if err != nil {
 		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
 		http.Error(w, "unable to get site stats", http.StatusInternalServerError)

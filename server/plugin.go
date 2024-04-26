@@ -878,21 +878,29 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	stats, err := p.store.GetStats()
+	now := time.Now()
+	p.API.LogDebug("Updating metrics")
+
+	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
+		return
 	}
 	// TODO: When #616 is merged, move GetExtraStats in normal GetStats
-	now := time.Now()
 	err = p.store.GetExtraStats(stats, time.Now().AddDate(0, 0, -7), now)
 	if err != nil {
 		p.API.LogWarn("failed to update extra computed metrics", "error", err)
 	}
+
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
+	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
 	p.GetMetrics().ObserveActiveUsersSending(stats.ActiveUsersSending)
 	p.GetMetrics().ObserveActiveUsersReceiving(stats.ActiveUsersReceiving)
+
+	p.API.LogDebug("Updating metrics done", "duration", time.Since(now))
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
