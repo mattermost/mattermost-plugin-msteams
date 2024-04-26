@@ -161,20 +161,6 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 	return result, err
 }
 
-func (s *TimerLayer) GetExtraStats(stats *storemodels.Stats, from time.Time, to time.Time) error {
-	start := time.Now()
-
-	err := s.Store.GetExtraStats(stats, from, to)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetExtraStats", success, elapsed)
-	return err
-}
-
 func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 
@@ -287,10 +273,10 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 	return result, err
 }
 
-func (s *TimerLayer) GetStats(remoteID string, preferenceCategory string) (*storemodels.Stats, error) {
+func (s *TimerLayer) GetStats(options storemodels.GetStatsOptions) (*storemodels.Stats, error) {
 	start := time.Now()
 
-	result, err := s.Store.GetStats(remoteID, preferenceCategory)
+	result, err := s.Store.GetStats(options)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

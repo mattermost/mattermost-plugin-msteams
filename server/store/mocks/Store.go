@@ -192,20 +192,6 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	return r0, r1
 }
 
-// GetExtraStats provides a mock function with given fields: stats, from, to
-func (_m *Store) GetExtraStats(stats *storemodels.Stats, from time.Time, to time.Time) error {
-	ret := _m.Called(stats, from, to)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*storemodels.Stats, time.Time, time.Time) error); ok {
-		r0 = rf(stats, from, to)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // GetGlobalSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -386,13 +372,13 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
-// GetStats provides a mock function with given fields: remoteID, preferenceCategory
-func (_m *Store) GetStats(remoteID string, preferenceCategory string) (*storemodels.Stats, error) {
-	ret := _m.Called(remoteID, preferenceCategory)
+// GetStats provides a mock function with given fields: options
+func (_m *Store) GetStats(options storemodels.GetStatsOptions) (*storemodels.Stats, error) {
+	ret := _m.Called(options)
 
 	var r0 *storemodels.Stats
-	if rf, ok := ret.Get(0).(func(string, string) *storemodels.Stats); ok {
-		r0 = rf(remoteID, preferenceCategory)
+	if rf, ok := ret.Get(0).(func(storemodels.GetStatsOptions) *storemodels.Stats); ok {
+		r0 = rf(options)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*storemodels.Stats)
@@ -400,8 +386,8 @@ func (_m *Store) GetStats(remoteID string, preferenceCategory string) (*storemod
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(remoteID, preferenceCategory)
+	if rf, ok := ret.Get(1).(func(storemodels.GetStatsOptions) error); ok {
+		r1 = rf(options)
 	} else {
 		r1 = ret.Error(1)
 	}

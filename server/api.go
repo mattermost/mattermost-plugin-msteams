@@ -927,7 +927,9 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := a.p.store.GetStats(a.p.GetRemoteID(), a.p.GetPreferenceCategoryName())
+	stats, err := a.p.store.GetStats(storemodels.GetStatsOptions{
+		Stats: []storemodels.StatType{storemodels.StatsConnectedUsers},
+	})
 	if err != nil {
 		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
 		http.Error(w, "unable to get site stats", http.StatusInternalServerError)

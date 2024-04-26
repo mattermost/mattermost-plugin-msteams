@@ -30,6 +30,7 @@ import (
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -49,6 +50,7 @@ const (
 	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
+	metricsActiveUsersRange    = 7 * 24 * time.Hour
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -879,17 +881,17 @@ func (p *Plugin) GetRemoteID() string {
 
 func (p *Plugin) updateMetrics() {
 	now := time.Now()
-	p.API.LogDebug("Updating metrics")
+	p.API.LogInfo("Updating metrics")
 
-	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
+	stats, err := p.store.GetStats(storemodels.GetStatsOptions{
+		RemoteID:           p.remoteID,
+		PreferenceCategory: PreferenceCategoryPlugin,
+		ActiveUsersFrom:    now.Add(-metricsActiveUsersRange),
+		ActiveUsersTo:      now,
+	})
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
 		return
-	}
-	// TODO: When #616 is merged, move GetExtraStats in normal GetStats
-	err = p.store.GetExtraStats(stats, time.Now().AddDate(0, 0, -7), now)
-	if err != nil {
-		p.API.LogWarn("failed to update extra computed metrics", "error", err)
 	}
 
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
@@ -900,7 +902,7 @@ func (p *Plugin) updateMetrics() {
 	p.GetMetrics().ObserveActiveUsersSending(stats.ActiveUsersSending)
 	p.GetMetrics().ObserveActiveUsersReceiving(stats.ActiveUsersReceiving)
 
-	p.API.LogDebug("Updating metrics done", "duration", time.Since(now))
+	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {

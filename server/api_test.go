@@ -1006,6 +1006,10 @@ func TestGetConnectedUsersFile(t *testing.T) {
 }
 
 func TestGetSiteStats(t *testing.T) {
+	getStatsOpts := storemodels.GetStatsOptions{
+		Stats: []storemodels.StatType{storemodels.StatsConnectedUsers},
+	}
+
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -1028,7 +1032,7 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(nil, errors.New("failed")).Times(1)
+				store.On("GetStats", getStatsOpts).Return(nil, errors.New("failed")).Times(1)
 			},
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedResult:     "unable to get site stats\n",
@@ -1039,10 +1043,10 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
+				store.On("GetStats", getStatsOpts).Return(&storemodels.Stats{
 					ConnectedUsers:    0,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
+					SyntheticUsers:    0,
+					LinkedChannels:    0,
 					MattermostPrimary: 0,
 					MSTeamsPrimary:    0,
 				}, nil).Times(1)
@@ -1056,11 +1060,11 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
+				store.On("GetStats", getStatsOpts).Return(&storemodels.Stats{
 					ConnectedUsers:    1,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
-					MattermostPrimary: 1,
+					SyntheticUsers:    0,
+					LinkedChannels:    0,
+					MattermostPrimary: 0,
 					MSTeamsPrimary:    0,
 				}, nil).Times(1)
 			},
@@ -1073,12 +1077,14 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
-					ConnectedUsers:    10,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
-					MattermostPrimary: 5,
-					MSTeamsPrimary:    5,
+				store.On("GetStats", getStatsOpts).Return(&storemodels.Stats{
+					ConnectedUsers:       10,
+					SyntheticUsers:       0,
+					LinkedChannels:       0,
+					MattermostPrimary:    0,
+					MSTeamsPrimary:       0,
+					ActiveUsersSending:   0,
+					ActiveUsersReceiving: 0,
 				}, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,

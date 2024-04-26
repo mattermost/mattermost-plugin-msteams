@@ -1133,44 +1133,6 @@ func TestSetUsersLastChatReceivedAt(t *testing.T) {
 	}
 }
 
-func TestGetExtraStats(t *testing.T) {
-	store, _ := setupTestStore(t)
-	assert := require.New(t)
-
-	// reset all the stats
-	_, err := store.getQueryBuilder().Update(usersTableName).
-		Set("LastChatReceivedAt", 0).
-		Set("LastChatSentAt", 0).
-		Exec()
-	assert.Nil(err)
-
-	users := []string{model.NewId(), model.NewId(), model.NewId()}
-	for _, mmUserID := range users {
-		err = store.SetUserInfo(mmUserID, "teams-"+mmUserID, nil)
-		assert.Nil(err)
-	}
-	// Give them all a last chat received at in the test range
-	err = store.SetUsersLastChatReceivedAt(users, 25)
-	assert.Nil(err)
-
-	// Have user 2 and 3 sent at be in the range
-	err = store.SetUserLastChatSentAt(users[0], 10)
-	assert.Nil(err)
-	err = store.SetUserLastChatSentAt(users[1], 20)
-	assert.Nil(err)
-	err = store.SetUserLastChatSentAt(users[2], 30)
-	assert.Nil(err)
-
-	stats := &storemodels.Stats{}
-	from := time.UnixMicro(19)
-	to := time.UnixMicro(35)
-	err = store.GetExtraStats(stats, from, to)
-	assert.Nil(err)
-
-	assert.EqualValues(2, stats.ActiveUsersSending)
-	assert.EqualValues(3, stats.ActiveUsersReceiving)
-}
-
 func TestGetStats(t *testing.T) {
 	store, _ := setupTestStore(t)
 	store.encryptionKey = func() []byte {
@@ -1198,17 +1160,22 @@ func TestGetStats(t *testing.T) {
 	const category = "pp_pluginid"
 
 	t.Run("all zero", func(t *testing.T) {
-		stats, getErr := store.GetStats(remoteID, category)
+		stats, getErr := store.GetStats(storemodels.GetStatsOptions{
+			RemoteID:           remoteID,
+			PreferenceCategory: category,
+			ActiveUsersFrom:    time.UnixMicro(19),
+			ActiveUsersTo:      time.UnixMicro(35),
+		})
 		assert.Nil(getErr)
-		assert.EqualValues(0, stats.ConnectedUsers)
-		assert.EqualValues(0, stats.SyntheticUsers)
-		assert.EqualValues(0, stats.LinkedChannels)
-		assert.EqualValues(0, stats.MSTeamsPrimary)
-		assert.EqualValues(0, stats.MattermostPrimary)
+		assert.EqualValues(storemodels.Stats{}, *stats)
 	})
 
-	t.Run("values set", func(t *testing.T) {
-		// create 5 users connected users, 3 on MM and 2 using Teams
+	t.Run("all values set", func(t *testing.T) {
+		// create 5 users connected users:
+		// - 3 with MM primary
+		// - 2 with Teams primary
+		// - all have last chat received at set to 25
+		// - last chat sent at is set to will increase by 10 for each user
 		for i := 0; i < 5; i++ {
 			userID := model.NewId()
 			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
@@ -1225,6 +1192,12 @@ func TestGetStats(t *testing.T) {
 				Columns("userid, category, name, value").
 				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
 				Exec()
+			assert.Nil(err)
+
+			err = store.SetUserLastChatReceivedAt(userID, 25)
+			assert.Nil(err)
+
+			err = store.SetUserLastChatSentAt(userID, int64(i)*10+10)
 			assert.Nil(err)
 		}
 
@@ -1251,12 +1224,69 @@ func TestGetStats(t *testing.T) {
 			assert.Nil(err)
 		}
 
-		stats, getErr := store.GetStats(remoteID, category)
+		stats, getErr := store.GetStats(storemodels.GetStatsOptions{
+			RemoteID:           remoteID,
+			PreferenceCategory: category,
+			ActiveUsersFrom:    time.UnixMicro(19),
+			ActiveUsersTo:      time.UnixMicro(35),
+		})
 		assert.Nil(getErr)
-		assert.EqualValues(5, stats.ConnectedUsers)
-		assert.EqualValues(2, stats.MSTeamsPrimary)
-		assert.EqualValues(3, stats.MattermostPrimary)
-		assert.EqualValues(3, stats.SyntheticUsers)
-		assert.EqualValues(4, stats.LinkedChannels)
+		assert.EqualValues(storemodels.Stats{
+			ConnectedUsers:       5,
+			MSTeamsPrimary:       2,
+			MattermostPrimary:    3,
+			SyntheticUsers:       3,
+			LinkedChannels:       4,
+			ActiveUsersSending:   2,
+			ActiveUsersReceiving: 5,
+		}, *stats)
+
+		filterTestCase := []struct {
+			name  string
+			stats []storemodels.StatType
+			want  storemodels.Stats
+		}{
+			{
+				name:  "only connected users",
+				stats: []storemodels.StatType{storemodels.StatsConnectedUsers},
+				want: storemodels.Stats{
+					ConnectedUsers: 5,
+				},
+			},
+			{
+				name:  "primary platform return 2 stats",
+				stats: []storemodels.StatType{storemodels.StatsPrimaryPlatform},
+				want: storemodels.Stats{
+					MSTeamsPrimary:    2,
+					MattermostPrimary: 3,
+				},
+			},
+			{
+				name: "multiple unrelated stats",
+				stats: []storemodels.StatType{
+					storemodels.StatsLinkedChannels,
+					storemodels.StatsActiveUsersReceiving,
+					storemodels.StatsActiveUsersSending,
+				},
+				want: storemodels.Stats{
+					LinkedChannels:       4,
+					ActiveUsersReceiving: 5,
+					ActiveUsersSending:   2,
+				},
+			},
+		}
+		for _, tc := range filterTestCase {
+			t.Run(tc.name, func(t *testing.T) {
+				stats, getErr = store.GetStats(storemodels.GetStatsOptions{
+					Stats:              tc.stats,
+					RemoteID:           remoteID,
+					PreferenceCategory: category,
+					ActiveUsersFrom:    time.UnixMicro(19),
+					ActiveUsersTo:      time.UnixMicro(35),
+				})
+				assert.Nil(getErr)
+				assert.EqualValues(tc.want, *stats)
+			})
+		}
 	})
 }
