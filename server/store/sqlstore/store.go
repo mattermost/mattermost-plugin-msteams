@@ -898,15 +898,15 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 
 	var msTeamPrimary int64
 	var mmPrimary int64
-	query = s.getQueryBuilder().Select("preferences.value", "count(*)").
-		From("preferences").
-		LeftJoin(fmt.Sprintf("%s ON preferences.userid = %s.mmuserid", usersTableName, usersTableName)).
+	query = s.getQueryBuilder().Select("p.value", "count(*)").
+		From("preferences p").
+		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
 		Where(sq.And{
-			sq.Eq{"preferences.category": preferenceCategory},
-			sq.Eq{"preferences.name": storemodels.PreferenceNamePlatform},
-			sq.And{sq.NotEq{fmt.Sprintf("%s.token", usersTableName): nil}, sq.NotEq{fmt.Sprintf("%s.token", usersTableName): ""}},
+			sq.Eq{"p.category": preferenceCategory},
+			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
+			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
 		}).
-		GroupBy("preferences.value")
+		GroupBy("p.value")
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
