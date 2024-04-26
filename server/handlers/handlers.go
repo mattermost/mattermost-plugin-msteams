@@ -272,6 +272,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
+	if strings.HasSuffix(msg.Text, "<abbr title=\"generated-from-mattermost\"></abbr>") {
+		return metrics.DiscardedReasonGeneratedFromMattermost
+	}
+
 	isDirectMessage := IsDirectMessage(activityIds.ChatID)
 
 	// Avoid possible duplication
@@ -351,6 +355,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+
+	// Last second check to avoid possible duplication
+	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
+		return metrics.DiscardedReasonDuplicatedPost
+	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
