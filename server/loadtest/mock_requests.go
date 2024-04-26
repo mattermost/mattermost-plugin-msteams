@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-func init() {
-	if Settings.Enabled {
-		d := NewDispatcher(250)
-		d.Run()
-	}
-}
-
 func simulatePostToChat(data PostToChatJob) {
 	var activities *MSActivities
 	var err error

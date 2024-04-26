@@ -21,7 +21,8 @@ import (
 type MockRoundTripper struct{}
 
 var (
-	Settings *LoadTestSettings
+	Settings   *LoadTestSettings
+	dispatcher *Dispatcher
 )
 
 func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, enabled, simulateIncomingPosts bool, maxIncomingPosts, minIncomingPosts int, api plugin.API, store store.Store, logService *pluginapi.LogService) {
@@ -39,6 +40,15 @@ func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, e
 		minIncomingPosts:      minIncomingPosts,
 		logService:            logService,
 		webhookSecret:         webhookSecret,
+	}
+
+	if enabled {
+		SimulateQueue = make(chan PostToChatJob, 1000)
+
+		dispatcher = NewDispatcher(250)
+		dispatcher.Run()
+	} else if dispatcher != nil {
+		dispatcher.Stop()
 	}
 }
 

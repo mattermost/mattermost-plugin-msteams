@@ -16,12 +16,6 @@ type SimulateWorker struct {
 	quit            chan bool
 }
 
-func init() {
-	if Settings.Enabled {
-		SimulateQueue = make(chan PostToChatJob, 1000)
-	}
-}
-
 func NewSimulateWorker(workerPool chan chan PostToChatJob) SimulateWorker {
 	return SimulateWorker{
 		WorkerPool:      workerPool,
@@ -58,6 +52,8 @@ type Dispatcher struct {
 	maxWorkers int
 }
 
+var workers []SimulateWorker
+
 func NewDispatcher(maxWorkers int) *Dispatcher {
 	pool := make(chan chan PostToChatJob, maxWorkers)
 	return &Dispatcher{
@@ -67,12 +63,20 @@ func NewDispatcher(maxWorkers int) *Dispatcher {
 }
 
 func (d *Dispatcher) Run() {
+	workers = []SimulateWorker{}
 	for i := 0; i < d.maxWorkers; i++ {
 		worker := NewSimulateWorker(d.WorkerPool)
 		worker.Start()
+		workers = append(workers, worker)
 	}
 
 	go d.dispatch()
+}
+
+func (d *Dispatcher) Stop() {
+	for _, worker := range workers {
+		worker.Stop()
+	}
 }
 
 func (d *Dispatcher) dispatch() {
