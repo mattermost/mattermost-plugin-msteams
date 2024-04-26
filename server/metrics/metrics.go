@@ -142,14 +142,15 @@ type metrics struct {
 	syncMsgPostDelayTime     *prometheus.HistogramVec
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
-	connectedUsers           prometheus.Gauge
-	syntheticUsers           prometheus.Gauge
-	linkedChannels           prometheus.Gauge
-	upstreamUsers            prometheus.Gauge
-	activeUsersSending       prometheus.Gauge
-	activeUsersReceiving     prometheus.Gauge
-	mattermostPrimary        prometheus.Gauge
-	msTeamsPrimary           prometheus.Gauge
+
+	connectedUsers       prometheus.Gauge
+	syntheticUsers       prometheus.Gauge
+	linkedChannels       prometheus.Gauge
+	upstreamUsers        prometheus.Gauge
+	activeUsersSending   prometheus.Gauge
+	activeUsersReceiving prometheus.Gauge
+	mattermostPrimary    prometheus.Gauge
+	msTeamsPrimary       prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
