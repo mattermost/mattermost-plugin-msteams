@@ -22,23 +22,20 @@ func initApplications(url string) (*http.Response, error) {
 	r := regexp.MustCompile(`/v1.0/applications\(appId='(.+)'\)`)
 	result := r.FindSubmatch([]byte(url))
 	if len(result) > 1 {
-		applicationId := string(result[1])
-		if applicationId == Settings.applicationId {
-			return NewJsonResponse(200, map[string]any{
-				"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications/$entity",
-				"id":             applicationId,
-				"passwordCredentials": []any{
-					map[string]any{
-						"@odata.type":   "microsoft.graph.passwordCredential",
-						"displayName":   "Load Test",
-						"endDateTime":   time.Now().Add(24 * 30 * time.Hour).Format(time.RFC3339),
-						"hint":          Settings.secret[:4],
-						"keyId":         uuid.New().String(),
-						"startDateTime": time.Now().Format(time.RFC3339),
-					},
+		return NewJsonResponse(200, map[string]any{
+			"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications/$entity",
+			"id":             Settings.clientId,
+			"passwordCredentials": []any{
+				map[string]any{
+					"@odata.type":   "microsoft.graph.passwordCredential",
+					"displayName":   "Load Test",
+					"endDateTime":   time.Now().Add(24 * 30 * time.Hour).Format(time.RFC3339),
+					"hint":          Settings.secret[:4],
+					"keyId":         uuid.New().String(),
+					"startDateTime": time.Now().Format(time.RFC3339),
 				},
-			})
-		}
+			},
+		})
 	}
 
 	return NewErrorResponse(500, "Mock: initApplications could not find submatch for the regex")
@@ -91,7 +88,7 @@ func initSubsciptions() (*http.Response, error) {
 		"@odata.context":            "https://graph.microsoft.com/v1.0/$metadata#subscriptions/$entity",
 		"id":                        "msteams_subscriptions_id",
 		"resource":                  "/test",
-		"applicationId":             Settings.applicationId,
+		"applicationId":             Settings.clientId,
 		"changeType":                "created",
 		"clientState":               "secretClientValue",
 		"notificationUrl":           fmt.Sprintf("%schanges", Settings.baseUrl),

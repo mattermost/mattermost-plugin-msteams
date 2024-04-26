@@ -17,7 +17,9 @@ type SimulateWorker struct {
 }
 
 func init() {
-	SimulateQueue = make(chan PostToChatJob, 1000)
+	if Settings.Enabled {
+		SimulateQueue = make(chan PostToChatJob, 1000)
+	}
 }
 
 func NewSimulateWorker(workerPool chan chan PostToChatJob) SimulateWorker {

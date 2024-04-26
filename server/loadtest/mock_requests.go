@@ -11,8 +11,10 @@ import (
 )
 
 func init() {
-	d := NewDispatcher(250)
-	d.Run()
+	if Settings.Enabled {
+		d := NewDispatcher(250)
+		d.Run()
+	}
 }
 
 func simulatePostToChat(data PostToChatJob) {

@@ -18,7 +18,7 @@ type LoadTestSettings struct {
 	api                   plugin.API
 	store                 store.Store
 	logService            *pluginapi.LogService
-	applicationId         string
+	clientId              string
 	secret                string
 	webhookSecret         string
 	baseUrl               string

@@ -28,7 +28,7 @@ func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, e
 	Settings = &LoadTestSettings{
 		api:                   api,
 		store:                 store,
-		applicationId:         applicationId,
+		clientId:              applicationId,
 		secret:                secret,
 		tenantId:              tenantId,
 		baseUrl:               baseUrl,
