@@ -145,8 +145,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		args := &model.CommandArgs{
 			UserId: user.Id,
 		}
-		_, err := th.p.executeDisconnectCommand(args)
-		require.NoError(t, err)
+		_, appErr := th.p.executeDisconnectCommand(args)
+		require.Nil(t, appErr)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
