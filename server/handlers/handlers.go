@@ -400,9 +400,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			}
 		}
 
-		err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, post.CreateAt*1000)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
+		if len(participants) > 0 {
+			err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, post.CreateAt*1000)
+			if err != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
+			}
 		}
 	}
 
