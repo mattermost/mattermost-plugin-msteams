@@ -500,7 +500,6 @@ func (th *testHelper) assertNoEphemeralMessage(t *testing.T, userID, channelID, 
 			return
 		}
 	}
-	return
 }
 
 func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID string) *model.Post {
