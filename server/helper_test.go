@@ -469,6 +469,40 @@ func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, me
 	}
 }
 
+func (th *testHelper) assertNoEphemeralMessage(t *testing.T, userID, channelID, message string, maxWaitTime time.Duration) {
+	t.Helper()
+
+	websocketClient := th.GetWebsocketClientForUser(t, userID)
+
+	for {
+		select {
+		case event, ok := <-websocketClient.EventChannel:
+			if !ok {
+				t.Fatal("channel closed before getting websocket event for ephemeral message")
+			}
+
+			if event.EventType() == model.WebsocketEventEphemeralMessage {
+				data := event.GetData()
+				postJSON, ok := data["post"].(string)
+				require.True(t, ok, "failed to find post in ephemeral message websocket event")
+
+				var post model.Post
+				err := json.Unmarshal([]byte(postJSON), &post)
+				require.NoError(t, err)
+
+				if post.ChannelId == channelID && post.Message == message {
+					t.Fatalf("received undesired ephemeral message in channel %s: %s", post.ChannelId, post.Message)
+				}
+			}
+		case <-time.After(maxWaitTime):
+			// Did not get the message, so we're good!
+			t.Log("Did not receive undesired ephemeral message")
+			return
+		}
+	}
+	return
+}
+
 func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID string) *model.Post {
 	t.Helper()
 

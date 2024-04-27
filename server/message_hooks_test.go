@@ -2927,6 +2927,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 	})
 
 	t.Run("selective sync off, sender=MSPrimary, receiver=synthetic", func(t *testing.T) {
+		th.Reset(t)
 		cfg := th.p.getConfiguration().Clone()
 		cfg.SelectiveSync = false
 		cfg.SyncDirectMessages = true
@@ -2960,6 +2961,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 	})
 
 	t.Run("selective sync on, sender=MMPrimary, receiver=synthetic", func(t *testing.T) {
+		th.Reset(t)
 		cfg := th.p.getConfiguration().Clone()
 		cfg.SelectiveSync = true
 		cfg.SyncDirectMessages = true
@@ -2992,4 +2994,32 @@ func TestMessageHasBeenPosted(t *testing.T) {
 		assert.Nil(err)
 	})
 
+	t.Run("selective sync on, sender=MMPrimary, receiver=MMPrimary", func(t *testing.T) {
+		th.Reset(t)
+		cfg := th.p.getConfiguration().Clone()
+		cfg.SelectiveSync = true
+		cfg.SyncDirectMessages = true
+		th.p.setConfiguration(cfg)
+
+		team := th.SetupTeam(t)
+		sender := th.SetupConnectedUser(t, team)
+		err := th.p.setPrimaryPlatform(sender.Id, storemodels.PreferenceValuePlatformMM)
+		assert.Nil(err)
+		receiver := th.SetupConnectedUser(t, team)
+		err = th.p.setPrimaryPlatform(receiver.Id, storemodels.PreferenceValuePlatformMM)
+		assert.Nil(err)
+		th.SetupWebsocketClientForUser(t, sender.Id)
+
+		channel := getDirectChannel(t, sender.Id, receiver.Id)
+
+		_, err = th.p.API.CreatePost(&model.Post{
+			UserId:    sender.Id,
+			ChannelId: channel.Id,
+			Message:   "test",
+		})
+		assert.Nil(err)
+
+		th.assertNoEphemeralMessage(t, sender.Id, channel.Id, messageWontSyncToMSTeams, time.Second)
+		th.clientMock.AssertNotCalled(t, "SendChat", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 }
