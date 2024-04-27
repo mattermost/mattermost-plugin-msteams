@@ -140,12 +140,14 @@ func (th *testHelper) clearDatabase(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func (th *testHelper) Reset(t *testing.T) *testHelper {
+func (th *testHelper) reset(t *testing.T, keepDB bool) *testHelper {
 	t.Helper()
 
-	// Wipe the tables for this plugin to ensure a clean slate. Note that we don't currently
-	// touch any Mattermost tables.
-	th.clearDatabase(t)
+	if !keepDB {
+		// Wipe the tables for this plugin to ensure a clean slate. Note that we don't currently
+		// touch any Mattermost tables.
+		th.clearDatabase(t)
+	}
 
 	appClientMock := &mocks.Client{}
 	clientMock := &mocks.Client{}
@@ -198,6 +200,17 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 	})
 
 	return th
+}
+
+func (th *testHelper) Reset(t *testing.T) *testHelper {
+	t.Helper()
+	return th.reset(t, false)
+}
+
+func (th *testHelper) ResetPreserveDB(t *testing.T) *testHelper {
+	t.Helper()
+	return th.reset(t, true)
+
 }
 
 func (th *testHelper) SetupTeam(t *testing.T) *model.Team {
@@ -321,30 +334,10 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	return user
 }
 
-func (th *testHelper) SetupSyntheticUser(t *testing.T, team *model.Team) *model.User {
-	t.Helper()
-
-	user := th.SetupRemoteUser(t, team)
-	teamsID := "t" + user.Id
-	err := th.p.store.SetUserInfo(user.Id, teamsID, nil)
-	require.NoError(t, err)
-
-	return user
-}
-
 func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	teamID := "t" + userID
 	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 	require.NoError(t, err)
-}
-
-func (th *testHelper) SetupConnectedUser(t *testing.T, team *model.Team) *model.User {
-	t.Helper()
-
-	user := th.SetupUser(t, team)
-	th.ConnectUser(t, user.Id)
-
-	return user
 }
 
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {
