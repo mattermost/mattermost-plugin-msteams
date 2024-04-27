@@ -2889,7 +2889,6 @@ func TestMessageHasBeenPosted(t *testing.T) {
 	// TODO: remove this when the issue is fixed in the API
 	getDirectChannel := func(t *testing.T, senderID, receiverID string) *model.Channel {
 		t.Helper()
-		// cmnt
 
 		channel, appErr := th.p.API.GetDirectChannel(senderID, receiverID)
 		if appErr != nil {
