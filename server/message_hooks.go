@@ -133,7 +133,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			}
 
 			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
-				p.notifyMessageWontSync(post.UserId, post.ChannelId)
+				// if selective sync rejects this message and the user main platform is teams,
+				// we notify the user that the message won't be sent to teams
+				if p.isUsersPrimaryPlatformTeams(post.UserId) {
+					p.notifyMessageWontSync(post.UserId, post.ChannelId)
+				}
 				return
 			}
 		}
