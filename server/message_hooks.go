@@ -97,6 +97,10 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
+	if post.UserId == p.GetBotUserID() {
+		return
+	}
+
 	isDirectOrGroupMessage := channel.IsGroupOrDirect()
 
 	if post.Props != nil {
@@ -129,6 +133,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			}
 
 			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+				p.notifyMessageWontSync(post.UserId, post.ChannelId)
 				return
 			}
 		}

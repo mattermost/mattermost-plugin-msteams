@@ -321,10 +321,30 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	return user
 }
 
+func (th *testHelper) SetupSyntheticUser(t *testing.T, team *model.Team) *model.User {
+	t.Helper()
+
+	user := th.SetupRemoteUser(t, team)
+	teamsID := "t" + user.Id
+	err := th.p.store.SetUserInfo(user.Id, teamsID, nil)
+	require.NoError(t, err)
+
+	return user
+}
+
 func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	teamID := "t" + userID
 	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 	require.NoError(t, err)
+}
+
+func (th *testHelper) SetupConnectedUser(t *testing.T, team *model.Team) *model.User {
+	t.Helper()
+
+	user := th.SetupUser(t, team)
+	th.ConnectUser(t, user.Id)
+
+	return user
 }
 
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {
@@ -411,7 +431,7 @@ func (th *testHelper) GetWebsocketClientForUser(t *testing.T, userID string) *mo
 	}
 
 	websocketClient := th.websocketClients[userID]
-	require.NotNil(t, websocketClient, "websocket client must be setup first")
+	require.NotNil(t, websocketClient, "websocket client must be setup first by calling SetupWebsocketClientForUser")
 
 	return websocketClient
 }

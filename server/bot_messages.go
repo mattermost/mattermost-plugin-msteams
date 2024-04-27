@@ -71,3 +71,15 @@ func (p *Plugin) notifyUserTeamsPrimary(userID string) {
 		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
 	}
 }
+
+const messageWontSyncToMSTeams = "All the users in this conversation are using MSTeams as their primary platform, this message will not be sent to MSTeams."
+
+func (p *Plugin) notifyMessageWontSync(userID, channelID string) {
+	post := &model.Post{
+		Id:        model.NewId(),
+		ChannelId: channelID,
+		UserId:    p.GetBotUserID(),
+		Message:   messageWontSyncToMSTeams,
+	}
+	p.API.SendEphemeralPost(userID, post)
+}
