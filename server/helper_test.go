@@ -210,7 +210,6 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 func (th *testHelper) ResetPreserveDB(t *testing.T) *testHelper {
 	t.Helper()
 	return th.reset(t, true)
-
 }
 
 func (th *testHelper) SetupTeam(t *testing.T) *model.Team {
