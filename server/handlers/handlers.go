@@ -54,6 +54,7 @@ type PluginIface interface {
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
+	MessageFingerprint() string
 }
 
 type ActivityHandler struct {
@@ -272,7 +273,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
-	if strings.HasSuffix(msg.Text, "<abbr title=\"generated-from-mattermost\"></abbr>") {
+	if strings.HasSuffix(msg.Text, ah.plugin.MessageFingerprint()) {
 		return metrics.DiscardedReasonGeneratedFromMattermost
 	}
 
