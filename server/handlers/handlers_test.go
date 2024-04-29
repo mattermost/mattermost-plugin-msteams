@@ -391,6 +391,48 @@ func TestHandleCreatedActivity(t *testing.T) {
 			},
 		},
 		{
+			description: "Message generated from Mattermost",
+			activityIds: clientmodels.ActivityIds{
+				ChatID:    testutils.GetChatID(),
+				MessageID: testutils.GetMessageID(),
+			},
+			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
+				p.On("GetClientForApp").Return(client).Maybe()
+				p.On("GetClientForTeamsUser", "mockUserID-1").Return(client, nil).Times(1)
+				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetStore").Return(store).Maybe()
+				p.On("GetMetrics").Return(mockmetrics).Maybe()
+			},
+			setupClient: func(client *mocksClient.Client) {
+				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
+					ID: testutils.GetChatID(),
+					Members: []clientmodels.ChatMember{
+						{UserID: "mockUserID-1"},
+						{UserID: "mockUserID-2"},
+					},
+					Type: "D",
+				}, nil).Times(1)
+				client.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
+					ID:              testutils.GetMessageID(),
+					UserID:          testutils.GetSenderID(),
+					ChatID:          testutils.GetChatID(),
+					UserDisplayName: "mockUserDisplayName",
+					Text:            "mockText<abbr title=\"generated-from-mattermost\"></abbr>",
+					CreateAt:        msteamsCreateAtTime,
+					LastUpdateAt:    msteamsCreateAtTime,
+				}, nil).Times(1)
+			},
+			setupAPI: func(mockAPI *plugintest.API) {
+				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
+				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
+				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
+			},
+			setupStore: func(store *mocksStore.Store) {
+			},
+			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
+			},
+		},
+		{
 			description: "Valid: chat message",
 			activityIds: clientmodels.ActivityIds{
 				ChatID:    testutils.GetChatID(),
