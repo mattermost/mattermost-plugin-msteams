@@ -72,7 +72,7 @@ func (p *Plugin) notifyUserTeamsPrimary(userID string) {
 	}
 }
 
-const messageWontSyncToMSTeams = "All the users in this conversation are using MSTeams as their primary platform, this message will not be sent to MSTeams."
+const messageWontSyncToMSTeams = "As all the users in this conversation are using Teams as their primary platform, this message will not be sent to Teams."
 
 func (p *Plugin) notifyMessageWontSync(userID, channelID string) {
 	post := &model.Post{

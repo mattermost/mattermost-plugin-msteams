@@ -140,14 +140,12 @@ func (th *testHelper) clearDatabase(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func (th *testHelper) reset(t *testing.T, keepDB bool) *testHelper {
+func (th *testHelper) Reset(t *testing.T) *testHelper {
 	t.Helper()
 
-	if !keepDB {
-		// Wipe the tables for this plugin to ensure a clean slate. Note that we don't currently
-		// touch any Mattermost tables.
-		th.clearDatabase(t)
-	}
+	// Wipe the tables for this plugin to ensure a clean slate. Note that we don't currently
+	// touch any Mattermost tables.
+	th.clearDatabase(t)
 
 	appClientMock := &mocks.Client{}
 	clientMock := &mocks.Client{}
@@ -200,16 +198,6 @@ func (th *testHelper) reset(t *testing.T, keepDB bool) *testHelper {
 	})
 
 	return th
-}
-
-func (th *testHelper) Reset(t *testing.T) *testHelper {
-	t.Helper()
-	return th.reset(t, false)
-}
-
-func (th *testHelper) ResetPreserveDB(t *testing.T) *testHelper {
-	t.Helper()
-	return th.reset(t, true)
 }
 
 func (th *testHelper) SetupTeam(t *testing.T) *model.Team {
@@ -461,7 +449,7 @@ func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, me
 	}
 }
 
-func (th *testHelper) assertNoEphemeralMessage(t *testing.T, userID, channelID, message string, maxWaitTime time.Duration) {
+func (th *testHelper) assertNoEphemeralMessageWithContent(t *testing.T, userID, channelID, message string, maxWaitTime time.Duration) {
 	t.Helper()
 
 	websocketClient := th.GetWebsocketClientForUser(t, userID)
