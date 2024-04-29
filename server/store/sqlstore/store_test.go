@@ -1016,3 +1016,93 @@ func TestWhitelistIO(t *testing.T) {
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 }
+
+func TestGetStats(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+	store.enabledTeams = func() []string {
+		return []string{""}
+	}
+	assert := require.New(t)
+
+	cleanup := func() {
+		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		assert.Nil(err)
+	}
+	cleanup()
+	defer cleanup()
+
+	const remoteID = "remote-id"
+	const category = "pp_pluginid"
+
+	t.Run("all zero", func(t *testing.T) {
+		stats, getErr := store.GetStats(remoteID, category)
+		assert.Nil(getErr)
+		assert.EqualValues(0, stats.ConnectedUsers)
+		assert.EqualValues(0, stats.SyntheticUsers)
+		assert.EqualValues(0, stats.LinkedChannels)
+		assert.EqualValues(0, stats.MSTeamsPrimary)
+		assert.EqualValues(0, stats.MattermostPrimary)
+	})
+
+	t.Run("values set", func(t *testing.T) {
+		// create 5 users connected users, 3 on MM and 2 using Teams
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+
+			platform := storemodels.PreferenceValuePlatformMM
+			if i >= 3 {
+				platform = storemodels.PreferenceValuePlatformMSTeams
+			}
+
+			_, err = store.getQueryBuilder().Insert("preferences").
+				Columns("userid, category, name, value").
+				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
+				Exec()
+			assert.Nil(err)
+		}
+
+		// create 3 users synthetic users
+		for i := 0; i < 3; i++ {
+			userID := model.NewId()
+			_, err := store.getQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(userID, remoteID).Exec()
+			assert.Nil(err)
+		}
+
+		// create 4 channels
+		for i := 0; i < 4; i++ {
+			err := store.StoreChannelLink(&storemodels.ChannelLink{
+				MattermostTeamID:      model.NewId(),
+				MattermostTeamName:    "team name " + fmt.Sprint(i),
+				MattermostChannelID:   model.NewId(),
+				MattermostChannelName: "test channel " + fmt.Sprint(i),
+				MSTeamsTeam:           model.NewId(),
+				MSTeamsChannel:        model.NewId(),
+				Creator:               model.NewId(),
+			})
+			assert.Nil(err)
+		}
+
+		stats, getErr := store.GetStats(remoteID, category)
+		assert.Nil(getErr)
+		assert.EqualValues(5, stats.ConnectedUsers)
+		assert.EqualValues(2, stats.MSTeamsPrimary)
+		assert.EqualValues(3, stats.MattermostPrimary)
+		assert.EqualValues(3, stats.SyntheticUsers)
+		assert.EqualValues(4, stats.LinkedChannels)
+	})
+}

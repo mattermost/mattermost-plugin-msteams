@@ -51,8 +51,8 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 		appErr := p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
 			UserId:   user.Id,
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMM,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMM,
 		}})
 		require.Nil(t, appErr)
 
@@ -73,8 +73,8 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 		appErr := p.API.UpdatePreferencesForUser(user.Id, []model.Preference{{
 			UserId:   user.Id,
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMSTeams,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMSTeams,
 		}})
 		require.Nil(t, appErr)
 
@@ -96,8 +96,8 @@ func TestUpdateAutomutingOnUserConnect(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 			{
 				UserId:   user.Id,
@@ -154,8 +154,8 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -185,8 +185,8 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -217,8 +217,8 @@ func TestUpdateAutomutingOnUserDisconnect(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
