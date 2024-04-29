@@ -4,10 +4,19 @@ import (
 	"time"
 )
 
+const (
+	// The preference with this name stores the user's choice of primary platform.
+	PreferenceNamePlatform         = "platform"
+	PreferenceValuePlatformMM      = "mattermost"
+	PreferenceValuePlatformMSTeams = "msteams"
+)
+
 type Stats struct {
-	ConnectedUsers int64
-	SyntheticUsers int64
-	LinkedChannels int64
+	ConnectedUsers    int64
+	SyntheticUsers    int64
+	LinkedChannels    int64
+	MattermostPrimary int64
+	MSTeamsPrimary    int64
 }
 
 type ChannelLink struct {

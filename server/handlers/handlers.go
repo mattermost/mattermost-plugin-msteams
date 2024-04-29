@@ -350,7 +350,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, false)
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
@@ -423,6 +423,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 	}
 
 	channelID := ""
+	var fileIDs []string
 	if chat == nil {
 		if !ah.plugin.GetSyncLinkedChannels() {
 			// Skipping because linked channels are disabled
@@ -458,6 +459,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 				return metrics.DiscardedReasonOther
 			}
 		}
+		fileIDs = post.FileIds
 		channelID = post.ChannelId
 	}
 
@@ -470,7 +472,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, true)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
