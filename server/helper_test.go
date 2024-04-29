@@ -334,7 +334,7 @@ func (th *testHelper) SetupGuestUser(t *testing.T, team *model.Team) *model.User
 	return user
 }
 
-func (th *testHelper) CreateBot() *model.Bot {
+func (th *testHelper) CreateBot(t *testing.T) *model.Bot {
 	id := model.NewId()
 
 	bot := &model.Bot{
@@ -345,9 +345,8 @@ func (th *testHelper) CreateBot() *model.Bot {
 	}
 
 	bot, err := th.p.API.CreateBot(bot)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	return bot
 }
 
