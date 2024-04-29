@@ -83,13 +83,15 @@ func setupTestStore(t *testing.T) (*SQLStore, *plugintest.API) {
 	store.api = api
 	store.db = db
 
-	err := store.Init("")
-	require.NoError(t, err)
-	err = store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
+	err := store.createTable("Teams", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	require.NoError(t, err)
 	err = store.createTable("Channels", "Id VARCHAR(255), DisplayName VARCHAR(255)")
 	require.NoError(t, err)
-	err = store.createTable("Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255)")
+	err = store.createTable("Users", "Id VARCHAR(255), FirstName VARCHAR(255), LastName VARCHAR(255), Email VARCHAR(255), remoteid VARCHAR(26), createat BIGINT, deleteat BIGINT")
+	require.NoError(t, err)
+	err = store.createTable("Preferences", "userid VARCHAR(26) NOT NULL, category VARCHAR(32) NOT NULL, name VARCHAR(32) NOT NULL, value VARCHAR(2000) NULL")
+	require.NoError(t, err)
+	err = store.Init("")
 	require.NoError(t, err)
 
 	return store, api

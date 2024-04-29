@@ -39,11 +39,13 @@ type configuration struct {
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
+	NewUserConnections                 string `json:"newUserConnections"`
 	ConnectedUsersInvitePoolSize       int    `json:"connectedUsersInvitePoolSize"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
 	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
+	DisableCheckCredentials            bool   `json:"disableCheckCredentials"`
 }
 
 func (c *configuration) ProcessConfiguration() {

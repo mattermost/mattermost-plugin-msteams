@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
+	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
@@ -41,7 +42,7 @@ const (
 	botDisplayName               = "MS Teams"
 	pluginID                     = "com.mattermost.msteams-sync"
 	subscriptionsClusterMutexKey = "subscriptions_cluster_mutex"
-	whitelistClusterMutexKey     = "whitelist_cluster_mutex"
+	connectClusterMutexKey       = "connect_cluster_mutex"
 	msteamsUserTypeGuest         = "Guest"
 	syncUsersJobName             = "sync_users"
 	metricsJobName               = "metrics"
@@ -73,7 +74,7 @@ type Plugin struct {
 
 	store                     store.Store
 	subscriptionsClusterMutex *cluster.Mutex
-	whitelistClusterMutex     *cluster.Mutex
+	connectClusterMutex       *cluster.Mutex
 	monitor                   *monitor.Monitor
 	syncUserJob               *cluster.Job
 	checkCredentialsJob       *cluster.Job
@@ -181,15 +182,8 @@ func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
 		return
 	}
 
-	connectURL := p.GetURL() + "/connect"
-	_, appErr = p.API.CreatePost(&model.Post{
-		UserId:    p.GetBotUserID(),
-		ChannelId: channel.Id,
-		Message:   "Your connection to Microsoft Teams has been lost. " + fmt.Sprintf("[Click here to reconnect your account](%s).", connectURL),
-	})
-	if appErr != nil {
-		p.API.LogWarn("Unable to send direct message to user", "user_id", userID, "error", appErr.Error())
-	}
+	message := "Your connection to Microsoft Teams has been lost. "
+	p.SendConnectMessage(channel.Id, userID, message)
 }
 
 func (p *Plugin) GetClientForUser(userID string) (msteams.Client, error) {
@@ -312,20 +306,22 @@ func (p *Plugin) start(isRestart bool) {
 		p.syncUserJob = job
 	}
 
-	checkCredentialsJob, err := cluster.Schedule(
-		p.API,
-		checkCredentialsJobName,
-		cluster.MakeWaitForRoundedInterval(24*time.Hour),
-		p.checkCredentials,
-	)
-	if err != nil {
-		p.API.LogError("error in scheduling the check credentials job", "error", err)
-		return
-	}
-	p.checkCredentialsJob = checkCredentialsJob
+	if !p.getConfiguration().DisableCheckCredentials {
+		checkCredentialsJob, jobErr := cluster.Schedule(
+			p.API,
+			checkCredentialsJobName,
+			cluster.MakeWaitForRoundedInterval(24*time.Hour),
+			p.checkCredentials,
+		)
+		if jobErr != nil {
+			p.API.LogError("error in scheduling the check credentials job", "error", jobErr)
+			return
+		}
+		p.checkCredentialsJob = checkCredentialsJob
 
-	// Run the job above right away so we immediately populate metrics.
-	p.checkCredentials()
+		// Run the job above right away so we immediately populate metrics.
+		p.checkCredentials()
+	}
 
 	// Unregister and re-register slash command to reflect any configuration changes.
 	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
@@ -390,6 +386,13 @@ func (p *Plugin) stop(isRestart bool) {
 
 	p.stopSyncUsersJob()
 
+	if p.checkCredentialsJob != nil {
+		if err := p.checkCredentialsJob.Close(); err != nil {
+			p.API.LogError("Failed to close background check credentials job", "error", err)
+		}
+		p.checkCredentialsJob = nil
+	}
+
 	if !isRestart && p.metricsJob != nil {
 		if err := p.metricsJob.Close(); err != nil {
 			p.API.LogError("failed to close metrics job", "error", err)
@@ -410,29 +413,31 @@ func (p *Plugin) restart() {
 
 func (p *Plugin) generatePluginSecrets() error {
 	needSaveConfig := false
-	if p.configuration.WebhookSecret == "" {
+	cfg := p.getConfiguration().Clone()
+	if cfg.WebhookSecret == "" {
 		secret, err := generateSecret()
 		if err != nil {
 			return err
 		}
 
-		p.configuration.WebhookSecret = secret
+		cfg.WebhookSecret = secret
 		needSaveConfig = true
 	}
-	if p.configuration.EncryptionKey == "" {
+	if cfg.EncryptionKey == "" {
 		secret, err := generateSecret()
 		if err != nil {
 			return err
 		}
 
-		p.configuration.EncryptionKey = secret
+		cfg.EncryptionKey = secret
 		needSaveConfig = true
 	}
 	if needSaveConfig {
-		configMap, err := p.configuration.ToMap()
+		configMap, err := cfg.ToMap()
 		if err != nil {
 			return err
 		}
+		p.setConfiguration(cfg)
 		if appErr := p.API.SavePluginConfig(configMap); appErr != nil {
 			return appErr
 		}
@@ -470,7 +475,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.whitelistClusterMutex, err = cluster.NewMutex(p.API, whitelistClusterMutexKey)
+	p.connectClusterMutex, err = cluster.NewMutex(p.API, connectClusterMutexKey)
 	if err != nil {
 		return err
 	}
@@ -479,7 +484,7 @@ func (p *Plugin) onActivate() error {
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
-	}, pluginapi.ProfileImagePath("assets/icon.png"))
+	}, pluginapi.ProfileImageBytes(assets.Icon))
 	if err != nil {
 		return err
 	}
@@ -563,12 +568,6 @@ func (p *Plugin) onActivate() error {
 				p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
 			}
 		}()
-
-		p.whitelistClusterMutex.Lock()
-		defer p.whitelistClusterMutex.Unlock()
-		if err2 := p.store.PrefillWhitelist(); err2 != nil {
-			p.API.LogWarn("Error in populating the whitelist with already connected users", "error", err2.Error())
-		}
 	}()
 
 	go p.start(false)
@@ -708,20 +707,23 @@ func (p *Plugin) syncUsers() {
 					continue
 				}
 
-				user, err := p.API.GetUser(mmUser.Id)
-				if err != nil {
-					p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
-					continue
-				}
+				if configuration.AutomaticallyPromoteSyntheticUsers {
+					// We need to retrieve the user individually because `GetUsers` does not return AuthData
+					user, err := p.API.GetUser(mmUser.Id)
+					if err != nil {
+						p.API.LogWarn("Unable to fetch MM user", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						continue
+					}
 
-				// Update AuthService/AuthData if it changed
-				if configuration.AutomaticallyPromoteSyntheticUsers && (mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData)) {
-					p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
-					if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
-						AuthService: configuration.SyntheticUserAuthService,
-						AuthData:    &authData,
-					}); err != nil {
-						p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+					// Update AuthService/AuthData if it changed
+					if mmUser.AuthService != configuration.SyntheticUserAuthService || (user.AuthData != nil && authData != "" && *user.AuthData != authData) {
+						p.API.LogInfo("Updating user auth service", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "auth_service", configuration.SyntheticUserAuthService)
+						if _, err := p.API.UpdateUserAuth(mmUser.Id, &model.UserAuth{
+							AuthService: configuration.SyntheticUserAuthService,
+							AuthData:    &authData,
+						}); err != nil {
+							p.API.LogWarn("Unable to update user auth service during sync user job", "user_id", mmUser.Id, "teams_user_id", msUser.ID, "error", err.Error())
+						}
 					}
 				}
 
@@ -734,11 +736,6 @@ func (p *Plugin) syncUsers() {
 
 				if mmUser.FirstName != msUser.DisplayName {
 					mmUser.FirstName = msUser.DisplayName
-					shouldUpdate = true
-				}
-
-				if !mmUser.EmailVerified {
-					mmUser.EmailVerified = true
 					shouldUpdate = true
 				}
 
@@ -797,7 +794,7 @@ func (p *Plugin) syncUsers() {
 				newUser, appErr = p.API.CreateUser(newMMUser)
 				if appErr != nil {
 					if appErr.Id == "app.user.save.username_exists.app_error" {
-						newMMUser.Username += "-" + fmt.Sprint(userSuffixID)
+						newMMUser.Username = fmt.Sprintf("%s-%d", username, userSuffixID)
 						userSuffixID++
 						continue
 					}
@@ -876,14 +873,24 @@ func (p *Plugin) IsRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId == p.remoteID
 }
 
+func (p *Plugin) GetRemoteID() string {
+	return p.remoteID
+}
+
 func (p *Plugin) updateMetrics() {
-	stats, err := p.store.GetStats()
+	start := time.Now()
+	p.API.LogDebug("Updating metrics")
+	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
+		return
 	}
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
+	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
+	p.API.LogDebug("Updating metrics done", "duration", time.Since(start))
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {

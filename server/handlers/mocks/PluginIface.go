@@ -20,8 +20,8 @@ type PluginIface struct {
 	mock.Mock
 }
 
-// ChatSpansPlatforms provides a mock function with given fields: channelID
-func (_m *PluginIface) ChatSpansPlatforms(channelID string) (bool, *model.AppError) {
+// ChatShouldSync provides a mock function with given fields: channelID
+func (_m *PluginIface) ChatShouldSync(channelID string) (bool, *model.AppError) {
 	ret := _m.Called(channelID)
 
 	var r0 bool
@@ -188,6 +188,20 @@ func (_m *PluginIface) GetMetrics() metrics.Metrics {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(metrics.Metrics)
 		}
+	}
+
+	return r0
+}
+
+// GetRemoteID provides a mock function with given fields:
+func (_m *PluginIface) GetRemoteID() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
 	}
 
 	return r0
