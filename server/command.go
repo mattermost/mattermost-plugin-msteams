@@ -465,13 +465,17 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(args.UserId)
+		canOpenlyConnect, nAvailable, openConnectErr := p.UserCanOpenlyConnect(args.UserId)
 		if openConnectErr != nil {
 			p.API.LogWarn("Error in checking if the user can openly connect", "user_id", args.UserId, "error", openConnectErr.Error())
 			return p.cmdError(args, genericErrorMessage)
 		}
 
 		if !canOpenlyConnect {
+			if nAvailable > 0 {
+				// spots available, but need to be on whitelist in order to connect
+				return p.cmdError(args, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.")
+			}
 			return p.cmdError(args, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
 		}
 	}
@@ -487,26 +491,6 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 
 	if storedToken, _ := p.store.GetTokenForMattermostUser(p.userID); storedToken != nil {
 		return p.cmdError(args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
-	}
-
-	genericErrorMessage := "Error in trying to connect the bot account, please try again."
-
-	hasRightToConnect, err := p.UserHasRightToConnect(p.userID)
-	if err != nil {
-		p.API.LogWarn("Error in checking if the bot user has the right to connect", "bot_user_id", p.userID, "error", err.Error())
-		return p.cmdError(args, genericErrorMessage)
-	}
-
-	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(p.userID)
-		if openConnectErr != nil {
-			p.API.LogWarn("Error in checking if the bot user can openly connect", "bot_user_id", p.userID, "error", openConnectErr.Error())
-			return p.cmdError(args, genericErrorMessage)
-		}
-
-		if !canOpenlyConnect {
-			return p.cmdError(args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
-		}
 	}
 
 	p.SendConnectBotMessage(args.ChannelId, args.UserId)

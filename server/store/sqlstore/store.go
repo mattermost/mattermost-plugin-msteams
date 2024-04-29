@@ -1111,6 +1111,10 @@ func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error 
 		return err
 	}
 
+	if err := s.DeleteUserFromWhitelist(invitedUser.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
