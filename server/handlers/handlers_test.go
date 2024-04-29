@@ -322,7 +322,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(nil, testutils.GetInternalServerAppError("unable to create the post")).Times(1)
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
 				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
@@ -377,7 +377,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:        testutils.GetID(),
 					MSTeamsID:           testutils.GetMessageID(),
@@ -437,7 +437,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
 				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
 				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:        testutils.GetID(),
 					MSTeamsID:           testutils.GetMessageID(),
@@ -528,7 +528,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					Creator:             "mockCreator",
 					MattermostChannelID: testutils.GetChannelID(),
 				}, nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
+				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
 				store.On("LinkPosts", storemodels.PostInfo{
 					MattermostID:        testutils.GetID(),
 					MSTeamsID:           testutils.GetMessageID(),
@@ -874,7 +874,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
 			},
 			setupStore: func(store *mocksStore.Store) {
-				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(1)
+				store.On("MattermostToTeamsUserID", "mock-BotUserID").Return(testutils.GetTeamsUserID(), nil).Times(2)
 				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
 					MattermostID:        "mockMattermostID",
 					MSTeamsID:           "mockMSTeamsID",

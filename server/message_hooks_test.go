@@ -2251,7 +2251,7 @@ func TestUpdate(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", mock.AnythingOfType("float64")).Once()
@@ -2301,7 +2301,7 @@ func TestUpdate(t *testing.T) {
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
@@ -2327,7 +2327,7 @@ func TestUpdate(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
+				uclient.On("UpdateMessage", "mockTeamsTeamID", testutils.GetChannelID(), "", "mockMSTeamsID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
@@ -2419,7 +2419,7 @@ func TestUpdateChat(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the message")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
 				metrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "false", mock.AnythingOfType("float64")).Once()
@@ -2466,7 +2466,7 @@ func TestUpdateChat(t *testing.T) {
 				}).Return(errors.New("unable to store the link posts")).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
@@ -2491,7 +2491,7 @@ func TestUpdateChat(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
+				uclient.On("UpdateChatMessage", "mockChatID", "mockTeamsTeamID", "<p>mockMessage??????????</p>\n", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
 			},
 			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
