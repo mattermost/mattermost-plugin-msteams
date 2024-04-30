@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -447,4 +448,48 @@ func TestGeneratePluginSecrets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAreUsersSynthetic(t *testing.T) {
+	th := setupTestHelper(t)
+
+	setup := func(t *testing.T) (synthetics, notSynthetics []*model.User) {
+		t.Helper()
+
+		team := th.SetupTeam(t)
+
+		notSynthetic1 := th.SetupUser(t, team)
+		notSynthetic2 := th.SetupUser(t, team)
+		notSynthetic3 := th.SetupUser(t, team)
+
+		synthetic1 := th.SetupRemoteUser(t, team)
+		synthetic2 := th.SetupRemoteUser(t, team)
+		synthetic3 := th.SetupRemoteUser(t, team)
+
+		return []*model.User{synthetic1, synthetic2, synthetic3}, []*model.User{notSynthetic1, notSynthetic2, notSynthetic3}
+	}
+
+	idsFromUsers := func(users []*model.User) []string {
+		ids := make([]string, len(users))
+		for i := range users {
+			ids[i] = users[i].Id
+		}
+		return ids
+	}
+
+	t.Run("all synthetic return true", func(t *testing.T) {
+		assert := require.New(t)
+		synthetics, _ := setup(t)
+		assert.True(th.p.areUsersSynthetic(idsFromUsers(synthetics)))
+	})
+	t.Run("no synthetic return false", func(t *testing.T) {
+		assert := require.New(t)
+		_, noSynthetics := setup(t)
+		assert.False(th.p.areUsersSynthetic(idsFromUsers(noSynthetics)))
+	})
+	t.Run("a mix returns false", func(t *testing.T) {
+		assert := require.New(t)
+		synthetics, noSynthetics := setup(t)
+		assert.False(th.p.areUsersSynthetic(idsFromUsers(append(synthetics, noSynthetics...))))
+	})
 }

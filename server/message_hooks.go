@@ -133,10 +133,27 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			}
 
 			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
-				// if selective sync rejects this message and the user main platform is teams,
-				// we notify the user that the message won't be sent to teams
+				// if:
+				// - selective sync rejects this message
+				// - the sender main platform is teams
+				// - all other users are synthetic
+				// then we notify the user that the message won't be sent to teams
+				otherUsers := make([]string, len(members)-1)
+				j := 0
+				for i := range members {
+					if members[i].UserId != post.UserId {
+						otherUsers[j] = members[i].UserId
+						j++
+					}
+				}
+
 				if p.isUsersPrimaryPlatformTeams(post.UserId) {
-					p.notifyMessageWontSync(post.UserId, post.ChannelId)
+					allSynthetics, err := p.areUsersSynthetic(otherUsers)
+					if err != nil {
+						p.API.LogWarn("Failed to check if all users are synthetic", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+					} else if allSynthetics {
+						p.notifyMessageWontSync(post.UserId, post.ChannelId)
+					}
 				}
 				return
 			}

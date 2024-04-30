@@ -956,3 +956,17 @@ func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteClus
 
 	return resp, nil
 }
+
+func (p *Plugin) areUsersSynthetic(usersID []string) (bool, error) {
+	for _, userID := range usersID {
+		user, err := p.API.GetUser(userID)
+		if err != nil {
+			return false, fmt.Errorf("unable to get user %s: %w", userID, err)
+		}
+		isRemote := p.IsRemoteUser(user)
+		if !isRemote {
+			return false, nil
+		}
+	}
+	return true, nil
+}
