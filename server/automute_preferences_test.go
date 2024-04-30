@@ -129,8 +129,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
