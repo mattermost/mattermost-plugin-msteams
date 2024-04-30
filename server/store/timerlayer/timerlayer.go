@@ -105,6 +105,34 @@ func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
 	return err
 }
 
+func (s *TimerLayer) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetActiveUsersReceivingCount(dur)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetActiveUsersReceivingCount", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetActiveUsersSendingCount(dur time.Duration) (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetActiveUsersSendingCount(dur)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetActiveUsersSendingCount", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	start := time.Now()
 
@@ -158,6 +186,20 @@ func (s *TimerLayer) GetConnectedUsers(page int, perPage int) ([]*storemodels.Co
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsers", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetConnectedUsersCount() (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetConnectedUsersCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetConnectedUsersCount", success, elapsed)
 	return result, err
 }
 
@@ -245,6 +287,20 @@ func (s *TimerLayer) GetLinkByMSTeamsChannelID(teamID string, channelID string) 
 	return result, err
 }
 
+func (s *TimerLayer) GetLinkedChannelsCount() (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetLinkedChannelsCount()
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetLinkedChannelsCount", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
 	start := time.Now()
 
@@ -273,20 +329,6 @@ func (s *TimerLayer) GetPostInfoByMattermostID(postID string) (*storemodels.Post
 	return result, err
 }
 
-func (s *TimerLayer) GetStats(options storemodels.GetStatsOptions) (*storemodels.Stats, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetStats(options)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetStats", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetSubscriptionType(subscriptionID string) (string, error) {
 	start := time.Now()
 
@@ -312,6 +354,20 @@ func (s *TimerLayer) GetSubscriptionsLastActivityAt() (map[string]time.Time, err
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetSubscriptionsLastActivityAt", success, elapsed)
+	return result, err
+}
+
+func (s *TimerLayer) GetSyntheticUsersCount(remoteID string) (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetSyntheticUsersCount(remoteID)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetSyntheticUsersCount", success, elapsed)
 	return result, err
 }
 
@@ -355,6 +411,20 @@ func (s *TimerLayer) GetUserConnectStatus(mmUserID string) (*storemodels.UserCon
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetUserConnectStatus", success, elapsed)
 	return result, err
+}
+
+func (s *TimerLayer) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
+	start := time.Now()
+
+	result, resultVar1, err := s.Store.GetUsersByPrimaryPlatformsCount(preferenceCategory)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetUsersByPrimaryPlatformsCount", success, elapsed)
+	return result, resultVar1, err
 }
 
 func (s *TimerLayer) GetWhitelistCount() (int, error) {

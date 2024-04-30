@@ -879,111 +879,108 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	return nil
 }
 
-func (s *SQLStore) GetStats(opts storemodels.GetStatsOptions) (*storemodels.Stats, error) {
-	if err := opts.IsValid(); err != nil {
-		return nil, fmt.Errorf("invalid options: %w", err)
-	}
+func (s *SQLStore) GetLinkedChannelsCount() (linkedChannels int64, err error) {
+	err = s.getQueryBuilder().
+		Select("count(mmChannelID)").
+		From(linksTableName).
+		QueryRow().
+		Scan(&linkedChannels)
 
-	var linkedChannels int64
-	if opts.MustGetStat(storemodels.StatsLinkedChannels) {
-		query := s.getQueryBuilder().Select("count(mmChannelID)").From(linksTableName)
-		row := query.QueryRow()
-		if err := row.Scan(&linkedChannels); err != nil {
-			return nil, err
+	return linkedChannels, err
+}
+
+func (s *SQLStore) GetConnectedUsersCount() (connectedUsers int64, err error) {
+	err = s.getQueryBuilder().
+		Select("count(mmUserID)").
+		From(usersTableName).
+		Where(sq.And{
+			sq.NotEq{"token": ""},
+			sq.NotEq{"token": nil},
+		}).
+		QueryRow().
+		Scan(&connectedUsers)
+
+	return connectedUsers, err
+}
+
+func (s *SQLStore) GetSyntheticUsersCount(remoteID string) (syntheticUsers int64, err error) {
+	err = s.getQueryBuilder().
+		Select("count(id)").
+		From("users").
+		Where(sq.And{
+			sq.Eq{"RemoteId": remoteID},
+			sq.Or{
+				sq.Eq{"DeleteAt": 0},
+				sq.Eq{"DeleteAt": nil},
+			},
+		}).
+		QueryRow().
+		Scan(&syntheticUsers)
+
+	return syntheticUsers, err
+}
+
+func (s *SQLStore) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
+	query := s.getQueryBuilder().
+		Select("p.value", "count(*)").
+		From("preferences p").
+		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
+		Where(sq.And{
+			sq.Eq{"p.category": preferenceCategory},
+			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
+			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
+		}).
+		GroupBy("p.value")
+	rows, err := query.Query()
+	if err != nil {
+		return msTeamsPrimary, mmPrimary, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var platform string
+		var count int64
+		if err := rows.Scan(&platform, &count); err != nil {
+			return msTeamsPrimary, mmPrimary, err
+		}
+
+		switch platform {
+		case storemodels.PreferenceValuePlatformMM:
+			mmPrimary = count
+		case storemodels.PreferenceValuePlatformMSTeams:
+			msTeamsPrimary = count
 		}
 	}
 
-	var connectedUsers int64
-	if opts.MustGetStat(storemodels.StatsConnectedUsers) {
-		query := s.getQueryBuilder().Select("count(mmUserID)").From(usersTableName).Where(sq.NotEq{"token": ""}).Where(sq.NotEq{"token": nil})
-		row := query.QueryRow()
-		if err := row.Scan(&connectedUsers); err != nil {
-			return nil, err
-		}
-	}
+	return msTeamsPrimary, mmPrimary, nil
+}
 
-	var syntheticUsers int64
-	if opts.MustGetStat(storemodels.StatsSyntheticUsers) {
-		query := s.getQueryBuilder().Select("count(id)").From("users").Where(sq.And{
-			sq.Eq{"RemoteId": opts.RemoteID},
-			sq.Or{sq.Eq{"DeleteAt": 0}, sq.Eq{"DeleteAt": nil}},
-		})
-		row := query.QueryRow()
-		if err := row.Scan(&syntheticUsers); err != nil {
-			return nil, err
-		}
-	}
+func (s *SQLStore) GetActiveUsersSendingCount(dur time.Duration) (activeUsersSending int64, err error) {
+	now := time.Now()
 
-	var msTeamPrimary int64
-	var mmPrimary int64
-	if opts.MustGetStat(storemodels.StatsPrimaryPlatform) {
-		query := s.getQueryBuilder().Select("p.value", "count(*)").
-			From("preferences p").
-			LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
-			Where(sq.And{
-				sq.Eq{"p.category": opts.PreferenceCategory},
-				sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
-				sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
-			}).
-			GroupBy("p.value")
-		rows, err := query.Query()
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
+	err = s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatSentAt": now.Add(-dur).UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatSentAt": now.UnixMicro()}).
+		QueryRow().
+		Scan(&activeUsersSending)
 
-		for rows.Next() {
-			var platform string
-			var count int64
-			if err := rows.Scan(&platform, &count); err != nil {
-				return nil, err
-			}
+	return activeUsersSending, err
+}
 
-			switch platform {
-			case storemodels.PreferenceValuePlatformMM:
-				mmPrimary = count
-			case storemodels.PreferenceValuePlatformMSTeams:
-				msTeamPrimary = count
-			}
-		}
-	}
+func (s *SQLStore) GetActiveUsersReceivingCount(dur time.Duration) (activeUsersReceiving int64, err error) {
+	now := time.Now()
 
-	// count active users that sent a message between from and to using the msteams user's lastchatsentat
-	var activeUsersSending int64
-	if opts.MustGetStat(storemodels.StatsActiveUsersSending) {
-		query := s.getQueryBuilder().
-			Select("count(*)").
-			From(usersTableName).
-			Where(sq.GtOrEq{"LastChatSentAt": opts.ActiveUsersFrom.UnixMicro()}).
-			Where(sq.LtOrEq{"LastChatSentAt": opts.ActiveUsersTo.UnixMicro()})
-		row := query.QueryRow()
-		if err := row.Scan(&activeUsersSending); err != nil {
-			return nil, err
-		}
-	}
+	err = s.getQueryBuilder().
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatReceivedAt": now.Add(-dur).UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatReceivedAt": now.UnixMicro()}).
+		QueryRow().
+		Scan(&activeUsersReceiving)
 
-	var activeUsersReceiving int64
-	if opts.MustGetStat(storemodels.StatsActiveUsersReceiving) {
-		query := s.getQueryBuilder().
-			Select("count(*)").
-			From(usersTableName).
-			Where(sq.GtOrEq{"LastChatReceivedAt": opts.ActiveUsersFrom.UnixMicro()}).
-			Where(sq.LtOrEq{"LastChatReceivedAt": opts.ActiveUsersTo.UnixMicro()})
-		row := query.QueryRow()
-		if err := row.Scan(&activeUsersReceiving); err != nil {
-			return nil, err
-		}
-	}
-
-	return &storemodels.Stats{
-		LinkedChannels:       linkedChannels,
-		ConnectedUsers:       connectedUsers,
-		SyntheticUsers:       syntheticUsers,
-		MattermostPrimary:    mmPrimary,
-		MSTeamsPrimary:       msTeamPrimary,
-		ActiveUsersSending:   activeUsersSending,
-		ActiveUsersReceiving: activeUsersReceiving,
-	}, nil
+	return activeUsersReceiving, err
 }
 
 func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error) {

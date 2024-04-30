@@ -47,7 +47,12 @@ type Store interface {
 	SetWhitelist(userIDs []string, batchSize int) error
 
 	// stats
-	GetStats(options storemodels.GetStatsOptions) (*storemodels.Stats, error)
+	GetLinkedChannelsCount() (linkedChannels int64, err error)
+	GetConnectedUsersCount() (connectedUsers int64, err error)
+	GetSyntheticUsersCount(remoteID string) (syntheticUsers int64, err error)
+	GetUsersByPrimaryPlatformsCount(preferenceCategory string) (msTeamsPrimary int64, mmPrimary int64, err error)
+	GetActiveUsersSendingCount(dur time.Duration) (activeUsersSending int64, err error)
+	GetActiveUsersReceivingCount(dur time.Duration) (activeUsersReceiving int64, err error)
 
 	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)

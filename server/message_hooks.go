@@ -610,7 +610,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 		}
 	}
 
-	if err := p.store.SetUserLastChatSentAt(post.UserId, post.CreateAt*1000); err != nil {
+	if err := p.store.SetUserLastChatSentAt(post.UserId, storemodels.MilliToMicroSeconds(post.CreateAt)); err != nil {
 		p.API.LogWarn("Unable to set user last chat sent At", "user_id", post.UserId, "post_id", post.Id, "error", err.Error())
 	}
 

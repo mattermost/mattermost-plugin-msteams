@@ -1020,120 +1020,198 @@ func TestWhitelistIO(t *testing.T) {
 
 func TestSetUserLastChatSentAt(t *testing.T) {
 	store, _ := setupTestStore(t)
-	assert := require.New(t)
 
-	mmUserID := model.NewId()
-	err := store.SetUserInfo(mmUserID, "ms-"+mmUserID, nil)
-	assert.Nil(err)
+	setup := func(t *testing.T) string {
+		t.Helper()
 
-	getLastChatSentAtForUser := func(mmUserID string) int64 {
+		userID := model.NewId()
+		err := store.SetUserInfo(userID, "ms-"+userID, nil)
+		require.Nil(t, err)
+
+		return userID
+	}
+
+	getLastChatSentAtForUser := func(userID string) int64 {
 		t.Helper()
 		var lastChatSentAt int64
-		err = store.getQueryBuilder().
+		err := store.getQueryBuilder().
 			Select("LastChatSentAt").
 			From(usersTableName).
-			Where(sq.Eq{"mmuseriD": mmUserID}).
+			Where(sq.Eq{"mmuserID": userID}).
 			QueryRow().
 			Scan(&lastChatSentAt)
-		assert.Nil(err)
+		require.Nil(t, err)
 		return lastChatSentAt
 	}
 
-	{
-		// Initial SetUserLastChatSentAt
-		err = store.SetUserLastChatSentAt(mmUserID, 10)
+	t.Run("no data, LastChatSentAt should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
 		assert.Nil(err)
-		assert.EqualValues(10, getLastChatSentAtForUser(mmUserID))
-	}
-	{
-		// Don't update if sentAt is less than current
-		err = store.SetUserLastChatSentAt(mmUserID, 5)
+
+		assert.EqualValues(10, getLastChatSentAtForUser(userID))
+	})
+
+	t.Run("trying to update with older values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
 		assert.Nil(err)
-		assert.EqualValues(10, getLastChatSentAtForUser(mmUserID))
-	}
-	{
-		// Update if sentAt is greater than current
-		err = store.SetUserLastChatSentAt(mmUserID, 15)
+
+		err = store.SetUserLastChatSentAt(userID, 5)
 		assert.Nil(err)
-		assert.EqualValues(15, getLastChatSentAtForUser(mmUserID))
-	}
+
+		assert.EqualValues(10, getLastChatSentAtForUser(userID))
+	})
+
+	t.Run("trying to update with newest values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
+		assert.Nil(err)
+
+		err = store.SetUserLastChatSentAt(userID, 15)
+		assert.Nil(err)
+
+		assert.EqualValues(15, getLastChatSentAtForUser(userID))
+	})
 }
 
 func TestSetUsersLastChatReceivedAt(t *testing.T) {
 	store, _ := setupTestStore(t)
-	assert := require.New(t)
 
-	mmUserID1 := model.NewId()
-	err := store.SetUserInfo(mmUserID1, "ms-"+mmUserID1, nil)
-	assert.Nil(err)
-	mmUserID2 := model.NewId()
-	err = store.SetUserInfo(mmUserID2, "ms-"+mmUserID2, nil)
-	assert.Nil(err)
-	mmUserID3 := model.NewId()
-	err = store.SetUserInfo(mmUserID3, "ms-"+mmUserID3, nil)
-	assert.Nil(err)
-	allMMUsers := []string{mmUserID1, mmUserID2, mmUserID3}
+	setup := func(t *testing.T) []string {
+		t.Helper()
 
-	getLastChatReceivedAtForUser := func(mmUserID string) int64 {
+		userID1 := model.NewId()
+		err := store.SetUserInfo(userID1, "ms-"+userID1, nil)
+		require.Nil(t, err)
+		userID2 := model.NewId()
+		err = store.SetUserInfo(userID2, "ms-"+userID2, nil)
+		require.Nil(t, err)
+		userID3 := model.NewId()
+		err = store.SetUserInfo(userID3, "ms-"+userID3, nil)
+		require.Nil(t, err)
+
+		return []string{userID1, userID2, userID3}
+	}
+
+	getLastChatReceivedAtForUser := func(userID string) int64 {
 		t.Helper()
 		var lastChatReceivedAt int64
-		err = store.getQueryBuilder().
+		err := store.getQueryBuilder().
 			Select("LastChatReceivedAt").
 			From(usersTableName).
-			Where(sq.Eq{"mmuseriD": mmUserID}).
+			Where(sq.Eq{"mmuserID": userID}).
 			QueryRow().
 			Scan(&lastChatReceivedAt)
-		assert.Nil(err)
+		assert.Nil(t, err)
 		return lastChatReceivedAt
 	}
 
-	{
-		// Initial SetUsersLastChatReceivedAt
-		err = store.SetUsersLastChatReceivedAt(allMMUsers, 10)
+	t.Run("no data, LastChatReceivedAt should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
 		assert.Nil(err)
-		for _, mmUserID := range allMMUsers {
-			assert.EqualValues(10, getLastChatReceivedAtForUser(mmUserID))
-		}
-	}
-	{
-		// Don't update if receivedAt is less than current
-		err = store.SetUsersLastChatReceivedAt(allMMUsers, 5)
-		assert.Nil(err)
-		for _, mmUserID := range allMMUsers {
-			assert.EqualValues(10, getLastChatReceivedAtForUser(mmUserID))
-		}
-	}
-	{
-		// Update if sentAt is greater than current
-		err = store.SetUsersLastChatReceivedAt(allMMUsers, 15)
-		assert.Nil(err)
-		for _, mmUserID := range allMMUsers {
-			assert.EqualValues(15, getLastChatReceivedAtForUser(mmUserID))
-		}
-	}
-	{
-		// Update if sentAt is greater than current for some users
-		// u2 will have 25, u1 and u3 will have 20.
-		// Updating them all to 22 will result in u1 and u3 having 22
-		// but 2 should keep its 25
-		err = store.SetUserLastChatReceivedAt(mmUserID2, 25)
-		assert.Nil(err)
-		assert.EqualValues(25, getLastChatReceivedAtForUser(mmUserID2))
 
-		err = store.SetUsersLastChatReceivedAt([]string{mmUserID1, mmUserID3}, 20)
-		assert.Nil(err)
-		assert.EqualValues(20, getLastChatReceivedAtForUser(mmUserID1))
-		assert.EqualValues(20, getLastChatReceivedAtForUser(mmUserID3))
+		for _, userID := range users {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(userID))
+		}
+	})
 
-		err = store.SetUsersLastChatReceivedAt(allMMUsers, 22)
+	t.Run("trying to update with older values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
 		assert.Nil(err)
-		assert.EqualValues(22, getLastChatReceivedAtForUser(mmUserID1))
-		assert.EqualValues(22, getLastChatReceivedAtForUser(mmUserID3))
-		assert.EqualValues(25, getLastChatReceivedAtForUser(mmUserID2))
-	}
+
+		err = store.SetUsersLastChatReceivedAt(users, 5)
+		assert.Nil(err)
+
+		for _, userID := range users {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(userID))
+		}
+	})
+
+	t.Run("trying to update with newest values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
+		assert.Nil(err)
+
+		err = store.SetUsersLastChatReceivedAt(users, 15)
+		assert.Nil(err)
+
+		for _, userID := range users {
+			assert.EqualValues(15, getLastChatReceivedAtForUser(userID))
+		}
+	})
+
+	t.Run("if some users have older values, only those should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		// Arrange
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt([]string{users[0], users[2]}, 10)
+		assert.Nil(err)
+		err = store.SetUsersLastChatReceivedAt([]string{users[1]}, 20)
+		assert.Nil(err)
+
+		// Act
+		err = store.SetUsersLastChatReceivedAt(users, 15)
+		assert.Nil(err)
+
+		// Assert
+		assert.EqualValues(15, getLastChatReceivedAtForUser(users[0]))
+		assert.EqualValues(20, getLastChatReceivedAtForUser(users[1]))
+		assert.EqualValues(15, getLastChatReceivedAtForUser(users[2]))
+	})
 }
 
-func TestGetStats(t *testing.T) {
+func TestGetConnectedUsersCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetConnectedUsersCount()
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+		}
+
+		// Also create synthetic ones to check that they are not counted
+		for i := 0; i < 3; i++ {
+			err := store.SetUserInfo(model.NewId(), model.NewId(), nil)
+			assert.Nil(err)
+		}
+
+		nb, err := store.GetConnectedUsersCount()
+		assert.Nil(err)
+		assert.EqualValues(5, nb)
+	})
+}
+
+func TestGetLinkedChannelsCount(t *testing.T) {
 	store, _ := setupTestStore(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -1141,41 +1219,118 @@ func TestGetStats(t *testing.T) {
 	store.enabledTeams = func() []string {
 		return []string{""}
 	}
-	assert := require.New(t)
 
 	cleanup := func() {
+		t.Helper()
+		_, err := store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetLinkedChannelsCount()
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("with 4 channels", func(t *testing.T) {
+		assert := require.New(t)
+
+		for i := 0; i < 4; i++ {
+			err := store.StoreChannelLink(&storemodels.ChannelLink{
+				MattermostTeamID:      model.NewId(),
+				MattermostTeamName:    "team name " + fmt.Sprint(i),
+				MattermostChannelID:   model.NewId(),
+				MattermostChannelName: "test channel " + fmt.Sprint(i),
+				MSTeamsTeam:           model.NewId(),
+				MSTeamsChannel:        model.NewId(),
+				Creator:               model.NewId(),
+			})
+			assert.Nil(err)
+		}
+
+		nb, err := store.GetLinkedChannelsCount()
+		assert.Nil(err)
+		assert.EqualValues(4, nb)
+	})
+}
+
+func TestGetSyntheticUsersCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.enabledTeams = func() []string {
+		return []string{""}
+	}
+
+	cleanup := func() {
+		t.Helper()
 		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
-		assert.Nil(err)
+		require.Nil(t, err)
 	}
 	cleanup()
 	defer cleanup()
 
 	const remoteID = "remote-id"
-	const category = "pp_pluginid"
 
-	t.Run("all zero", func(t *testing.T) {
-		stats, getErr := store.GetStats(storemodels.GetStatsOptions{
-			RemoteID:           remoteID,
-			PreferenceCategory: category,
-			ActiveUsersFrom:    time.UnixMicro(19),
-			ActiveUsersTo:      time.UnixMicro(35),
-		})
-		assert.Nil(getErr)
-		assert.EqualValues(storemodels.Stats{}, *stats)
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetSyntheticUsersCount(remoteID)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
 	})
 
 	t.Run("all values set", func(t *testing.T) {
-		// create 5 users connected users:
-		// - 3 with MM primary
-		// - 2 with Teams primary
-		// - all have last chat received at set to 25
-		// - last chat sent at is set to will increase by 10 for each user
+		assert := require.New(t)
+
+		// create 3 synthetic users and 3 non synthetic ones
+		for i := 0; i < 3; i++ {
+			_, err := store.getQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(model.NewId(), remoteID).Exec()
+			assert.Nil(err)
+
+			_, err = store.getQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(model.NewId(), nil).Exec()
+			assert.Nil(err)
+		}
+
+		nb, err := store.GetSyntheticUsersCount(remoteID)
+		assert.Nil(err)
+		assert.EqualValues(3, nb)
+	})
+}
+
+func TestGetUsersByPrimaryPlatformsCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		require.Nil(t, err)
+		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	const category = "pp_pluginid"
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
+		assert.Nil(err)
+		assert.EqualValues(0, teamsPrimary)
+		assert.EqualValues(0, mmPrimary)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+
 		for i := 0; i < 5; i++ {
 			userID := model.NewId()
 			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
@@ -1193,100 +1348,103 @@ func TestGetStats(t *testing.T) {
 				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
 				Exec()
 			assert.Nil(err)
-
-			err = store.SetUserLastChatReceivedAt(userID, 25)
-			assert.Nil(err)
-
-			err = store.SetUserLastChatSentAt(userID, int64(i)*10+10)
-			assert.Nil(err)
 		}
 
-		// create 3 users synthetic users
-		for i := 0; i < 3; i++ {
+		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
+		assert.Nil(err)
+		assert.EqualValues(2, teamsPrimary)
+		assert.EqualValues(3, mmPrimary)
+	})
+}
+
+func TestGetActiveUsersReceivingCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	duration := 7 * 24 * time.Hour
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetActiveUsersReceivingCount(7 * 24 * time.Hour)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		now := time.Now()
+
+		for i := 0; i < 5; i++ {
 			userID := model.NewId()
-			_, err := store.getQueryBuilder().Insert("Users").
-				Columns("Id, remoteid").
-				Values(userID, remoteID).Exec()
-			assert.Nil(err)
-		}
-
-		// create 4 channels
-		for i := 0; i < 4; i++ {
-			err := store.StoreChannelLink(&storemodels.ChannelLink{
-				MattermostTeamID:      model.NewId(),
-				MattermostTeamName:    "team name " + fmt.Sprint(i),
-				MattermostChannelID:   model.NewId(),
-				MattermostChannelName: "test channel " + fmt.Sprint(i),
-				MSTeamsTeam:           model.NewId(),
-				MSTeamsChannel:        model.NewId(),
-				Creator:               model.NewId(),
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
 			})
 			assert.Nil(err)
+
+			// last chat sent at is set to will decrease by 48 hours for each user
+			// so the last one will be out of the range
+			err = store.SetUserLastChatReceivedAt(userID, now.Add(-time.Duration(i)*48*time.Hour).UnixMicro())
+			assert.Nil(err)
 		}
 
-		stats, getErr := store.GetStats(storemodels.GetStatsOptions{
-			RemoteID:           remoteID,
-			PreferenceCategory: category,
-			ActiveUsersFrom:    time.UnixMicro(19),
-			ActiveUsersTo:      time.UnixMicro(35),
-		})
+		nb, getErr := store.GetActiveUsersReceivingCount(duration)
 		assert.Nil(getErr)
-		assert.EqualValues(storemodels.Stats{
-			ConnectedUsers:       5,
-			MSTeamsPrimary:       2,
-			MattermostPrimary:    3,
-			SyntheticUsers:       3,
-			LinkedChannels:       4,
-			ActiveUsersSending:   2,
-			ActiveUsersReceiving: 5,
-		}, *stats)
+		assert.EqualValues(4, nb)
+	})
+}
 
-		filterTestCase := []struct {
-			name  string
-			stats []storemodels.StatType
-			want  storemodels.Stats
-		}{
-			{
-				name:  "only connected users",
-				stats: []storemodels.StatType{storemodels.StatsConnectedUsers},
-				want: storemodels.Stats{
-					ConnectedUsers: 5,
-				},
-			},
-			{
-				name:  "primary platform return 2 stats",
-				stats: []storemodels.StatType{storemodels.StatsPrimaryPlatform},
-				want: storemodels.Stats{
-					MSTeamsPrimary:    2,
-					MattermostPrimary: 3,
-				},
-			},
-			{
-				name: "multiple unrelated stats",
-				stats: []storemodels.StatType{
-					storemodels.StatsLinkedChannels,
-					storemodels.StatsActiveUsersReceiving,
-					storemodels.StatsActiveUsersSending,
-				},
-				want: storemodels.Stats{
-					LinkedChannels:       4,
-					ActiveUsersReceiving: 5,
-					ActiveUsersSending:   2,
-				},
-			},
-		}
-		for _, tc := range filterTestCase {
-			t.Run(tc.name, func(t *testing.T) {
-				stats, getErr = store.GetStats(storemodels.GetStatsOptions{
-					Stats:              tc.stats,
-					RemoteID:           remoteID,
-					PreferenceCategory: category,
-					ActiveUsersFrom:    time.UnixMicro(19),
-					ActiveUsersTo:      time.UnixMicro(35),
-				})
-				assert.Nil(getErr)
-				assert.EqualValues(tc.want, *stats)
+func TestGetActiveUsersSendingCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	duration := 7 * 24 * time.Hour
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetActiveUsersSendingCount(7 * 24 * time.Hour)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		now := time.Now()
+
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
 			})
+			assert.Nil(err)
+
+			// last chat sent at is set to will decrease by 48 hours for each user
+			// so the last one will be out of the range
+			err = store.SetUserLastChatSentAt(userID, now.Add(-time.Duration(i)*48*time.Hour).UnixMicro())
+			assert.Nil(err)
 		}
+
+		nb, getErr := store.GetActiveUsersSendingCount(duration)
+		assert.Nil(getErr)
+		assert.EqualValues(4, nb)
 	})
 }

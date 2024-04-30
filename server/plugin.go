@@ -30,7 +30,6 @@ import (
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -883,24 +882,61 @@ func (p *Plugin) updateMetrics() {
 	now := time.Now()
 	p.API.LogInfo("Updating metrics")
 
-	stats, err := p.store.GetStats(storemodels.GetStatsOptions{
-		RemoteID:           p.remoteID,
-		PreferenceCategory: PreferenceCategoryPlugin,
-		ActiveUsersFrom:    now.Add(-metricsActiveUsersRange),
-		ActiveUsersTo:      now,
-	})
-	if err != nil {
-		p.API.LogWarn("failed to update computed metrics", "error", err)
-		return
-	}
+	// it's a bit of a special case because it returns two values
+	msTeamsPrimary, mmPrimary, primaryPlatformErr := p.store.GetUsersByPrimaryPlatformsCount(PreferenceCategoryPlugin)
 
-	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
-	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
-	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
-	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
-	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
-	p.GetMetrics().ObserveActiveUsersSending(stats.ActiveUsersSending)
-	p.GetMetrics().ObserveActiveUsersReceiving(stats.ActiveUsersReceiving)
+	stats := []struct {
+		name        string
+		getData     func() (int64, error)
+		observeData func(int64)
+	}{
+		{
+			name:        "connecter users",
+			getData:     p.store.GetConnectedUsersCount,
+			observeData: p.GetMetrics().ObserveConnectedUsers,
+		},
+		{
+			name:        "linked channels",
+			getData:     p.store.GetLinkedChannelsCount,
+			observeData: p.GetMetrics().ObserveLinkedChannels,
+		},
+		{
+			name: "synthetic users",
+			getData: func() (int64, error) {
+				return p.store.GetSyntheticUsersCount(p.remoteID)
+			},
+			observeData: p.GetMetrics().ObserveSyntheticUsers,
+		},
+		{
+			name:        "msteams primary users",
+			getData:     func() (int64, error) { return msTeamsPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMSTeamsPrimary,
+		},
+		{
+			name:        "mattermost primary users",
+			getData:     func() (int64, error) { return mmPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMattermostPrimary,
+		},
+		{
+			name:        "active users sending",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersSendingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersSending,
+		},
+		{
+			name:        "active users receiving",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersReceiving,
+		},
+	}
+	for _, stat := range stats {
+		data, err := stat.getData()
+		if err != nil {
+			p.API.LogWarn("failed to get data for metric "+stat.name, "error", err)
+			continue
+		}
+
+		stat.observeData(data)
+	}
 
 	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }

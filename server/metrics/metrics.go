@@ -389,7 +389,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "active_users_sending",
-		Help:        "The total number of active users sending messages.",
+		Help:        "The number of users who have sent messages in the last week.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.activeUsersSending)
@@ -398,7 +398,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "active_users_receiving",
-		Help:        "The total number of active users receiving messages.",
+		Help:        "The number of users who have received messages in the last week.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.activeUsersReceiving)
