@@ -170,7 +170,7 @@ func TestCanAutomuteChannel(t *testing.T) {
 		th.Reset(t)
 
 		user1 := th.SetupUser(t, team)
-		bot := th.CreateBot()
+		bot := th.CreateBot(t)
 
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, bot.UserId)
 		require.Nil(t, appErr)

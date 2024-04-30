@@ -193,7 +193,7 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 
 		connectedUser := th.SetupUser(t, team)
 		th.ConnectUser(t, connectedUser.Id)
-		bot := th.CreateBot()
+		bot := th.CreateBot(t)
 
 		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
 		require.NoError(t, err)
