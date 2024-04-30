@@ -393,7 +393,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	// Update the last chat received at for the participants of DM/GM
 	if chat != nil && len(userIDs) > 0 {
 		// exclude the sender from the list of participants
-		participants := []string{}
+		participants := make([]string, 0, len(userIDs)-1)
 		for _, userID := range userIDs {
 			if userID != post.UserId {
 				participants = append(participants, userID)
