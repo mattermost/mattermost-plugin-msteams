@@ -527,14 +527,14 @@ func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expec
 	}, 1*time.Second, 10*time.Millisecond)
 }
 
-func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string) {
+func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string, checkTime int64) {
 	t.Helper()
 
 	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
 	require.Nil(t, appErr)
 
 	assert.Never(t, func() bool {
-		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, checkTime)
 		require.Nil(t, appErr)
 
 		return len(postList.Posts) > 0
