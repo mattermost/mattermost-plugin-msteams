@@ -67,7 +67,7 @@ func TestChatShouldSync(t *testing.T) {
 
 		chatShouldSync, appErr := th.p.ChatShouldSync(channel.Id)
 		require.Nil(t, appErr)
-		assert.False(t, chatShouldSync)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("dm between a local and a remote user", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestChatShouldSync(t *testing.T) {
 
 		chatShouldSync, appErr := th.p.ChatShouldSync(channel.Id)
 		require.Nil(t, appErr)
-		assert.True(t, chatShouldSync)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("gm between three local users", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestChatShouldSync(t *testing.T) {
 
 		chatShouldSync, appErr := th.p.ChatShouldSync(channel.Id)
 		require.Nil(t, appErr)
-		assert.False(t, chatShouldSync)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("gm between a mixture of local and remote users", func(t *testing.T) {
@@ -185,7 +185,7 @@ func TestChatShouldSync(t *testing.T) {
 
 		chatShouldSync, appErr := th.p.ChatShouldSync(channel.Id)
 		require.Nil(t, appErr)
-		assert.True(t, chatShouldSync)
+		assert.False(t, chatShouldSync)
 	})
 }
 
@@ -194,7 +194,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 	t.Run("empty set of channel members", func(t *testing.T) {
 		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms(model.ChannelMembers{})
-		require.Nil(t, appErr)
+		require.Error(t, appErr)
 		require.False(t, chatMembersSpanPlatforms)
 	})
 
@@ -213,7 +213,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 	t.Run("user with empty id", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
-		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms(model.ChannelMembers{model.ChannelMember{UserId: user1.Id}, model.ChannelMember{UserId: ""}})
+		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms(model.ChannelMembers{model.ChannelMember{UserId: ""}, model.ChannelMember{UserId: user1.Id}})
 		require.Error(t, appErr)
 		require.False(t, chatMembersSpanPlatforms)
 	})
@@ -251,7 +251,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 			model.ChannelMember{UserId: user2.Id},
 		})
 		require.Nil(t, appErr)
-		assert.False(t, chatShouldSync)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("dm between a local and a remote user", func(t *testing.T) {
@@ -260,10 +260,6 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 
 		var appErr *model.AppError
-
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
 
 		chatShouldSync, appErr := th.p.ChatMembersSpanPlatforms(model.ChannelMembers{
 			model.ChannelMember{UserId: user1.Id},
@@ -289,7 +285,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 			model.ChannelMember{UserId: user2.Id},
 		})
 		require.Nil(t, appErr)
-		assert.True(t, chatShouldSync)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("gm between three local users", func(t *testing.T) {
@@ -333,7 +329,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 			model.ChannelMember{UserId: user3.Id},
 		})
 		require.Nil(t, appErr)
-		assert.False(t, chatShouldSync)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("gm between a mixture of local and remote users", func(t *testing.T) {
@@ -379,6 +375,6 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 			model.ChannelMember{UserId: user3.Id},
 		})
 		require.Nil(t, appErr)
-		assert.True(t, chatShouldSync)
+		assert.False(t, chatShouldSync)
 	})
 }
