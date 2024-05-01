@@ -21,11 +21,16 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 	directChannel, appErr := th.p.API.GetDirectChannel(user.Id, otherUser.Id)
 	require.Nil(t, appErr)
 
+	remoteUser := th.SetupRemoteUser(t, team)
+	directRemoteChannel, appErr := th.p.API.GetDirectChannel(user.Id, remoteUser.Id)
+	require.Nil(t, appErr)
+
 	th.LinkChannel(t, team, channel, user)
 
 	t.Run("initial conditions", func(t *testing.T) {
 		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
 	t.Run("should do nothing when false is passed and automuting has never been enabled", func(t *testing.T) {
@@ -36,16 +41,19 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 
 		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
-	t.Run("should automute all channels when true is passed and automuting has never been enabled", func(t *testing.T) {
+	t.Run("should automute remote direct and linked channels when true is passed and automuting has never been enabled", func(t *testing.T) {
 		result, err := th.p.setAutomuteEnabledForUser(user.Id, true)
 
-		assert.Equal(t, true, result)
 		assert.NoError(t, err)
+		assert.Equal(t, true, result)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		// direct with other MM users are not sync'ed, nor automuted
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
 	t.Run("should do nothing when true is passed and automuting was last enabled", func(t *testing.T) {
@@ -55,7 +63,8 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
 	t.Run("should un-automute all channels when false is passed and automuting was last enabled", func(t *testing.T) {
@@ -66,6 +75,7 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 
 		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
 	t.Run("should do nothing when false is passed and automuting was last disabled", func(t *testing.T) {
@@ -76,6 +86,7 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 
 		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
 		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 
 	t.Run("should automute all channels when true is passed and automuting was last disabled", func(t *testing.T) {
@@ -85,7 +96,9 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		// direct with other MM users are not sync'ed, nor automuted
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelAutomuted(t, th.p, directRemoteChannel.Id, user.Id)
 	})
 }
 
@@ -129,26 +142,45 @@ func TestCanAutomuteChannel(t *testing.T) {
 		assert.Equal(t, true, result)
 	})
 
-	t.Run("should return true for a DM/GM channel", func(t *testing.T) {
+	t.Run("should return false for a DM/GM channel, local users", func(t *testing.T) {
 		th.Reset(t)
 
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
+		user3 := th.SetupUser(t, team)
 
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
 		result, err := th.p.canAutomuteChannel(channel)
-		assert.NoError(t, err)
+		require.Nil(t, err)
+		assert.Equal(t, false, result)
+
+		channel, appErr = th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
+		require.Nil(t, appErr)
+		result, err = th.p.canAutomuteChannel(channel)
+		require.Nil(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("should return true for a DM/GM channel, with a remote user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		user2 := th.SetupUser(t, team)
+		user3 := th.SetupRemoteUser(t, team)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user3.Id)
+		require.Nil(t, appErr)
+
+		result, err := th.p.canAutomuteChannel(channel)
+		require.Nil(t, err)
 		assert.Equal(t, true, result)
 
-		channel = &model.Channel{
-			Id:   model.NewId(),
-			Type: model.ChannelTypeGroup,
-		}
-
+		channel, appErr = th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
+		require.Nil(t, appErr)
 		result, err = th.p.canAutomuteChannel(channel)
-		assert.NoError(t, err)
+		require.Nil(t, err)
 		assert.Equal(t, true, result)
 	})
 

@@ -160,9 +160,19 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
-	// Automute all DM/GM channels
 	if channel.IsGroupOrDirect() {
-		return true, nil
+		members, appErr := p.API.GetChannelMembers(channel.Id, 0, 8)
+		if appErr != nil {
+			return false, appErr.Unwrap()
+		}
+		if len(members) <= 1 {
+			return false, nil
+		}
+		hasRemoteUser, appErr := p.ChatMembersSpanPlatforms(members)
+		if appErr != nil {
+			return false, appErr.Unwrap()
+		}
+		return hasRemoteUser, nil
 	}
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)
