@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 // ChatShouldSync determines if the members of the given channel span both Mattermost and
@@ -32,13 +31,10 @@ func (p *Plugin) ChatMembersSpanPlatforms(members model.ChannelMembers) (bool, *
 	for _, m := range members {
 		user, appErr := p.API.GetUser(m.UserId)
 		if appErr != nil {
-			mlog.Debug("got an error")
 			return false, appErr
 		}
-		mlog.Debug("continue,", mlog.Bool("isnil", user == nil))
 
 		if p.IsRemoteUser(user) {
-			mlog.Debug("is remote")
 			// Synthetic users are always remote.
 			return true, nil
 		}
