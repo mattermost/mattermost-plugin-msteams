@@ -3,6 +3,7 @@ package loadtest
 type PostToChatJob struct {
 	channelId   string
 	msUserId    string
+	rootId      string
 	message     string
 	attachments []interface{}
 	count       int

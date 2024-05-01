@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -44,6 +45,8 @@ func Configure(applicationId, secret, tenantId, webhookSecret, baseUrl string, e
 
 	if enabled {
 		SimulateQueue = make(chan PostToChatJob, 1000)
+		AttachmentsSync = sync.Map{}
+		Boolgen = &boolegen{src: rand.NewSource(time.Now().UnixNano())}
 
 		dispatcher = NewDispatcher(250)
 		dispatcher.Run()

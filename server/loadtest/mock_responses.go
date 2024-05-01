@@ -148,7 +148,7 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 		id := model.NewId()
 
 		if Settings.maxIncomingPosts > 0 {
-			simulatePostsToChat(channelId, msUserId, content, attachments)
+			simulatePostsToChat(channelId, msUserId, id, content, attachments)
 		}
 
 		return NewJsonResponse(201, map[string]any{

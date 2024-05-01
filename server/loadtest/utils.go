@@ -20,7 +20,26 @@ import (
 	"gitlab.com/golang-commonmark/markdown"
 )
 
-var AttachmentsSync = sync.Map{}
+type boolegen struct {
+	src       rand.Source
+	cache     int64
+	remaining int
+}
+
+func (b *boolegen) Bool() bool {
+	if b.remaining == 0 {
+		b.cache, b.remaining = b.src.Int63(), 63
+	}
+
+	result := b.cache&0x01 == 1
+	b.cache >>= 1
+	b.remaining--
+
+	return result
+}
+
+var AttachmentsSync sync.Map
+var Boolgen *boolegen
 
 func uncompressRequestBody(req *http.Request) ([]byte, error) {
 	gzippedBody, err := io.ReadAll(req.Body)
@@ -129,6 +148,35 @@ func getHtmlFromMD(message string) string {
 	return md.RenderToString([]byte(emoji.Parse(message)))
 }
 
+func buildAttachmentForMessage(rooId, otherUserId string) []interface{} {
+	content := map[string]any{
+		"messageId":      rooId,
+		"messagePreview": "<p>This is a reply</p>",
+		"messageSender": map[string]any{
+			"user": map[string]any{
+				"userIdentityType": "aadUser",
+				"id":               otherUserId,
+				"displayName":      otherUserId,
+			},
+		},
+	}
+
+	contentString, err := json.Marshal(content)
+	if err != nil {
+		return nil
+	}
+
+	attachments := []any{
+		map[string]any{
+			"id":          rooId,
+			"contentType": "messageReference",
+			"content":     string(contentString),
+		},
+	}
+
+	return attachments
+}
+
 func buildMessageContent(channelId, msgId, message, otherUserId string) MSContent {
 	text := getHtmlFromMD(message)
 	stored, loaded := AttachmentsSync.LoadAndDelete(msgId)
@@ -136,6 +184,7 @@ func buildMessageContent(channelId, msgId, message, otherUserId string) MSConten
 	if loaded {
 		attachments = stored.([]interface{})
 	}
+
 	content := MSContent{
 		ID:                   msgId,
 		Etag:                 msgId,
@@ -161,6 +210,10 @@ func buildMessageContent(channelId, msgId, message, otherUserId string) MSConten
 		Reactions:      []any{},
 		Replies:        []any{},
 		HostedContents: []any{},
+	}
+
+	if len(attachments) > 0 {
+		log("CREATE RANDOM ATTACHMENT", "msgId", msgId, "content", content)
 	}
 
 	return content
@@ -207,7 +260,12 @@ func buildPostActivityForGM(data PostToChatJob) (*MSActivities, error) {
 	var err error
 	msgId := model.NewId()
 	text := fmt.Sprintf("%s\nAnswer #%d", data.message, data.count)
-	AttachmentsSync.Store(msgId, data.attachments)
+	if len(data.attachments) > 0 {
+		AttachmentsSync.Store(msgId, data.attachments)
+	} else if Boolgen.Bool() {
+		attachments := buildAttachmentForMessage(data.rootId, data.msUserId)
+		AttachmentsSync.Store(msgId, attachments)
+	}
 	if Settings.simulateIncomingPosts {
 		otherUserId := "ms_teams-" + getRandomUserFromChannelId(data.channelId, strings.Replace(data.msUserId, "ms_teams-", "", 1))
 		content := buildMessageContent(data.channelId, msgId, text, otherUserId)

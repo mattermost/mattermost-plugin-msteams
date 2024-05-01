@@ -48,7 +48,7 @@ func simulatePostToChat(data PostToChatJob) {
 	defer resp.Body.Close()
 }
 
-func simulatePostsToChat(channelId, msUserId, message string, attachments []interface{}) {
+func simulatePostsToChat(channelId, msUserId, rootId, message string, attachments []interface{}) {
 	maxIncoming := Settings.maxIncomingPosts - Settings.minIncomingPosts
 	numberOfRequests := rand.Intn(maxIncoming+1) + Settings.minIncomingPosts
 
@@ -56,6 +56,7 @@ func simulatePostsToChat(channelId, msUserId, message string, attachments []inte
 		job := PostToChatJob{
 			channelId:   channelId,
 			msUserId:    msUserId,
+			rootId:      rootId,
 			message:     message,
 			attachments: attachments,
 			count:       i,
