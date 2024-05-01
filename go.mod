@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.6
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.10.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
 	github.com/JohannesKaufmann/html-to-markdown v1.5.0
 	github.com/Masterminds/squirrel v1.5.4
@@ -18,9 +18,9 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattermost/mattermost/server/public v0.0.18-0.20240404202637-65d589935ff9
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240404204026-0a3667bf58c5
-	github.com/microsoft/kiota-abstractions-go v1.5.6
+	github.com/microsoft/kiota-abstractions-go v1.6.0
 	github.com/microsoft/kiota-http-go v1.3.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.36.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.40.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
@@ -149,7 +149,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.0.2 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v1.0.6 // indirect
+	github.com/microsoft/kiota-serialization-json-go v1.0.7 // indirect
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
@@ -200,7 +200,7 @@ require (
 	github.com/splitio/go-split-commons/v5 v5.2.1 // indirect
 	github.com/splitio/go-toolkit/v5 v5.4.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.50 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.55 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/throttled/throttled v2.2.5+incompatible // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
@@ -226,9 +226,9 @@ require (
 	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	go.etcd.io/bbolt v1.3.9 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect
-	go.opentelemetry.io/otel v1.23.1 // indirect
-	go.opentelemetry.io/otel/metric v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
