@@ -134,7 +134,13 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 	reqUrl := req.URL.RequestURI()
 	r := regexp.MustCompile(`/v1.0/chats/(.+)/messages`)
 	result := r.FindSubmatch([]byte(reqUrl))
-	content := getPostContentAsMD(req)
+	requestBody, err := requestBodyToMap(req)
+	if err != nil {
+		log("requestBodyToMap failed", "err", err)
+		return NewErrorResponse(500, "Mock: postMessageToMSTeams could not find submatch for the regex")
+	}
+	content := getPostContentAsMD(requestBody)
+	attachments := getAttachmentFromContent(requestBody)
 
 	if len(result) > 0 {
 		_, msUserId := getUserDataFromAuthHeader(req)
@@ -142,7 +148,7 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 		id := model.NewId()
 
 		if Settings.maxIncomingPosts > 0 {
-			simulatePostsToChat(channelId, msUserId, content)
+			simulatePostsToChat(channelId, msUserId, content, attachments)
 		}
 
 		return NewJsonResponse(201, map[string]any{
@@ -163,6 +169,7 @@ func postMessageToMSTeams(req *http.Request) (*http.Response, error) {
 					"tenantId":         Settings.tenantId,
 				},
 			},
+			"attachments": attachments,
 			"body": map[string]any{
 				"contentType": "text",
 				"content":     getHtmlFromMD(content),

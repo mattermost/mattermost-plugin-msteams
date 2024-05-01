@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/enescakir/emoji"
@@ -18,6 +19,8 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"gitlab.com/golang-commonmark/markdown"
 )
+
+var AttachmentsSync = sync.Map{}
 
 func uncompressRequestBody(req *http.Request) ([]byte, error) {
 	gzippedBody, err := io.ReadAll(req.Body)
@@ -42,21 +45,31 @@ func uncompressRequestBody(req *http.Request) ([]byte, error) {
 	return uncompressedBody, nil
 }
 
-func getPostContentAsMD(req *http.Request) string {
+func requestBodyToMap(req *http.Request) (map[string]interface{}, error) {
 	uncompressedBody, err := uncompressRequestBody(req)
 	if err != nil {
-		log("getPostContentAsMD failed", "err", err)
-		return ""
+		return nil, err
 	}
 	var bodyJson map[string]interface{}
 	err = json.Unmarshal(uncompressedBody, &bodyJson)
 	if err != nil {
-		log("getPostContentAsMD failed", "err", err)
-		return ""
+		return nil, err
 	}
 
-	body := bodyJson["body"].(map[string]interface{})
+	return bodyJson, nil
+}
+
+func getPostContentAsMD(bodyMap map[string]interface{}) string {
+	body := bodyMap["body"].(map[string]interface{})
 	return mark.ConvertToMD(body["content"].(string))
+}
+
+func getAttachmentFromContent(body map[string]interface{}) []interface{} {
+	attachment, ok := body["attachments"]
+	if !ok {
+		return nil
+	}
+	return attachment.([]interface{})
 }
 
 func getUserDataFromAuthHeader(req *http.Request) (string, string) {
@@ -118,6 +131,11 @@ func getHtmlFromMD(message string) string {
 
 func buildMessageContent(channelId, msgId, message, otherUserId string) MSContent {
 	text := getHtmlFromMD(message)
+	stored, loaded := AttachmentsSync.LoadAndDelete(msgId)
+	attachments := []any{}
+	if loaded {
+		attachments = stored.([]interface{})
+	}
 	content := MSContent{
 		ID:                   msgId,
 		Etag:                 msgId,
@@ -138,7 +156,7 @@ func buildMessageContent(channelId, msgId, message, otherUserId string) MSConten
 			ContentType: "text",
 			Content:     text,
 		},
-		Attachments:    []any{},
+		Attachments:    attachments,
 		Mentions:       []any{},
 		Reactions:      []any{},
 		Replies:        []any{},
@@ -153,6 +171,7 @@ func buildPostActivityForDM(data PostToChatJob) (*MSActivities, error) {
 	var err error
 	msgId := model.NewId()
 	text := fmt.Sprintf("%s\nAnswer #%d", data.message, data.count)
+	AttachmentsSync.Store(msgId, data.attachments)
 
 	if Settings.simulateIncomingPosts {
 		otherUserId := "ms_teams-" + getOtherUserFromChannelId(data.channelId, data.msUserId)
@@ -188,6 +207,7 @@ func buildPostActivityForGM(data PostToChatJob) (*MSActivities, error) {
 	var err error
 	msgId := model.NewId()
 	text := fmt.Sprintf("%s\nAnswer #%d", data.message, data.count)
+	AttachmentsSync.Store(msgId, data.attachments)
 	if Settings.simulateIncomingPosts {
 		otherUserId := "ms_teams-" + getRandomUserFromChannelId(data.channelId, strings.Replace(data.msUserId, "ms_teams-", "", 1))
 		content := buildMessageContent(data.channelId, msgId, text, otherUserId)

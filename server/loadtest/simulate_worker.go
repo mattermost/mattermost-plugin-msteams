@@ -1,11 +1,12 @@
 package loadtest
 
 type PostToChatJob struct {
-	channelId string
-	msUserId  string
-	message   string
-	count     int
-	total     int
+	channelId   string
+	msUserId    string
+	message     string
+	attachments []interface{}
+	count       int
+	total       int
 }
 
 var SimulateQueue chan PostToChatJob
