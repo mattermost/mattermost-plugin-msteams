@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,7 +94,7 @@ func TestChatShouldSync(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
 
-		err := th.p.setPrimaryPlatform(user2.Id, PreferenceValuePlatformMSTeams)
+		err := th.p.setPrimaryPlatform(user2.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
 		channel, err := th.p.API.GetDirectChannel(user1.Id, user2.Id)
@@ -176,7 +177,7 @@ func TestChatShouldSync(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupUser(t, team)
 
-		err := th.p.setPrimaryPlatform(user3.Id, PreferenceValuePlatformMSTeams)
+		err := th.p.setPrimaryPlatform(user3.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
 		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
@@ -277,7 +278,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
 
-		err := th.p.setPrimaryPlatform(user2.Id, PreferenceValuePlatformMSTeams)
+		err := th.p.setPrimaryPlatform(user2.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
 		_, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
@@ -366,7 +367,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupUser(t, team)
 
-		err := th.p.setPrimaryPlatform(user3.Id, PreferenceValuePlatformMSTeams)
+		err := th.p.setPrimaryPlatform(user3.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
 		_, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})

@@ -910,13 +910,19 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	stats, err := p.store.GetStats()
+	start := time.Now()
+	p.API.LogDebug("Updating metrics")
+	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
 	if err != nil {
 		p.API.LogWarn("failed to update computed metrics", "error", err)
+		return
 	}
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
+	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
+	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
+	p.API.LogDebug("Updating metrics done", "duration", time.Since(start))
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
