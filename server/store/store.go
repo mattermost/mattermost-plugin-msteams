@@ -1,5 +1,5 @@
 //go:generate mockery --name=Store
-//go:generate go run layer_generators/main.go
+//go:generate go run generators/main.go
 package store
 
 import (
@@ -24,6 +24,7 @@ type Store interface {
 	UserHasConnected(mmUserID string) (bool, error)
 	GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error)
 	GetHasConnectedCount() (int, error)
+	//@withTransaction
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	DeleteUserInfo(mmUserID string) error
 
@@ -41,6 +42,7 @@ type Store interface {
 	DeleteUserFromWhitelist(userID string) error
 	GetWhitelistCount() (int, error)
 	GetWhitelistEmails(page int, perPage int) ([]string, error)
+	//@withTransaction
 	SetWhitelist(userIDs []string, batchSize int) error
 
 	// stats
@@ -66,8 +68,11 @@ type Store interface {
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
 	ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error)
+	//@withTransaction
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
+	//@withTransaction
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
+	//@withTransaction
 	SaveChannelSubscription(subscription storemodels.ChannelSubscription) error
 	UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error
 	DeleteSubscription(subscriptionID string) error

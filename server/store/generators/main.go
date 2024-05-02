@@ -19,21 +19,49 @@ import (
 )
 
 const (
-	ErrorType = "error"
+	WithTransactionComment = "@withTransaction"
+	ErrorType              = "error"
+	StringType             = "string"
+	IntType                = "int"
+	Int32Type              = "int32"
+	Int64Type              = "int64"
+	BoolType               = "bool"
 )
 
 func isError(typeName string) bool {
 	return strings.Contains(typeName, ErrorType)
 }
 
+func isString(typeName string) bool {
+	return typeName == StringType
+}
+
+func isInt(typeName string) bool {
+	return typeName == IntType || typeName == Int32Type || typeName == Int64Type
+}
+
+func isBool(typeName string) bool {
+	return typeName == BoolType
+}
+
 func main() {
 	if err := buildTimerLayer(); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := buildPublicMethods(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func buildTimerLayer() error {
-	code, err := generateLayer("TimerLayer", "timer_layer.go.tmpl")
+	topLevelFunctionsToSkip := map[string]bool{
+		"BeginTx":    true,
+		"RollbackTx": true,
+		"CommitTx":   true,
+	}
+
+	code, err := generateLayer("TimerLayer", "timer_layer.go.tmpl", topLevelFunctionsToSkip)
 	if err != nil {
 		return err
 	}
@@ -50,14 +78,36 @@ func buildTimerLayer() error {
 	return os.WriteFile(path.Join("timerlayer", "timerlayer.go"), formatedCode, 0600)
 }
 
+func buildPublicMethods() error {
+	topLevelFunctionsToSkip := map[string]bool{
+		"Init":                     true,
+		"UserHasConnected":         true,
+		"CheckEnabledTeamByTeamID": true,
+		"VerifyOAuth2State":        true,
+		"StoreOAuth2State":         true,
+	}
+
+	code, err := generateLayer("SQLStore", "transactional_store.go.tmpl", topLevelFunctionsToSkip)
+	if err != nil {
+		return err
+	}
+	formatedCode, err := format.Source(code)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path.Join("sqlstore", "public_methods.go"), formatedCode, 0600)
+}
+
 type methodParam struct {
 	Name string
 	Type string
 }
 
 type methodData struct {
-	Params  []methodParam
-	Results []string
+	Params          []methodParam
+	Results         []string
+	WithTransaction bool
 }
 
 type storeMetadata struct {
@@ -68,8 +118,17 @@ type storeMetadata struct {
 func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 	params := []methodParam{}
 	results := []string{}
+	withTransaction := false
 	ast.Inspect(method.Type, func(expr ast.Node) bool {
 		if e, ok := expr.(*ast.FuncType); ok {
+			if method.Doc != nil {
+				for _, comment := range method.Doc.List {
+					if strings.Contains(comment.Text, WithTransactionComment) {
+						withTransaction = true
+						break
+					}
+				}
+			}
 			if e.Params != nil {
 				for _, param := range e.Params.List {
 					for _, paramName := range param.Names {
@@ -85,10 +144,10 @@ func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 		}
 		return true
 	})
-	return methodData{Params: params, Results: results}
+	return methodData{Params: params, Results: results, WithTransaction: withTransaction}
 }
 
-func extractStoreMetadata() (*storeMetadata, error) {
+func extractStoreMetadata(topLevelFunctionsToSkip map[string]bool) (*storeMetadata, error) {
 	// Create the AST by parsing src.
 	fset := token.NewFileSet() // positions are relative to fset
 
@@ -104,12 +163,6 @@ func extractStoreMetadata() (*storeMetadata, error) {
 	f, err := parser.ParseFile(fset, "", src, parser.AllErrors|parser.ParseComments)
 	if err != nil {
 		return nil, err
-	}
-
-	topLevelFunctionsToSkip := map[string]bool{
-		"BeginTx":    true,
-		"RollbackTx": true,
-		"CommitTx":   true,
 	}
 
 	metadata := storeMetadata{Methods: map[string]methodData{}}
@@ -131,15 +184,36 @@ func extractStoreMetadata() (*storeMetadata, error) {
 	return &metadata, nil
 }
 
-func generateLayer(name, templateFile string) ([]byte, error) {
+func generateLayer(name, templateFile string, topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
 	out := bytes.NewBufferString("")
-	metadata, err := extractStoreMetadata()
+	metadata, err := extractStoreMetadata(topLevelFunctionsToSkip)
 	if err != nil {
 		return nil, err
 	}
 	metadata.Name = name
 
 	myFuncs := template.FuncMap{
+		"renameStoreMethod": func(methodName string) string {
+			return strings.ToLower(methodName[0:1]) + methodName[1:]
+		},
+		"genErrorResultsVars": func(results []string, errName string) string {
+			vars := []string{}
+			for _, typeName := range results {
+				switch {
+				case isError(typeName):
+					vars = append(vars, errName)
+				case isString(typeName):
+					vars = append(vars, "\"\"")
+				case isInt(typeName):
+					vars = append(vars, "0")
+				case isBool(typeName):
+					vars = append(vars, "false")
+				default:
+					vars = append(vars, "nil")
+				}
+			}
+			return strings.Join(vars, ", ")
+		},
 		"joinResults": func(results []string) string {
 			return strings.Join(results, ", ")
 		},
@@ -214,7 +288,7 @@ func generateLayer(name, templateFile string) ([]byte, error) {
 		},
 	}
 
-	t := template.Must(template.New(templateFile).Funcs(myFuncs).ParseFiles("layer_generators/" + templateFile))
+	t := template.Must(template.New(templateFile).Funcs(myFuncs).ParseFiles("generators/" + templateFile))
 	if err = t.Execute(out, metadata); err != nil {
 		return nil, err
 	}
