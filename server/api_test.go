@@ -522,7 +522,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", "0", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
@@ -548,7 +548,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", "2XX", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
@@ -630,7 +630,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", "0", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
@@ -657,7 +657,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", "2XX", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
@@ -799,10 +799,11 @@ func TestConnect(t *testing.T) {
 			test.SetupStore(plugin.store.(*storemocks.Store))
 
 			w := httptest.NewRecorder()
-			endPoint := "/connect"
+			endPoint := "/connect?"
 			if test.isBot {
-				endPoint += "?isBot"
+				endPoint += "isBot&"
 			}
+			endPoint += "channel_id=123&post_id=456"
 			r := httptest.NewRequest(http.MethodGet, endPoint, nil)
 			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
 			plugin.ServeHTTP(nil, w, r)
@@ -1027,7 +1028,7 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats").Return(nil, errors.New("failed")).Times(1)
+				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(nil, errors.New("failed")).Times(1)
 			},
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedResult:     "unable to get site stats\n",
@@ -1038,10 +1039,12 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats").Return(&storemodels.Stats{
-					ConnectedUsers: 0,
-					SyntheticUsers: 999,
-					LinkedChannels: 999,
+				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
+					ConnectedUsers:    0,
+					SyntheticUsers:    999,
+					LinkedChannels:    999,
+					MattermostPrimary: 0,
+					MSTeamsPrimary:    0,
 				}, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
@@ -1053,10 +1056,12 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats").Return(&storemodels.Stats{
-					ConnectedUsers: 1,
-					SyntheticUsers: 999,
-					LinkedChannels: 999,
+				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
+					ConnectedUsers:    1,
+					SyntheticUsers:    999,
+					LinkedChannels:    999,
+					MattermostPrimary: 1,
+					MSTeamsPrimary:    0,
 				}, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
@@ -1068,10 +1073,12 @@ func TestGetSiteStats(t *testing.T) {
 				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
 			},
 			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats").Return(&storemodels.Stats{
-					ConnectedUsers: 10,
-					SyntheticUsers: 999,
-					LinkedChannels: 999,
+				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
+					ConnectedUsers:    10,
+					SyntheticUsers:    999,
+					LinkedChannels:    999,
+					MattermostPrimary: 5,
+					MSTeamsPrimary:    5,
 				}, nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
@@ -127,13 +128,13 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 }
 
 func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
-	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNamePlatform)
 	if appErr != nil {
 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
 		return false
 	}
 
-	return pref.Value == PreferenceValuePlatformMSTeams
+	return pref.Value == storemodels.PreferenceValuePlatformMSTeams
 }
 
 func (p *Plugin) isUserConnected(userID string) (bool, error) {

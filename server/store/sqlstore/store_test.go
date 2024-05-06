@@ -971,79 +971,138 @@ func TestListConnectedUsers(t *testing.T) {
 	assert.Nil(delErr)
 }
 
-func TestStoreUserAndIsUserPresentAndGetSizeOfWhitelist(t *testing.T) {
+func TestWhitelistIO(t *testing.T) {
 	store, _ := setupTestStore(t)
 	assert := assert.New(t)
 
-	count, getErr := store.GetSizeOfWhitelist()
+	count, getErr := store.GetWhitelistCount()
 	assert.Equal(0, count)
 	assert.Nil(getErr)
 
-	storeErr := store.StoreUserInWhitelist(testutils.GetUserID())
+	storeErr := store.StoreUserInWhitelist(testutils.GetUserID() + "1")
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetWhitelistCount()
 	assert.Equal(1, count)
 	assert.Nil(getErr)
 
-	present, presentErr := store.IsUserPresentInWhitelist(testutils.GetUserID())
+	present, presentErr := store.IsUserWhitelisted(testutils.GetUserID() + "1")
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	present, presentErr = store.IsUserWhitelisted(testutils.GetTeamsUserID() + "1")
 	assert.Equal(false, present)
 	assert.Nil(presentErr)
 
-	storeErr = store.StoreUserInWhitelist(testutils.GetTeamsUserID())
+	storeErr = store.StoreUserInWhitelist(testutils.GetUserID() + "2")
 	assert.Nil(storeErr)
 
-	count, getErr = store.GetSizeOfWhitelist()
+	count, getErr = store.GetWhitelistCount()
 	assert.Equal(2, count)
 	assert.Nil(getErr)
 
-	present, presentErr = store.IsUserPresentInWhitelist(testutils.GetTeamsUserID())
+	present, presentErr = store.IsUserWhitelisted(testutils.GetUserID() + "2")
 	assert.Equal(true, present)
 	assert.Nil(presentErr)
 
-	_, err := store.getMasterQueryBuilder().Delete(whitelistedUsersTableName).Exec()
-	assert.Nil(err)
+	tx, txErr := store.db.Begin()
+	assert.Nil(txErr)
+	delErr := store.deleteWhitelist(tx)
+	assert.Nil(delErr)
+	txCommitErr := tx.Commit()
+	assert.Nil(txCommitErr)
+
+	count, getErr = store.GetWhitelistCount()
+	assert.Equal(0, count)
+	assert.Nil(getErr)
 }
 
-func TestPrefillWhitelist(t *testing.T) {
+func TestGetStats(t *testing.T) {
 	store, _ := setupTestStore(t)
-	assert := assert.New(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
-
-	token := &oauth2.Token{
-		AccessToken:  "mockAccessToken-1",
-		RefreshToken: "mockRefreshToken-1",
+	store.enabledTeams = func() []string {
+		return []string{""}
 	}
+	assert := require.New(t)
 
-	storeErr := store.SetUserInfo(testutils.GetID()+"1", testutils.GetTeamsUserID()+"1", token)
-	assert.Nil(storeErr)
+	cleanup := func() {
+		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		assert.Nil(err)
+		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		assert.Nil(err)
+	}
+	cleanup()
+	defer cleanup()
 
-	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
-	assert.Nil(storeErr)
+	const remoteID = "remote-id"
+	const category = "pp_pluginid"
 
-	count, getErr := store.GetSizeOfWhitelist()
-	assert.Equal(0, count)
-	assert.Nil(getErr)
+	t.Run("all zero", func(t *testing.T) {
+		stats, getErr := store.GetStats(remoteID, category)
+		assert.Nil(getErr)
+		assert.EqualValues(0, stats.ConnectedUsers)
+		assert.EqualValues(0, stats.SyntheticUsers)
+		assert.EqualValues(0, stats.LinkedChannels)
+		assert.EqualValues(0, stats.MSTeamsPrimary)
+		assert.EqualValues(0, stats.MattermostPrimary)
+	})
 
-	prefillErr := store.PrefillWhitelist()
-	assert.Nil(prefillErr)
+	t.Run("values set", func(t *testing.T) {
+		// create 5 users connected users, 3 on MM and 2 using Teams
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
 
-	count, getErr = store.GetSizeOfWhitelist()
-	assert.Equal(1, count)
-	assert.Nil(getErr)
+			platform := storemodels.PreferenceValuePlatformMM
+			if i >= 3 {
+				platform = storemodels.PreferenceValuePlatformMSTeams
+			}
 
-	_, err := store.getMasterQueryBuilder().Delete(whitelistedUsersTableName).Exec()
-	assert.Nil(err)
+			_, err = store.getMasterQueryBuilder().Insert("preferences").
+				Columns("userid, category, name, value").
+				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
+				Exec()
+			assert.Nil(err)
+		}
 
-	delErr := store.DeleteUserInfo(testutils.GetID() + "1")
-	assert.Nil(delErr)
+		// create 3 users synthetic users
+		for i := 0; i < 3; i++ {
+			userID := model.NewId()
+			_, err := store.getMasterQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(userID, remoteID).Exec()
+			assert.Nil(err)
+		}
 
-	delErr = store.DeleteUserInfo(testutils.GetID() + "2")
-	assert.Nil(delErr)
+		// create 4 channels
+		for i := 0; i < 4; i++ {
+			err := store.StoreChannelLink(&storemodels.ChannelLink{
+				MattermostTeamID:      model.NewId(),
+				MattermostTeamName:    "team name " + fmt.Sprint(i),
+				MattermostChannelID:   model.NewId(),
+				MattermostChannelName: "test channel " + fmt.Sprint(i),
+				MSTeamsTeam:           model.NewId(),
+				MSTeamsChannel:        model.NewId(),
+				Creator:               model.NewId(),
+			})
+			assert.Nil(err)
+		}
+
+		stats, getErr := store.GetStats(remoteID, category)
+		assert.Nil(getErr)
+		assert.EqualValues(5, stats.ConnectedUsers)
+		assert.EqualValues(2, stats.MSTeamsPrimary)
+		assert.EqualValues(3, stats.MattermostPrimary)
+		assert.EqualValues(3, stats.SyntheticUsers)
+		assert.EqualValues(4, stats.LinkedChannels)
+	})
 }

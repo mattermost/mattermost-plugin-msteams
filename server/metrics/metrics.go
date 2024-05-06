@@ -84,11 +84,14 @@ type Metrics interface {
 	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
 	ObserveUpstreamUsers(count int64)
+	ObserveMattermostPrimary(count int64)
+	ObserveMSTeamsPrimary(count int64)
+
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
-	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
+	ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64)
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -138,10 +141,12 @@ type metrics struct {
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
 
-	connectedUsers prometheus.Gauge
-	syntheticUsers prometheus.Gauge
-	linkedChannels prometheus.Gauge
-	upstreamUsers  prometheus.Gauge
+	connectedUsers    prometheus.Gauge
+	syntheticUsers    prometheus.Gauge
+	linkedChannels    prometheus.Gauge
+	upstreamUsers     prometheus.Gauge
+	mattermostPrimary prometheus.Gauge
+	msTeamsPrimary    prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
@@ -376,6 +381,24 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.upstreamUsers)
 
+	m.mattermostPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "mattermost_primary",
+		Help:        "The total number of active users who selected Mattermost as their primary platform.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.mattermostPrimary)
+
+	m.msTeamsPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "msteams_primary",
+		Help:        "The total number of active users who selected Microsoft Teams as their primary platform.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.msTeamsPrimary)
+
 	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -411,7 +434,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 			Help:        "Time to execute the client methods",
 			ConstLabels: additionalLabels,
 		},
-		[]string{"method", "success"},
+		[]string{"method", "success", "status_code"},
 	)
 	m.registry.MustRegister(m.msGraphClientTime)
 
@@ -541,9 +564,22 @@ func (m *metrics) ObserveLinkedChannels(count int64) {
 		m.linkedChannels.Set(float64(count))
 	}
 }
+
 func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveMattermostPrimary(count int64) {
+	if m != nil {
+		m.mattermostPrimary.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveMSTeamsPrimary(count int64) {
+	if m != nil {
+		m.msTeamsPrimary.Set(float64(count))
 	}
 }
 
@@ -589,9 +625,9 @@ func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	}
 }
 
-func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
+func (m *metrics) ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64) {
 	if m != nil {
-		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
+		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 
