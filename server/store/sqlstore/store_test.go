@@ -1028,13 +1028,13 @@ func TestGetStats(t *testing.T) {
 	assert := require.New(t)
 
 	cleanup := func() {
-		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
+		_, err := store.getMasterQueryBuilder().Delete("Users").Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete("Preferences").Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
 		assert.Nil(err)
 	}
 	cleanup()
