@@ -31,8 +31,6 @@ type testHelper struct {
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
-	setupReattachEnvironment(t)
-
 	t.Helper()
 
 	p := &Plugin{
