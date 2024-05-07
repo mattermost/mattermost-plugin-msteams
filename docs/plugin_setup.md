@@ -15,7 +15,8 @@ Enforce connected accounts | Enabling this will enforce all the users to connect
 Allow to temporarily skip connect user | Enabling this will allow the users to temporarily skip connecting their accounts.
 Sync users | This config is for the interval (in minutes) in which the users will be synced between Mattermost and MS Teams. If you leave it empty, it will not syncrhonize the users.
 Sync guest users | Enabling this configuration will sync the MS Teams guest users on Mattermost. Any existing active Mattermost user that was created by this plugin using the "Sync user" functionality corresponding to the MS Teams guest user will be deactivated if this setting is false, and vice versa.
-Sync direct and group messages | Enable this for enabling the syncing of direct and group messages.
+Sync direct messages | Enable this for enabling the syncing of direct messages.
+Sync group messages | Enable this for enabling the syncing of group messages.
 Enabled Teams | This config is for the Mattermost teams for which syncing is enabled. Enter a comma-separated list of Mattermost team names. If you leave it empty, it will enable syncing for all the teams.
 Prompt interval for DMs and GMs (in hours) | This setting is for configuring the interval after which the user will get a prompt to connect their account when they try to post a message in a DM or GM without connecting their account. Leaving it empty will disable the prompt.
 Maximum size of attachments to support complete one time download (in MB) | This setting is for configuring the maximum size of attachments that can be loaded into memory. Attachments bigger than this size will be streamed from MS Teams to Mattermost.

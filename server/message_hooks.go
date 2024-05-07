@@ -54,11 +54,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	if channel.IsGroupOrDirect() {
-		if !p.getConfiguration().SyncDirectMessages {
-			return
-		}
-
+	if channel.IsGroupOrDirect() && p.ShouldSyncDMGMChannel(channel) {
 		if p.getConfiguration().SelectiveSync {
 			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
@@ -109,11 +105,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	if isDirectOrGroupMessage {
-		if !p.getConfiguration().SyncDirectMessages {
-			return
-		}
-
+	if isDirectOrGroupMessage && p.ShouldSyncDMGMChannel(channel) {
 		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
 			return
@@ -186,7 +178,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		if appErr != nil {
 			return
 		}
-		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
+		if p.ShouldSyncDMGMChannel(channel) {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
@@ -234,7 +226,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if appErr != nil {
 			return
 		}
-		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
+		if p.ShouldSyncDMGMChannel(channel) {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
@@ -272,7 +264,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 		if !channel.IsGroupOrDirect() {
 			return
 		}
-		if !p.getConfiguration().SyncDirectMessages {
+		if !p.ShouldSyncDMGMChannel(channel) {
 			return
 		}
 
@@ -1022,4 +1014,15 @@ func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client mst
 	}
 
 	return client.GetMessage(teamID, channelID, msteamsID)
+}
+
+func (p *Plugin) ShouldSyncDMGMChannel(channel *model.Channel) bool {
+	switch channel.Type {
+	case model.ChannelTypeDirect:
+		return p.getConfiguration().SyncDirectMessages
+	case model.ChannelTypeGroup:
+		return p.getConfiguration().SyncGroupMessages
+	default:
+		return false
+	}
 }

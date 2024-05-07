@@ -43,6 +43,7 @@ const (
 	DiscardedReasonNotUserEvent              = "no_user_event"
 	DiscardedReasonOther                     = "other"
 	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
+	DiscardedReasonGroupMessagesDisabled     = "group_messages_disabled"
 	DiscardedReasonLinkedChannelsDisabled    = "linked_channels_disabled"
 	DiscardedReasonInactiveUser              = "inactive_user"
 	DiscardedReasonDuplicatedPost            = "duplicated_post"
@@ -73,11 +74,11 @@ type Metrics interface {
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
-	ObserveMessage(action, source string, isDirectMessage bool)
-	ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration)
-	ObserveReaction(action, source string, isDirectMessage bool)
-	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
-	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
+	ObserveMessage(action, source string, isDirectOrGroupMessage bool)
+	ObserveMessageDelay(action, source string, isDirectOrGroupMessage bool, delay time.Duration)
+	ObserveReaction(action, source string, isDirectOrGroupMessage bool)
+	ObserveFiles(action, source, discardedReason string, isDirectOrGroupMessage bool, count int64)
+	ObserveFile(action, source, discardedReason string, isDirectOrGroupMessage bool)
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
@@ -517,33 +518,33 @@ func (m *metrics) ObserveLifecycleEvent(eventType string, discardedReason string
 	}
 }
 
-func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveMessage(action, source string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration) {
+func (m *metrics) ObserveMessageDelay(action, source string, isDirectOrGroupMessage bool, delay time.Duration) {
 	if m != nil {
-		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Observe(delay.Seconds())
+		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Observe(delay.Seconds())
 	}
 }
 
-func (m *metrics) ObserveReaction(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveReaction(action, source string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64) {
+func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectOrGroupMessage bool, count int64) {
 	if m != nil {
-		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage), "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
-func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
+func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage), "discarded_reason": discardedReason}).Inc()
 	}
 }
 

@@ -27,6 +27,7 @@ type pluginMock struct {
 	api                        plugin.API
 	store                      store.Store
 	syncDirectMessages         bool
+	syncGroupMessages          bool
 	syncLinkedChannels         bool
 	syncReactions              bool
 	syncFileAttachments        bool
@@ -47,6 +48,7 @@ func (pm *pluginMock) GetAPI() plugin.API                              { return 
 func (pm *pluginMock) GetStore() store.Store                           { return pm.store }
 func (pm *pluginMock) GetSyncLinkedChannels() bool                     { return pm.syncLinkedChannels }
 func (pm *pluginMock) GetSyncDirectMessages() bool                     { return pm.syncDirectMessages }
+func (pm *pluginMock) GetSyncGroupMessages() bool                      { return pm.syncGroupMessages }
 func (pm *pluginMock) GetSyncFileAttachments() bool                    { return pm.syncFileAttachments }
 func (pm *pluginMock) GetSyncReactions() bool                          { return pm.syncReactions }
 func (pm *pluginMock) GetSyncGuestUsers() bool                         { return pm.syncGuestUsers }
@@ -80,6 +82,7 @@ func newTestHandler() *ActivityHandler {
 		botUserID:                  "bot-user-id",
 		url:                        "fake-url",
 		syncDirectMessages:         false,
+		syncGroupMessages:          false,
 		syncGuestUsers:             false,
 		maxSizeForCompleteDownload: 20,
 		bufferSizeForStreaming:     20,
