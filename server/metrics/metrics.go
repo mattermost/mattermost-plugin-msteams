@@ -93,7 +93,7 @@ type Metrics interface {
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
-	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
+	ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64)
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -456,7 +456,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 			Help:        "Time to execute the client methods",
 			ConstLabels: additionalLabels,
 		},
-		[]string{"method", "success"},
+		[]string{"method", "success", "status_code"},
 	)
 	m.registry.MustRegister(m.msGraphClientTime)
 
@@ -659,9 +659,9 @@ func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	}
 }
 
-func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
+func (m *metrics) ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64) {
 	if m != nil {
-		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
+		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 

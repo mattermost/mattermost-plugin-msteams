@@ -522,7 +522,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", "0", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
@@ -548,7 +548,7 @@ func TestAutocompleteTeams(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", "2XX", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
@@ -630,7 +630,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", "0", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{},
 		},
@@ -657,7 +657,7 @@ func TestAutocompleteChannels(t *testing.T) {
 				}, nil).Times(1)
 			},
 			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", mock.AnythingOfType("float64")).Once()
+				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", "2XX", mock.AnythingOfType("float64")).Once()
 			},
 			ExpectedResult: []model.AutocompleteListItem{
 				{
