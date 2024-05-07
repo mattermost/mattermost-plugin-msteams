@@ -18,6 +18,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
@@ -1239,6 +1240,87 @@ func TestHandleReactions(t *testing.T) {
 			testCase.setupMetrics(mockmetrics)
 
 			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), false, testCase.reactions)
+		})
+	}
+}
+
+func TestShouldSyncDMGMChannel(t *testing.T) {
+
+	testCases := []struct {
+		Name             string
+		ChatMembersCount int
+
+		EnableDM bool
+		EnableGM bool
+
+		ShouldSync          bool
+		ReasonForNotSyncing string
+	}{
+		{
+			Name:             "should sync self messages if DM are enabled",
+			ChatMembersCount: 1,
+			EnableDM:         true,
+			ShouldSync:       true,
+		},
+		{
+			Name:                "should not sync self messages if DM are disabled",
+			ChatMembersCount:    1,
+			EnableDM:            false,
+			ShouldSync:          false,
+			ReasonForNotSyncing: metrics.DiscardedReasonDirectMessagesDisabled,
+		},
+		{
+			Name:             "should sync DMs if DM are enabled",
+			ChatMembersCount: 2,
+			EnableDM:         true,
+			ShouldSync:       true,
+		},
+		{
+			Name:                "should not sync DMs if DM are disabled",
+			ChatMembersCount:    2,
+			EnableDM:            false,
+			ShouldSync:          false,
+			ReasonForNotSyncing: metrics.DiscardedReasonDirectMessagesDisabled,
+		},
+		{
+			Name:             "should sync GMs if GM are enabled",
+			ChatMembersCount: 3,
+			EnableGM:         true,
+			ShouldSync:       true,
+		},
+		{
+			Name:                "should not sync GMs if GM are disabled",
+			ChatMembersCount:    3,
+			EnableGM:            false,
+			ShouldSync:          false,
+			ReasonForNotSyncing: metrics.DiscardedReasonGroupMessagesDisabled,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			assert := require.New(t)
+			p := mocksPlugin.NewPluginIface(t)
+
+			if tc.ChatMembersCount <= 2 {
+				p.On("GetSyncDirectMessages").Return(tc.EnableDM).Once()
+			} else {
+				p.On("GetSyncGroupMessages").Return(tc.EnableGM).Once()
+			}
+
+			ah := ActivityHandler{
+				plugin: p,
+			}
+
+			chat := &clientmodels.Chat{
+				Members: make([]clientmodels.ChatMember, tc.ChatMembersCount),
+			}
+
+			shouldSync, reason := ah.ShouldSyncDMGMChannel(chat)
+			assert.Equal(tc.ShouldSync, shouldSync)
+			if !tc.ShouldSync {
+				assert.Equal(tc.ReasonForNotSyncing, reason)
+			}
 		})
 	}
 }
