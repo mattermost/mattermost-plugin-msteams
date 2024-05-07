@@ -1,3 +1,8 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import {PluginSiteStatsHandler} from '@mattermost/webapp/types/store/plugins'
+
 export type BasePluginConfigurationSetting = {
 
     /** Name of the setting. This will be the name used to store in the preferences. */
@@ -80,7 +85,7 @@ export interface PluginRegistry {
     registerRootComponent(component: React.ElementType)
     registerAdminConsoleCustomSetting(key: string, component: React.ElementType)
     registerUserSettings?(setting: PluginConfiguration)
-    registerSiteStatisticsHandler(handler: any)
+    registerSiteStatisticsHandler(handler: PluginSiteStatsHandler)
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }
