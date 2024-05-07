@@ -8,14 +8,14 @@ import (
 )
 
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
-	channel, err := p.apiClient.Channel.GetDirect(userID, p.userID)
+	channel, err := p.apiClient.Channel.GetDirect(userID, p.botID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
 	}
 
 	return p.apiClient.Post.CreatePost(&model.Post{
 		Message:   message,
-		UserId:    p.userID,
+		UserId:    p.botID,
 		ChannelId: channel.Id,
 	})
 }
