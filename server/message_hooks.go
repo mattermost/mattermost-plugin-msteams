@@ -609,6 +609,11 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
+
+	if err := p.store.SetUserLastChatSentAt(post.UserId, storemodels.MilliToMicroSeconds(post.CreateAt)); err != nil {
+		p.API.LogWarn("Unable to set user last chat sent At", "user_id", post.UserId, "post_id", post.Id, "error", err.Error())
+	}
+
 	return newMessage.ID, nil
 }
 

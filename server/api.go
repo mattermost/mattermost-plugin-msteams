@@ -927,7 +927,7 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := a.p.store.GetStats(a.p.GetRemoteID(), a.p.GetPreferenceCategoryName())
+	connectedUsersCount, err := a.p.store.GetConnectedUsersCount()
 	if err != nil {
 		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
 		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
@@ -937,7 +937,7 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	siteStats := struct {
 		TotalConnectedUsers int64 `json:"total_connected_users"`
 	}{
-		TotalConnectedUsers: stats.ConnectedUsers,
+		TotalConnectedUsers: connectedUsersCount,
 	}
 
 	data, err := json.Marshal(siteStats)

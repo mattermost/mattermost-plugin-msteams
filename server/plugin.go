@@ -49,6 +49,7 @@ const (
 	checkCredentialsJobName      = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
+	metricsActiveUsersRange    = 7 * 24 * time.Hour
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -884,19 +885,66 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	start := time.Now()
-	p.API.LogDebug("Updating metrics")
-	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
-	if err != nil {
-		p.API.LogWarn("failed to update computed metrics", "error", err)
-		return
+	now := time.Now()
+	p.API.LogInfo("Updating metrics")
+
+	// it's a bit of a special case because it returns two values
+	msTeamsPrimary, mmPrimary, primaryPlatformErr := p.store.GetUsersByPrimaryPlatformsCount(PreferenceCategoryPlugin)
+
+	stats := []struct {
+		name        string
+		getData     func() (int64, error)
+		observeData func(int64)
+	}{
+		{
+			name:        "connecter users",
+			getData:     p.store.GetConnectedUsersCount,
+			observeData: p.GetMetrics().ObserveConnectedUsers,
+		},
+		{
+			name:        "linked channels",
+			getData:     p.store.GetLinkedChannelsCount,
+			observeData: p.GetMetrics().ObserveLinkedChannels,
+		},
+		{
+			name: "synthetic users",
+			getData: func() (int64, error) {
+				return p.store.GetSyntheticUsersCount(p.remoteID)
+			},
+			observeData: p.GetMetrics().ObserveSyntheticUsers,
+		},
+		{
+			name:        "msteams primary users",
+			getData:     func() (int64, error) { return msTeamsPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMSTeamsPrimary,
+		},
+		{
+			name:        "mattermost primary users",
+			getData:     func() (int64, error) { return mmPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMattermostPrimary,
+		},
+		{
+			name:        "active users sending",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersSendingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersSending,
+		},
+		{
+			name:        "active users receiving",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersReceiving,
+		},
 	}
-	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
-	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
-	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
-	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
-	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
-	p.API.LogDebug("Updating metrics done", "duration", time.Since(start))
+	for _, stat := range stats {
+		data, err := stat.getData()
+		if err != nil {
+			p.API.LogWarn("failed to get data for metric "+stat.name, "error", err)
+			continue
+		}
+
+		stat.observeData(data)
+	}
+
+	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {

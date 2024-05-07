@@ -26,6 +26,9 @@ type Store interface {
 	GetHasConnectedCount() (int, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	DeleteUserInfo(mmUserID string) error
+	SetUserLastChatSentAt(mmUserID string, sentAt int64) error
+	SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error
+	SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error
 
 	// auth
 	StoreOAuth2State(state string) error
@@ -44,7 +47,12 @@ type Store interface {
 	SetWhitelist(userIDs []string, batchSize int) error
 
 	// stats
-	GetStats(remoteID, preferenceCategory string) (*storemodels.Stats, error)
+	GetLinkedChannelsCount() (linkedChannels int64, err error)
+	GetConnectedUsersCount() (connectedUsers int64, err error)
+	GetSyntheticUsersCount(remoteID string) (syntheticUsers int64, err error)
+	GetUsersByPrimaryPlatformsCount(preferenceCategory string) (msTeamsPrimary int64, mmPrimary int64, err error)
+	GetActiveUsersSendingCount(dur time.Duration) (activeUsersSending int64, err error)
+	GetActiveUsersReceivingCount(dur time.Duration) (activeUsersReceiving int64, err error)
 
 	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)

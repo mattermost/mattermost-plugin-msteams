@@ -84,6 +84,8 @@ type Metrics interface {
 	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
 	ObserveUpstreamUsers(count int64)
+	ObserveActiveUsersSending(count int64)
+	ObserveActiveUsersReceiving(count int64)
 	ObserveMattermostPrimary(count int64)
 	ObserveMSTeamsPrimary(count int64)
 
@@ -141,12 +143,14 @@ type metrics struct {
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
 
-	connectedUsers    prometheus.Gauge
-	syntheticUsers    prometheus.Gauge
-	linkedChannels    prometheus.Gauge
-	upstreamUsers     prometheus.Gauge
-	mattermostPrimary prometheus.Gauge
-	msTeamsPrimary    prometheus.Gauge
+	connectedUsers       prometheus.Gauge
+	syntheticUsers       prometheus.Gauge
+	linkedChannels       prometheus.Gauge
+	upstreamUsers        prometheus.Gauge
+	activeUsersSending   prometheus.Gauge
+	activeUsersReceiving prometheus.Gauge
+	mattermostPrimary    prometheus.Gauge
+	msTeamsPrimary       prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
@@ -381,6 +385,24 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.upstreamUsers)
 
+	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "active_users_sending",
+		Help:        "The number of users who have sent messages in the last week.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.activeUsersSending)
+
+	m.activeUsersReceiving = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "active_users_receiving",
+		Help:        "The number of users who have received messages in the last week.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.activeUsersReceiving)
+
 	m.mattermostPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -568,6 +590,18 @@ func (m *metrics) ObserveLinkedChannels(count int64) {
 func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveActiveUsersSending(count int64) {
+	if m != nil {
+		m.activeUsersSending.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveActiveUsersReceiving(count int64) {
+	if m != nil {
+		m.activeUsersReceiving.Set(float64(count))
 	}
 }
 

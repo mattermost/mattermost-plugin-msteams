@@ -303,13 +303,15 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	var senderID string
 	var channelID string
+	// userIDs is used to determine the participants of a DM/GM
+	var userIDs []string
 	if chat != nil {
 		if !ah.plugin.GetSyncDirectMessages() {
 			// Skipping because direct/group messages are disabled
 			return metrics.DiscardedReasonDirectMessagesDisabled
 		}
 
-		channelID, err = ah.getChatChannelID(chat)
+		channelID, userIDs, err = ah.getChatChannelIDAndUsersID(chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 			return metrics.DiscardedReasonOther
@@ -385,6 +387,24 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	if newPost != nil && newPost.Id != "" && msg.ID != "" {
 		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
 			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
+		}
+	}
+
+	// Update the last chat received at for the participants of DM/GM
+	if chat != nil && len(userIDs) > 0 {
+		// exclude the sender from the list of participants
+		participants := make([]string, 0, len(userIDs)-1)
+		for _, userID := range userIDs {
+			if userID != post.UserId {
+				participants = append(participants, userID)
+			}
+		}
+
+		if len(participants) > 0 {
+			err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, storemodels.MilliToMicroSeconds(post.CreateAt))
+			if err != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
+			}
 		}
 	}
 
