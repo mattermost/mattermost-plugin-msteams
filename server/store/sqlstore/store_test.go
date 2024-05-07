@@ -214,9 +214,9 @@ func TestListChannelLinksWithNames(t *testing.T) {
 		Creator:               "mockCreator",
 	}
 
-	_, err := store.getQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
 	assert.Nil(err)
-	_, err = store.getQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
+	_, err = store.getMasterQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
 	assert.Nil(err)
 
 	links, err := store.ListChannelLinksWithNames()
@@ -947,7 +947,7 @@ func TestListConnectedUsers(t *testing.T) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	_, err := store.getQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
 	assert.Nil(err)
 
 	resp, getErr := store.GetConnectedUsers(0, 100)
@@ -1028,13 +1028,13 @@ func TestGetStats(t *testing.T) {
 	assert := require.New(t)
 
 	cleanup := func() {
-		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
+		_, err := store.getMasterQueryBuilder().Delete("Users").Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete("Preferences").Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
 		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		_, err = store.getMasterQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
 		assert.Nil(err)
 	}
 	cleanup()
@@ -1067,7 +1067,7 @@ func TestGetStats(t *testing.T) {
 				platform = storemodels.PreferenceValuePlatformMSTeams
 			}
 
-			_, err = store.getQueryBuilder().Insert("preferences").
+			_, err = store.getMasterQueryBuilder().Insert("preferences").
 				Columns("userid, category, name, value").
 				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
 				Exec()
@@ -1077,7 +1077,7 @@ func TestGetStats(t *testing.T) {
 		// create 3 users synthetic users
 		for i := 0; i < 3; i++ {
 			userID := model.NewId()
-			_, err := store.getQueryBuilder().Insert("Users").
+			_, err := store.getMasterQueryBuilder().Insert("Users").
 				Columns("Id, remoteid").
 				Values(userID, remoteID).Exec()
 			assert.Nil(err)
