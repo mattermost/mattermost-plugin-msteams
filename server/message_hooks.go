@@ -54,7 +54,11 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	if channel.IsGroupOrDirect() && p.ShouldSyncDMGMChannel(channel) {
+	if channel.IsGroupOrDirect() {
+		if !p.ShouldSyncDMGMChannel(channel) {
+			return
+		}
+
 		if p.getConfiguration().SelectiveSync {
 			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
@@ -105,7 +109,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 
-	if isDirectOrGroupMessage && p.ShouldSyncDMGMChannel(channel) {
+	if isDirectOrGroupMessage {
+		if !p.ShouldSyncDMGMChannel(channel) {
+			return
+		}
+
 		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
 			return
