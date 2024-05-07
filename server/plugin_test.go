@@ -100,7 +100,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.apiHandler = NewAPI(plugin, plugin.store)
 
 	plugin.metricsService = mockMetricsService
-	plugin.botID = "bot-user-id"
+	plugin.botUsertID = "bot-user-id"
 	return plugin
 }
 

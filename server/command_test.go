@@ -504,7 +504,7 @@ func TestExecuteDisconnectBotCommand(t *testing.T) {
 			ChannelId: model.NewId(),
 		}
 
-		err := th.p.store.SetUserInfo(th.p.botID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+		err := th.p.store.SetUserInfo(th.p.botUsertID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 
 		require.NoError(t, err)
 
@@ -886,7 +886,7 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 			ChannelId: model.NewId(),
 		}
 
-		err := th.p.store.SetUserInfo(th.p.botID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
+		err := th.p.store.SetUserInfo(th.p.botUsertID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 		require.NoError(t, err)
 
 		commandResponse, appErr := th.p.executeConnectBotCommand(args)
