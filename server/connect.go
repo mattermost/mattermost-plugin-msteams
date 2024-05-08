@@ -93,7 +93,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 		invitedUser.InvitePendingSince = currentTime
 	}
 
-	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.botUsertID)
+	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.botUserID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
@@ -101,7 +101,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	message := fmt.Sprintf("@%s, you’re invited to use the Microsoft Teams connected experience for Mattermost. ", user.Username)
 	invitePost := &model.Post{
 		Message:   message,
-		UserId:    p.botUsertID,
+		UserId:    p.botUserID,
 		ChannelId: channel.Id,
 	}
 	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
