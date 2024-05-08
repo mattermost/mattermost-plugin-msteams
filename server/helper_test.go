@@ -345,7 +345,7 @@ func (th *testHelper) CreateBot(t *testing.T) *model.Bot {
 	}
 
 	bot, err := th.p.API.CreateBot(bot)
-	require.NoError(t, err)
+	require.Nil(t, err)
 
 	return bot
 }
