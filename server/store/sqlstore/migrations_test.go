@@ -48,7 +48,7 @@ func TestRunMSTeamUserIDDedup(t *testing.T) {
 	assert.NoError(err)
 	defer func() { _ = store.createMSTeamsUserIDUniqueIndex() }()
 
-	res, err := store.getQueryBuilder().Insert("users").
+	res, err := store.getMasterQueryBuilder().Insert("users").
 		Columns("id", "createat", "remoteid").
 		Values(userID1Remote, 100, "remote-id").
 		Values(userID2, 200, "").
@@ -62,7 +62,7 @@ func TestRunMSTeamUserIDDedup(t *testing.T) {
 
 	// ms teams user 1 will have all 3 users;
 	// user1 and 3 should be removed after the dedup because user 2 is a real user
-	res, err = store.getQueryBuilder().Insert(usersTableName).Columns("mmuserid", "msteamsuserid").
+	res, err = store.getMasterQueryBuilder().Insert(usersTableName).Columns("mmuserid", "msteamsuserid").
 		Values(userID1Remote, teamsUserA).
 		Values(userID2, teamsUserA).
 		Values(userID3Remote, teamsUserA).
@@ -82,7 +82,7 @@ func TestRunMSTeamUserIDDedup(t *testing.T) {
 	err = store.runMSTeamUserIDDedup()
 	assert.NoError(err)
 
-	rows, err := store.getQueryBuilder().Select("mmuserid", "msteamsuserid").From(usersTableName).Query()
+	rows, err := store.getMasterQueryBuilder().Select("mmuserid", "msteamsuserid").From(usersTableName).Query()
 	assert.NoError(err)
 	var found int
 	for rows.Next() {

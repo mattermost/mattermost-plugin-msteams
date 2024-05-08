@@ -189,14 +189,6 @@ func generateLayer(name, templateFile string) ([]byte, error) {
 			}
 			return strings.Join(vars, ", ")
 		},
-		"errorToBoolean": func(results []string) string {
-			for _, typeName := range results {
-				if isError(typeName) {
-					return "err == nil"
-				}
-			}
-			return "true"
-		},
 		"errorPresent": func(results []string) bool {
 			for _, typeName := range results {
 				if isError(typeName) {
