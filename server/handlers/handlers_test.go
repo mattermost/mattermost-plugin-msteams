@@ -1245,7 +1245,6 @@ func TestHandleReactions(t *testing.T) {
 }
 
 func TestShouldSyncDMGMChannel(t *testing.T) {
-
 	testCases := []struct {
 		Name             string
 		ChatMembersCount int
