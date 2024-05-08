@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
@@ -24,189 +27,273 @@ import (
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
-	mockMessage := &clientmodels.Message{
-		ID:           "ms-teams-id",
-		TeamID:       "ms-teams-team-id",
-		ChannelID:    "ms-teams-channel-id",
-		LastUpdateAt: testutils.GetMockTime(),
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+	user2 := th.SetupUser(t, team)
+
+	client1 := th.SetupClient(t, user1.Id)
+
+	// expectChat sets up the clientMock to expect a new chat message between the given users.
+	expectChat := func(t *testing.T, th *testHelper, user1, user2 *model.User) (string, string) {
+		chatID := model.NewId()
+		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(&clientmodels.Chat{
+			ID: chatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID:      "t" + user1.Id,
+					Email:       user1.Email,
+					DisplayName: user1.GetDisplayName(""),
+				},
+				{
+					UserID:      "t" + user2.Id,
+					Email:       user2.Email,
+					DisplayName: user2.GetDisplayName(""),
+				},
+			},
+		}, nil).Maybe()
+
+		teamsMessageID := model.NewId()
+		th.clientMock.On(
+			"SendChat",
+			chatID,
+			mock.AnythingOfType("string"),
+			(*clientmodels.Message)(nil),
+			[]*clientmodels.Attachment(nil),
+			[]models.ChatMessageMentionable{},
+		).Return(&clientmodels.Message{
+			ID:       teamsMessageID,
+			CreateAt: time.Now(),
+		}, nil).Times(1)
+
+		return chatID, teamsMessageID
 	}
-	for _, test := range []struct {
-		Name         string
-		SetupPlugin  func(*Plugin)
-		SetupAPI     func(*plugintest.API)
-		SetupStore   func(*storemocks.Store)
-		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			Name: "ReactionHasBeenAdded: disabled by configuration",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = false
-			},
-			SetupAPI: func(api *plugintest.API) {},
-			SetupStore: func(store *storemocks.Store) {
-			},
-			SetupClient:  func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to get the post info",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", mock.AnythingOfType("string")).Return("", testutils.GetInternalServerAppError("unable to get the source user ID")).Times(1)
-			},
-			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to get the link by channel ID and channel",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-			},
-			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to get the post",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(1)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{}, nil).Times(1)
-			},
-			SetupClient: func(c *clientmocks.Client, uc *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to set the reaction",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to set the reaction")).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "false", "0", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Unable to set the post last updateAt time",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), testutils.GetMockTime()).Return(errors.New("unable to set post lastUpdateAt value")).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "ReactionHasBeenAdded: Valid",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncReactions = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetPost", testutils.GetID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil).Times(1)
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{MattermostID: testutils.GetID(), MSTeamsID: "ms-teams-id", MSTeamsChannel: "ms-teams-channel-id", MSTeamsLastUpdateAt: time.UnixMicro(100)}, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{MattermostTeamID: "mm-team-id", MattermostChannelID: "mm-channel-id", MSTeamsTeam: "ms-teams-team-id", MSTeamsChannel: "ms-teams-channel-id"}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Once()
-				store.On("SetPostLastUpdateAtByMattermostID", testutils.GetID(), testutils.GetMockTime()).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReaction", metrics.ReactionSetAction, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SetReaction", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin(t)
-			test.SetupPlugin(p)
-			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			p.ReactionHasBeenAdded(&plugin.Context{}, testutils.GetReaction())
+
+	// expectChatReaction sets up the clientMock to expect a new reaction on the given message.
+	expectChatReaction := func(t *testing.T, th *testHelper, chatID, teamsMessageID string) {
+		th.clientMock.On("SetChatReaction", chatID, teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
+			ID:           teamsMessageID,
+			LastUpdateAt: time.Now(),
+		}, nil).Times(1)
+	}
+
+	// expectFailedChatReaction sets up the clientMock to expect a failed reaction on the given message.
+	expectFailedChatReaction := func(t *testing.T, th *testHelper, chatID, teamsMessageID string) {
+		th.clientMock.On("SetChatReaction", chatID, teamsMessageID, "t"+user1.Id, "👍").Return(nil, fmt.Errorf("mock failure")).Times(1)
+	}
+
+	t.Run("sync reactions disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.p.configuration.SyncReactions = false
+		th.p.configuration.SyncDirectMessages = true
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		expectChat(t, th, user1, user2)
+
+		channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+		require.Nil(t, err)
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    user1.Id,
+			Message:   "Test reaction",
 		})
-	}
+		require.Nil(t, err)
+
+		_, _, err = client1.SaveReaction(context.TODO(), &model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+			ChannelId: channel.Id,
+		})
+		require.Nil(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_reactions_total",
+				withLabel("action", metrics.ReactionSetAction),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("no corresponding Teams post", func(t *testing.T) {
+		th.Reset(t)
+		th.p.configuration.SyncDirectMessages = false
+		th.p.configuration.SyncReactions = true
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+		require.Nil(t, err)
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    user1.Id,
+			Message:   "Test reaction",
+		})
+		require.Nil(t, err)
+
+		// Re-enable syncing of direct messages, but react to post previously made.
+		th.p.configuration.SyncDirectMessages = true
+		_, _, err = client1.SaveReaction(context.TODO(), &model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+			ChannelId: channel.Id,
+		})
+		require.Nil(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_reactions_total",
+				withLabel("action", metrics.ReactionSetAction),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message, sync disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.p.configuration.SyncReactions = true
+		th.p.configuration.SyncDirectMessages = false
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+		require.Nil(t, err)
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    user1.Id,
+			Message:   "Test reaction",
+		})
+		require.Nil(t, err)
+
+		_, _, err = client1.SaveReaction(context.TODO(), &model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+			ChannelId: channel.Id,
+		})
+		require.Nil(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_reactions_total",
+				withLabel("action", metrics.ReactionSetAction),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message, failed to set the reaction", func(t *testing.T) {
+		th.Reset(t)
+		th.p.configuration.SyncReactions = true
+		th.p.configuration.SyncDirectMessages = true
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		chatID, teamsMessageID := expectChat(t, th, user1, user2)
+		expectFailedChatReaction(t, th, chatID, teamsMessageID)
+
+		channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+		require.Nil(t, err)
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    user1.Id,
+			Message:   "Test reaction",
+		})
+		require.Nil(t, err)
+
+		_, _, err = client1.SaveReaction(context.TODO(), &model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+			ChannelId: channel.Id,
+		})
+		require.Nil(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_reactions_total",
+				withLabel("action", metrics.ReactionSetAction),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message, succeeded", func(t *testing.T) {
+		th.Reset(t)
+		th.p.configuration.SyncReactions = true
+		th.p.configuration.SyncDirectMessages = true
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		chatID, teamsMessageID := expectChat(t, th, user1, user2)
+		expectChatReaction(t, th, chatID, teamsMessageID)
+
+		channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+		require.Nil(t, err)
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    user1.Id,
+			Message:   "Test reaction",
+		})
+		require.Nil(t, err)
+
+		_, _, err = client1.SaveReaction(context.TODO(), &model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+			ChannelId: channel.Id,
+		})
+		require.Nil(t, err)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_reactions_total",
+				withLabel("action", metrics.ReactionSetAction),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("channel message, no longer linked", func(t *testing.T) {
+		t.Skip()
+		th.Reset(t)
+	})
+
+	t.Run("channel message, failed to set the reaction", func(t *testing.T) {
+		t.Skip()
+		th.Reset(t)
+
+		// 	SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+		// 		uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(nil, errors.New("unable to set the reaction")).Times(1)
+		// 	},
+	})
+
+	t.Run("channel message", func(t *testing.T) {
+		t.Skip()
+		th.Reset(t)
+
+		// 	SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
+		// 		uclient.On("SetReaction", "ms-teams-team-id", "ms-teams-channel-id", "", "ms-teams-id", testutils.GetID(), mock.AnythingOfType("string")).Return(mockMessage, nil).Times(1)
+		// 	},
+	})
 }
 
 func TestReactionHasBeenRemoved(t *testing.T) {
