@@ -26,6 +26,7 @@ import (
 type pluginMock struct {
 	api                        plugin.API
 	store                      store.Store
+	syncNotifications          bool
 	syncDirectMessages         bool
 	syncGroupMessages          bool
 	syncLinkedChannels         bool
@@ -36,6 +37,7 @@ type pluginMock struct {
 	bufferSizeForStreaming     int
 	botUserID                  string
 	url                        string
+	tenantID                   string
 	appClient                  msteams.Client
 	userClient                 msteams.Client
 	teamsUserClient            msteams.Client
@@ -47,6 +49,7 @@ type pluginMock struct {
 func (pm *pluginMock) GetAPI() plugin.API                              { return pm.api }
 func (pm *pluginMock) GetStore() store.Store                           { return pm.store }
 func (pm *pluginMock) GetSyncLinkedChannels() bool                     { return pm.syncLinkedChannels }
+func (pm *pluginMock) GetSyncNotifications() bool                      { return pm.syncNotifications }
 func (pm *pluginMock) GetSyncDirectMessages() bool                     { return pm.syncDirectMessages }
 func (pm *pluginMock) GetSyncGroupMessages() bool                      { return pm.syncGroupMessages }
 func (pm *pluginMock) GetSyncFileAttachments() bool                    { return pm.syncFileAttachments }
@@ -59,6 +62,7 @@ func (pm *pluginMock) GetURL() string                                  { return 
 func (pm *pluginMock) IsRemoteUser(user *model.User) bool              { return user.RemoteId != nil }
 func (pm *pluginMock) GetRemoteID() string                             { return pm.remoteID }
 func (pm *pluginMock) GetMetrics() metrics.Metrics                     { return pm.metrics }
+func (pm *pluginMock) GetTenantID() string                             { return pm.tenantID }
 func (pm *pluginMock) GetClientForApp() msteams.Client                 { return pm.appClient }
 func (pm *pluginMock) GetClientForUser(string) (msteams.Client, error) { return pm.userClient, nil }
 func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
