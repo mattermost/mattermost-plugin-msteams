@@ -184,6 +184,34 @@ func TestCanAutomuteChannel(t *testing.T) {
 		assert.Equal(t, true, result)
 	})
 
+	t.Run("should return false for a DM/GM channel with guest user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		user2 := th.SetupGuestUser(t, team)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		require.Nil(t, appErr)
+
+		result, err := th.p.canAutomuteChannel(channel)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("should return false for a DM/GM channel with bot user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		bot := th.CreateBot(t)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, bot.UserId)
+		require.Nil(t, appErr)
+
+		result, err := th.p.canAutomuteChannel(channel)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
 	t.Run("should return false for an unlinked channel", func(t *testing.T) {
 		th.Reset(t)
 

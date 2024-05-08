@@ -69,9 +69,9 @@ type Plugin struct {
 	stopSubscriptions func()
 	stopContext       context.Context
 
-	botUsertID string
-	remoteID   string
-	apiClient  *pluginapi.Client
+	botUserID string
+	remoteID  string
+	apiClient *pluginapi.Client
 
 	store                     store.Store
 	subscriptionsClusterMutex *cluster.Mutex
@@ -138,7 +138,7 @@ func (p *Plugin) GetBufferSizeForStreaming() int {
 }
 
 func (p *Plugin) GetBotUserID() string {
-	return p.botUsertID
+	return p.botUserID
 }
 
 func (p *Plugin) GetSelectiveSync() bool {
@@ -481,7 +481,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.botUsertID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
+	p.botUserID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -493,7 +493,7 @@ func (p *Plugin) onActivate() error {
 	p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 		Displayname:  pluginID,
 		PluginID:     pluginID,
-		CreatorID:    p.botUsertID,
+		CreatorID:    p.botUserID,
 		AutoShareDMs: false,
 		AutoInvited:  true,
 	})
@@ -550,7 +550,7 @@ func (p *Plugin) onActivate() error {
 				TeamId:    linkedChannel.MattermostTeamID,
 				Home:      true,
 				ReadOnly:  false,
-				CreatorId: p.botUsertID,
+				CreatorId: p.botUserID,
 				RemoteId:  p.remoteID,
 				ShareName: linkedChannel.MattermostChannelID,
 			})

@@ -50,7 +50,7 @@ func (p *Plugin) cmdError(args *model.CommandArgs, detailedError string) (*model
 func (p *Plugin) sendBotEphemeralPost(userID, channelID, message string) {
 	_ = p.API.SendEphemeralPost(userID, &model.Post{
 		Message:   message,
-		UserId:    p.botUsertID,
+		UserId:    p.botUserID,
 		ChannelId: channelID,
 	})
 }
@@ -245,7 +245,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 			TeamId:    channelLink.MattermostTeamID,
 			Home:      true,
 			ReadOnly:  false,
-			CreatorId: p.botUsertID,
+			CreatorId: p.botUserID,
 			RemoteId:  p.remoteID,
 			ShareName: channelLink.MattermostChannelID,
 		}); err != nil {
@@ -492,22 +492,22 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args, "Unable to connect the bot account, only system admins can connect the bot account.")
 	}
 
-	if storedToken, _ := p.store.GetTokenForMattermostUser(p.botUsertID); storedToken != nil {
+	if storedToken, _ := p.store.GetTokenForMattermostUser(p.botUserID); storedToken != nil {
 		return p.cmdError(args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	}
 
 	genericErrorMessage := "Error in trying to connect the bot account, please try again."
 
-	hasRightToConnect, err := p.UserHasRightToConnect(p.botUsertID)
+	hasRightToConnect, err := p.UserHasRightToConnect(p.botUserID)
 	if err != nil {
-		p.API.LogWarn("Error in checking if the bot user has the right to connect", "bot_user_id", p.botUsertID, "error", err.Error())
+		p.API.LogWarn("Error in checking if the bot user has the right to connect", "bot_user_id", p.botUserID, "error", err.Error())
 		return p.cmdError(args, genericErrorMessage)
 	}
 
 	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(p.botUsertID)
+		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(p.botUserID)
 		if openConnectErr != nil {
-			p.API.LogWarn("Error in checking if the bot user can openly connect", "bot_user_id", p.botUsertID, "error", openConnectErr.Error())
+			p.API.LogWarn("Error in checking if the bot user can openly connect", "bot_user_id", p.botUserID, "error", openConnectErr.Error())
 			return p.cmdError(args, genericErrorMessage)
 		}
 
@@ -549,11 +549,11 @@ func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.Co
 		return p.cmdError(args, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
 	}
 
-	if _, err := p.store.MattermostToTeamsUserID(p.botUsertID); err != nil {
+	if _, err := p.store.MattermostToTeamsUserID(p.botUserID); err != nil {
 		return p.cmdSuccess(args, "Error: unable to find the connected bot account")
 	}
 
-	if err := p.store.DeleteUserInfo(p.botUsertID); err != nil {
+	if err := p.store.DeleteUserInfo(p.botUserID); err != nil {
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
 	}
 
