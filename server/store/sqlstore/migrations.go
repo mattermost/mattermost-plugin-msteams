@@ -9,7 +9,7 @@ import (
 )
 
 func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
-	_, err := s.getQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
+	_, err := s.getMasterQueryBuilder().Update("Users").Set("RemoteID", remoteID).Where(sq.And{
 		sq.NotEq{"RemoteID": nil},
 		sq.NotEq{"RemoteID": ""},
 		sq.Expr("RemoteID NOT IN (SELECT remoteid FROM remoteclusters)"),
@@ -19,7 +19,7 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 }
 
 func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
-	_, err := s.getQueryBuilder().
+	_, err := s.getMasterQueryBuilder().
 		Update("Users").
 		Set("EmailVerified", true).
 		Where(sq.And{
@@ -37,7 +37,7 @@ const (
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
 	// get all users with duplicate msteamsuserid
-	rows, err := s.getQueryBuilder().Select(
+	rows, err := s.getReplicaQueryBuilder().Select(
 		"mmuserid",
 		"msteamsuserid",
 		"remoteid",
@@ -103,7 +103,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 	}
 
 	s.api.LogInfo("Deleting duplicates")
-	_, err = s.getQueryBuilder().Delete(usersTableName).
+	_, err = s.getMasterQueryBuilder().Delete(usersTableName).
 		Where(orCond).
 		Exec()
 
@@ -129,7 +129,7 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	// as being added to the old whitelist only happened after successful connection.
 
 	// has-connected users (presently and previously)
-	_, err = s.getQueryBuilder().
+	_, err = s.getMasterQueryBuilder().
 		Update(usersTableName).
 		Set("lastConnectAt", now.UnixMicro()).
 		Where(sq.Or{
@@ -142,7 +142,7 @@ func (s *SQLStore) ensureMigrationWhitelistedUsers() error {
 	}
 
 	// only previously-connected
-	_, err = s.getQueryBuilder().
+	_, err = s.getMasterQueryBuilder().
 		Update(usersTableName).
 		Set("lastDisconnectAt", now.UnixMicro()).
 		Where(sq.And{
