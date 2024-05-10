@@ -17,13 +17,12 @@ func (p *Plugin) ChannelHasRemoteUsers(channelID string) (bool, error) {
 		return true, nil
 	}
 
-	return true, nil
-	// containsRemote, err := p.MembersContainsRemote(members)
-	// if err != nil {
-	// 	return false, err
-	// }
+	containsRemote, err := p.MembersContainsRemote(members)
+	if err != nil {
+		return false, err
+	}
 
-	// return containsRemote, nil
+	return containsRemote, nil
 }
 
 // MembersContainsRemote determines if any of the given channel members are remote.
