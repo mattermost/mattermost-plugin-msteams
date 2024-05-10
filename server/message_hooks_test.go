@@ -457,6 +457,17 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		require.Nil(t, err)
 
 		if sync {
+			assert.Eventually(t, func() bool {
+				return th.getRelativeCounter(t,
+					"msteams_connect_events_messages_total",
+					withLabel("action", metrics.ActionCreated),
+					withLabel("source", metrics.ActionSourceMattermost),
+					withLabel("is_direct", "true"),
+				) == 1
+			}, 5*time.Second, 250*time.Millisecond)
+		}
+
+		if sync {
 			th.clientMock.On("SetChatReaction", chatID, teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
 				ID:           teamsMessageID,
 				LastUpdateAt: time.Now(),
