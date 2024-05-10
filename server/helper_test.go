@@ -573,3 +573,11 @@ func (th *testHelper) getRelativeCounter(t *testing.T, name string, labelOptions
 
 	return after - before
 }
+
+func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) {
+	t.Helper()
+
+	c := th.p.getConfiguration().Clone()
+	update(c)
+	th.p.setConfiguration(c)
+}

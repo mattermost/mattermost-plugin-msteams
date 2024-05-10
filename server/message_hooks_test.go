@@ -36,7 +36,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 
 	setupForChat := func(t *testing.T, sync bool) (*model.Channel, *model.Post, string, string) {
 		t.Helper()
-		th.p.configuration.SyncDirectMessages = sync
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = sync
+		})
 
 		th.ConnectUser(t, user1.Id)
 		th.ConnectUser(t, user2.Id)
@@ -102,7 +104,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, true)
 
-		th.p.configuration.SyncReactions = false
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = false
+		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -126,8 +130,10 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
-		th.p.configuration.SyncDirectMessages = true
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+			c.SyncReactions = true
+		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -151,7 +157,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, true)
 
-		th.p.configuration.SyncDirectMessages = false
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -224,7 +232,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 
 	setupForChannel := func(t *testing.T, sync bool) (*model.Channel, *model.Post, *storemodels.ChannelLink, string) {
 		t.Helper()
-		th.p.configuration.SyncLinkedChannels = sync
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncLinkedChannels = sync
+		})
 
 		th.ConnectUser(t, user1.Id)
 
@@ -273,7 +283,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, false)
 
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -297,7 +309,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+		})
 
 		// Unlink before setting reaction, but after sending the post.
 		err := th.p.store.DeleteLinkByChannelID(channel.Id)
@@ -325,7 +339,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+		})
 
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(nil, fmt.Errorf("mock failure")).Times(1)
 
@@ -351,7 +367,9 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+		})
 
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
 			ID:           teamsMessageID,
@@ -387,8 +405,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 
 	setupForChat := func(t *testing.T, sync bool) (*model.Channel, *model.Post, string, string) {
 		t.Helper()
-		th.p.configuration.SyncReactions = sync
-		th.p.configuration.SyncDirectMessages = sync
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = sync
+			c.SyncDirectMessages = sync
+		})
 
 		th.ConnectUser(t, user1.Id)
 		th.ConnectUser(t, user2.Id)
@@ -470,7 +490,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, true)
 
-		th.p.configuration.SyncReactions = false
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = false
+		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -494,8 +516,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
-		th.p.configuration.SyncDirectMessages = true
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+			c.SyncReactions = true
+		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -519,7 +543,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, true)
 
-		th.p.configuration.SyncDirectMessages = false
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -593,7 +619,9 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	setupForChannel := func(t *testing.T, sync bool) (*model.Channel, *model.Post, *storemodels.ChannelLink, string) {
 		t.Helper()
 
-		th.p.configuration.SyncLinkedChannels = sync
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncLinkedChannels = sync
+		})
 
 		th.ConnectUser(t, user1.Id)
 
@@ -668,8 +696,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, true)
 
-		th.p.configuration.SyncLinkedChannels = false
-		th.p.configuration.SyncReactions = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncLinkedChannels = false
+			c.SyncReactions = true
+		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
@@ -693,8 +723,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
-		th.p.configuration.SyncLinkedChannels = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+			c.SyncLinkedChannels = true
+		})
 
 		err := th.p.store.DeleteLinkByChannelID(channel.Id)
 		require.NoError(t, err)
@@ -721,8 +753,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
-		th.p.configuration.SyncLinkedChannels = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+			c.SyncLinkedChannels = true
+		})
 
 		th.clientMock.On("UnsetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(nil, fmt.Errorf("mock failure")).Times(1)
 
@@ -748,8 +782,10 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.p.configuration.SyncReactions = true
-		th.p.configuration.SyncLinkedChannels = true
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncReactions = true
+			c.SyncLinkedChannels = true
+		})
 
 		th.clientMock.On("UnsetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
 			ID:           teamsMessageID,
