@@ -66,7 +66,7 @@ func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
 func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
-func (pm *pluginMock) ChatShouldSync(channelID string) (bool, *model.AppError) {
+func (pm *pluginMock) ChatShouldSync(channelID string) (bool, error) {
 	return true, nil
 }
 
