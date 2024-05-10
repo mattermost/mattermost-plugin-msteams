@@ -94,7 +94,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 					withLabel("source", metrics.ActionSourceMattermost),
 					withLabel("is_direct", "true"),
 				) == 1
-			}, 5*time.Second, 250*time.Millisecond)
+			}, 1*time.Second, 250*time.Millisecond)
 		}
 
 		return channel, post, chatID, teamsMessageID
@@ -227,7 +227,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				withLabel("source", metrics.ActionSourceMattermost),
 				withLabel("is_direct", "true"),
 			) == 1
-		}, 5*time.Second, 250*time.Millisecond)
+		}, 1*time.Second, 250*time.Millisecond)
 	})
 
 	setupForChannel := func(t *testing.T, sync bool) (*model.Channel, *model.Post, *storemodels.ChannelLink, string) {
@@ -273,7 +273,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 					withLabel("source", metrics.ActionSourceMattermost),
 					withLabel("is_direct", "false"),
 				) == 1
-			}, 5*time.Second, 250*time.Millisecond)
+			}, 1*time.Second, 250*time.Millisecond)
 		}
 
 		return channel, post, channelLink, teamsMessageID
@@ -391,7 +391,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 				withLabel("source", metrics.ActionSourceMattermost),
 				withLabel("is_direct", "false"),
 			) == 1
-		}, 5*time.Second, 250*time.Millisecond)
+		}, 1*time.Second, 250*time.Millisecond)
 	})
 }
 
@@ -491,7 +491,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					withLabel("source", metrics.ActionSourceMattermost),
 					withLabel("is_direct", "true"),
 				) == 1
-			}, 5*time.Second, 250*time.Millisecond)
+			}, 1*time.Second, 250*time.Millisecond)
 		}
 
 		return channel, post, chatID, teamsMessageID
@@ -671,7 +671,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					withLabel("source", metrics.ActionSourceMattermost),
 					withLabel("is_direct", "false"),
 				) == 1
-			}, 5*time.Second, 250*time.Millisecond)
+			}, 1*time.Second, 250*time.Millisecond)
 		}
 
 		if sync {
@@ -697,7 +697,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 					withLabel("source", metrics.ActionSourceMattermost),
 					withLabel("is_direct", "false"),
 				) == 1
-			}, 5*time.Second, 250*time.Millisecond)
+			}, 1*time.Second, 250*time.Millisecond)
 		}
 
 		return channel, post, channelLink, teamsMessageID
@@ -818,7 +818,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 				withLabel("source", metrics.ActionSourceMattermost),
 				withLabel("is_direct", "false"),
 			) == 1
-		}, 5*time.Second, 250*time.Millisecond)
+		}, 1*time.Second, 250*time.Millisecond)
 	})
 }
 
