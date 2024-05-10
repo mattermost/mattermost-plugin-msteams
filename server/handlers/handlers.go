@@ -50,10 +50,11 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	ChatShouldSync(channelID string) (bool, *model.AppError)
+	ChannelHasRemoteUsers(channelID string) (bool, error)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
+	IsUserConnected(string) (bool, error)
 }
 
 type ActivityHandler struct {
@@ -280,8 +281,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonDuplicatedPost
 	}
 
-	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsUserID {
+	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
+	if msg.UserID == msteamsBotUserID {
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -318,7 +319,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		}
 
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, appErr := ah.plugin.ChatShouldSync(channelID); appErr != nil {
+			if shouldSync, appErr := ah.plugin.ChannelHasRemoteUsers(channelID); appErr != nil {
 				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
@@ -342,6 +343,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	if err != nil || senderID == "" {
 		senderID = ah.plugin.GetBotUserID()
+	}
+
+	if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
+		return metrics.DiscardedReasonUserNotConnected
 	}
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
@@ -427,8 +432,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
-	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsUserID {
+	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
+	if msg.UserID == msteamsBotUserID {
 		return metrics.DiscardedReasonIsBotUser
 	}
 

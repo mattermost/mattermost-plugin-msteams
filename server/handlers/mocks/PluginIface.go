@@ -20,8 +20,8 @@ type PluginIface struct {
 	mock.Mock
 }
 
-// ChatShouldSync provides a mock function with given fields: channelID
-func (_m *PluginIface) ChatShouldSync(channelID string) (bool, *model.AppError) {
+// ChannelHasRemoteUsers provides a mock function with given fields: channelID
+func (_m *PluginIface) ChannelHasRemoteUsers(channelID string) (bool, error) {
 	ret := _m.Called(channelID)
 
 	var r0 bool
@@ -31,13 +31,11 @@ func (_m *PluginIface) ChatShouldSync(channelID string) (bool, *model.AppError) 
 		r0 = ret.Get(0).(bool)
 	}
 
-	var r1 *model.AppError
-	if rf, ok := ret.Get(1).(func(string) *model.AppError); ok {
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(channelID)
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*model.AppError)
-		}
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1
@@ -333,6 +331,27 @@ func (_m *PluginIface) IsRemoteUser(user *model.User) bool {
 	}
 
 	return r0
+}
+
+// IsUserConnected provides a mock function with given fields: _a0
+func (_m *PluginIface) IsUserConnected(_a0 string) (bool, error) {
+	ret := _m.Called(_a0)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 type mockConstructorTestingTNewPluginIface interface {
