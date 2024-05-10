@@ -13,12 +13,12 @@ func TestChatShouldSync(t *testing.T) {
 	th := setupTestHelper(t)
 
 	t.Run("invalid channel id", func(t *testing.T) {
-		_, err := th.p.ChatShouldSync("")
+		_, err := th.p.ChannelHasRemoteUsers("")
 		require.Error(t, err)
 	})
 
 	t.Run("unknown channel id", func(t *testing.T) {
-		_, err := th.p.ChatShouldSync(model.NewId())
+		_, err := th.p.ChannelHasRemoteUsers(model.NewId())
 		require.Error(t, err)
 	})
 
@@ -29,7 +29,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user1.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
 	})
@@ -42,7 +42,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
 	})
@@ -65,7 +65,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
 	})
@@ -84,7 +84,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
 	})
@@ -100,7 +100,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
 	})
@@ -114,7 +114,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
 	})
@@ -142,7 +142,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
 	})
@@ -166,7 +166,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
 	})
@@ -183,7 +183,7 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		chatShouldSync, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
 	})
@@ -193,7 +193,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 	th := setupTestHelper(t)
 
 	t.Run("empty set of channel members", func(t *testing.T) {
-		chatMembersSpanPlatforms, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{})
+		chatMembersSpanPlatforms, err := th.p.MembersContainsRemote([]*model.ChannelMember{})
 		require.Error(t, err)
 		require.False(t, chatMembersSpanPlatforms)
 	})
@@ -202,7 +202,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 		})
 
@@ -213,7 +213,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 	t.Run("user with empty id", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
-		chatMembersSpanPlatforms, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatMembersSpanPlatforms, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: ""},
 			{UserId: user1.Id}})
 		require.Error(t, err)
@@ -225,7 +225,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 		})
@@ -248,7 +248,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2, appErr = th.p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 		})
@@ -261,7 +261,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user1 := th.SetupRemoteUser(t, team)
 		user2 := th.SetupUser(t, team)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 		})
@@ -280,7 +280,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		_, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 		})
@@ -294,7 +294,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupUser(t, team)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 			{UserId: user3.Id},
@@ -323,7 +323,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user3, appErr = th.p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 			{UserId: user3.Id},
@@ -348,7 +348,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user3, appErr = th.p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+		chatShouldSync, err := th.p.MembersContainsRemote([]*model.ChannelMember{
 			{UserId: user1.Id},
 			{UserId: user2.Id},
 			{UserId: user3.Id},

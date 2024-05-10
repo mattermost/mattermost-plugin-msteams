@@ -128,16 +128,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 				return
 			}
 			containsRemoteUser = containsRemote
-
-			// isConnected, err := p.ChatSenderIsConnected(post.UserId)
-			// if err != nil {
-			// 	p.API.LogWarn("Failed to determine is sender is connected.", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-			// 	return
-			// }
-			// if !isConnected {
-			// 	p.SendConnectMessage(post.ChannelId, post.UserId, "Cannot communicate with Remote user when disconnected. Use Teams to communicate with the user or ")
-			// 	return
-			// }
 		}
 
 		dstUsers := []string{}
