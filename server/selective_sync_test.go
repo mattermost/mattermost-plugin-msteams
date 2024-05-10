@@ -203,7 +203,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user1 := th.SetupRemoteUser(t, team)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
+			{UserId: user1.Id},
 		})
 
 		require.Error(t, err)
@@ -214,8 +214,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 		chatMembersSpanPlatforms, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: ""},
-			&model.ChannelMember{UserId: user1.Id}})
+			{UserId: ""},
+			{UserId: user1.Id}})
 		require.Error(t, err)
 		require.False(t, chatMembersSpanPlatforms)
 	})
@@ -226,8 +226,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
@@ -249,8 +249,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -262,8 +262,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -281,8 +281,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
@@ -295,9 +295,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user3 := th.SetupUser(t, team)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
@@ -324,9 +324,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -349,9 +349,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -370,9 +370,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
