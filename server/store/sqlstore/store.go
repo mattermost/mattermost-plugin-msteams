@@ -41,12 +41,14 @@ type SQLStore struct {
 	enabledTeams  func() []string
 	encryptionKey func() []byte
 	db            *sql.DB
+	replica       *sql.DB
 }
 
-func New(db *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
+func New(db, replica *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
 	return &SQLStore{
-		db:  db,
-		api: api,
+		db:      db,
+		replica: replica,
+		api:     api,
 
 		enabledTeams:  enabledTeams,
 		encryptionKey: encryptionKey,
@@ -148,6 +150,14 @@ func (s *SQLStore) Init(remoteID string) error {
 	}
 
 	if err := s.ensureMigrationWhitelistedUsers(); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "LastChatSentAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+
+	if err := s.addColumn(usersTableName, "LastChatReceivedAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
 
@@ -836,6 +846,11 @@ func (s *SQLStore) getQueryBuilder(db sq.BaseRunner) sq.StatementBuilderType {
 	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(db)
 }
 
+// ToDo: add to the template
+// func (s *SQLStore) getReplicaQueryBuilder() sq.StatementBuilderType {
+// 	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(s.replica)
+// }
+
 func (s *SQLStore) VerifyOAuth2State(state string) error {
 	key := hashKey(oAuth2KeyPrefix, state)
 	data, appErr := s.api.KVGet(key)
@@ -863,34 +878,50 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	return nil
 }
 
-func (s *SQLStore) getStats(db sq.BaseRunner, remoteID, preferenceCategory string) (*storemodels.Stats, error) {
-	query := s.getQueryBuilder(db).Select("count(mmChannelID)").From(linksTableName)
-	row := query.QueryRow()
-	var linkedChannels int64
-	if err := row.Scan(&linkedChannels); err != nil {
-		return nil, err
-	}
+func (s *SQLStore) getLinkedChannelsCount(db sq.BaseRunner) (linkedChannels int64, err error) {
+	err = s.getQueryBuilder(db).
+		Select("count(mmChannelID)").
+		From(linksTableName).
+		QueryRow().
+		Scan(&linkedChannels)
 
-	query = s.getQueryBuilder(db).Select("count(mmUserID)").From(usersTableName).Where(sq.NotEq{"token": ""}).Where(sq.NotEq{"token": nil})
-	row = query.QueryRow()
-	var connectedUsers int64
-	if err := row.Scan(&connectedUsers); err != nil {
-		return nil, err
-	}
+	return linkedChannels, err
+}
 
-	query = s.getQueryBuilder(db).Select("count(id)").From("users").Where(sq.And{
-		sq.Eq{"RemoteId": remoteID},
-		sq.Or{sq.Eq{"DeleteAt": 0}, sq.Eq{"DeleteAt": nil}},
-	})
-	row = query.QueryRow()
-	var syntheticUsers int64
-	if err := row.Scan(&syntheticUsers); err != nil {
-		return nil, err
-	}
+func (s *SQLStore) getConnectedUsersCount(db sq.BaseRunner) (connectedUsers int64, err error) {
+	err = s.getQueryBuilder(db).
+		Select("count(mmUserID)").
+		From(usersTableName).
+		Where(sq.And{
+			sq.NotEq{"token": ""},
+			sq.NotEq{"token": nil},
+		}).
+		QueryRow().
+		Scan(&connectedUsers)
 
-	var msTeamPrimary int64
-	var mmPrimary int64
-	query = s.getQueryBuilder(db).Select("p.value", "count(*)").
+	return connectedUsers, err
+}
+
+func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (syntheticUsers int64, err error) {
+	err = s.getQueryBuilder(db).
+		Select("count(id)").
+		From("users").
+		Where(sq.And{
+			sq.Eq{"RemoteId": remoteID},
+			sq.Or{
+				sq.Eq{"DeleteAt": 0},
+				sq.Eq{"DeleteAt": nil},
+			},
+		}).
+		QueryRow().
+		Scan(&syntheticUsers)
+
+	return syntheticUsers, err
+}
+
+func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
+	query := s.getQueryBuilder(db).
+		Select("p.value", "count(*)").
 		From("preferences p").
 		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
 		Where(sq.And{
@@ -901,7 +932,7 @@ func (s *SQLStore) getStats(db sq.BaseRunner, remoteID, preferenceCategory strin
 		GroupBy("p.value")
 	rows, err := query.Query()
 	if err != nil {
-		return nil, err
+		return msTeamsPrimary, mmPrimary, err
 	}
 	defer rows.Close()
 
@@ -909,24 +940,46 @@ func (s *SQLStore) getStats(db sq.BaseRunner, remoteID, preferenceCategory strin
 		var platform string
 		var count int64
 		if err := rows.Scan(&platform, &count); err != nil {
-			return nil, err
+			return msTeamsPrimary, mmPrimary, err
 		}
 
 		switch platform {
 		case storemodels.PreferenceValuePlatformMM:
 			mmPrimary = count
 		case storemodels.PreferenceValuePlatformMSTeams:
-			msTeamPrimary = count
+			msTeamsPrimary = count
 		}
 	}
 
-	return &storemodels.Stats{
-		LinkedChannels:    linkedChannels,
-		ConnectedUsers:    connectedUsers,
-		SyntheticUsers:    syntheticUsers,
-		MattermostPrimary: mmPrimary,
-		MSTeamsPrimary:    msTeamPrimary,
-	}, nil
+	return msTeamsPrimary, mmPrimary, nil
+}
+
+func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duration) (activeUsersSending int64, err error) {
+	now := time.Now()
+
+	err = s.getQueryBuilder(db).
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatSentAt": now.Add(-dur).UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatSentAt": now.UnixMicro()}).
+		QueryRow().
+		Scan(&activeUsersSending)
+
+	return activeUsersSending, err
+}
+
+func (s *SQLStore) getActiveUsersReceivingCount(db sq.BaseRunner, dur time.Duration) (activeUsersReceiving int64, err error) {
+	now := time.Now()
+
+	err = s.getQueryBuilder(db).
+		Select("count(*)").
+		From(usersTableName).
+		Where(sq.GtOrEq{"LastChatReceivedAt": now.Add(-dur).UnixMicro()}).
+		Where(sq.LtOrEq{"LastChatReceivedAt": now.UnixMicro()}).
+		QueryRow().
+		Scan(&activeUsersReceiving)
+
+	return activeUsersReceiving, err
 }
 
 func (s *SQLStore) getConnectedUsers(db sq.BaseRunner, page, perPage int) ([]*storemodels.ConnectedUser, error) {
@@ -1204,4 +1257,38 @@ func isDuplicate(err error) bool {
 	}
 
 	return false
+}
+
+func (s *SQLStore) setUserLastChatSentAt(db sq.BaseRunner, mmUserID string, sentAt int64) error {
+	query := s.getQueryBuilder(db).
+		Update(usersTableName).
+		Set("LastChatSentAt", sentAt).
+		Where(sq.And{
+			sq.Eq{"mmUserID": mmUserID},
+			sq.Lt{"LastChatSentAt": sentAt}, // Make sure we store the latest value
+		})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SQLStore) setUserLastChatReceivedAt(db sq.BaseRunner, mmUserID string, receivedAt int64) error {
+	return s.setUsersLastChatReceivedAt(db, []string{mmUserID}, receivedAt)
+}
+
+func (s *SQLStore) setUsersLastChatReceivedAt(db sq.BaseRunner, mmUsersID []string, receivedAt int64) error {
+	query := s.getQueryBuilder(db).
+		Update(usersTableName).
+		Set("LastChatReceivedAt", receivedAt).
+		Where(sq.And{
+			sq.Eq{"mmUserID": mmUsersID},
+			sq.Lt{"LastChatReceivedAt": receivedAt}, // Make sure we store the latest value
+		})
+	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	return nil
 }

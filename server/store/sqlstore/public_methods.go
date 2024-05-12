@@ -46,109 +46,108 @@ func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 
 }
 
-func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	return s.getChannelSubscription(s.db, subscriptionID)
+func (s *SQLStore) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
+	return s.getActiveUsersReceivingCount(s.replica, dur)
+}
 
+func (s *SQLStore) GetActiveUsersSendingCount(dur time.Duration) (int64, error) {
+	return s.getActiveUsersSendingCount(s.replica, dur)
+}
+
+func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
+	return s.getChannelSubscription(s.replica, subscriptionID)
 }
 
 func (s *SQLStore) GetChannelSubscriptionByTeamsChannelID(teamsChannelID string) (*storemodels.ChannelSubscription, error) {
-	return s.getChannelSubscriptionByTeamsChannelID(s.db, teamsChannelID)
-
+	return s.getChannelSubscriptionByTeamsChannelID(s.replica, teamsChannelID)
 }
 
 func (s *SQLStore) GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error) {
-	return s.getChatSubscription(s.db, subscriptionID)
-
+	return s.getChatSubscription(s.replica, subscriptionID)
 }
 
 func (s *SQLStore) GetConnectedUsers(page int, perPage int) ([]*storemodels.ConnectedUser, error) {
-	return s.getConnectedUsers(s.db, page, perPage)
+	return s.getConnectedUsers(s.replica, page, perPage)
+}
 
+func (s *SQLStore) GetConnectedUsersCount() (int64, error) {
+	return s.getConnectedUsersCount(s.replica)
 }
 
 func (s *SQLStore) GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error) {
-	return s.getGlobalSubscription(s.db, subscriptionID)
-
+	return s.getGlobalSubscription(s.replica, subscriptionID)
 }
 
 func (s *SQLStore) GetHasConnectedCount() (int, error) {
-	return s.getHasConnectedCount(s.db)
-
+	return s.getHasConnectedCount(s.replica)
 }
 
 func (s *SQLStore) GetInvitedCount() (int, error) {
-	return s.getInvitedCount(s.db)
-
+	return s.getInvitedCount(s.replica)
 }
 
 func (s *SQLStore) GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error) {
-	return s.getInvitedUser(s.db, mmUserID)
-
+	return s.getInvitedUser(s.replica, mmUserID)
 }
 
 func (s *SQLStore) GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error) {
-	return s.getLinkByChannelID(s.db, channelID)
-
+	return s.getLinkByChannelID(s.replica, channelID)
 }
 
 func (s *SQLStore) GetLinkByMSTeamsChannelID(teamID string, channelID string) (*storemodels.ChannelLink, error) {
-	return s.getLinkByMSTeamsChannelID(s.db, teamID, channelID)
+	return s.getLinkByMSTeamsChannelID(s.replica, teamID, channelID)
+}
 
+func (s *SQLStore) GetLinkedChannelsCount() (int64, error) {
+	return s.getLinkedChannelsCount(s.replica)
 }
 
 func (s *SQLStore) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
-	return s.getPostInfoByMSTeamsID(s.db, chatID, postID)
-
+	return s.getPostInfoByMSTeamsID(s.replica, chatID, postID)
 }
 
 func (s *SQLStore) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo, error) {
-	return s.getPostInfoByMattermostID(s.db, postID)
-
-}
-
-func (s *SQLStore) GetStats(remoteID string, preferenceCategory string) (*storemodels.Stats, error) {
-	return s.getStats(s.db, remoteID, preferenceCategory)
-
+	return s.getPostInfoByMattermostID(s.replica, postID)
 }
 
 func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
-	return s.getSubscriptionType(s.db, subscriptionID)
-
+	return s.getSubscriptionType(s.replica, subscriptionID)
 }
 
 func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	return s.getSubscriptionsLastActivityAt(s.db)
+	return s.getSubscriptionsLastActivityAt(s.replica)
+}
 
+func (s *SQLStore) GetSyntheticUsersCount(remoteID string) (int64, error) {
+	return s.getSyntheticUsersCount(s.replica, remoteID)
 }
 
 func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
-	return s.getTokenForMSTeamsUser(s.db, userID)
-
+	return s.getTokenForMSTeamsUser(s.replica, userID)
 }
 
 func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
-	return s.getTokenForMattermostUser(s.db, userID)
-
+	return s.getTokenForMattermostUser(s.replica, userID)
 }
 
 func (s *SQLStore) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error) {
-	return s.getUserConnectStatus(s.db, mmUserID)
+	return s.getUserConnectStatus(s.replica, mmUserID)
+}
 
+func (s *SQLStore) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
+	return s.getUsersByPrimaryPlatformsCount(s.replica, preferenceCategory)
 }
 
 func (s *SQLStore) GetWhitelistCount() (int, error) {
-	return s.getWhitelistCount(s.db)
-
+	return s.getWhitelistCount(s.replica)
 }
 
 func (s *SQLStore) GetWhitelistEmails(page int, perPage int) ([]string, error) {
-	return s.getWhitelistEmails(s.db, page, perPage)
-
+	return s.getWhitelistEmails(s.replica, page, perPage)
 }
 
 func (s *SQLStore) IsUserWhitelisted(userID string) (bool, error) {
-	return s.isUserWhitelisted(s.db, userID)
-
+	return s.isUserWhitelisted(s.replica, userID)
 }
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
@@ -157,43 +156,35 @@ func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 }
 
 func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
-	return s.listChannelLinks(s.db)
-
+	return s.listChannelLinks(s.replica)
 }
 
 func (s *SQLStore) ListChannelLinksWithNames() ([]*storemodels.ChannelLink, error) {
-	return s.listChannelLinksWithNames(s.db)
-
+	return s.listChannelLinksWithNames(s.replica)
 }
 
 func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error) {
-	return s.listChannelSubscriptions(s.db)
-
+	return s.listChannelSubscriptions(s.replica)
 }
 
 func (s *SQLStore) ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error) {
-	return s.listChannelSubscriptionsToRefresh(s.db, certificate)
-
+	return s.listChannelSubscriptionsToRefresh(s.replica, certificate)
 }
 
 func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error) {
-	return s.listChatSubscriptionsToCheck(s.db)
-
+	return s.listChatSubscriptionsToCheck(s.replica)
 }
 
 func (s *SQLStore) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error) {
-	return s.listGlobalSubscriptions(s.db)
-
+	return s.listGlobalSubscriptions(s.replica)
 }
 
 func (s *SQLStore) ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error) {
-	return s.listGlobalSubscriptionsToRefresh(s.db, certificate)
-
+	return s.listGlobalSubscriptionsToRefresh(s.replica, certificate)
 }
 
 func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
-	return s.mattermostToTeamsUserID(s.db, userID)
-
+	return s.mattermostToTeamsUserID(s.replica, userID)
 }
 
 func (s *SQLStore) RecoverPost(postID string) error {
@@ -291,6 +282,21 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 	return nil
 }
 
+func (s *SQLStore) SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error {
+	return s.setUserLastChatReceivedAt(s.db, mmUserID, receivedAt)
+
+}
+
+func (s *SQLStore) SetUserLastChatSentAt(mmUserID string, sentAt int64) error {
+	return s.setUserLastChatSentAt(s.db, mmUserID, sentAt)
+
+}
+
+func (s *SQLStore) SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error {
+	return s.setUsersLastChatReceivedAt(s.db, mmUserIDs, receivedAt)
+
+}
+
 func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
 	tx, txErr := s.db.BeginTx(context.Background(), nil)
 	if txErr != nil {
@@ -327,8 +333,7 @@ func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 }
 
 func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
-	return s.teamsToMattermostUserID(s.db, userID)
-
+	return s.teamsToMattermostUserID(s.replica, userID)
 }
 
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {

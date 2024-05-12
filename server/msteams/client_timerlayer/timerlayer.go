@@ -7,7 +7,9 @@
 package client_timerlayer
 
 import (
+	"errors"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -24,632 +26,983 @@ type ClientTimerLayer struct {
 }
 
 func (c *ClientTimerLayer) Connect() error {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	err := c.Client.Connect()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.Connect", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.Connect", success, statusCode, elapsed)
 	return err
 }
 
 func (c *ClientTimerLayer) CreateOrGetChatForUsers(usersIDs []string) (*clientmodels.Chat, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.CreateOrGetChatForUsers(usersIDs)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.CreateOrGetChatForUsers", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.CreateOrGetChatForUsers", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) DeleteChatMessage(userID string, chatID string, msgID string) error {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	err := c.Client.DeleteChatMessage(userID, chatID, msgID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteChatMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteChatMessage", success, statusCode, elapsed)
 	return err
 }
 
 func (c *ClientTimerLayer) DeleteMessage(teamID string, channelID string, parentID string, msgID string) error {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	err := c.Client.DeleteMessage(teamID, channelID, parentID, msgID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteMessage", success, statusCode, elapsed)
 	return err
 }
 
 func (c *ClientTimerLayer) DeleteSubscription(subscriptionID string) error {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	err := c.Client.DeleteSubscription(subscriptionID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteSubscription", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.DeleteSubscription", success, statusCode, elapsed)
 	return err
 }
 
 func (c *ClientTimerLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetAppCredentials(applicationID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetAppCredentials", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetAppCredentials", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetChannelInTeam(teamID string, channelID string) (*clientmodels.Channel, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetChannelInTeam(teamID, channelID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelInTeam", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelInTeam", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetChannelsInTeam(teamID string, filterQuery string) ([]*clientmodels.Channel, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetChannelsInTeam(teamID, filterQuery)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelsInTeam", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChannelsInTeam", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetChat(chatID string) (*clientmodels.Chat, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetChat(chatID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChat", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChat", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetChatMessage(chatID string, messageID string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetChatMessage(chatID, messageID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChatMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetChatMessage", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetCodeSnippet(url string) (string, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetCodeSnippet(url)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetCodeSnippet", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetCodeSnippet", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetFileContent(downloadURL string) ([]byte, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetFileContent(downloadURL)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContent", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContent", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetFileContentStream(downloadURL string, writer *io.PipeWriter, bufferSize int64) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	c.Client.GetFileContentStream(downloadURL, writer, bufferSize)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if true {
-		success = "true"
-	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContentStream", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContentStream", success, statusCode, elapsed)
 
 }
 
 func (c *ClientTimerLayer) GetFileSizeAndDownloadURL(weburl string) (int64, string, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, resultVar1, err := c.Client.GetFileSizeAndDownloadURL(weburl)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileSizeAndDownloadURL", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileSizeAndDownloadURL", success, statusCode, elapsed)
 	return result, resultVar1, err
 }
 
 func (c *ClientTimerLayer) GetHostedFileContent(activityIDs *clientmodels.ActivityIds) ([]byte, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetHostedFileContent(activityIDs)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetHostedFileContent", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetHostedFileContent", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetMe() (*clientmodels.User, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetMe()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMe", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMe", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetMessage(teamID string, channelID string, messageID string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetMessage(teamID, channelID, messageID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMessage", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetMyID() (string, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetMyID()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMyID", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetMyID", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetReply(teamID string, channelID string, messageID string, replyID string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetReply(teamID, channelID, messageID, replyID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetReply", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetReply", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetTeam(teamID string) (*clientmodels.Team, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetTeam(teamID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeam", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeam", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetTeams(filterQuery string) ([]*clientmodels.Team, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetTeams(filterQuery)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeams", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetTeams", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetUser(userID string) (*clientmodels.User, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetUser(userID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUser", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUser", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) GetUserAvatar(userID string) ([]byte, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.GetUserAvatar(userID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUserAvatar", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetUserAvatar", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListChannelMessages(teamID string, channelID string, since time.Time) ([]*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListChannelMessages(teamID, channelID, since)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannelMessages", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannelMessages", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListChannels(teamID string) ([]clientmodels.Channel, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListChannels(teamID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannels", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChannels", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListChatMessages(chatID, since)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChatMessages", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListChatMessages", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListSubscriptions() ([]*clientmodels.Subscription, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListSubscriptions()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListSubscriptions", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListSubscriptions", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListTeams() ([]clientmodels.Team, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListTeams()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListTeams", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListTeams", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) ListUsers() ([]clientmodels.User, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.ListUsers()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListUsers", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.ListUsers", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) RefreshSubscription(subscriptionID string) (*time.Time, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.RefreshSubscription(subscriptionID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshSubscription", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshSubscription", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.RefreshToken(token)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshToken", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.RefreshToken", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SendChat(chatID string, message string, parentMessage *clientmodels.Message, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SendChat(chatID, message, parentMessage, attachments, mentions)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendChat", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendChat", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SendMessage(teamID string, channelID string, parentID string, message string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SendMessage(teamID, channelID, parentID, message)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessage", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SendMessageWithAttachments(teamID string, channelID string, parentID string, message string, attachments []*clientmodels.Attachment, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SendMessageWithAttachments(teamID, channelID, parentID, message, attachments, mentions)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessageWithAttachments", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SendMessageWithAttachments", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SetChatReaction(chatID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SetChatReaction(chatID, messageID, userID, emoji)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetChatReaction", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetChatReaction", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SetReaction(teamID, channelID, parentID, messageID, userID, emoji)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetReaction", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SetReaction", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SubscribeToChannel(teamID string, channelID string, baseURL string, webhookSecret string, certificate string) (*clientmodels.Subscription, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SubscribeToChannel(teamID, channelID, baseURL, webhookSecret, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannel", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannel", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SubscribeToChannels(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SubscribeToChannels(baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannels", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChannels", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SubscribeToChats(baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SubscribeToChats(baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChats", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToChats", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) SubscribeToUserChats(user string, baseURL string, webhookSecret string, pay bool, certificate string) (*clientmodels.Subscription, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.SubscribeToUserChats(user, baseURL, webhookSecret, pay, certificate)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToUserChats", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.SubscribeToUserChats", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) UnsetChatReaction(chatID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.UnsetChatReaction(chatID, messageID, userID, emoji)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetChatReaction", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetChatReaction", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) UnsetReaction(teamID string, channelID string, parentID string, messageID string, userID string, emoji string) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.UnsetReaction(teamID, channelID, parentID, messageID, userID, emoji)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetReaction", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UnsetReaction", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) UpdateChatMessage(chatID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.UpdateChatMessage(chatID, msgID, message, mentions)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateChatMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateChatMessage", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) UpdateMessage(teamID string, channelID string, parentID string, msgID string, message string, mentions []models.ChatMessageMentionable) (*clientmodels.Message, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.UpdateMessage(teamID, channelID, parentID, msgID, message, mentions)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateMessage", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UpdateMessage", success, statusCode, elapsed)
 	return result, err
 }
 
 func (c *ClientTimerLayer) UploadFile(teamID string, channelID string, filename string, filesize int, mimeType string, data io.Reader, chat *clientmodels.Chat) (*clientmodels.Attachment, error) {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
 
 	result, err := c.Client.UploadFile(teamID, channelID, filename, filesize, mimeType, data, chat)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
 	}
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.UploadFile", success, elapsed)
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.UploadFile", success, statusCode, elapsed)
 	return result, err
 }
 

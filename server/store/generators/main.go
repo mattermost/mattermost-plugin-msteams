@@ -20,6 +20,7 @@ import (
 
 const (
 	WithTransactionComment = "@withTransaction"
+	WithReplicaComment     = "@withReplica"
 	ErrorType              = "error"
 	StringType             = "string"
 	IntType                = "int"
@@ -108,6 +109,7 @@ type methodData struct {
 	Params          []methodParam
 	Results         []string
 	WithTransaction bool
+	WithReplica     bool
 }
 
 type storeMetadata struct {
@@ -119,12 +121,17 @@ func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 	params := []methodParam{}
 	results := []string{}
 	withTransaction := false
+	withReplica := false
 	ast.Inspect(method.Type, func(expr ast.Node) bool {
 		if e, ok := expr.(*ast.FuncType); ok {
 			if method.Doc != nil {
 				for _, comment := range method.Doc.List {
 					if strings.Contains(comment.Text, WithTransactionComment) {
 						withTransaction = true
+						break
+					}
+					if strings.Contains(comment.Text, WithReplicaComment) {
+						withReplica = true
 						break
 					}
 				}
@@ -144,7 +151,7 @@ func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 		}
 		return true
 	})
-	return methodData{Params: params, Results: results, WithTransaction: withTransaction}
+	return methodData{Params: params, Results: results, WithTransaction: withTransaction, WithReplica: withReplica}
 }
 
 func extractStoreMetadata(topLevelFunctionsToSkip map[string]bool) (*storeMetadata, error) {
