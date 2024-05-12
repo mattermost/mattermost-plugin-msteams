@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	WithTransactionTag = "go:withTransaction"
-	WithReplicaTag     = "go:withReplica"
+	WithTransactionTag = "db:withTransaction"
+	WithReplicaTag     = "db:withReplica"
 	ErrorType          = "error"
 	StringType         = "string"
 	IntType            = "int"
