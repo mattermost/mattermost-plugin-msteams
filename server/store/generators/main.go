@@ -11,11 +11,15 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -28,6 +32,8 @@ const (
 	Int64Type              = "int64"
 	BoolType               = "bool"
 )
+
+var caser = cases.Title(language.English, cases.NoLower)
 
 func isError(typeName string) bool {
 	return strings.Contains(typeName, ErrorType)
@@ -88,7 +94,7 @@ func buildPublicMethods() error {
 		"StoreOAuth2State":         true,
 	}
 
-	code, err := generateLayer("SQLStore", "transactional_store.go.tmpl", topLevelFunctionsToSkip)
+	code, err := generateLayerWithImplementation("SQLStore", "transactional_store.go.tmpl", topLevelFunctionsToSkip)
 	if err != nil {
 		return err
 	}
@@ -120,22 +126,8 @@ type storeMetadata struct {
 func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 	params := []methodParam{}
 	results := []string{}
-	withTransaction := false
-	withReplica := false
 	ast.Inspect(method.Type, func(expr ast.Node) bool {
 		if e, ok := expr.(*ast.FuncType); ok {
-			if method.Doc != nil {
-				for _, comment := range method.Doc.List {
-					if strings.Contains(comment.Text, WithTransactionComment) {
-						withTransaction = true
-						break
-					}
-					if strings.Contains(comment.Text, WithReplicaComment) {
-						withReplica = true
-						break
-					}
-				}
-			}
 			if e.Params != nil {
 				for _, param := range e.Params.List {
 					for _, paramName := range param.Names {
@@ -151,7 +143,24 @@ func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 		}
 		return true
 	})
-	return methodData{Params: params, Results: results, WithTransaction: withTransaction, WithReplica: withReplica}
+	return methodData{Params: params, Results: results}
+}
+
+func extractMethodDeclarationMetadata(method *ast.FuncDecl) *methodData {
+	if method.Doc == nil {
+		return nil
+	}
+
+	for _, doc := range method.Doc.List {
+		if strings.Contains(doc.Text, WithTransactionComment) {
+			return &methodData{WithTransaction: true}
+		}
+		if strings.Contains(doc.Text, WithReplicaComment) {
+			return &methodData{WithReplica: true}
+		}
+	}
+
+	return nil
 }
 
 func extractStoreMetadata(topLevelFunctionsToSkip map[string]bool) (*storeMetadata, error) {
@@ -191,15 +200,59 @@ func extractStoreMetadata(topLevelFunctionsToSkip map[string]bool) (*storeMetada
 	return &metadata, nil
 }
 
-func generateLayer(name, templateFile string, topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
-	out := bytes.NewBufferString("")
-	metadata, err := extractStoreMetadata(topLevelFunctionsToSkip)
+func extractStoreImplementationMetadata(topLevelFunctionsToSkip map[string]bool) (map[string]methodData, error) {
+	// Create the AST by parsing src.
+	fset := token.NewFileSet() // positions are relative to fset
+
+	metadata := map[string]methodData{}
+
+	filter := func(fi fs.FileInfo) bool {
+		if fi.Name() == "public_methods.go" {
+			return false
+		}
+
+		return !strings.HasSuffix(fi.Name(), "_test.go")
+	}
+
+	p, err := parser.ParseDir(fset, "sqlstore", filter, parser.AllErrors|parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
-	metadata.Name = name
 
-	myFuncs := template.FuncMap{
+	isSQLStoreMethod := func(fn *ast.FuncDecl) bool {
+		// We're looking for receiver methods...
+		if fn.Recv != nil {
+			// ...whose receiver is the SQLStore type
+			if s, ok := fn.Recv.List[0].Type.(*ast.StarExpr); ok {
+				if i, ok := s.X.(*ast.Ident); ok {
+					return i.Name == "SQLStore"
+				}
+			}
+		}
+
+		return false
+	}
+
+	for _, pkgFile := range p["sqlstore"].Files {
+		ast.Inspect(pkgFile, func(n ast.Node) bool {
+			if x, ok := n.(*ast.FuncDecl); ok && isSQLStoreMethod(x) {
+				methodName := x.Name.Name
+				if skip := topLevelFunctionsToSkip[caser.String(methodName)]; !skip {
+					if methodMetadata := extractMethodDeclarationMetadata(x); methodMetadata != nil {
+						metadata[methodName] = *methodMetadata
+					}
+				}
+			}
+
+			return true
+		})
+	}
+
+	return metadata, nil
+}
+
+func getTemplateFuncs() template.FuncMap {
+	return template.FuncMap{
 		"renameStoreMethod": func(methodName string) string {
 			return strings.ToLower(methodName[0:1]) + methodName[1:]
 		},
@@ -294,8 +347,53 @@ func generateLayer(name, templateFile string, topLevelFunctionsToSkip map[string
 			return strings.Join(paramsWithType, ", ")
 		},
 	}
+}
 
-	t := template.Must(template.New(templateFile).Funcs(myFuncs).ParseFiles("generators/" + templateFile))
+func generateLayer(name, templateFile string, topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
+	out := bytes.NewBufferString("")
+	metadata, err := extractStoreMetadata(topLevelFunctionsToSkip)
+	if err != nil {
+		return nil, err
+	}
+	metadata.Name = name
+
+	t := template.Must(template.New(templateFile).Funcs(getTemplateFuncs()).ParseFiles("generators/" + templateFile))
+	if err = t.Execute(out, metadata); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func generateLayerWithImplementation(name, templateFile string, topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
+	out := bytes.NewBufferString("")
+	metadata, err := extractStoreMetadata(topLevelFunctionsToSkip)
+	if err != nil {
+		return nil, err
+	}
+	metadata.Name = name
+
+	implementationMetadata, err := extractStoreImplementationMetadata(topLevelFunctionsToSkip)
+	if err != nil {
+		return nil, err
+	}
+
+	for implementationMethodName, methodMetadata := range implementationMetadata {
+		publicMethodName := caser.String(implementationMethodName)
+		if method, ok := metadata.Methods[publicMethodName]; ok {
+			method.WithReplica = methodMetadata.WithReplica
+			method.WithTransaction = methodMetadata.WithTransaction
+			metadata.Methods[publicMethodName] = method
+		}
+	}
+
+
+	for methodName := range metadata.Methods {
+		if _, ok := implementationMetadata[methodName]; ok {
+			delete(metadata.Methods, methodName)
+		}
+	}
+
+	t := template.Must(template.New(templateFile).Funcs(getTemplateFuncs()).ParseFiles("generators/" + templateFile))
 	if err = t.Execute(out, metadata); err != nil {
 		return nil, err
 	}
