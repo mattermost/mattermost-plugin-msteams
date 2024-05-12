@@ -846,11 +846,6 @@ func (s *SQLStore) getQueryBuilder(db sq.BaseRunner) sq.StatementBuilderType {
 	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(db)
 }
 
-// ToDo: add to the template
-// func (s *SQLStore) getReplicaQueryBuilder() sq.StatementBuilderType {
-// 	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(s.replica)
-// }
-
 func (s *SQLStore) VerifyOAuth2State(state string) error {
 	key := hashKey(oAuth2KeyPrefix, state)
 	data, appErr := s.api.KVGet(key)

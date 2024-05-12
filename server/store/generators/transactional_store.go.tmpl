@@ -55,6 +55,6 @@ func (s *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$ele
     return s.{{$index | renameStoreMethod}}(s.replica, {{$element.Params | joinParams}})
     {{- else}}
     return s.{{$index | renameStoreMethod}}(s.db, {{$element.Params | joinParams}})
-    {{end}}
+    {{- end}}
 }
 {{end}}

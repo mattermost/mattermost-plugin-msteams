@@ -23,27 +23,22 @@ import (
 
 func (s *SQLStore) DeleteLinkByChannelID(channelID string) error {
 	return s.deleteLinkByChannelID(s.db, channelID)
-
 }
 
 func (s *SQLStore) DeleteSubscription(subscriptionID string) error {
 	return s.deleteSubscription(s.db, subscriptionID)
-
 }
 
 func (s *SQLStore) DeleteUserFromWhitelist(userID string) error {
 	return s.deleteUserFromWhitelist(s.db, userID)
-
 }
 
 func (s *SQLStore) DeleteUserInfo(mmUserID string) error {
 	return s.deleteUserInfo(s.db, mmUserID)
-
 }
 
 func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 	return s.deleteUserInvite(s.db, mmUserID)
-
 }
 
 func (s *SQLStore) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
@@ -152,7 +147,6 @@ func (s *SQLStore) IsUserWhitelisted(userID string) (bool, error) {
 
 func (s *SQLStore) LinkPosts(postInfo storemodels.PostInfo) error {
 	return s.linkPosts(s.db, postInfo)
-
 }
 
 func (s *SQLStore) ListChannelLinks() ([]storemodels.ChannelLink, error) {
@@ -189,7 +183,6 @@ func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {
 
 func (s *SQLStore) RecoverPost(postID string) error {
 	return s.recoverPost(s.db, postID)
-
 }
 
 func (s *SQLStore) SaveChannelSubscription(subscription storemodels.ChannelSubscription) error {
@@ -254,12 +247,10 @@ func (s *SQLStore) SaveGlobalSubscription(subscription storemodels.GlobalSubscri
 
 func (s *SQLStore) SetPostLastUpdateAtByMSTeamsID(postID string, lastUpdateAt time.Time) error {
 	return s.setPostLastUpdateAtByMSTeamsID(s.db, postID, lastUpdateAt)
-
 }
 
 func (s *SQLStore) SetPostLastUpdateAtByMattermostID(postID string, lastUpdateAt time.Time) error {
 	return s.setPostLastUpdateAtByMattermostID(s.db, postID, lastUpdateAt)
-
 }
 
 func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error {
@@ -284,17 +275,14 @@ func (s *SQLStore) SetUserInfo(userID string, msTeamsUserID string, token *oauth
 
 func (s *SQLStore) SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error {
 	return s.setUserLastChatReceivedAt(s.db, mmUserID, receivedAt)
-
 }
 
 func (s *SQLStore) SetUserLastChatSentAt(mmUserID string, sentAt int64) error {
 	return s.setUserLastChatSentAt(s.db, mmUserID, sentAt)
-
 }
 
 func (s *SQLStore) SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error {
 	return s.setUsersLastChatReceivedAt(s.db, mmUserIDs, receivedAt)
-
 }
 
 func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
@@ -319,17 +307,14 @@ func (s *SQLStore) SetWhitelist(userIDs []string, batchSize int) error {
 
 func (s *SQLStore) StoreChannelLink(link *storemodels.ChannelLink) error {
 	return s.storeChannelLink(s.db, link)
-
 }
 
 func (s *SQLStore) StoreInvitedUser(invitedUser *storemodels.InvitedUser) error {
 	return s.storeInvitedUser(s.db, invitedUser)
-
 }
 
 func (s *SQLStore) StoreUserInWhitelist(userID string) error {
 	return s.storeUserInWhitelist(s.db, userID)
-
 }
 
 func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
@@ -338,10 +323,8 @@ func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
 
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	return s.updateSubscriptionExpiresOn(s.db, subscriptionID, expiresOn)
-
 }
 
 func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
 	return s.updateSubscriptionLastActivityAt(s.db, subscriptionID, lastActivityAt)
-
 }
