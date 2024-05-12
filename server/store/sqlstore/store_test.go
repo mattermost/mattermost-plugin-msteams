@@ -1230,7 +1230,7 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 
 	t.Run("zero", func(t *testing.T) {
 		assert := require.New(t)
-		nb, err := store.getLinkedChannelsCount(store.db)
+		nb, err := store.GetLinkedChannelsCount()
 		assert.Nil(err)
 		assert.EqualValues(0, nb)
 	})
@@ -1251,7 +1251,7 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 			assert.Nil(err)
 		}
 
-		nb, err := store.getLinkedChannelsCount(store.db)
+		nb, err := store.GetLinkedChannelsCount()
 		assert.Nil(err)
 		assert.EqualValues(4, nb)
 	})

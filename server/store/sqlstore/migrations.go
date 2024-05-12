@@ -37,7 +37,7 @@ const (
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
 	// get all users with duplicate msteamsuserid
-	rows, err := s.getQueryBuilder(s.db).Select(
+	rows, err := s.getQueryBuilder(s.replica).Select(
 		"mmuserid",
 		"msteamsuserid",
 		"remoteid",
