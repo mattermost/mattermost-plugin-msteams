@@ -23,14 +23,14 @@ import (
 )
 
 const (
-	WithTransactionComment = "@withTransaction"
-	WithReplicaComment     = "@withReplica"
-	ErrorType              = "error"
-	StringType             = "string"
-	IntType                = "int"
-	Int32Type              = "int32"
-	Int64Type              = "int64"
-	BoolType               = "bool"
+	WithTransactionTag = "go:withTransaction"
+	WithReplicaTag     = "go:withReplica"
+	ErrorType          = "error"
+	StringType         = "string"
+	IntType            = "int"
+	Int32Type          = "int32"
+	Int64Type          = "int64"
+	BoolType           = "bool"
 )
 
 var caser = cases.Title(language.English, cases.NoLower)
@@ -56,7 +56,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := buildPublicMethods(); err != nil {
+	if err := buildTransactionalStore(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -85,7 +85,7 @@ func buildTimerLayer() error {
 	return os.WriteFile(path.Join("timerlayer", "timerlayer.go"), formatedCode, 0600)
 }
 
-func buildPublicMethods() error {
+func buildTransactionalStore() error {
 	topLevelFunctionsToSkip := map[string]bool{
 		"Init":                     true,
 		"UserHasConnected":         true,
@@ -94,7 +94,7 @@ func buildPublicMethods() error {
 		"StoreOAuth2State":         true,
 	}
 
-	code, err := generateLayerWithImplementation("SQLStore", "transactional_store.go.tmpl", topLevelFunctionsToSkip)
+	code, err := generateTransactionalStoreLayer(topLevelFunctionsToSkip)
 	if err != nil {
 		return err
 	}
@@ -114,6 +114,11 @@ type methodParam struct {
 type methodData struct {
 	Params          []methodParam
 	Results         []string
+	WithTransaction bool
+	WithReplica     bool
+}
+
+type methodTags struct {
 	WithTransaction bool
 	WithReplica     bool
 }
@@ -146,17 +151,17 @@ func extractMethodMetadata(method *ast.Field, src []byte) methodData {
 	return methodData{Params: params, Results: results}
 }
 
-func extractMethodDeclarationMetadata(method *ast.FuncDecl) *methodData {
+func extractMethodDeclarationTags(method *ast.FuncDecl) *methodTags {
 	if method.Doc == nil {
 		return nil
 	}
 
 	for _, doc := range method.Doc.List {
-		if strings.Contains(doc.Text, WithTransactionComment) {
-			return &methodData{WithTransaction: true}
+		if strings.Contains(doc.Text, WithTransactionTag) {
+			return &methodTags{WithTransaction: true}
 		}
-		if strings.Contains(doc.Text, WithReplicaComment) {
-			return &methodData{WithReplica: true}
+		if strings.Contains(doc.Text, WithReplicaTag) {
+			return &methodTags{WithReplica: true}
 		}
 	}
 
@@ -200,11 +205,11 @@ func extractStoreMetadata(topLevelFunctionsToSkip map[string]bool) (*storeMetada
 	return &metadata, nil
 }
 
-func extractStoreImplementationMetadata(topLevelFunctionsToSkip map[string]bool) (map[string]methodData, error) {
+func extractStoreImplementationTags(topLevelFunctionsToSkip map[string]bool) (map[string]methodTags, error) {
 	// Create the AST by parsing src.
 	fset := token.NewFileSet() // positions are relative to fset
 
-	metadata := map[string]methodData{}
+	tags := map[string]methodTags{}
 
 	filter := func(fi fs.FileInfo) bool {
 		if fi.Name() == "public_methods.go" {
@@ -238,8 +243,8 @@ func extractStoreImplementationMetadata(topLevelFunctionsToSkip map[string]bool)
 			if x, ok := n.(*ast.FuncDecl); ok && isSQLStoreMethod(x) {
 				methodName := x.Name.Name
 				if skip := topLevelFunctionsToSkip[caser.String(methodName)]; !skip {
-					if methodMetadata := extractMethodDeclarationMetadata(x); methodMetadata != nil {
-						metadata[methodName] = *methodMetadata
+					if methodTags := extractMethodDeclarationTags(x); methodTags != nil {
+						tags[methodName] = *methodTags
 					}
 				}
 			}
@@ -248,7 +253,7 @@ func extractStoreImplementationMetadata(topLevelFunctionsToSkip map[string]bool)
 		})
 	}
 
-	return metadata, nil
+	return tags, nil
 }
 
 func getTemplateFuncs() template.FuncMap {
@@ -364,15 +369,15 @@ func generateLayer(name, templateFile string, topLevelFunctionsToSkip map[string
 	return out.Bytes(), nil
 }
 
-func generateLayerWithImplementation(name, templateFile string, topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
+func generateTransactionalStoreLayer(topLevelFunctionsToSkip map[string]bool) ([]byte, error) {
 	out := bytes.NewBufferString("")
 	metadata, err := extractStoreMetadata(topLevelFunctionsToSkip)
 	if err != nil {
 		return nil, err
 	}
-	metadata.Name = name
+	metadata.Name = "SQLStore"
 
-	implementationMetadata, err := extractStoreImplementationMetadata(topLevelFunctionsToSkip)
+	implementationMetadata, err := extractStoreImplementationTags(topLevelFunctionsToSkip)
 	if err != nil {
 		return nil, err
 	}
@@ -386,14 +391,13 @@ func generateLayerWithImplementation(name, templateFile string, topLevelFunction
 		}
 	}
 
-
 	for methodName := range metadata.Methods {
 		if _, ok := implementationMetadata[methodName]; ok {
 			delete(metadata.Methods, methodName)
 		}
 	}
 
-	t := template.Must(template.New(templateFile).Funcs(getTemplateFuncs()).ParseFiles("generators/" + templateFile))
+	t := template.Must(template.New("transactional_store.go.tmpl").Funcs(getTemplateFuncs()).ParseFiles("generators/transactional_store.go.tmpl"))
 	if err = t.Execute(out, metadata); err != nil {
 		return nil, err
 	}

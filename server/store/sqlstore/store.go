@@ -164,7 +164,7 @@ func (s *SQLStore) Init(remoteID string) error {
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listChannelLinksWithNames(db sq.BaseRunner) ([]*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder(db).Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator, Teams.DisplayName, Channels.DisplayName").From(linksTableName).LeftJoin("Teams ON Teams.Id = msteamssync_links.mmTeamID").LeftJoin("Channels ON Channels.Id = msteamssync_links.mmChannelID").Limit(maxLimitForLinks)
 	rows, err := query.Query()
@@ -187,7 +187,7 @@ func (s *SQLStore) listChannelLinksWithNames(db sq.BaseRunner) ([]*storemodels.C
 	return links, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getLinkByChannelID(db sq.BaseRunner, channelID string) (*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder(db).Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From(linksTableName).Where(sq.Eq{"mmChannelID": channelID})
 	row := query.QueryRow()
@@ -203,7 +203,7 @@ func (s *SQLStore) getLinkByChannelID(db sq.BaseRunner, channelID string) (*stor
 	return &link, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listChannelLinks(db sq.BaseRunner) ([]storemodels.ChannelLink, error) {
 	rows, err := s.getQueryBuilder(db).Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From(linksTableName).Query()
 	if err != nil {
@@ -224,7 +224,7 @@ func (s *SQLStore) listChannelLinks(db sq.BaseRunner) ([]storemodels.ChannelLink
 	return links, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getLinkByMSTeamsChannelID(db sq.BaseRunner, teamID, channelID string) (*storemodels.ChannelLink, error) {
 	query := s.getQueryBuilder(db).Select("mmChannelID, mmTeamID, msTeamsChannelID, msTeamsTeamID, creator").From(linksTableName).Where(sq.Eq{"msTeamsTeamID": teamID, "msTeamsChannelID": channelID})
 	row := query.QueryRow()
@@ -261,7 +261,7 @@ func (s *SQLStore) storeChannelLink(db sq.BaseRunner, link *storemodels.ChannelL
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) teamsToMattermostUserID(db sq.BaseRunner, userID string) (string, error) {
 	query := s.getQueryBuilder(db).Select("mmUserID").From(usersTableName).Where(sq.Eq{"msTeamsUserID": userID})
 	row := query.QueryRow()
@@ -273,7 +273,7 @@ func (s *SQLStore) teamsToMattermostUserID(db sq.BaseRunner, userID string) (str
 	return mmUserID, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) mattermostToTeamsUserID(db sq.BaseRunner, userID string) (string, error) {
 	query := s.getQueryBuilder(db).Select("msTeamsUserID").From(usersTableName).Where(sq.Eq{"mmUserID": userID})
 	row := query.QueryRow()
@@ -285,7 +285,7 @@ func (s *SQLStore) mattermostToTeamsUserID(db sq.BaseRunner, userID string) (str
 	return msTeamsUserID, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postID string) (*storemodels.PostInfo, error) {
 	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE")
 	row := query.QueryRow()
@@ -302,7 +302,7 @@ func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postI
 	return &postInfo, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getPostInfoByMattermostID(db sq.BaseRunner, postID string) (*storemodels.PostInfo, error) {
 	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE")
 	row := query.QueryRow()
@@ -351,7 +351,7 @@ func (s *SQLStore) linkPosts(db sq.BaseRunner, postInfo storemodels.PostInfo) er
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder(db).Select("token").From(usersTableName).Where(sq.Eq{"mmUserID": userID}).Where(sq.NotEq{"token": ""})
 	row := query.QueryRow()
@@ -382,7 +382,7 @@ func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*
 	return &token, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getTokenForMSTeamsUser(db sq.BaseRunner, userID string) (*oauth2.Token, error) {
 	query := s.getQueryBuilder(db).Select("token").From(usersTableName).Where(sq.Eq{"msTeamsUserID": userID}).Where(sq.NotEq{"token": ""})
 	row := query.QueryRow()
@@ -423,7 +423,7 @@ func (s *SQLStore) UserHasConnected(mmUserID string) (bool, error) {
 	return !connectStatus.LastConnectAt.IsZero(), nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getUserConnectStatus(db sq.BaseRunner, mmUserID string) (*storemodels.UserConnectStatus, error) {
 	query := s.getQueryBuilder(db).
 		Select("mmUserID", "token", "lastConnectAt", "lastDisconnectAt").
@@ -490,7 +490,7 @@ func computeStatusTimes(status *storemodels.UserConnectStatus, nextIsConnected b
 	return lastConnectAt, lastDisconnectAt, nil
 }
 
-//@withTransaction
+//go:withTransaction
 func (s *SQLStore) setUserInfo(db sq.BaseRunner, userID string, msTeamsUserID string, token *oauth2.Token) error {
 	var encryptedToken string
 	if token != nil {
@@ -535,7 +535,7 @@ func (s *SQLStore) deleteUserInfo(db sq.BaseRunner, mmUserID string) error {
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listChatSubscriptionsToCheck(db sq.BaseRunner) ([]storemodels.ChatSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder(db).Select("subscriptionID, msTeamsUserID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"type": subscriptionTypeUser}).Where(sq.Lt{"expiresOn": expireTime})
@@ -562,7 +562,7 @@ func (s *SQLStore) listChatSubscriptionsToCheck(db sq.BaseRunner) ([]storemodels
 	return result, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listChannelSubscriptions(db sq.BaseRunner) ([]*storemodels.ChannelSubscription, error) {
 	query := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"type": subscriptionTypeChannel})
 	rows, err := query.Query()
@@ -589,7 +589,7 @@ func (s *SQLStore) listChannelSubscriptions(db sq.BaseRunner) ([]*storemodels.Ch
 	return result, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listChannelSubscriptionsToRefresh(db sq.BaseRunner, certificate string) ([]*storemodels.ChannelSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder(db).
@@ -620,7 +620,7 @@ func (s *SQLStore) listChannelSubscriptionsToRefresh(db sq.BaseRunner, certifica
 	return result, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listGlobalSubscriptions(db sq.BaseRunner) ([]*storemodels.GlobalSubscription, error) {
 	query := s.getQueryBuilder(db).Select("subscriptionID, type, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"type": subscriptionTypeAllChats})
 	rows, err := query.Query()
@@ -647,7 +647,7 @@ func (s *SQLStore) listGlobalSubscriptions(db sq.BaseRunner) ([]*storemodels.Glo
 	return result, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) listGlobalSubscriptionsToRefresh(db sq.BaseRunner, certificate string) ([]*storemodels.GlobalSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder(db).
@@ -678,7 +678,7 @@ func (s *SQLStore) listGlobalSubscriptionsToRefresh(db sq.BaseRunner, certificat
 	return result, nil
 }
 
-//@withTransaction
+//go:withTransaction
 func (s *SQLStore) saveGlobalSubscription(db sq.BaseRunner, subscription storemodels.GlobalSubscription) error {
 	if _, err := s.getQueryBuilder(db).Delete(subscriptionsTableName).Where(sq.Eq{"type": subscription.Type}).Exec(); err != nil {
 		return err
@@ -690,7 +690,7 @@ func (s *SQLStore) saveGlobalSubscription(db sq.BaseRunner, subscription storemo
 	return nil
 }
 
-//@withTransaction
+//go:withTransaction
 func (s *SQLStore) saveChatSubscription(db sq.BaseRunner, subscription storemodels.ChatSubscription) error {
 	if _, err := s.getQueryBuilder(db).Delete(subscriptionsTableName).Where(sq.Eq{"msteamsUserID": subscription.UserID}).Exec(); err != nil {
 		return err
@@ -702,7 +702,7 @@ func (s *SQLStore) saveChatSubscription(db sq.BaseRunner, subscription storemode
 	return nil
 }
 
-//@withTransaction
+//go:withTransaction
 func (s *SQLStore) saveChannelSubscription(db sq.BaseRunner, subscription storemodels.ChannelSubscription) error {
 	if _, err := s.getQueryBuilder(db).Delete(subscriptionsTableName).Where(sq.Eq{"msTeamsTeamID": subscription.TeamID, "msTeamsChannelID": subscription.ChannelID}).Exec(); err != nil {
 		return err
@@ -739,7 +739,7 @@ func (s *SQLStore) updateSubscriptionLastActivityAt(db sq.BaseRunner, subscripti
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getSubscriptionsLastActivityAt(db sq.BaseRunner) (map[string]time.Time, error) {
 	query := s.getQueryBuilder(db).
 		Select("subscriptionID, lastActivityAt").
@@ -773,7 +773,7 @@ func (s *SQLStore) deleteSubscription(db sq.BaseRunner, subscriptionID string) e
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getChannelSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
 	var subscription storemodels.ChannelSubscription
@@ -789,7 +789,7 @@ func (s *SQLStore) getChannelSubscription(db sq.BaseRunner, subscriptionID strin
 	return &subscription, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getChannelSubscriptionByTeamsChannelID(db sq.BaseRunner, teamsChannelID string) (*storemodels.ChannelSubscription, error) {
 	row := s.getQueryBuilder(db).Select("subscriptionID").From(subscriptionsTableName).Where(sq.Eq{"msTeamsChannelID": teamsChannelID, "type": subscriptionTypeChannel}).QueryRow()
 	var subscription storemodels.ChannelSubscription
@@ -799,7 +799,7 @@ func (s *SQLStore) getChannelSubscriptionByTeamsChannelID(db sq.BaseRunner, team
 	return &subscription, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getChatSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.ChatSubscription, error) {
 	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsUserID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeUser}).QueryRow()
 	var subscription storemodels.ChatSubscription
@@ -815,7 +815,7 @@ func (s *SQLStore) getChatSubscription(db sq.BaseRunner, subscriptionID string) 
 	return &subscription, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getGlobalSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.GlobalSubscription, error) {
 	row := s.getQueryBuilder(db).Select("subscriptionID, type, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeAllChats}).QueryRow()
 	var subscription storemodels.GlobalSubscription
@@ -831,7 +831,7 @@ func (s *SQLStore) getGlobalSubscription(db sq.BaseRunner, subscriptionID string
 	return &subscription, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getSubscriptionType(db sq.BaseRunner, subscriptionID string) (string, error) {
 	row := s.getQueryBuilder(db).Select("type").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID}).QueryRow()
 	var subscriptionType string
@@ -899,7 +899,7 @@ func (s *SQLStore) StoreOAuth2State(state string) error {
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getLinkedChannelsCount(db sq.BaseRunner) (linkedChannels int64, err error) {
 	err = s.getQueryBuilder(db).
 		Select("count(mmChannelID)").
@@ -910,7 +910,7 @@ func (s *SQLStore) getLinkedChannelsCount(db sq.BaseRunner) (linkedChannels int6
 	return linkedChannels, err
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getConnectedUsersCount(db sq.BaseRunner) (connectedUsers int64, err error) {
 	err = s.getQueryBuilder(db).
 		Select("count(mmUserID)").
@@ -925,7 +925,7 @@ func (s *SQLStore) getConnectedUsersCount(db sq.BaseRunner) (connectedUsers int6
 	return connectedUsers, err
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (syntheticUsers int64, err error) {
 	err = s.getQueryBuilder(db).
 		Select("count(id)").
@@ -943,7 +943,7 @@ func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (sy
 	return syntheticUsers, err
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
 	query := s.getQueryBuilder(db).
 		Select("p.value", "count(*)").
@@ -979,7 +979,7 @@ func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceC
 	return msTeamsPrimary, mmPrimary, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duration) (activeUsersSending int64, err error) {
 	now := time.Now()
 
@@ -994,7 +994,7 @@ func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duratio
 	return activeUsersSending, err
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getActiveUsersReceivingCount(db sq.BaseRunner, dur time.Duration) (activeUsersReceiving int64, err error) {
 	now := time.Now()
 
@@ -1009,7 +1009,7 @@ func (s *SQLStore) getActiveUsersReceivingCount(db sq.BaseRunner, dur time.Durat
 	return activeUsersReceiving, err
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getConnectedUsers(db sq.BaseRunner, page, perPage int) ([]*storemodels.ConnectedUser, error) {
 	query := s.getQueryBuilder(db).Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From(usersTableName).LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
 	rows, err := query.Query()
@@ -1032,7 +1032,7 @@ func (s *SQLStore) getConnectedUsers(db sq.BaseRunner, page, perPage int) ([]*st
 	return connectedUsers, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getHasConnectedCount(db sq.BaseRunner) (int, error) {
 	query := s.getQueryBuilder(db).
 		Select("count(*)").
@@ -1085,7 +1085,7 @@ func (s *SQLStore) storeUsersInWhitelist(db sq.BaseRunner, userIDs []string) err
 	return nil
 }
 
-//@withTransaction
+//go:withTransaction
 func (s *SQLStore) setWhitelist(db sq.BaseRunner, userIDs []string, batchSize int) error {
 	if err := s.deleteWhitelist(db); err != nil {
 		s.api.LogDebug("Error deleting whitelist")
@@ -1109,7 +1109,7 @@ func (s *SQLStore) setWhitelist(db sq.BaseRunner, userIDs []string, batchSize in
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) isUserWhitelisted(db sq.BaseRunner, userID string) (bool, error) {
 	query := s.getQueryBuilder(db).Select("mmUserID").From(whitelistTableName).Where(sq.Eq{"mmUserID": userID})
 	rows, err := query.Query()
@@ -1136,7 +1136,7 @@ func (s *SQLStore) deleteUserFromWhitelist(db sq.BaseRunner, mmUserID string) er
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getWhitelistCount(db sq.BaseRunner) (int, error) {
 	query := s.getQueryBuilder(db).Select("count(*)").From(whitelistTableName)
 	rows, err := query.Query()
@@ -1155,7 +1155,7 @@ func (s *SQLStore) getWhitelistCount(db sq.BaseRunner) (int, error) {
 	return result, nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getWhitelistEmails(db sq.BaseRunner, page, perPage int) ([]string, error) {
 	query := s.getQueryBuilder(db).
 		Select("Users.Email").
@@ -1208,7 +1208,7 @@ func (s *SQLStore) storeInvitedUser(db sq.BaseRunner, invitedUser *storemodels.I
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getInvitedUser(db sq.BaseRunner, mmUserID string) (*storemodels.InvitedUser, error) {
 	query := s.getQueryBuilder(db).
 		Select("mmUserID", "invitePendingSince", "inviteLastSentAt").
@@ -1252,7 +1252,7 @@ func (s *SQLStore) deleteUserInvite(db sq.BaseRunner, mmUserID string) error {
 	return nil
 }
 
-//@withReplica
+//go:withReplica
 func (s *SQLStore) getInvitedCount(db sq.BaseRunner) (int, error) {
 	query := s.getQueryBuilder(db).Select("count(*)").From(invitedUsersTableName)
 	rows, err := query.Query()
