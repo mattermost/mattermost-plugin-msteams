@@ -1036,6 +1036,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetSelectiveSync").Return(false)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("DeletePost", testutils.GetMattermostID()).Return(nil).Times(1)
@@ -1056,6 +1057,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetStore").Return(store).Maybe()
+				p.On("GetSelectiveSync").Return(false)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
@@ -1072,6 +1074,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSelectiveSync").Return(false)
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("DeletePost", "").Return(&model.AppError{
