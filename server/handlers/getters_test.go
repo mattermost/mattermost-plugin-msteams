@@ -70,6 +70,10 @@ func (pm *pluginMock) ChannelHasRemoteUsers(channelID string) (bool, error) {
 	return true, nil
 }
 
+func (pm *pluginMock) IsUserConnected(string) (bool, error) {
+	return true, nil
+}
+
 func newTestHandler() *ActivityHandler {
 	return New(&pluginMock{
 		appClient:                  &mocksClient.Client{},

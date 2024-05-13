@@ -122,12 +122,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		isSelfPost := len(members) == 1
 		containsRemoteUser := false
 		if !isSelfPost {
-			containsRemote, err := p.MembersContainsRemote(members)
+			containsRemoteUser, err = p.MembersContainsRemote(members)
 			if err != nil {
 				p.API.LogWarn("Failed to determine is chat members contains remote.", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
 			}
-			containsRemoteUser = containsRemote
 		}
 
 		dstUsers := []string{}

@@ -611,7 +611,6 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-
 	if ah.plugin.GetSelectiveSync() {
 		_, chat, err := ah.getMessageAndChatFromActivityIds(&clientmodels.Message{}, activityIds)
 		if err != nil {
