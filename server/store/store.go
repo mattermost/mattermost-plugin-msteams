@@ -1,5 +1,5 @@
 //go:generate mockery --name=Store
-//go:generate go run layer_generators/main.go
+//go:generate go run generators/main.go
 package store
 
 import (
