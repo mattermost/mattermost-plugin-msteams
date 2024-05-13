@@ -41,6 +41,12 @@ func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error 
 		return nil
 	}
 
+	canAutomute, err := p.canAutomuteChannel(channel)
+	if err != nil {
+		return errors.Wrap(err, "unable to determine if channel can be automuted")
+	} else if !canAutomute {
+		return nil
+	}
 	return p.updateAutomutingForChannelMembers(channel.Id, true)
 }
 

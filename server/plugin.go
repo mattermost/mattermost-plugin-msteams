@@ -50,6 +50,7 @@ const (
 	checkCredentialsJobName          = "check_credentials" //#nosec G101 -- This is a false positive
 
 	updateMetricsTaskFrequency = 15 * time.Minute
+	metricsActiveUsersRange    = 7 * 24 * time.Hour
 )
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
@@ -71,7 +72,7 @@ type Plugin struct {
 
 	stopDmsGmsMigration func()
 
-	userID    string
+	botUserID string
 	remoteID  string
 	apiClient *pluginapi.Client
 
@@ -142,7 +143,7 @@ func (p *Plugin) GetBufferSizeForStreaming() int {
 }
 
 func (p *Plugin) GetBotUserID() string {
-	return p.userID
+	return p.botUserID
 }
 
 func (p *Plugin) GetSelectiveSync() bool {
@@ -375,14 +376,14 @@ func (p *Plugin) start(isRestart bool) {
 			if _, err = p.API.ShareChannel(&model.SharedChannel{
 				ChannelId: id,
 				Home:      true,
-				CreatorId: p.userID,
+				CreatorId: p.botUserID,
 				ShareName: id,
 				// TODO: Fix this, this should allow Group chanels too here
 				Type: model.ChannelTypeDirect,
 			}); err != nil {
 				p.API.LogWarn("Unable to share channel", "channel_id", id, "error", err.Error())
 			}
-			if err = p.inviteRemoteToChannel(id, p.remoteID, p.userID); err != nil {
+			if err = p.inviteRemoteToChannel(id, p.remoteID, p.botUserID); err != nil {
 				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", id, "error", err.Error())
 			}
 		}
@@ -545,7 +546,7 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.userID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
+	p.botUserID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,
 		DisplayName: botDisplayName,
 		Description: "Created by the MS Teams Sync plugin.",
@@ -557,7 +558,7 @@ func (p *Plugin) onActivate() error {
 	p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
 		Displayname:  pluginID,
 		PluginID:     pluginID,
-		CreatorID:    p.userID,
+		CreatorID:    p.botUserID,
 		AutoShareDMs: false,
 		AutoInvited:  true,
 	})
@@ -583,6 +584,11 @@ func (p *Plugin) onActivate() error {
 			return dbErr
 		}
 
+		replica, repErr := p.apiClient.Store.GetReplicaDB()
+		if repErr != nil {
+			return repErr
+		}
+
 		// simulate a ping to the plugin from server so it appears "online" immediately.
 		// !!!! remove this when fixed in server
 		_, err = db.Exec("update remoteclusters set lastpingat=$1 where remoteid=$2;", model.GetMillis(), p.remoteID)
@@ -604,6 +610,7 @@ func (p *Plugin) onActivate() error {
 
 		store := sqlstore.New(
 			db,
+			replica,
 			p.API,
 			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
@@ -627,7 +634,7 @@ func (p *Plugin) onActivate() error {
 				TeamId:    linkedChannel.MattermostTeamID,
 				Home:      true,
 				ReadOnly:  false,
-				CreatorId: p.userID,
+				CreatorId: p.botUserID,
 				RemoteId:  p.remoteID,
 				ShareName: linkedChannel.MattermostChannelID,
 			})
@@ -635,7 +642,7 @@ func (p *Plugin) onActivate() error {
 				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
 			}
 
-			if err := p.inviteRemoteToChannel(linkedChannel.MattermostChannelID, p.remoteID, p.userID); err != nil {
+			if err := p.inviteRemoteToChannel(linkedChannel.MattermostChannelID, p.remoteID, p.botUserID); err != nil {
 				p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", linkedChannel.MattermostChannelID, "error", err.Error())
 			}
 
@@ -966,19 +973,66 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	start := time.Now()
-	p.API.LogDebug("Updating metrics")
-	stats, err := p.store.GetStats(p.remoteID, PreferenceCategoryPlugin)
-	if err != nil {
-		p.API.LogWarn("failed to update computed metrics", "error", err)
-		return
+	now := time.Now()
+	p.API.LogInfo("Updating metrics")
+
+	// it's a bit of a special case because it returns two values
+	msTeamsPrimary, mmPrimary, primaryPlatformErr := p.store.GetUsersByPrimaryPlatformsCount(PreferenceCategoryPlugin)
+
+	stats := []struct {
+		name        string
+		getData     func() (int64, error)
+		observeData func(int64)
+	}{
+		{
+			name:        "connecter users",
+			getData:     p.store.GetConnectedUsersCount,
+			observeData: p.GetMetrics().ObserveConnectedUsers,
+		},
+		{
+			name:        "linked channels",
+			getData:     p.store.GetLinkedChannelsCount,
+			observeData: p.GetMetrics().ObserveLinkedChannels,
+		},
+		{
+			name: "synthetic users",
+			getData: func() (int64, error) {
+				return p.store.GetSyntheticUsersCount(p.remoteID)
+			},
+			observeData: p.GetMetrics().ObserveSyntheticUsers,
+		},
+		{
+			name:        "msteams primary users",
+			getData:     func() (int64, error) { return msTeamsPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMSTeamsPrimary,
+		},
+		{
+			name:        "mattermost primary users",
+			getData:     func() (int64, error) { return mmPrimary, primaryPlatformErr },
+			observeData: p.GetMetrics().ObserveMattermostPrimary,
+		},
+		{
+			name:        "active users sending",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersSendingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersSending,
+		},
+		{
+			name:        "active users receiving",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange) },
+			observeData: p.GetMetrics().ObserveActiveUsersReceiving,
+		},
 	}
-	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
-	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
-	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
-	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)
-	p.GetMetrics().ObserveMSTeamsPrimary(stats.MSTeamsPrimary)
-	p.API.LogDebug("Updating metrics done", "duration", time.Since(start))
+	for _, stat := range stats {
+		data, err := stat.getData()
+		if err != nil {
+			p.API.LogWarn("failed to get data for metric "+stat.name, "error", err)
+			continue
+		}
+
+		stat.observeData(data)
+	}
+
+	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
@@ -1070,14 +1124,14 @@ func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel
 		if _, err := p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: channel.Id,
 			Home:      true,
-			CreatorId: p.userID,
+			CreatorId: p.botUserID,
 			ShareName: channel.Id,
 			// TODO: Fix this, this should allow Group chanels too here
 			Type: model.ChannelTypeDirect,
 		}); err != nil {
 			p.API.LogWarn("Unable to share channel", "channel_id", channel.Id, "error", err.Error())
 		}
-		if err := p.inviteRemoteToChannel(channel.Id, p.remoteID, p.userID); err != nil {
+		if err := p.inviteRemoteToChannel(channel.Id, p.remoteID, p.botUserID); err != nil {
 			p.API.LogWarn("Unable simulate the invite remote channel", "channel_id", channel.Id, "error", err.Error())
 		}
 	}

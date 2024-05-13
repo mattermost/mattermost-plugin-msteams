@@ -65,6 +65,16 @@ func (_m *Metrics) ObserveAPIEndpointDuration(handler string, method string, sta
 	_m.Called(handler, method, statusCode, elapsed)
 }
 
+// ObserveActiveUsersReceiving provides a mock function with given fields: count
+func (_m *Metrics) ObserveActiveUsersReceiving(count int64) {
+	_m.Called(count)
+}
+
+// ObserveActiveUsersSending provides a mock function with given fields: count
+func (_m *Metrics) ObserveActiveUsersSending(count int64) {
+	_m.Called(count)
+}
+
 // ObserveChangeEvent provides a mock function with given fields: changeType, discardedReason
 func (_m *Metrics) ObserveChangeEvent(changeType string, discardedReason string) {
 	_m.Called(changeType, discardedReason)
@@ -115,9 +125,9 @@ func (_m *Metrics) ObserveLinkedChannels(count int64) {
 	_m.Called(count)
 }
 
-// ObserveMSGraphClientMethodDuration provides a mock function with given fields: method, success, elapsed
-func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success string, elapsed float64) {
-	_m.Called(method, success, elapsed)
+// ObserveMSGraphClientMethodDuration provides a mock function with given fields: method, success, statusCode, elapsed
+func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success string, statusCode string, elapsed float64) {
+	_m.Called(method, success, statusCode, elapsed)
 }
 
 // ObserveMSTeamsPrimary provides a mock function with given fields: count

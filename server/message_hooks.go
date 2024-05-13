@@ -46,7 +46,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 
 func (p *Plugin) messageDeletedHandler(post *model.Post) error {
 	if post.Props != nil {
-		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return nil
 		}
 	}
@@ -112,7 +112,7 @@ func (p *Plugin) messagePostedHandler(post *model.Post) error {
 	}
 
 	if post.Props != nil {
-		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return nil
 		}
 	}
@@ -647,6 +647,11 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
+
+	if err := p.store.SetUserLastChatSentAt(post.UserId, storemodels.MilliToMicroSeconds(post.CreateAt)); err != nil {
+		p.API.LogWarn("Unable to set user last chat sent At", "user_id", post.UserId, "post_id", post.Id, "error", err.Error())
+	}
+
 	return newMessage.ID, nil
 }
 
@@ -662,7 +667,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	text := post.Message
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return "", err
 		}
@@ -741,7 +746,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return err
 		}
@@ -811,7 +816,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *mod
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return err
 		}

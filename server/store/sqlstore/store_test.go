@@ -6,6 +6,7 @@ import (
 
 	"testing"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -214,9 +215,9 @@ func TestListChannelLinksWithNames(t *testing.T) {
 		Creator:               "mockCreator",
 	}
 
-	_, err := store.getQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
 	assert.Nil(err)
-	_, err = store.getQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
+	_, err = store.getMasterQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
 	assert.Nil(err)
 
 	links, err := store.ListChannelLinksWithNames()
@@ -947,7 +948,7 @@ func TestListConnectedUsers(t *testing.T) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	_, err := store.getQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
+	_, err := store.getMasterQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
 	assert.Nil(err)
 
 	resp, getErr := store.GetConnectedUsers(0, 100)
@@ -1017,7 +1018,200 @@ func TestWhitelistIO(t *testing.T) {
 	assert.Nil(getErr)
 }
 
-func TestGetStats(t *testing.T) {
+func TestSetUserLastChatSentAt(t *testing.T) {
+	store, _ := setupTestStore(t)
+
+	setup := func(t *testing.T) string {
+		t.Helper()
+
+		userID := model.NewId()
+		err := store.SetUserInfo(userID, "ms-"+userID, nil)
+		require.Nil(t, err)
+
+		return userID
+	}
+
+	getLastChatSentAtForUser := func(userID string) int64 {
+		t.Helper()
+		var lastChatSentAt int64
+		err := store.getReplicaQueryBuilder().
+			Select("LastChatSentAt").
+			From(usersTableName).
+			Where(sq.Eq{"mmuserID": userID}).
+			QueryRow().
+			Scan(&lastChatSentAt)
+		require.Nil(t, err)
+		return lastChatSentAt
+	}
+
+	t.Run("no data, LastChatSentAt should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
+		assert.Nil(err)
+
+		assert.EqualValues(10, getLastChatSentAtForUser(userID))
+	})
+
+	t.Run("trying to update with older values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
+		assert.Nil(err)
+
+		err = store.SetUserLastChatSentAt(userID, 5)
+		assert.Nil(err)
+
+		assert.EqualValues(10, getLastChatSentAtForUser(userID))
+	})
+
+	t.Run("trying to update with newest values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		userID := setup(t)
+		err := store.SetUserLastChatSentAt(userID, 10)
+		assert.Nil(err)
+
+		err = store.SetUserLastChatSentAt(userID, 15)
+		assert.Nil(err)
+
+		assert.EqualValues(15, getLastChatSentAtForUser(userID))
+	})
+}
+
+func TestSetUsersLastChatReceivedAt(t *testing.T) {
+	store, _ := setupTestStore(t)
+
+	setup := func(t *testing.T) []string {
+		t.Helper()
+
+		userID1 := model.NewId()
+		err := store.SetUserInfo(userID1, "ms-"+userID1, nil)
+		require.Nil(t, err)
+		userID2 := model.NewId()
+		err = store.SetUserInfo(userID2, "ms-"+userID2, nil)
+		require.Nil(t, err)
+		userID3 := model.NewId()
+		err = store.SetUserInfo(userID3, "ms-"+userID3, nil)
+		require.Nil(t, err)
+
+		return []string{userID1, userID2, userID3}
+	}
+
+	getLastChatReceivedAtForUser := func(userID string) int64 {
+		t.Helper()
+		var lastChatReceivedAt int64
+		err := store.getReplicaQueryBuilder().
+			Select("LastChatReceivedAt").
+			From(usersTableName).
+			Where(sq.Eq{"mmuserID": userID}).
+			QueryRow().
+			Scan(&lastChatReceivedAt)
+		assert.Nil(t, err)
+		return lastChatReceivedAt
+	}
+
+	t.Run("no data, LastChatReceivedAt should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
+		assert.Nil(err)
+
+		for _, userID := range users {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(userID))
+		}
+	})
+
+	t.Run("trying to update with older values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
+		assert.Nil(err)
+
+		err = store.SetUsersLastChatReceivedAt(users, 5)
+		assert.Nil(err)
+
+		for _, userID := range users {
+			assert.EqualValues(10, getLastChatReceivedAtForUser(userID))
+		}
+	})
+
+	t.Run("trying to update with newest values should not updating anything", func(t *testing.T) {
+		assert := require.New(t)
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt(users, 10)
+		assert.Nil(err)
+
+		err = store.SetUsersLastChatReceivedAt(users, 15)
+		assert.Nil(err)
+
+		for _, userID := range users {
+			assert.EqualValues(15, getLastChatReceivedAtForUser(userID))
+		}
+	})
+
+	t.Run("if some users have older values, only those should be updated", func(t *testing.T) {
+		assert := require.New(t)
+		// Arrange
+		users := setup(t)
+		err := store.SetUsersLastChatReceivedAt([]string{users[0], users[2]}, 10)
+		assert.Nil(err)
+		err = store.SetUsersLastChatReceivedAt([]string{users[1]}, 20)
+		assert.Nil(err)
+
+		// Act
+		err = store.SetUsersLastChatReceivedAt(users, 15)
+		assert.Nil(err)
+
+		// Assert
+		assert.EqualValues(15, getLastChatReceivedAtForUser(users[0]))
+		assert.EqualValues(20, getLastChatReceivedAtForUser(users[1]))
+		assert.EqualValues(15, getLastChatReceivedAtForUser(users[2]))
+	})
+}
+
+func TestGetConnectedUsersCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetConnectedUsersCount()
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+		}
+
+		// Also create synthetic ones to check that they are not counted
+		for i := 0; i < 3; i++ {
+			err := store.SetUserInfo(model.NewId(), model.NewId(), nil)
+			assert.Nil(err)
+		}
+
+		nb, err := store.GetConnectedUsersCount()
+		assert.Nil(err)
+		assert.EqualValues(5, nb)
+	})
+}
+
+func TestGetLinkedChannelsCount(t *testing.T) {
 	store, _ := setupTestStore(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -1025,65 +1219,25 @@ func TestGetStats(t *testing.T) {
 	store.enabledTeams = func() []string {
 		return []string{""}
 	}
-	assert := require.New(t)
 
 	cleanup := func() {
-		_, err := store.getQueryBuilder().Delete("Users").Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete("Preferences").Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
-		assert.Nil(err)
-		_, err = store.getQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
-		assert.Nil(err)
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		require.Nil(t, err)
 	}
 	cleanup()
 	defer cleanup()
 
-	const remoteID = "remote-id"
-	const category = "pp_pluginid"
-
-	t.Run("all zero", func(t *testing.T) {
-		stats, getErr := store.GetStats(remoteID, category)
-		assert.Nil(getErr)
-		assert.EqualValues(0, stats.ConnectedUsers)
-		assert.EqualValues(0, stats.SyntheticUsers)
-		assert.EqualValues(0, stats.LinkedChannels)
-		assert.EqualValues(0, stats.MSTeamsPrimary)
-		assert.EqualValues(0, stats.MattermostPrimary)
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetLinkedChannelsCount()
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
 	})
 
-	t.Run("values set", func(t *testing.T) {
-		// create 5 users connected users, 3 on MM and 2 using Teams
-		for i := 0; i < 5; i++ {
-			userID := model.NewId()
-			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
-				AccessToken: model.NewId(),
-			})
-			assert.Nil(err)
+	t.Run("with 4 channels", func(t *testing.T) {
+		assert := require.New(t)
 
-			platform := storemodels.PreferenceValuePlatformMM
-			if i >= 3 {
-				platform = storemodels.PreferenceValuePlatformMSTeams
-			}
-
-			_, err = store.getQueryBuilder().Insert("preferences").
-				Columns("userid, category, name, value").
-				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
-				Exec()
-			assert.Nil(err)
-		}
-
-		// create 3 users synthetic users
-		for i := 0; i < 3; i++ {
-			userID := model.NewId()
-			_, err := store.getQueryBuilder().Insert("Users").
-				Columns("Id, remoteid").
-				Values(userID, remoteID).Exec()
-			assert.Nil(err)
-		}
-
-		// create 4 channels
 		for i := 0; i < 4; i++ {
 			err := store.StoreChannelLink(&storemodels.ChannelLink{
 				MattermostTeamID:      model.NewId(),
@@ -1097,12 +1251,200 @@ func TestGetStats(t *testing.T) {
 			assert.Nil(err)
 		}
 
-		stats, getErr := store.GetStats(remoteID, category)
+		nb, err := store.GetLinkedChannelsCount()
+		assert.Nil(err)
+		assert.EqualValues(4, nb)
+	})
+}
+
+func TestGetSyntheticUsersCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.enabledTeams = func() []string {
+		return []string{""}
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete("Users").Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	const remoteID = "remote-id"
+
+	t.Run("zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetSyntheticUsersCount(remoteID)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+
+		// create 3 synthetic users and 3 non synthetic ones
+		for i := 0; i < 3; i++ {
+			_, err := store.getMasterQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(model.NewId(), remoteID).Exec()
+			assert.Nil(err)
+
+			_, err = store.getMasterQueryBuilder().Insert("Users").
+				Columns("Id, remoteid").
+				Values(model.NewId(), nil).Exec()
+			assert.Nil(err)
+		}
+
+		nb, err := store.GetSyntheticUsersCount(remoteID)
+		assert.Nil(err)
+		assert.EqualValues(3, nb)
+	})
+}
+
+func TestGetUsersByPrimaryPlatformsCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		require.Nil(t, err)
+		_, err = store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	const category = "pp_pluginid"
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
+		assert.Nil(err)
+		assert.EqualValues(0, teamsPrimary)
+		assert.EqualValues(0, mmPrimary)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+
+			platform := storemodels.PreferenceValuePlatformMM
+			if i >= 3 {
+				platform = storemodels.PreferenceValuePlatformMSTeams
+			}
+
+			_, err = store.getMasterQueryBuilder().Insert("preferences").
+				Columns("userid, category, name, value").
+				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
+				Exec()
+			assert.Nil(err)
+		}
+
+		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
+		assert.Nil(err)
+		assert.EqualValues(2, teamsPrimary)
+		assert.EqualValues(3, mmPrimary)
+	})
+}
+
+func TestGetActiveUsersReceivingCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	duration := 7 * 24 * time.Hour
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetActiveUsersReceivingCount(7 * 24 * time.Hour)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		now := time.Now()
+
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+
+			// last chat sent at is set to will decrease by 48 hours for each user
+			// so the last one will be out of the range
+			err = store.SetUserLastChatReceivedAt(userID, now.Add(-time.Duration(i)*48*time.Hour).UnixMicro())
+			assert.Nil(err)
+		}
+
+		nb, getErr := store.GetActiveUsersReceivingCount(duration)
 		assert.Nil(getErr)
-		assert.EqualValues(5, stats.ConnectedUsers)
-		assert.EqualValues(2, stats.MSTeamsPrimary)
-		assert.EqualValues(3, stats.MattermostPrimary)
-		assert.EqualValues(3, stats.SyntheticUsers)
-		assert.EqualValues(4, stats.LinkedChannels)
+		assert.EqualValues(4, nb)
+	})
+}
+
+func TestGetActiveUsersSendingCount(t *testing.T) {
+	store, _ := setupTestStore(t)
+	store.encryptionKey = func() []byte {
+		return make([]byte, 16)
+	}
+
+	cleanup := func() {
+		t.Helper()
+		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		require.Nil(t, err)
+	}
+	cleanup()
+	defer cleanup()
+
+	duration := 7 * 24 * time.Hour
+
+	t.Run("all zero", func(t *testing.T) {
+		assert := require.New(t)
+		nb, err := store.GetActiveUsersSendingCount(7 * 24 * time.Hour)
+		assert.Nil(err)
+		assert.EqualValues(0, nb)
+	})
+
+	t.Run("all values set", func(t *testing.T) {
+		assert := require.New(t)
+		now := time.Now()
+
+		for i := 0; i < 5; i++ {
+			userID := model.NewId()
+			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
+				AccessToken: model.NewId(),
+			})
+			assert.Nil(err)
+
+			// last chat sent at is set to will decrease by 48 hours for each user
+			// so the last one will be out of the range
+			err = store.SetUserLastChatSentAt(userID, now.Add(-time.Duration(i)*48*time.Hour).UnixMicro())
+			assert.Nil(err)
+		}
+
+		nb, getErr := store.GetActiveUsersSendingCount(duration)
+		assert.Nil(getErr)
+		assert.EqualValues(4, nb)
 	})
 }
