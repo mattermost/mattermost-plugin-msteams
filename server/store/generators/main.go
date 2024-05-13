@@ -391,12 +391,6 @@ func generateTransactionalStoreLayer(topLevelFunctionsToSkip map[string]bool) ([
 		}
 	}
 
-	for methodName := range metadata.Methods {
-		if _, ok := implementationMetadata[methodName]; ok {
-			delete(metadata.Methods, methodName)
-		}
-	}
-
 	t := template.Must(template.New("transactional_store.go.tmpl").Funcs(getTemplateFuncs()).ParseFiles("generators/transactional_store.go.tmpl"))
 	if err = t.Execute(out, metadata); err != nil {
 		return nil, err
