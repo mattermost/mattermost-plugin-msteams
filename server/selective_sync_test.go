@@ -44,9 +44,9 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
 		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("dm between two remote users", func(t *testing.T) {

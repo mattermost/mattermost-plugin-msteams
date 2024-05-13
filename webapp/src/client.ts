@@ -8,6 +8,8 @@ import {id as pluginId} from './manifest';
 
 export interface SiteStats {
     total_connected_users: number;
+    total_users_receiving: number;
+    total_users_sending: number;
 }
 
 class ClientClass {
