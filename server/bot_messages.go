@@ -63,7 +63,6 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	if err := p.apiClient.Post.UpdatePost(post); err != nil {
 		p.GetAPI().LogWarn("Failed to update connection post", "user_id", userID, "error", err)
 	}
-	return
 }
 
 func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
