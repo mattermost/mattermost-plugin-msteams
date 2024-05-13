@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChatShouldSync(t *testing.T) {
+func TestChannelHasRemoteUsers(t *testing.T) {
 	th := setupTestHelper(t)
 
 	t.Run("invalid channel id", func(t *testing.T) {
@@ -44,9 +44,9 @@ func TestChatShouldSync(t *testing.T) {
 		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		chatShouldSync, err := th.p.ChatShouldSync(channel.Id)
+		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
 		require.NoError(t, err)
-		assert.False(t, chatShouldSync)
+		assert.False(t, remoteUsers)
 	})
 
 	t.Run("dm between two remote users", func(t *testing.T) {
