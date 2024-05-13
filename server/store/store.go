@@ -86,4 +86,7 @@ type Store interface {
 	GetSubscriptionType(subscriptionID string) (string, error)
 	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
 	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
+	EnqueueActivities(activitiesIDs, activities []string) error
+	DequeueActivity(activityId string) error
+	ProcessQueuedActivity(func(activity string) error) error
 }

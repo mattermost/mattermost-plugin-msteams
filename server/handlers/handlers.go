@@ -236,6 +236,8 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
 			}
 		}
+		ah.plugin.GetAPI().LogWarn("Receiving activity and waiting", "activity", activity)
+		time.Sleep(5 * time.Second)
 		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "updated":
 		var msg *clientmodels.Message
@@ -252,6 +254,24 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
 		ah.plugin.GetAPI().LogWarn("Unsupported change type", "change_type", activity.ChangeType)
+	}
+
+	if discardedReason == metrics.DiscardedReasonNone ||
+		discardedReason == metrics.DiscardedReasonAlreadyAppliedChange ||
+		discardedReason == metrics.DiscardedReasonDuplicatedPost ||
+		discardedReason == metrics.DiscardedReasonIsBotUser ||
+		discardedReason == metrics.DiscardedReasonSelectiveSync ||
+		discardedReason == metrics.DiscardedReasonInvalidChangeType ||
+		discardedReason == metrics.DiscardedReasonNotUserEvent ||
+		discardedReason == metrics.DiscardedReasonDirectMessagesDisabled ||
+		discardedReason == metrics.DiscardedReasonLinkedChannelsDisabled ||
+		discardedReason == metrics.DiscardedReasonInactiveUser ||
+		discardedReason == metrics.DiscardedReasonInvalidWebhookSecret ||
+		discardedReason == metrics.DiscardedReasonFileLimitReached ||
+		discardedReason == metrics.DiscardedReasonEmptyFileID ||
+		discardedReason == metrics.DiscardedReasonMaxFileSizeExceeded ||
+		discardedReason == metrics.DiscardedReasonExpiredSubscription {
+		ah.plugin.GetStore().DequeueActivity(activity.ID)
 	}
 
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
