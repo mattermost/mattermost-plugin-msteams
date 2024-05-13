@@ -50,7 +50,7 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	ChatShouldSync(channelID string) (bool, *model.AppError)
+	ChatShouldSync(channelID string) (bool, error)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string

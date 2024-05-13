@@ -114,17 +114,17 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
-		if appErr != nil {
+		members, err := p.apiClient.Channel.ListMembers(post.ChannelId, 0, math.MaxInt32)
+		if err != nil {
 			return
 		}
 
 		isSelfPost := len(members) == 1
 		chatMembersSpanPlatforms := false
 		if !isSelfPost {
-			chatMembersSpanPlatforms, appErr = p.ChatMembersSpanPlatforms(members)
-			if appErr != nil {
-				p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+			chatMembersSpanPlatforms, err = p.ChatMembersSpanPlatforms(members)
+			if err != nil {
+				p.API.LogWarn("Failed to check if chat members span platforms", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
 			}
 
@@ -138,7 +138,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
+		_, err = p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}

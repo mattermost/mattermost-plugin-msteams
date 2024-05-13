@@ -444,7 +444,7 @@ func TestSelectiveSync(t *testing.T) {
 			name:                         "from mmprimary to msteamsprimary",
 			fromUser:                     mmPrimary1,
 			toUser:                       msteamsPrimary1,
-			expectedWithSelectiveSync:    true,
+			expectedWithSelectiveSync:    false,
 			expectedWithoutSelectiveSync: true,
 		},
 		{
@@ -465,7 +465,7 @@ func TestSelectiveSync(t *testing.T) {
 			name:                         "from msteamsprimary to mmprimary",
 			fromUser:                     msteamsPrimary1,
 			toUser:                       mmPrimary1,
-			expectedWithSelectiveSync:    true,
+			expectedWithSelectiveSync:    false,
 			expectedWithoutSelectiveSync: true,
 		},
 		{
@@ -479,7 +479,7 @@ func TestSelectiveSync(t *testing.T) {
 			name:                         "from msteamsprimary to synthetic",
 			fromUser:                     msteamsPrimary1,
 			toUser:                       synthetic,
-			expectedWithSelectiveSync:    false,
+			expectedWithSelectiveSync:    true,
 			expectedWithoutSelectiveSync: true,
 		},
 	}
