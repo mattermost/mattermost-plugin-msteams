@@ -1375,7 +1375,7 @@ func TestGetActiveUsersReceivingCount(t *testing.T) {
 
 	t.Run("all zero", func(t *testing.T) {
 		assert := require.New(t)
-		nb, err := store.GetActiveUsersReceivingCount(7 * 24 * time.Hour)
+		nb, err := store.GetActiveUsersReceivingCount(duration)
 		assert.Nil(err)
 		assert.EqualValues(0, nb)
 	})
@@ -1421,7 +1421,7 @@ func TestGetActiveUsersSendingCount(t *testing.T) {
 
 	t.Run("all zero", func(t *testing.T) {
 		assert := require.New(t)
-		nb, err := store.GetActiveUsersSendingCount(7 * 24 * time.Hour)
+		nb, err := store.GetActiveUsersSendingCount(duration)
 		assert.Nil(err)
 		assert.EqualValues(0, nb)
 	})

@@ -1006,6 +1006,11 @@ func TestGetConnectedUsersFile(t *testing.T) {
 }
 
 func TestGetSiteStats(t *testing.T) {
+	// used to match the first argument of users sending/receiving store mocks
+	oneWeekArgMatch := mock.MatchedBy(func(dur time.Duration) bool {
+		return dur == metricsActiveUsersRange
+	})
+
 	for _, test := range []struct {
 		Name               string
 		SetupPlugin        func(*plugintest.API)
@@ -1031,7 +1036,7 @@ func TestGetSiteStats(t *testing.T) {
 				store.On("GetConnectedUsersCount").Return(int64(0), errors.New("failed")).Times(1)
 			},
 			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedResult:     "unable to get site stats\n",
+			ExpectedResult:     "unable to get connected users count\n",
 		},
 		{
 			Name: "getSiteStats: no connected users",
@@ -1040,9 +1045,11 @@ func TestGetSiteStats(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetConnectedUsersCount").Return(int64(0), nil).Times(1)
+				store.On("GetActiveUsersReceivingCount", oneWeekArgMatch).Return(int64(0), nil).Times(1)
+				store.On("GetActiveUsersSendingCount", oneWeekArgMatch).Return(int64(0), nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":0}`,
+			ExpectedResult:     `{"total_connected_users":0,"total_users_receiving":0,"total_users_sending":0}`,
 		},
 		{
 			Name: "getSiteStats: 1 connected user",
@@ -1051,9 +1058,11 @@ func TestGetSiteStats(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetConnectedUsersCount").Return(int64(1), nil).Times(1)
+				store.On("GetActiveUsersReceivingCount", oneWeekArgMatch).Return(int64(2), nil).Times(1)
+				store.On("GetActiveUsersSendingCount", oneWeekArgMatch).Return(int64(3), nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":1}`,
+			ExpectedResult:     `{"total_connected_users":1,"total_users_receiving":2,"total_users_sending":3}`,
 		},
 		{
 			Name: "getSiteStats: 10 connected users",
@@ -1062,9 +1071,11 @@ func TestGetSiteStats(t *testing.T) {
 			},
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetConnectedUsersCount").Return(int64(10), nil).Times(1)
+				store.On("GetActiveUsersReceivingCount", oneWeekArgMatch).Return(int64(20), nil).Times(1)
+				store.On("GetActiveUsersSendingCount", oneWeekArgMatch).Return(int64(30), nil).Times(1)
 			},
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":10}`,
+			ExpectedResult:     `{"total_connected_users":10,"total_users_receiving":20,"total_users_sending":30}`,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
