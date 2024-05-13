@@ -483,7 +483,7 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 		}
 	}
 
-	p.SendConnectMessage(args.ChannelId, args.UserId, "")
+	p.SendEphemeralConnectMessage(args.ChannelId, args.UserId, "")
 	return &model.CommandResponse{}, nil
 }
 

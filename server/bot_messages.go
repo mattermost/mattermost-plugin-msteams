@@ -24,10 +24,10 @@ func (p *Plugin) handlePromptForConnection(userID, channelID string) {
 	// For now, don't display the connect message
 
 	// message := "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "
-	// p.SendConnectMessage(channelID, userID, message)
+	// p.SendEphemeralConnectMessage(channelID, userID, message)
 }
 
-func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
+func (p *Plugin) SendEphemeralConnectMessage(channelID string, userID string, message string) {
 	postID := model.NewId()
 	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channelID)
 	connectMessage := fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
@@ -41,6 +41,29 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 		Message:   connectMessage,
 	}
 	p.API.SendEphemeralPost(userID, post)
+}
+func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
+	post := &model.Post{
+		Message:   message,
+		UserId:    p.GetBotUserID(),
+		ChannelId: channelID,
+	}
+	if err := p.apiClient.Post.CreatePost(post); err != nil {
+		p.GetAPI().LogWarn("Failed to create connection post", "user_id", userID, "error", err)
+		return
+	}
+
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", post.Id, channelID)
+	connectMessage := fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
+	if len(message) > 0 {
+		connectMessage = message + " " + connectMessage
+	}
+
+	post.Message = connectMessage
+	if err := p.apiClient.Post.UpdatePost(post); err != nil {
+		p.GetAPI().LogWarn("Failed to update connection post", "user_id", userID, "error", err)
+	}
+	return
 }
 
 func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
