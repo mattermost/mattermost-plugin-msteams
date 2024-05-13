@@ -1,3 +1,6 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
 export type BasePluginConfigurationSetting = {
 
     /** Name of the setting. This will be the name used to store in the preferences. */

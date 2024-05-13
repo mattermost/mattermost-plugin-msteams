@@ -958,7 +958,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.Equal(t, `{"total_connected_users":0}`, bodyString)
+		assert.JSONEq(t, `{"total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -968,9 +968,12 @@ func TestGetSiteStats(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
+		th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+		th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.Equal(t, `{"total_connected_users":1}`, bodyString)
+		assert.JSONEq(t, `{"total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -980,11 +983,23 @@ func TestGetSiteStats(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			user := th.SetupUser(t, team)
 			th.ConnectUser(t, user.Id)
+
+			if i < 5 {
+				th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+			} else {
+				th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+			}
+			if i < 2 {
+				th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+			} else {
+				th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+			}
+
 		}
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.Equal(t, `{"total_connected_users":10}`, bodyString)
+		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
 }
 

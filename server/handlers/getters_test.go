@@ -66,7 +66,7 @@ func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
 func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
-func (pm *pluginMock) ChatShouldSync(channelID string) (bool, *model.AppError) {
+func (pm *pluginMock) ChatShouldSync(channelID string) (bool, error) {
 	return true, nil
 }
 
@@ -174,6 +174,7 @@ func TestGetChatChannelID(t *testing.T) {
 		messageID        string
 		expectedResponse string
 		expectedError    string
+		expectedUserIDs  []string
 		setupPlugin      func(plugin *mocksPlugin.PluginIface)
 		setupAPI         func()
 		setupStore       func()
@@ -203,6 +204,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil).Once()
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil).Once()
 			},
+			expectedUserIDs: []string{"mock-mmUserID1", "mock-mmUserID2"},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetUser", testutils.GetUserID()+"1").Return(&clientmodels.User{ID: testutils.GetUserID() + "1"}, nil).Once()
 				client.On("GetUser", testutils.GetUserID()+"2").Return(&clientmodels.User{ID: testutils.GetUserID() + "2"}, nil).Once()
@@ -233,6 +235,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil)
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil)
 			},
+			expectedUserIDs: []string{"mock-mmUserID1", "mock-mmUserID2"},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetUser", testutils.GetUserID()+"1").Return(&clientmodels.User{ID: testutils.GetUserID() + "1"}, nil).Once()
 				client.On("GetUser", testutils.GetUserID()+"2").Return(&clientmodels.User{ID: testutils.GetUserID() + "2"}, nil).Once()
@@ -288,6 +291,7 @@ func TestGetChatChannelID(t *testing.T) {
 			setupStore: func() {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()).Return("mock-mmUserID", nil)
 			},
+			expectedUserIDs: nil,
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetUser", testutils.GetUserID()).Return(&clientmodels.User{ID: testutils.GetUserID()}, nil).Once()
 			},
@@ -311,6 +315,7 @@ func TestGetChatChannelID(t *testing.T) {
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"1").Return("mock-mmUserID1", nil)
 				store.On("TeamsToMattermostUserID", testutils.GetUserID()+"2").Return("mock-mmUserID2", nil)
 			},
+			expectedUserIDs: nil,
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetUser", testutils.GetUserID()+"1").Return(&clientmodels.User{ID: testutils.GetUserID() + "1"}, nil).Once()
 				client.On("GetUser", testutils.GetUserID()+"2").Return(&clientmodels.User{ID: testutils.GetUserID() + "2"}, nil).Once()
@@ -327,8 +332,9 @@ func TestGetChatChannelID(t *testing.T) {
 			testCase.setupClient(client)
 			ah.plugin = p
 
-			resp, err := ah.getChatChannelID(testCase.chat)
+			resp, userIDs, err := ah.getChatChannelIDAndUsersID(testCase.chat)
 			assert.Equal(t, resp, testCase.expectedResponse)
+			assert.Equal(t, userIDs, testCase.expectedUserIDs)
 			if testCase.expectedError != "" {
 				assert.EqualError(t, err, testCase.expectedError)
 			} else {

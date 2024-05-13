@@ -327,6 +327,35 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	return user
 }
 
+func (th *testHelper) SetupGuestUser(t *testing.T, team *model.Team) *model.User {
+	t.Helper()
+
+	var user *model.User
+	var err error
+	user = th.SetupUser(t, team)
+
+	user, err = th.p.apiClient.User.UpdateRoles(user.Id, model.SystemGuestRoleId)
+	require.NoError(t, err)
+
+	return user
+}
+
+func (th *testHelper) CreateBot(t *testing.T) *model.Bot {
+	id := model.NewId()
+
+	bot := &model.Bot{
+		Username:    "bot" + id,
+		DisplayName: "a bot",
+		Description: "bot",
+		OwnerId:     "ownerID",
+	}
+
+	bot, err := th.p.API.CreateBot(bot)
+	require.Nil(t, err)
+
+	return bot
+}
+
 func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	teamID := "t" + userID
 	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
