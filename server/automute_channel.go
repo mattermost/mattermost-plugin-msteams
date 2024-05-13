@@ -35,10 +35,6 @@ func (p *Plugin) updateAutomutingOnUserJoinedChannel(_ *plugin.Context, userID s
 	return err == nil, err
 }
 
-func (p *Plugin) ChannelHasBeenCreated(c *plugin.Context, channel *model.Channel) {
-	_ = p.updateAutomutingOnChannelCreated(channel)
-}
-
 func (p *Plugin) updateAutomutingOnChannelCreated(channel *model.Channel) error {
 	if !channel.IsGroupOrDirect() {
 		// Assume that newly created channels can never be linked by the time this is called

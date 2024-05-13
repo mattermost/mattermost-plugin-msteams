@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	model "github.com/mattermost/mattermost/server/public/model"
 	mock "github.com/stretchr/testify/mock"
 	oauth2 "golang.org/x/oauth2"
 
@@ -796,6 +797,29 @@ func (_m *Store) ListChannelSubscriptionsToRefresh(certificate string) ([]*store
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(certificate)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListChannelsToConnectBatch provides a mock function with given fields: remoteID, channelType
+func (_m *Store) ListChannelsToConnectBatch(remoteID string, channelType model.ChannelType) ([]string, error) {
+	ret := _m.Called(remoteID, channelType)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string, model.ChannelType) []string); ok {
+		r0 = rf(remoteID, channelType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, model.ChannelType) error); ok {
+		r1 = rf(remoteID, channelType)
 	} else {
 		r1 = ret.Error(1)
 	}

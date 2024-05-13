@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

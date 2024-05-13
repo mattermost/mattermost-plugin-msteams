@@ -38,85 +38,97 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
+	if p.getConfiguration().UseSharedChannels {
+		return
+	}
+	_ = p.messageDeletedHandler(post)
+}
+
+func (p *Plugin) messageDeletedHandler(post *model.Post) error {
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
-			return
+			return nil
 		}
 	}
 
 	if post.IsSystemMessage() {
-		return
+		return nil
 	}
 
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {
-		p.API.LogWarn("Failed to get channel on message deleted", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-		return
+		return appErr
 	}
 
 	if channel.IsGroupOrDirect() {
 		if !p.getConfiguration().SyncDirectMessages {
-			return
+			return nil
 		}
 
 		if p.getConfiguration().SelectiveSync {
 			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
+				return appErr
 			} else if !shouldSync {
-				return
+				return nil
 			}
 		}
 
 		if err := p.DeleteChat(post); err != nil {
 			p.API.LogWarn("Unable to delete chat", "error", err.Error())
-			return
+			return err
 		}
 	} else {
 		link, err := p.store.GetLinkByChannelID(post.ChannelId)
 		if err != nil || link == nil {
-			return
+			return nil
 		}
 
 		if !p.getConfiguration().SyncLinkedChannels {
-			return
+			return nil
 		}
 
 		user, _ := p.API.GetUser(post.UserId)
 		if err = p.Delete(link.MSTeamsTeam, link.MSTeamsChannel, user, post); err != nil {
 			p.API.LogWarn("Unable to delete message", "error", err.Error())
-			return
+			return err
 		}
 	}
+	return nil
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	channel, appErr := p.API.GetChannel(post.ChannelId)
-	if appErr != nil {
+	if p.getConfiguration().UseSharedChannels {
 		return
 	}
+	_ = p.messagePostedHandler(post)
+}
 
-	isDirectOrGroupMessage := channel.IsGroupOrDirect()
+func (p *Plugin) messagePostedHandler(post *model.Post) error {
+	channel, appErr := p.API.GetChannel(post.ChannelId)
+	if appErr != nil {
+		return appErr
+	}
 
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
-			return
+			return nil
 		}
 	}
 
 	if post.IsSystemMessage() {
-		return
+		return nil
 	}
 
-	if isDirectOrGroupMessage {
+	if channel.IsGroupOrDirect() {
 		if !p.getConfiguration().SyncDirectMessages {
-			return
+			return nil
 		}
 
 		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
-			return
+			return appErr
 		}
 
 		isSelfPost := len(members) == 1
@@ -125,11 +137,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			chatMembersSpanPlatforms, appErr = p.ChatMembersSpanPlatforms(members)
 			if appErr != nil {
 				p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
+				return appErr
 			}
 
 			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
-				return
+				return nil
 			}
 		}
 
@@ -140,125 +152,149 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 
 		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to send chat", "error", err.Error())
+			return err
 		}
 	} else {
 		link, err := p.store.GetLinkByChannelID(post.ChannelId)
 		if err != nil || link == nil {
-			return
+			return nil
 		}
 
 		if !p.getConfiguration().SyncLinkedChannels {
-			return
+			return nil
 		}
 
 		user, _ := p.API.GetUser(post.UserId)
 
 		_, err = p.Send(link.MSTeamsTeam, link.MSTeamsChannel, user, post)
 		if err != nil {
-			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
+			p.API.LogWarn("Unable to send message", "error", err.Error())
+			return err
 		}
 	}
+	return nil
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
-	if !p.getConfiguration().SyncReactions {
+	if p.getConfiguration().UseSharedChannels {
 		return
 	}
+	_ = p.reactionAddedHandler(reaction)
+}
 
-	updateRequired := true
-	if c.RequestId == "" {
-		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
-		updateRequired = !ignoreHookForReaction
+func (p *Plugin) reactionAddedHandler(reaction *model.Reaction) error {
+	if !p.getConfiguration().SyncReactions {
+		return nil
 	}
+
+	_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
+	updateRequired := !ignoreHookForReaction
 
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
-		return
+		return err
 	} else if postInfo == nil {
-		return
+		return nil
 	}
 
 	link, err := p.store.GetLinkByChannelID(reaction.ChannelId)
 	if err != nil || link == nil {
 		channel, appErr := p.API.GetChannel(reaction.ChannelId)
 		if appErr != nil {
-			return
+			return appErr
 		}
 		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
+				return err
 			}
 		}
-		return
+		return nil
 	}
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
 		p.API.LogWarn("Unable to get the post from the reaction", "reaction", reaction, "error", appErr)
-		return
+		return appErr
 	}
 
 	if err = p.SetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName, updateRequired); err != nil {
 		p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
+		return err
 	}
+	return nil
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	if !p.getConfiguration().SyncReactions {
+	if p.getConfiguration().UseSharedChannels {
 		return
+	}
+	_ = p.reactionRemovedHandler(reaction)
+}
+
+func (p *Plugin) reactionRemovedHandler(reaction *model.Reaction) error {
+	if !p.getConfiguration().SyncReactions {
+		return nil
 	}
 
 	if reaction.ChannelId == "removedfromplugin" {
-		return
+		return nil
 	}
 	postInfo, err := p.store.GetPostInfoByMattermostID(reaction.PostId)
 	if err != nil {
 		p.API.LogWarn("Failed to find Teams post corresponding to MM post", "post_id", reaction.PostId, "error", err.Error())
-		return
+		return err
 	} else if postInfo == nil {
-		return
+		return nil
 	}
 
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
 		p.API.LogWarn("Unable to get the post from the reaction", "reaction", reaction, "error", appErr.DetailedError)
-		return
+		return appErr
 	}
 
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
 		channel, appErr := p.API.GetChannel(post.ChannelId)
 		if appErr != nil {
-			return
+			return appErr
 		}
 		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
+				return err
 			}
 		}
-		return
+		return nil
 	}
 
 	err = p.UnsetReaction(link.MSTeamsTeam, link.MSTeamsChannel, reaction.UserId, post, reaction.EmojiName)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message reaction unset", "error", err.Error())
+		return err
 	}
+	return nil
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
-	updateRequired := true
-	if c.RequestId == "" {
-		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
-		updateRequired = !ignoreHook
+	if p.getConfiguration().UseSharedChannels {
+		return
 	}
+	_ = p.messageUpdatedHandler(newPost)
+}
+
+func (p *Plugin) messageUpdatedHandler(newPost *model.Post) error {
+	_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
+	updateRequired := !ignoreHook
 
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
-		return
+		return nil
 	}
 
 	user, _ := p.API.GetUser(newPost.UserId)
@@ -267,25 +303,25 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 	if err != nil || link == nil {
 		channel, appErr := p.API.GetChannel(newPost.ChannelId)
 		if appErr != nil {
-			return
+			return appErr
 		}
 		if !channel.IsGroupOrDirect() {
-			return
+			return nil
 		}
 		if !p.getConfiguration().SyncDirectMessages {
-			return
+			return nil
 		}
 
 		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, math.MaxInt32)
 		if appErr != nil {
-			return
+			return appErr
 		}
 		usersIDs := []string{}
 		for _, m := range members {
 			var teamsUserID string
 			teamsUserID, err = p.store.MattermostToTeamsUserID(m.UserId)
 			if err != nil {
-				return
+				return err
 			}
 			usersIDs = append(usersIDs, teamsUserID)
 		}
@@ -293,23 +329,25 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 		chat, err = client.CreateOrGetChatForUsers(usersIDs)
 		if err != nil {
 			p.API.LogWarn("Unable to create or get chat for users", "error", err.Error())
-			return
+			return err
 		}
 		err = p.UpdateChat(chat.ID, user, newPost, updateRequired)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message update", "error", err.Error())
 		}
-		return
+		return err
 	}
 
 	if !p.getConfiguration().SyncLinkedChannels {
-		return
+		return nil
 	}
 
 	err = p.Update(link.MSTeamsTeam, link.MSTeamsChannel, user, newPost, updateRequired)
 	if err != nil {
 		p.API.LogWarn("Unable to handle message update", "error", err.Error())
+		return err
 	}
+	return nil
 }
 
 func (p *Plugin) SetChatReaction(teamsMessageID, srcUser, channelID, emojiName string, updateRequired bool) error {
