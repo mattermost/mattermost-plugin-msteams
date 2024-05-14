@@ -16,8 +16,8 @@ require (
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.0.18-0.20240404202637-65d589935ff9
-	github.com/mattermost/mattermost/server/v8 v8.0.0-20240404204026-0a3667bf58c5
+	github.com/mattermost/mattermost/server/public v0.1.3
+	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
 	github.com/microsoft/kiota-abstractions-go v1.5.6
 	github.com/microsoft/kiota-http-go v1.3.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.36.0
