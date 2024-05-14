@@ -10,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
@@ -2884,6 +2885,72 @@ func TestUserWillLogin(t *testing.T) {
 			res := p.UserWillLogIn(nil, user)
 
 			assert.Equal(test.Result, res)
+		})
+	}
+}
+
+func TestShouldSyncDMGMChannel(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		EnableDM    bool
+		EnableGM    bool
+		ChannelType model.ChannelType
+		ShouldSync  bool
+	}{
+		{
+			Name:     "DM allowed, and channel type is direct => sync",
+			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true,
+		},
+		{
+			Name:     "DM allowed, and channel type is group => no sync",
+			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+		},
+		{
+			Name:     "DM not allowed, and channel type is direct => no sync",
+			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+		},
+		{
+			Name:     "DM not allowed, and channel type is group => no sync",
+			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+		},
+		{
+			Name:     "GM allowed, and channel type is group => sync",
+			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true,
+		},
+		{
+			Name:     "GM allowed, and channel type is direct => no sync",
+			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+		},
+		{
+			Name:     "GM not allowed, and channel type is group => no sync",
+			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+		},
+		{
+			Name:     "GM not allowed, and channel type is direct => no sync",
+			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+		},
+		{
+			Name:        "channel type is public => no sync",
+			ChannelType: model.ChannelTypeOpen, ShouldSync: false,
+		},
+		{
+			Name:        "channel type is private => no sync",
+			ChannelType: model.ChannelTypePrivate, ShouldSync: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			assert := require.New(t)
+			p := newTestPlugin(t)
+			p.configuration.SyncDirectMessages = tc.EnableDM
+			p.configuration.SyncGroupMessages = tc.EnableGM
+
+			channel := &model.Channel{
+				Type: tc.ChannelType,
+			}
+
+			assert.Equal(tc.ShouldSync, p.ShouldSyncDMGMChannel(channel))
 		})
 	}
 }

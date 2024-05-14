@@ -114,6 +114,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
 		"syncdirectmessages":         true,
+		"syncgroupmessages":          true,
 		"synclinkedchannels":         true,
 		"syncreactions":              true,
 	}
