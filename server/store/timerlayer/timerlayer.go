@@ -175,7 +175,7 @@ func (s *TimerLayer) GetGlobalSubscription(subscriptionID string) (*storemodels.
 	return result, err
 }
 
-func (s *TimerLayer) GetHasConnectedCount() (int, error) {
+func (s *TimerLayer) GetHasConnectedCount() (int64, error) {
 	start := time.Now()
 
 	result, err := s.Store.GetHasConnectedCount()
@@ -189,7 +189,7 @@ func (s *TimerLayer) GetHasConnectedCount() (int, error) {
 	return result, err
 }
 
-func (s *TimerLayer) GetInvitedCount() (int, error) {
+func (s *TimerLayer) GetInvitedCount() (int64, error) {
 	start := time.Now()
 
 	result, err := s.Store.GetInvitedCount()
@@ -357,7 +357,7 @@ func (s *TimerLayer) GetUserConnectStatus(mmUserID string) (*storemodels.UserCon
 	return result, err
 }
 
-func (s *TimerLayer) GetWhitelistCount() (int, error) {
+func (s *TimerLayer) GetWhitelistCount() (int64, error) {
 	start := time.Now()
 
 	result, err := s.Store.GetWhitelistCount()

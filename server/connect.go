@@ -56,7 +56,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user invite")
 	}
 
-	var nWhitelisted int
+	var nWhitelisted int64
 	var pendingSince time.Time
 	now := time.Now()
 
@@ -87,7 +87,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	return true, nil
 }
 
-func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time, nWhitelisted int) error {
+func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time, nWhitelisted int64) error {
 	invitedUser := &storemodels.InvitedUser{ID: user.Id, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
 	if invitedUser.InvitePendingSince.IsZero() {
 		invitedUser.InvitePendingSince = currentTime
@@ -141,7 +141,7 @@ func (p *Plugin) shouldSendInviteMessage(
 	return true
 }
 
-func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
+func (p *Plugin) moreInvitesAllowed() (bool, int64, error) {
 	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
 		return false, 0, errors.Wrapf(err, "error in getting has-connected count")
@@ -151,12 +151,12 @@ func (p *Plugin) moreInvitesAllowed() (bool, int, error) {
 		return false, 0, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+	if (nConnected + nInvited) >= int64(p.getConfiguration().ConnectedUsersAllowed) {
 		// only invite up to max connected
 		return false, 0, nil
 	}
 
-	return nInvited < p.getConfiguration().ConnectedUsersInvitePoolSize, nConnected, nil
+	return nInvited < int64(p.getConfiguration().ConnectedUsersInvitePoolSize), nConnected, nil
 }
 
 func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
@@ -192,7 +192,7 @@ func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, error) {
 		return false, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	if (numHasConnected + numInvited) >= p.getConfiguration().ConnectedUsersAllowed {
+	if (numHasConnected + numInvited) >= int64(p.getConfiguration().ConnectedUsersAllowed) {
 		return false, nil
 	}
 

@@ -916,7 +916,7 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 	for rows.Next() {
 		var platform string
 		var count int64
-		if err := rows.Scan(&platform, &count); err != nil {
+		if err = rows.Scan(&platform, &count); err != nil {
 			return nil, err
 		}
 
@@ -928,9 +928,21 @@ func (s *SQLStore) GetStats(remoteID, preferenceCategory string) (*storemodels.S
 		}
 	}
 
+	pendingInvites, err := s.GetInvitedCount()
+	if err != nil {
+		return nil, err
+	}
+
+	whitelistedUsers, err := s.GetWhitelistCount()
+	if err != nil {
+		return nil, err
+	}
+
 	return &storemodels.Stats{
-		LinkedChannels:    linkedChannels,
 		ConnectedUsers:    connectedUsers,
+		PendingInvites:    pendingInvites,
+		WhitelistedUsers:  whitelistedUsers,
+		LinkedChannels:    linkedChannels,
 		SyntheticUsers:    syntheticUsers,
 		MattermostPrimary: mmPrimary,
 		MSTeamsPrimary:    msTeamPrimary,
@@ -959,7 +971,7 @@ func (s *SQLStore) GetConnectedUsers(page, perPage int) ([]*storemodels.Connecte
 	return connectedUsers, nil
 }
 
-func (s *SQLStore) GetHasConnectedCount() (int, error) {
+func (s *SQLStore) GetHasConnectedCount() (int64, error) {
 	query := s.getQueryBuilder().
 		Select("count(*)").
 		From(usersTableName).
@@ -970,7 +982,7 @@ func (s *SQLStore) GetHasConnectedCount() (int, error) {
 	}
 	defer rows.Close()
 
-	var result int
+	var result int64
 	if rows.Next() {
 		if scanErr := rows.Scan(&result); scanErr != nil {
 			return 0, scanErr
@@ -1081,7 +1093,7 @@ func (s *SQLStore) DeleteUserFromWhitelist(mmUserID string) error {
 	return nil
 }
 
-func (s *SQLStore) GetWhitelistCount() (int, error) {
+func (s *SQLStore) GetWhitelistCount() (int64, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(whitelistTableName)
 	rows, err := query.Query()
 	if err != nil {
@@ -1089,7 +1101,7 @@ func (s *SQLStore) GetWhitelistCount() (int, error) {
 	}
 	defer rows.Close()
 
-	var result int
+	var result int64
 	if rows.Next() {
 		if scanErr := rows.Scan(&result); scanErr != nil {
 			return 0, scanErr
@@ -1194,7 +1206,7 @@ func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 	return nil
 }
 
-func (s *SQLStore) GetInvitedCount() (int, error) {
+func (s *SQLStore) GetInvitedCount() (int64, error) {
 	query := s.getQueryBuilder().Select("count(*)").From(invitedUsersTableName)
 	rows, err := query.Query()
 	if err != nil {
@@ -1202,7 +1214,7 @@ func (s *SQLStore) GetInvitedCount() (int, error) {
 	}
 	defer rows.Close()
 
-	var result int
+	var result int64
 	if rows.Next() {
 		if scanErr := rows.Scan(&result); scanErr != nil {
 			return 0, scanErr

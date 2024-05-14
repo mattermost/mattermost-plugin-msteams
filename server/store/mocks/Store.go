@@ -216,14 +216,14 @@ func (_m *Store) GetGlobalSubscription(subscriptionID string) (*storemodels.Glob
 }
 
 // GetHasConnectedCount provides a mock function with given fields:
-func (_m *Store) GetHasConnectedCount() (int, error) {
+func (_m *Store) GetHasConnectedCount() (int64, error) {
 	ret := _m.Called()
 
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
+	var r0 int64
+	if rf, ok := ret.Get(0).(func() int64); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int)
+		r0 = ret.Get(0).(int64)
 	}
 
 	var r1 error
@@ -237,14 +237,14 @@ func (_m *Store) GetHasConnectedCount() (int, error) {
 }
 
 // GetInvitedCount provides a mock function with given fields:
-func (_m *Store) GetInvitedCount() (int, error) {
+func (_m *Store) GetInvitedCount() (int64, error) {
 	ret := _m.Called()
 
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
+	var r0 int64
+	if rf, ok := ret.Get(0).(func() int64); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int)
+		r0 = ret.Get(0).(int64)
 	}
 
 	var r1 error
@@ -509,14 +509,14 @@ func (_m *Store) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnect
 }
 
 // GetWhitelistCount provides a mock function with given fields:
-func (_m *Store) GetWhitelistCount() (int, error) {
+func (_m *Store) GetWhitelistCount() (int64, error) {
 	ret := _m.Called()
 
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
+	var r0 int64
+	if rf, ok := ret.Get(0).(func() int64); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int)
+		r0 = ret.Get(0).(int64)
 	}
 
 	var r1 error

@@ -1058,6 +1058,8 @@ func TestGetSiteStats(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
 					ConnectedUsers:    1,
+					PendingInvites:    1,
+					WhitelistedUsers:  1,
 					SyntheticUsers:    999,
 					LinkedChannels:    999,
 					MattermostPrimary: 1,
@@ -1075,6 +1077,8 @@ func TestGetSiteStats(t *testing.T) {
 			SetupStore: func(store *storemocks.Store) {
 				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
 					ConnectedUsers:    10,
+					PendingInvites:    20,
+					WhitelistedUsers:  100,
 					SyntheticUsers:    999,
 					LinkedChannels:    999,
 					MattermostPrimary: 5,

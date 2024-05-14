@@ -12,9 +12,13 @@ const (
 )
 
 type Stats struct {
-	ConnectedUsers    int64
-	SyntheticUsers    int64
-	LinkedChannels    int64
+	ConnectedUsers   int64
+	PendingInvites   int64
+	WhitelistedUsers int64
+
+	SyntheticUsers int64
+	LinkedChannels int64
+
 	MattermostPrimary int64
 	MSTeamsPrimary    int64
 }

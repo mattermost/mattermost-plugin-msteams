@@ -262,7 +262,8 @@ func (p *Plugin) start(isRestart bool) {
 		}
 	}
 
-	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
+	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
+	p.metricsService.ObservePendingInvitesLimit(int64(p.configuration.ConnectedUsersInvitePoolSize))
 
 	// We don't restart the activity handler since it's stateless.
 	if !isRestart {
@@ -886,6 +887,8 @@ func (p *Plugin) updateMetrics() {
 		return
 	}
 	p.GetMetrics().ObserveConnectedUsers(stats.ConnectedUsers)
+	p.GetMetrics().ObservePendingInvites(stats.PendingInvites)
+	p.GetMetrics().ObserveWhitelistedUsers(stats.WhitelistedUsers)
 	p.GetMetrics().ObserveSyntheticUsers(stats.SyntheticUsers)
 	p.GetMetrics().ObserveLinkedChannels(stats.LinkedChannels)
 	p.GetMetrics().ObserveMattermostPrimary(stats.MattermostPrimary)

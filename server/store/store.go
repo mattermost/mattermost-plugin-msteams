@@ -23,7 +23,7 @@ type Store interface {
 	GetConnectedUsers(page, perPage int) ([]*storemodels.ConnectedUser, error)
 	UserHasConnected(mmUserID string) (bool, error)
 	GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error)
-	GetHasConnectedCount() (int, error)
+	GetHasConnectedCount() (int64, error)
 	SetUserInfo(userID string, msTeamsUserID string, token *oauth2.Token) error
 	DeleteUserInfo(mmUserID string) error
 
@@ -35,11 +35,11 @@ type Store interface {
 	StoreInvitedUser(invitedUser *storemodels.InvitedUser) error
 	GetInvitedUser(mmUserID string) (*storemodels.InvitedUser, error)
 	DeleteUserInvite(mmUserID string) error
-	GetInvitedCount() (int, error)
+	GetInvitedCount() (int64, error)
 	StoreUserInWhitelist(userID string) error
 	IsUserWhitelisted(userID string) (bool, error)
 	DeleteUserFromWhitelist(userID string) error
-	GetWhitelistCount() (int, error)
+	GetWhitelistCount() (int64, error)
 	GetWhitelistEmails(page int, perPage int) ([]string, error)
 	SetWhitelist(userIDs []string, batchSize int) error
 

@@ -935,9 +935,13 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	siteStats := struct {
-		TotalConnectedUsers int64 `json:"total_connected_users"`
+		TotalConnectedUsers   int64 `json:"total_connected_users"`
+		PendingInvitedUsers   int64 `json:"pending_invited_users"`
+		CurrentWhitelistUsers int64 `json:"current_whitelist_users"`
 	}{
-		TotalConnectedUsers: stats.ConnectedUsers,
+		TotalConnectedUsers:   stats.ConnectedUsers,
+		PendingInvitedUsers:   stats.PendingInvites,
+		CurrentWhitelistUsers: stats.WhitelistedUsers,
 	}
 
 	data, err := json.Marshal(siteStats)
