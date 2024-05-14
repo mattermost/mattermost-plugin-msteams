@@ -928,17 +928,33 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := a.p.store.GetStats(a.p.GetRemoteID(), a.p.GetPreferenceCategoryName())
+	connectedUsersCount, err := a.p.store.GetConnectedUsersCount()
 	if err != nil {
-		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
-		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
+		a.p.API.LogWarn("Failed to get connected users count", "error", err.Error())
+		http.Error(w, "unable to get connected users count", http.StatusInternalServerError)
+		return
+	}
+	receiving, err := a.p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange)
+	if err != nil {
+		a.p.API.LogWarn("Failed to get users receiving count", "error", err.Error())
+		http.Error(w, "unable to get users receiving count", http.StatusInternalServerError)
+		return
+	}
+	sending, err := a.p.store.GetActiveUsersSendingCount(metricsActiveUsersRange)
+	if err != nil {
+		a.p.API.LogWarn("Failed to get sending users count", "error", err.Error())
+		http.Error(w, "unable to get sending users count", http.StatusInternalServerError)
 		return
 	}
 
 	siteStats := struct {
-		TotalConnectedUsers int64 `json:"total_connected_users"`
+		TotalConnectedUsers   int64 `json:"total_connected_users"`
+		UserReceivingMessages int64 `json:"total_users_receiving"`
+		UserSendingMessages   int64 `json:"total_users_sending"`
 	}{
-		TotalConnectedUsers: stats.ConnectedUsers,
+		TotalConnectedUsers:   connectedUsersCount,
+		UserReceivingMessages: receiving,
+		UserSendingMessages:   sending,
 	}
 
 	data, err := json.Marshal(siteStats)

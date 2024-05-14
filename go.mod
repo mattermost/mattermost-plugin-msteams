@@ -33,6 +33,7 @@ require (
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
 	golang.org/x/net v0.22.0
 	golang.org/x/oauth2 v0.18.0
+	golang.org/x/text v0.14.0
 )
 
 require (
@@ -236,7 +237,6 @@ require (
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.18.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
