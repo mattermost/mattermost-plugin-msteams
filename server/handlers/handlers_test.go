@@ -332,7 +332,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
 		},
 		{
-			description: "Error updating the post",
+			description: "Error updating the post link table",
 			activityIds: clientmodels.ActivityIds{
 				ChatID:    testutils.GetChatID(),
 				MessageID: testutils.GetMessageID(),
@@ -385,6 +385,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
 					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(errors.New("unable to update the post")).Times(1)
+				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, storemodels.MilliToMicroSeconds(mmCreateAtTime)).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
@@ -445,6 +446,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
 					MSTeamsLastUpdateAt: msteamsCreateAtTime,
 				}).Return(nil).Times(1)
+				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, storemodels.MilliToMicroSeconds(mmCreateAtTime)).Return(nil)
 			},
 			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
 				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)

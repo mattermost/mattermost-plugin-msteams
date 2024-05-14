@@ -100,6 +100,48 @@ func (_m *Store) DeleteUserInvite(mmUserID string) error {
 	return r0
 }
 
+// GetActiveUsersReceivingCount provides a mock function with given fields: dur
+func (_m *Store) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
+	ret := _m.Called(dur)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(time.Duration) int64); ok {
+		r0 = rf(dur)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
+		r1 = rf(dur)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetActiveUsersSendingCount provides a mock function with given fields: dur
+func (_m *Store) GetActiveUsersSendingCount(dur time.Duration) (int64, error) {
+	ret := _m.Called(dur)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(time.Duration) int64); ok {
+		r0 = rf(dur)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
+		r1 = rf(dur)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetChannelSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -185,6 +227,27 @@ func (_m *Store) GetConnectedUsers(page int, perPage int) ([]*storemodels.Connec
 	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(page, perPage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetConnectedUsersCount provides a mock function with given fields:
+func (_m *Store) GetConnectedUsersCount() (int64, error) {
+	ret := _m.Called()
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -326,6 +389,27 @@ func (_m *Store) GetLinkByMSTeamsChannelID(teamID string, channelID string) (*st
 	return r0, r1
 }
 
+// GetLinkedChannelsCount provides a mock function with given fields:
+func (_m *Store) GetLinkedChannelsCount() (int64, error) {
+	ret := _m.Called()
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPostInfoByMSTeamsID provides a mock function with given fields: chatID, postID
 func (_m *Store) GetPostInfoByMSTeamsID(chatID string, postID string) (*storemodels.PostInfo, error) {
 	ret := _m.Called(chatID, postID)
@@ -372,29 +456,6 @@ func (_m *Store) GetPostInfoByMattermostID(postID string) (*storemodels.PostInfo
 	return r0, r1
 }
 
-// GetStats provides a mock function with given fields: remoteID, preferenceCategory
-func (_m *Store) GetStats(remoteID string, preferenceCategory string) (*storemodels.Stats, error) {
-	ret := _m.Called(remoteID, preferenceCategory)
-
-	var r0 *storemodels.Stats
-	if rf, ok := ret.Get(0).(func(string, string) *storemodels.Stats); ok {
-		r0 = rf(remoteID, preferenceCategory)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*storemodels.Stats)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(remoteID, preferenceCategory)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetSubscriptionType provides a mock function with given fields: subscriptionID
 func (_m *Store) GetSubscriptionType(subscriptionID string) (string, error) {
 	ret := _m.Called(subscriptionID)
@@ -432,6 +493,27 @@ func (_m *Store) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) 
 	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetSyntheticUsersCount provides a mock function with given fields: remoteID
+func (_m *Store) GetSyntheticUsersCount(remoteID string) (int64, error) {
+	ret := _m.Called(remoteID)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(string) int64); ok {
+		r0 = rf(remoteID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(remoteID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -506,6 +588,34 @@ func (_m *Store) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnect
 	}
 
 	return r0, r1
+}
+
+// GetUsersByPrimaryPlatformsCount provides a mock function with given fields: preferenceCategory
+func (_m *Store) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
+	ret := _m.Called(preferenceCategory)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(string) int64); ok {
+		r0 = rf(preferenceCategory)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 int64
+	if rf, ok := ret.Get(1).(func(string) int64); ok {
+		r1 = rf(preferenceCategory)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(preferenceCategory)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetWhitelistCount provides a mock function with given fields:
@@ -874,6 +984,48 @@ func (_m *Store) SetUserInfo(userID string, msTeamsUserID string, token *oauth2.
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, *oauth2.Token) error); ok {
 		r0 = rf(userID, msTeamsUserID, token)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetUserLastChatReceivedAt provides a mock function with given fields: mmUserID, receivedAt
+func (_m *Store) SetUserLastChatReceivedAt(mmUserID string, receivedAt int64) error {
+	ret := _m.Called(mmUserID, receivedAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = rf(mmUserID, receivedAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetUserLastChatSentAt provides a mock function with given fields: mmUserID, sentAt
+func (_m *Store) SetUserLastChatSentAt(mmUserID string, sentAt int64) error {
+	ret := _m.Called(mmUserID, sentAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = rf(mmUserID, sentAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetUsersLastChatReceivedAt provides a mock function with given fields: mmUserIDs, receivedAt
+func (_m *Store) SetUsersLastChatReceivedAt(mmUserIDs []string, receivedAt int64) error {
+	ret := _m.Called(mmUserIDs, receivedAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, int64) error); ok {
+		r0 = rf(mmUserIDs, receivedAt)
 	} else {
 		r0 = ret.Error(0)
 	}
