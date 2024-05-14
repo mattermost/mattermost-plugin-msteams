@@ -968,8 +968,10 @@ func TestGetSiteStats(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
-		th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+		err := th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+		require.NoError(t, err)
+		err = th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+		require.NoError(t, err)
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
@@ -985,16 +987,19 @@ func TestGetSiteStats(t *testing.T) {
 			th.ConnectUser(t, user.Id)
 
 			if i < 5 {
-				th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
 			} else {
-				th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
 			}
 			if i < 2 {
-				th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
 			} else {
-				th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
 			}
-
 		}
 
 		response, bodyString := sendRequest(t, sysadmin)
