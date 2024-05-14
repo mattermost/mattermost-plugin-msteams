@@ -56,9 +56,9 @@ func (p *Plugin) ChannelShouldSync(channelID, senderID string) (bool, error) {
 	}
 
 	if senderConnected {
-		containsRemote, err := p.MembersContainsRemote(members)
-		if err != nil {
-			return false, err
+		containsRemote, memberErr := p.MembersContainsRemote(members)
+		if memberErr != nil {
+			return false, memberErr
 		}
 		return containsRemote, nil
 	}
