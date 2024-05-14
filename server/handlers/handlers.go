@@ -19,6 +19,7 @@ import (
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 var emojisReverseMap map[string]string
@@ -51,6 +52,7 @@ type PluginIface interface {
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
 	ChannelHasRemoteUsers(channelID string) (bool, error)
+	ChannelShouldSync(channelID, senderID string) (bool, error)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
@@ -249,6 +251,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		}
 		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
+		mlog.Debug("Handle Deleted")
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
@@ -264,7 +267,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
-
 	if msg == nil {
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
@@ -302,6 +304,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
+	mlog.Debug("Handle Created8")
 	var senderID string
 	var channelID string
 	// userIDs is used to determine the participants of a DM/GM
@@ -318,15 +321,14 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			return metrics.DiscardedReasonOther
 		}
 
+		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, appErr := ah.plugin.ChannelHasRemoteUsers(channelID); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
-				return metrics.DiscardedReasonOther
-			} else if !shouldSync {
-				return metrics.DiscardedReasonSelectiveSync
+			if shouldSync, appErr := ah.plugin.ChannelShouldSync(channelID, senderID); appErr != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
+
 			}
 		}
-
+		mlog.Debug("Handle CreatedB")
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
@@ -345,9 +347,14 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID = ah.plugin.GetBotUserID()
 	}
 
+	mlog.Debug("Handle CreatedC")
 	if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
-		return metrics.DiscardedReasonUserNotConnected
+		if !ah.isRemoteUser(senderID) {
+			return metrics.DiscardedReasonUserNotConnected
+		}
 	}
+
+	mlog.Debug("Handle CreatedD")
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
 		return metrics.DiscardedReasonInactiveUser
