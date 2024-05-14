@@ -61,24 +61,24 @@ func (p *Plugin) ChannelShouldSync(channelID, senderID string) (bool, error) {
 			return false, err
 		}
 		return containsRemote, nil
-	} else {
-		senderMember := &model.ChannelMember{
-			UserId: senderID,
-		}
-		senderRemote, err := p.MembersContainsRemote([]*model.ChannelMember{senderMember})
+	}
+
+	senderMember := &model.ChannelMember{
+		UserId: senderID,
+	}
+	senderRemote, err := p.MembersContainsRemote([]*model.ChannelMember{senderMember})
+	if err != nil {
+		return false, err
+	}
+	if !senderRemote {
+		return false, nil
+	}
+	for _, m := range members {
+		isConnected, err := p.IsUserConnected(m.UserId)
 		if err != nil {
 			return false, err
-		}
-		if !senderRemote {
-			return false, nil
-		}
-		for _, m := range members {
-			isConnected, err := p.IsUserConnected(m.UserId)
-			if err != nil {
-				return false, err
-			} else if isConnected {
-				return true, nil
-			}
+		} else if isConnected {
+			return true, nil
 		}
 	}
 	return false, nil
