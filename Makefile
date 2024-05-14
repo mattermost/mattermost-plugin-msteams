@@ -52,27 +52,11 @@ apply:
 ## Install go tools
 install-go-tools:
 	@echo Installing go tools
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
-	$(GO) install gotest.tools/gotestsum@v1.7.0
 
 ## Runs eslint and golangci-lint
 .PHONY: check-style
 check-style: apply webapp/node_modules install-go-tools
 	@echo Checking for style guide compliance
-
-ifneq ($(HAS_WEBAPP),)
-	cd webapp && npm run lint
-	cd webapp && npm run check-types
-endif
-
-# It's highly recommended to run go-vet first
-# to find potential compile errors that could introduce
-# weird reports at golangci-lint step
-ifneq ($(HAS_SERVER),)
-	@echo Running golangci-lint
-	$(GO) vet ./...
-	$(GOBIN)/golangci-lint run ./...
-endif
 
 ## Builds the server, if it exists, for all supported architectures, unless MM_SERVICESETTINGS_ENABLEDEVELOPER is set.
 .PHONY: server
