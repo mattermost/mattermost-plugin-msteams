@@ -304,7 +304,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	mlog.Debug("Handle Created8")
 	var senderID string
 	var channelID string
 	// userIDs is used to determine the participants of a DM/GM
@@ -326,10 +325,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			if shouldSync, appErr := ah.plugin.ChannelShouldSync(channelID, senderID); appErr != nil {
 				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 
+			} else if !shouldSync {
+				return metrics.DiscardedReasonSelectiveSync
 			}
 		}
-		mlog.Debug("Handle CreatedB")
-		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
 			// Skipping because linked channels are disabled
@@ -347,14 +346,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID = ah.plugin.GetBotUserID()
 	}
 
-	mlog.Debug("Handle CreatedC")
 	if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
 		if !ah.isRemoteUser(senderID) {
 			return metrics.DiscardedReasonUserNotConnected
 		}
 	}
-
-	mlog.Debug("Handle CreatedD")
 
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
 		return metrics.DiscardedReasonInactiveUser
