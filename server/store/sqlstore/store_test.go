@@ -215,9 +215,9 @@ func TestListChannelLinksWithNames(t *testing.T) {
 		Creator:               "mockCreator",
 	}
 
-	_, err := store.getMasterQueryBuilder().Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
+	_, err := store.getQueryBuilder(store.db).Insert("Teams").Columns("Id, DisplayName").Values(mockChannelLink.MattermostTeamID, mockChannelLink.MattermostTeamName).Exec()
 	assert.Nil(err)
-	_, err = store.getMasterQueryBuilder().Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
+	_, err = store.getQueryBuilder(store.db).Insert("Channels").Columns("Id, DisplayName").Values(mockChannelLink.MattermostChannelID, mockChannelLink.MattermostChannelName).Exec()
 	assert.Nil(err)
 
 	links, err := store.ListChannelLinksWithNames()
@@ -948,7 +948,7 @@ func TestListConnectedUsers(t *testing.T) {
 	storeErr = store.SetUserInfo(testutils.GetID()+"2", testutils.GetTeamsUserID()+"2", nil)
 	assert.Nil(storeErr)
 
-	_, err := store.getMasterQueryBuilder().Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
+	_, err := store.getQueryBuilder(store.db).Insert("Users").Columns("Id, Email, FirstName, LastName").Values(testutils.GetID()+"1", testutils.GetTestEmail(), "mockFirstName", "mockLastName").Exec()
 	assert.Nil(err)
 
 	resp, getErr := store.GetConnectedUsers(0, 100)
@@ -1034,7 +1034,7 @@ func TestSetUserLastChatSentAt(t *testing.T) {
 	getLastChatSentAtForUser := func(userID string) int64 {
 		t.Helper()
 		var lastChatSentAt int64
-		err := store.getReplicaQueryBuilder().
+		err := store.getQueryBuilder(store.replica).
 			Select("LastChatSentAt").
 			From(usersTableName).
 			Where(sq.Eq{"mmuserID": userID}).
@@ -1100,7 +1100,7 @@ func TestSetUsersLastChatReceivedAt(t *testing.T) {
 	getLastChatReceivedAtForUser := func(userID string) int64 {
 		t.Helper()
 		var lastChatReceivedAt int64
-		err := store.getReplicaQueryBuilder().
+		err := store.getQueryBuilder(store.replica).
 			Select("LastChatReceivedAt").
 			From(usersTableName).
 			Where(sq.Eq{"mmuserID": userID}).
@@ -1177,7 +1177,7 @@ func TestGetConnectedUsersCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()
@@ -1222,7 +1222,7 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete(linksTableName).Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete(linksTableName).Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()
@@ -1265,7 +1265,7 @@ func TestGetSyntheticUsersCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete("Users").Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete("Users").Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()
@@ -1285,12 +1285,12 @@ func TestGetSyntheticUsersCount(t *testing.T) {
 
 		// create 3 synthetic users and 3 non synthetic ones
 		for i := 0; i < 3; i++ {
-			_, err := store.getMasterQueryBuilder().Insert("Users").
+			_, err := store.getQueryBuilder(store.db).Insert("Users").
 				Columns("Id, remoteid").
 				Values(model.NewId(), remoteID).Exec()
 			assert.Nil(err)
 
-			_, err = store.getMasterQueryBuilder().Insert("Users").
+			_, err = store.getQueryBuilder(store.db).Insert("Users").
 				Columns("Id, remoteid").
 				Values(model.NewId(), nil).Exec()
 			assert.Nil(err)
@@ -1310,9 +1310,9 @@ func TestGetUsersByPrimaryPlatformsCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete("Preferences").Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete("Preferences").Where("1=1").Exec()
 		require.Nil(t, err)
-		_, err = store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err = store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()
@@ -1343,7 +1343,7 @@ func TestGetUsersByPrimaryPlatformsCount(t *testing.T) {
 				platform = storemodels.PreferenceValuePlatformMSTeams
 			}
 
-			_, err = store.getMasterQueryBuilder().Insert("preferences").
+			_, err = store.getQueryBuilder(store.db).Insert("preferences").
 				Columns("userid, category, name, value").
 				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
 				Exec()
@@ -1365,7 +1365,7 @@ func TestGetActiveUsersReceivingCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()
@@ -1411,7 +1411,7 @@ func TestGetActiveUsersSendingCount(t *testing.T) {
 
 	cleanup := func() {
 		t.Helper()
-		_, err := store.getMasterQueryBuilder().Delete(usersTableName).Where("1=1").Exec()
+		_, err := store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
 		require.Nil(t, err)
 	}
 	cleanup()

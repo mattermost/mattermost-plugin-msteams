@@ -284,6 +284,20 @@ func (_m *PluginIface) GetSyncFileAttachments() bool {
 	return r0
 }
 
+// GetSyncGroupMessages provides a mock function with given fields:
+func (_m *PluginIface) GetSyncGroupMessages() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetSyncGuestUsers provides a mock function with given fields:
 func (_m *PluginIface) GetSyncGuestUsers() bool {
 	ret := _m.Called()

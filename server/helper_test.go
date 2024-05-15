@@ -16,6 +16,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -26,11 +27,10 @@ type testHelper struct {
 	appClientMock    *mocks.Client
 	clientMock       *mocks.Client
 	websocketClients map[string]*model.WebSocketClient
+	metricsSnapshot  []*dto.MetricFamily
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
-	setupReattachEnvironment(t)
-
 	t.Helper()
 
 	p := &Plugin{
@@ -98,7 +98,7 @@ func setupTestHelper(t *testing.T) *testHelper {
 					"clientid":                model.NewId(),
 					"clientsecret":            model.NewId(),
 					"encryptionkey":           "aaaaaaaaaaaaaaaaaaaaaaaaaaaa_aaa",
-					"webhooksecret":           model.NewId(),
+					"webhooksecret":           "webhooksecret",
 					"syncusers":               0,
 					"disableCheckCredentials": true,
 				},
@@ -159,6 +159,10 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 	th.p.clientBuilderWithToken = func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 		return clientMock
 	}
+
+	var err error
+	th.metricsSnapshot, err = th.p.metricsService.GetRegistry().Gather()
+	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		appClientMock.AssertExpectations(t)
@@ -265,7 +269,7 @@ func (th *testHelper) SetupPrivateChannel(t *testing.T, team *model.Team, opts .
 	return channel
 }
 
-func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) {
+func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) *storemodels.ChannelLink {
 	channelLink := storemodels.ChannelLink{
 		MattermostTeamID:    team.Id,
 		MattermostChannelID: channel.Id,
@@ -275,6 +279,8 @@ func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model
 	}
 	err := th.p.store.StoreChannelLink(&channelLink)
 	require.NoError(t, err)
+
+	return &channelLink
 }
 
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
@@ -382,6 +388,16 @@ func (th *testHelper) SetupClient(t *testing.T, userID string) *model.Client4 {
 	require.NoError(t, err)
 
 	return client
+}
+
+func (th *testHelper) pluginURL(t *testing.T, paths ...string) string {
+	baseURL, err := url.JoinPath(os.Getenv("MM_SERVICESETTINGS_SITEURL"), "plugins", pluginID)
+	require.NoError(t, err)
+
+	apiURL, err := url.JoinPath(baseURL, paths...)
+	require.NoError(t, err)
+
+	return apiURL
 }
 
 func (th *testHelper) setupWebsocketClient(t *testing.T, client *model.Client4) *model.WebSocketClient {
@@ -539,4 +555,58 @@ func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID stri
 
 		return len(postList.Posts) > 0
 	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
+}
+
+type labelOptionFunc func(metric *dto.Metric) bool
+
+func withLabel(name, value string) labelOptionFunc {
+	return func(metric *dto.Metric) bool {
+		for _, label := range metric.Label {
+			if *label.Name == name && *label.Value == value {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+// getRelativeMetric returns the value of the given counter relative to the start of the test.
+func (th *testHelper) getRelativeCounter(t *testing.T, name string, labelOptions ...labelOptionFunc) float64 {
+	getCounterValue := func(metricFamilies []*dto.MetricFamily, name string) float64 {
+		for _, metricFamily := range metricFamilies {
+			if *metricFamily.Name != name {
+				continue
+			}
+
+		nextMetric:
+			for _, metric := range metricFamily.Metric {
+				for _, labelOption := range labelOptions {
+					if !labelOption(metric) {
+						continue nextMetric
+					}
+				}
+
+				return *metric.Counter.Value
+			}
+		}
+
+		return 0
+	}
+
+	currentMetricFamilies, err := th.p.metricsService.GetRegistry().Gather()
+	require.NoError(t, err)
+
+	before := getCounterValue(th.metricsSnapshot, name)
+	after := getCounterValue(currentMetricFamilies, name)
+
+	return after - before
+}
+
+func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) {
+	t.Helper()
+
+	c := th.p.getConfiguration().Clone()
+	update(c)
+	th.p.setConfiguration(c)
 }

@@ -30,11 +30,12 @@ type Monitor struct {
 	certificate        string
 	useEvaluationAPI   bool
 	syncDirectMessages bool
+	syncGroupMessages  bool
 	startupTime        time.Time
 }
 
 // New creates a new instance of the Monitor job.
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncDirectMessages bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncDirectMessages bool, syncGroupMessages bool) *Monitor {
 	return &Monitor{
 		client:             client,
 		store:              store,
@@ -45,6 +46,7 @@ func New(client msteams.Client, store store.Store, api plugin.API, metrics metri
 		useEvaluationAPI:   useEvaluationAPI,
 		certificate:        certificate,
 		syncDirectMessages: syncDirectMessages,
+		syncGroupMessages:  syncGroupMessages,
 		startupTime:        time.Now(),
 	}
 }
