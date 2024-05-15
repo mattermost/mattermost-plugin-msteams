@@ -119,16 +119,19 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		isSelfPost := len(members) == 1
 		containsRemoteUser := false
-		if !isSelfPost {
-			containsRemoteUser, err = p.MembersContainsRemote(members)
-			if err != nil {
-				p.API.LogWarn("Failed to determine is chat members contains remote.", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
+		if p.getConfiguration().SelectiveSync {
+			isSelfPost := len(members) == 1
+			if !isSelfPost {
+				containsRemoteUser, err = p.MembersContainsRemote(members)
+				if err != nil {
+					p.API.LogWarn("Failed to determine is chat members contains remote.", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+					return
+				} else if !containsRemoteUser {
+					return
+				}
 			}
 		}
-
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
