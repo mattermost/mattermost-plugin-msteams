@@ -234,7 +234,7 @@ endif
 .PHONY: ce2e
 ce2e:
 ifneq ($(HAS_SERVER),)
-	$(GO) test $(GO_TEST_FLAGS) -v ./server/ce2e...
+	$(GO) test $(GO_TEST_FLAGS) -v ./server/ce2e/plugin_test.go
 endif
 
 ## Extract strings for translation from the source code.

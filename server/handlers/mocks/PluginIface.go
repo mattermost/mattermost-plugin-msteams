@@ -20,48 +20,6 @@ type PluginIface struct {
 	mock.Mock
 }
 
-// ChannelHasRemoteUsers provides a mock function with given fields: channelID
-func (_m *PluginIface) ChannelHasRemoteUsers(channelID string) (bool, error) {
-	ret := _m.Called(channelID)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = rf(channelID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(channelID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ChannelShouldSync provides a mock function with given fields: channelID, senderID
-func (_m *PluginIface) ChannelShouldSync(channelID string, senderID string) (bool, error) {
-	ret := _m.Called(channelID, senderID)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
-		r0 = rf(channelID, senderID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(channelID, senderID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GenerateRandomPassword provides a mock function with given fields:
 func (_m *PluginIface) GenerateRandomPassword() string {
 	ret := _m.Called()
@@ -340,6 +298,20 @@ func (_m *PluginIface) GetSyncReactions() bool {
 	return r0
 }
 
+// GetSyncRemoteOnly provides a mock function with given fields:
+func (_m *PluginIface) GetSyncRemoteOnly() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetURL provides a mock function with given fields:
 func (_m *PluginIface) GetURL() string {
 	ret := _m.Called()
@@ -382,6 +354,27 @@ func (_m *PluginIface) IsUserConnected(_a0 string) (bool, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// SelectiveSyncChannel provides a mock function with given fields: channelID, senderID
+func (_m *PluginIface) SelectiveSyncChannel(channelID string, senderID string) (bool, error) {
+	ret := _m.Called(channelID, senderID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
+		r0 = rf(channelID, senderID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(channelID, senderID)
 	} else {
 		r1 = ret.Error(1)
 	}

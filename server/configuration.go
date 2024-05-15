@@ -35,6 +35,7 @@ type configuration struct {
 	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
+	SyncRemoteOnly                     bool   `json:"syncRemoteOnly"`
 	CertificatePublic                  string `json:"certificatepublic"`
 	CertificateKey                     string `json:"certificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`

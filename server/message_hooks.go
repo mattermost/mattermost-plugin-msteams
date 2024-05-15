@@ -60,8 +60,8 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChannelHasRemoteUsers(post.ChannelId)
-			if appErr != nil {
+			shouldSync, err := p.SelectiveSyncChannel(post.ChannelId, "")
+			if err != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
 			} else if !shouldSync {
@@ -119,15 +119,14 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		containsRemoteUser := false
+		chatShouldSync := false
 		if p.getConfiguration().SelectiveSync {
 			isSelfPost := len(members) == 1
 			if !isSelfPost {
-				containsRemoteUser, err = p.MembersContainsRemote(members)
+				chatShouldSync, err = p.SelectiveSyncChannel(post.ChannelId, "")
 				if err != nil {
-					p.API.LogWarn("Failed to determine is chat members contains remote.", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 					return
-				} else if !containsRemoteUser {
+				} else if !chatShouldSync {
 					return
 				}
 			}
@@ -137,7 +136,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err = p.SendChat(post.UserId, dstUsers, post, containsRemoteUser)
+		_, err = p.SendChat(post.UserId, dstUsers, post, chatShouldSync)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}

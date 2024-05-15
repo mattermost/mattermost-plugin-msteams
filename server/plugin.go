@@ -150,6 +150,10 @@ func (p *Plugin) GetSelectiveSync() bool {
 	return p.getConfiguration().SelectiveSync
 }
 
+func (p *Plugin) GetSyncRemoteOnly() bool {
+	return p.getConfiguration().SyncRemoteOnly
+}
+
 func (p *Plugin) GetClientForApp() msteams.Client {
 	p.msteamsAppClientMutex.RLock()
 	defer p.msteamsAppClientMutex.RUnlock()

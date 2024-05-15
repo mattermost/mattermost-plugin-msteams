@@ -41,6 +41,7 @@ type pluginMock struct {
 	teamsUserClient            msteams.Client
 	metrics                    metrics.Metrics
 	selectiveSync              bool
+	syncRemoteOnly             bool
 	remoteID                   string
 }
 
@@ -67,8 +68,10 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
-func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
-func (pm *pluginMock) ChannelHasRemoteUsers(channelID string) (bool, error) {
+func (pm *pluginMock) GetSelectiveSync() bool  { return pm.selectiveSync }
+func (pm *pluginMock) GetSyncRemoteOnly() bool { return pm.syncRemoteOnly }
+
+func (pm *pluginMock) SelectiveSyncChannel(channelID string, senderID string) (bool, error) {
 	return true, nil
 }
 

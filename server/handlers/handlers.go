@@ -19,7 +19,6 @@ import (
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 var emojisReverseMap map[string]string
@@ -52,12 +51,12 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	ChannelHasRemoteUsers(channelID string) (bool, error)
-	ChannelShouldSync(channelID, senderID string) (bool, error)
+	SelectiveSyncChannel(channelID, senderID string) (bool, error)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
 	IsUserConnected(string) (bool, error)
+	GetSyncRemoteOnly() bool
 }
 
 type ActivityHandler struct {
@@ -252,7 +251,6 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 		}
 		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
 	case "deleted":
-		mlog.Debug("Handle Deleted")
 		discardedReason = ah.handleDeletedActivity(activityIds)
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
@@ -322,8 +320,9 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, errSync := ah.plugin.ChannelShouldSync(channelID, senderID); errSync != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", errSync.Error())
+			if shouldSync, appErr := ah.plugin.SelectiveSyncChannel(channelID, senderID); appErr != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
+				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
 				return metrics.DiscardedReasonSelectiveSync
 			}
@@ -345,9 +344,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID = ah.plugin.GetBotUserID()
 	}
 
-	if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
-		if !ah.isRemoteUser(senderID) {
-			return metrics.DiscardedReasonUserNotConnected
+	if ah.plugin.GetSyncRemoteOnly() {
+		if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
+			if !ah.isRemoteUser(senderID) {
+				return metrics.DiscardedReasonUserNotConnected
+			}
 		}
 	}
 
@@ -626,7 +627,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 			return metrics.DiscardedReasonOther
 		}
 
-		if shouldSync, appErr := ah.plugin.ChannelHasRemoteUsers(channelID); appErr != nil {
+		if shouldSync, appErr := ah.plugin.SelectiveSyncChannel(channelID, ""); appErr != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
 			return metrics.DiscardedReasonOther
 		} else if !shouldSync {

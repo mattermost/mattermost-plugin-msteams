@@ -9,31 +9,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChannelHasRemoteUsers(t *testing.T) {
+func TestChatMembersSpanPlatforms(t *testing.T) {
 	th := setupTestHelper(t)
 
-	t.Run("invalid channel id", func(t *testing.T) {
-		remoteUsers, err := th.p.ChannelHasRemoteUsers("")
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+	t.Run("empty set of channel members", func(t *testing.T) {
+		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{})
+		require.Nil(t, appErr)
+		require.False(t, chatMembersSpanPlatforms)
 	})
 
-	t.Run("unknown channel id", func(t *testing.T) {
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(model.NewId())
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
-	})
-
-	t.Run("dm with a single users", func(t *testing.T) {
+	t.Run("single user", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user1.Id)
-		require.Nil(t, appErr)
+		chatShouldSync, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+		})
 
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
-		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		require.Error(t, appErr)
+		assert.False(t, chatShouldSync)
+	})
+
+	t.Run("user with empty id", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupRemoteUser(t, team)
+		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{&model.ChannelMember{UserId: user1.Id}, &model.ChannelMember{UserId: ""}})
+		require.Error(t, appErr)
+		require.False(t, chatMembersSpanPlatforms)
 	})
 
 	t.Run("dm between two local users", func(t *testing.T) {
@@ -41,12 +43,12 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
 
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		chatShouldSync, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+		})
 		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("dm between two remote users", func(t *testing.T) {
@@ -64,12 +66,12 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user2, appErr = th.p.API.UpdateUser(user2)
 		require.Nil(t, appErr)
 
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+		})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("dm between a local and a remote user", func(t *testing.T) {
@@ -83,12 +85,12 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user1, appErr = th.p.API.UpdateUser(user1)
 		require.Nil(t, appErr)
 
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+		})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("dm between a local and a local user with teams as primary platform", func(t *testing.T) {
@@ -99,12 +101,15 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		err := th.p.setPrimaryPlatform(user2.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		_, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, appErr)
 
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+		})
+		require.Nil(t, err)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("gm between three local users", func(t *testing.T) {
@@ -113,12 +118,13 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupUser(t, team)
 
-		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+			&model.ChannelMember{UserId: user3.Id},
+		})
+		require.Nil(t, err)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("gm between three remote users", func(t *testing.T) {
@@ -141,12 +147,13 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user3, appErr = th.p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
-		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+			&model.ChannelMember{UserId: user3.Id},
+		})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		assert.False(t, chatShouldSync)
 	})
 
 	t.Run("gm between a mixture of local and remote users", func(t *testing.T) {
@@ -165,12 +172,13 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		user3, appErr = th.p.API.UpdateUser(user3)
 		require.Nil(t, appErr)
 
-		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+			&model.ChannelMember{UserId: user3.Id},
+		})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		assert.True(t, chatShouldSync)
 	})
 
 	t.Run("gm between two local users and a local user with teams as primary platform", func(t *testing.T) {
@@ -182,16 +190,20 @@ func TestChannelHasRemoteUsers(t *testing.T) {
 		err := th.p.setPrimaryPlatform(user3.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
 
-		channel, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
+		_, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
-		remoteUsers, err := th.p.ChannelHasRemoteUsers(channel.Id)
+		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
+			&model.ChannelMember{UserId: user1.Id},
+			&model.ChannelMember{UserId: user2.Id},
+			&model.ChannelMember{UserId: user3.Id},
+		})
 		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+		assert.True(t, chatShouldSync)
 	})
 }
 
-func TestChatMembersSpanPlatforms(t *testing.T) {
+func TestMembersContainRemote(t *testing.T) {
 	th := setupTestHelper(t)
 
 	t.Run("empty set of channel members", func(t *testing.T) {
@@ -378,5 +390,109 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.False(t, remoteUsers)
+	})
+}
+
+func TestChannelConnectedOrRemote(t *testing.T) {
+	th := setupTestHelper(t)
+
+	t.Run("unknown sender id", func(t *testing.T) {
+		remoteUsers, err := th.p.ChannelConnectedOrRemote("", model.NewId())
+		require.Error(t, err)
+		assert.False(t, remoteUsers)
+	})
+
+	t.Run("unknown channel id", func(t *testing.T) {
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(model.NewId(), "")
+		require.Error(t, err)
+		assert.False(t, remoteUsers)
+	})
+
+	t.Run("dm with a single users", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupUser(t, team)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user1.Id)
+		require.Nil(t, appErr)
+
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		require.NoError(t, err)
+		assert.True(t, remoteUsers)
+	})
+
+	t.Run("dm between two local users", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		require.Nil(t, appErr)
+
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		require.NoError(t, err)
+		assert.False(t, remoteUsers)
+	})
+
+	t.Run("dm between two remote users", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupRemoteUser(t, team)
+		user2 := th.SetupRemoteUser(t, team)
+
+		var appErr *model.AppError
+
+		user1.RemoteId = model.NewString(th.p.remoteID)
+		user1, appErr = th.p.API.UpdateUser(user1)
+		require.Nil(t, appErr)
+
+		user2.RemoteId = model.NewString(th.p.remoteID)
+		user2, appErr = th.p.API.UpdateUser(user2)
+		require.Nil(t, appErr)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		require.Nil(t, appErr)
+
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		require.NoError(t, err)
+		assert.False(t, remoteUsers)
+	})
+
+	t.Run("dm between a local and a remote user", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupRemoteUser(t, team)
+		var appErr *model.AppError
+		user2.RemoteId = model.NewString(th.p.remoteID)
+		user2, appErr = th.p.API.UpdateUser(user1)
+		require.Nil(t, appErr)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		require.Nil(t, appErr)
+
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		require.NoError(t, err)
+		assert.True(t, remoteUsers)
+	})
+
+	t.Run("dm between a remote and a local user", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupRemoteUser(t, team)
+		var appErr *model.AppError
+		user1.RemoteId = model.NewString(th.p.remoteID)
+		user1, appErr = th.p.API.UpdateUser(user1)
+		require.Nil(t, appErr)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
+		require.Nil(t, appErr)
+
+		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		require.NoError(t, err)
+		assert.True(t, remoteUsers)
 	})
 }
