@@ -320,7 +320,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, appErr := ah.plugin.SelectiveSyncChannel(channelID, senderID); appErr != nil {
+			if shouldSync, err := ah.plugin.SelectiveSyncChannel(channelID, senderID); err != nil {
 				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {

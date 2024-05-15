@@ -22,10 +22,8 @@ func (p *Plugin) SelectiveSyncChannel(channelID, senderID string) (bool, error) 
 	if p.GetSyncRemoteOnly() {
 		if senderID != "" {
 			return p.ChannelConnectedOrRemote(channelID, senderID)
-		} else {
-			return p.MembersContainsRemote(members)
 		}
-
+		return p.MembersContainsRemote(members)
 	} else {
 		return p.ChatMembersSpanPlatforms(members)
 	}
