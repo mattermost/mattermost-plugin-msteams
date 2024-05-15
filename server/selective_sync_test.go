@@ -23,7 +23,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user1 := th.SetupRemoteUser(t, team)
 
 		chatShouldSync, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
+			{UserId: user1.Id},
 		})
 
 		require.Error(t, appErr)
@@ -33,7 +33,7 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 	t.Run("user with empty id", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
-		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{&model.ChannelMember{UserId: user1.Id}, &model.ChannelMember{UserId: ""}})
+		chatMembersSpanPlatforms, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{{UserId: user1.Id}, {UserId: ""}})
 		require.Error(t, appErr)
 		require.False(t, chatMembersSpanPlatforms)
 	})
@@ -44,8 +44,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user2 := th.SetupUser(t, team)
 
 		chatShouldSync, appErr := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.Nil(t, appErr)
 		assert.False(t, chatShouldSync)
@@ -67,8 +67,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
@@ -86,8 +86,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -105,8 +105,8 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
 		})
 		require.Nil(t, err)
 		assert.True(t, chatShouldSync)
@@ -119,9 +119,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		user3 := th.SetupUser(t, team)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.Nil(t, err)
 		assert.False(t, chatShouldSync)
@@ -148,9 +148,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.False(t, chatShouldSync)
@@ -173,9 +173,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
@@ -194,9 +194,9 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			&model.ChannelMember{UserId: user1.Id},
-			&model.ChannelMember{UserId: user2.Id},
-			&model.ChannelMember{UserId: user3.Id},
+			{UserId: user1.Id},
+			{UserId: user2.Id},
+			{UserId: user3.Id},
 		})
 		require.NoError(t, err)
 		assert.True(t, chatShouldSync)
