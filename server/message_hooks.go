@@ -195,6 +195,10 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		return
 	}
 
+	if !p.getConfiguration().SyncLinkedChannels {
+		return
+	}
+
 	post, appErr := p.API.GetPost(reaction.PostId)
 	if appErr != nil {
 		p.API.LogWarn("Unable to get the post from the reaction", "reaction", reaction, "error", appErr)
@@ -240,6 +244,10 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
 			}
 		}
+		return
+	}
+
+	if !p.getConfiguration().SyncLinkedChannels {
 		return
 	}
 

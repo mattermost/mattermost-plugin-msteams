@@ -31,8 +31,6 @@ type testHelper struct {
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
-	setupReattachEnvironment(t)
-
 	t.Helper()
 
 	p := &Plugin{
@@ -271,7 +269,7 @@ func (th *testHelper) SetupPrivateChannel(t *testing.T, team *model.Team, opts .
 	return channel
 }
 
-func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) {
+func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) *storemodels.ChannelLink {
 	channelLink := storemodels.ChannelLink{
 		MattermostTeamID:    team.Id,
 		MattermostChannelID: channel.Id,
@@ -281,6 +279,8 @@ func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model
 	}
 	err := th.p.store.StoreChannelLink(&channelLink)
 	require.NoError(t, err)
+
+	return &channelLink
 }
 
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
@@ -601,4 +601,12 @@ func (th *testHelper) getRelativeCounter(t *testing.T, name string, labelOptions
 	after := getCounterValue(currentMetricFamilies, name)
 
 	return after - before
+}
+
+func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) {
+	t.Helper()
+
+	c := th.p.getConfiguration().Clone()
+	update(c)
+	th.p.setConfiguration(c)
 }
