@@ -24,9 +24,8 @@ func (p *Plugin) SelectiveSyncChannel(channelID, senderID string) (bool, error) 
 			return p.ChannelConnectedOrRemote(channelID, senderID)
 		}
 		return p.MembersContainsRemote(members)
-	} else {
-		return p.ChatMembersSpanPlatforms(members)
 	}
+	return p.ChatMembersSpanPlatforms(members)
 }
 
 // ChatMembersSpanPlatforms determines if the given channel members span both Mattermost and
