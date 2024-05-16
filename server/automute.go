@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -152,7 +153,35 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 // DM/GM channel are never muted as only connected users -> synthetic users are synced.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 	if channel.IsGroupOrDirect() {
-		return false, nil
+		if p.configuration.SelectiveSync {
+			if p.configuration.SyncRemoteOnly {
+				// if only sync'ing with remote users,
+				// do not automute any DM/GM channels
+				return false, nil
+			}
+			// if Selective Sync, automute if members
+			// span platforms
+			return p.SelectiveSyncChannel(channel.Id, "")
+		}
+
+		// if not selective sync
+		if channel.Type == model.ChannelTypeGroup {
+			return true, nil
+		} else if channel.Type == model.ChannelTypeDirect {
+			userIDs := strings.Split(channel.Name, "__")
+			for _, userID := range userIDs {
+				user, appErr := p.API.GetUser(userID)
+				if appErr != nil {
+					return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get user for channel member %s ", userID))
+				}
+				if user.IsBot || user.IsGuest() {
+					return false, nil
+				}
+			}
+			return true, nil
+		}
+
+		return true, nil
 	}
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)
