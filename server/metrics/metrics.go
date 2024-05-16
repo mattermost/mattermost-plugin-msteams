@@ -43,6 +43,7 @@ const (
 	DiscardedReasonNotUserEvent              = "no_user_event"
 	DiscardedReasonOther                     = "other"
 	DiscardedReasonDirectMessagesDisabled    = "direct_messages_disabled"
+	DiscardedReasonGroupMessagesDisabled     = "group_messages_disabled"
 	DiscardedReasonLinkedChannelsDisabled    = "linked_channels_disabled"
 	DiscardedReasonInactiveUser              = "inactive_user"
 	DiscardedReasonDuplicatedPost            = "duplicated_post"
@@ -73,17 +74,19 @@ type Metrics interface {
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
-	ObserveMessage(action, source string, isDirectMessage bool)
-	ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration)
-	ObserveReaction(action, source string, isDirectMessage bool)
-	ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64)
-	ObserveFile(action, source, discardedReason string, isDirectMessage bool)
+	ObserveMessage(action, source string, isDirectOrGroupMessage bool)
+	ObserveMessageDelay(action, source string, isDirectOrGroupMessage bool, delay time.Duration)
+	ObserveReaction(action, source string, isDirectOrGroupMessage bool)
+	ObserveFiles(action, source, discardedReason string, isDirectOrGroupMessage bool, count int64)
+	ObserveFile(action, source, discardedReason string, isDirectOrGroupMessage bool)
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
 	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
 	ObserveUpstreamUsers(count int64)
+	ObserveActiveUsersSending(count int64)
+	ObserveActiveUsersReceiving(count int64)
 	ObserveMattermostPrimary(count int64)
 	ObserveMSTeamsPrimary(count int64)
 
@@ -91,7 +94,7 @@ type Metrics interface {
 	IncrementChangeEventQueueLength(changeType string)
 	DecrementChangeEventQueueLength(changeType string)
 
-	ObserveMSGraphClientMethodDuration(method, success string, elapsed float64)
+	ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64)
 	ObserveStoreMethodDuration(method, success string, elapsed float64)
 
 	GetRegistry() *prometheus.Registry
@@ -141,12 +144,14 @@ type metrics struct {
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
 
-	connectedUsers    prometheus.Gauge
-	syntheticUsers    prometheus.Gauge
-	linkedChannels    prometheus.Gauge
-	upstreamUsers     prometheus.Gauge
-	mattermostPrimary prometheus.Gauge
-	msTeamsPrimary    prometheus.Gauge
+	connectedUsers       prometheus.Gauge
+	syntheticUsers       prometheus.Gauge
+	linkedChannels       prometheus.Gauge
+	upstreamUsers        prometheus.Gauge
+	activeUsersSending   prometheus.Gauge
+	activeUsersReceiving prometheus.Gauge
+	mattermostPrimary    prometheus.Gauge
+	msTeamsPrimary       prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
@@ -381,6 +386,24 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.upstreamUsers)
 
+	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "active_users_sending",
+		Help:        "The number of users who have sent messages in the last week.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.activeUsersSending)
+
+	m.activeUsersReceiving = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "active_users_receiving",
+		Help:        "The number of users who have received messages in the last week.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.activeUsersReceiving)
+
 	m.mattermostPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -434,7 +457,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 			Help:        "Time to execute the client methods",
 			ConstLabels: additionalLabels,
 		},
-		[]string{"method", "success"},
+		[]string{"method", "success", "status_code"},
 	)
 	m.registry.MustRegister(m.msGraphClientTime)
 
@@ -517,33 +540,33 @@ func (m *metrics) ObserveLifecycleEvent(eventType string, discardedReason string
 	}
 }
 
-func (m *metrics) ObserveMessage(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveMessage(action, source string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.messagesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveMessageDelay(action, source string, isDirectMessage bool, delay time.Duration) {
+func (m *metrics) ObserveMessageDelay(action, source string, isDirectOrGroupMessage bool, delay time.Duration) {
 	if m != nil {
-		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Observe(delay.Seconds())
+		m.messageDelayTime.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Observe(delay.Seconds())
 	}
 }
 
-func (m *metrics) ObserveReaction(action, source string, isDirectMessage bool) {
+func (m *metrics) ObserveReaction(action, source string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage)}).Inc()
+		m.reactionsTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage)}).Inc()
 	}
 }
 
-func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectMessage bool, count int64) {
+func (m *metrics) ObserveFiles(action, source, discardedReason string, isDirectOrGroupMessage bool, count int64) {
 	if m != nil {
-		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Add(float64(count))
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage), "discarded_reason": discardedReason}).Add(float64(count))
 	}
 }
 
-func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectMessage bool) {
+func (m *metrics) ObserveFile(action, source, discardedReason string, isDirectOrGroupMessage bool) {
 	if m != nil {
-		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectMessage), "discarded_reason": discardedReason}).Inc()
+		m.filesTotal.With(prometheus.Labels{"action": action, "source": source, "is_direct": strconv.FormatBool(isDirectOrGroupMessage), "discarded_reason": discardedReason}).Inc()
 	}
 }
 
@@ -568,6 +591,18 @@ func (m *metrics) ObserveLinkedChannels(count int64) {
 func (m *metrics) ObserveUpstreamUsers(count int64) {
 	if m != nil {
 		m.upstreamUsers.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveActiveUsersSending(count int64) {
+	if m != nil {
+		m.activeUsersSending.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveActiveUsersReceiving(count int64) {
+	if m != nil {
+		m.activeUsersReceiving.Set(float64(count))
 	}
 }
 
@@ -625,9 +660,9 @@ func (m *metrics) DecrementChangeEventQueueLength(changeType string) {
 	}
 }
 
-func (m *metrics) ObserveMSGraphClientMethodDuration(method, success string, elapsed float64) {
+func (m *metrics) ObserveMSGraphClientMethodDuration(method, success, statusCode string, elapsed float64) {
 	if m != nil {
-		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success}).Observe(elapsed)
+		m.msGraphClientTime.With(prometheus.Labels{"method": method, "success": success, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 

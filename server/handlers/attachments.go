@@ -118,9 +118,9 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		return "", nil, "", false, errorFound
 	}
 
-	isDirectMessage := false
+	isDirectOrGroupMessage := false
 	if chat != nil {
-		isDirectMessage = true
+		isDirectOrGroupMessage = true
 	}
 
 	fileNames := make(map[string]string)
@@ -172,14 +172,14 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
 			if err != nil {
 				ah.plugin.GetAPI().LogWarn("failed to download the file", "filename", a.Name, "error", err.Error())
-				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 				continue
 			}
 		} else {
 			fileSize, downloadURL, err = client.GetFileSizeAndDownloadURL(a.ContentURL)
 			if err != nil {
 				ah.plugin.GetAPI().LogWarn("failed to get file size and download URL", "error", err.Error())
-				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 				continue
 			}
 
@@ -187,7 +187,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if fileSize > fileSizeAllowed {
 				ah.plugin.GetAPI().LogWarn("skipping file download from MS Teams because the file size is greater than the allowed size")
 				errorFound = true
-				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonMaxFileSizeExceeded, isDirectMessage)
+				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonMaxFileSizeExceeded, isDirectOrGroupMessage)
 				continue
 			}
 
@@ -196,7 +196,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {
 					ah.plugin.GetAPI().LogWarn("failed to get file content", "error", err.Error())
-					ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectMessage)
+					ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 					continue
 				}
 			}
@@ -216,16 +216,16 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 
 		if fileInfoID == "" {
-			ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonEmptyFileID, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonEmptyFileID, isDirectOrGroupMessage)
 			continue
 		}
 		attachments = append(attachments, fileInfoID)
-		ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectMessage)
+		ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, "", isDirectOrGroupMessage)
 		countFileAttachments++
 		if countFileAttachments == maxFileAttachmentsSupported {
 			// Calculate the count of file attachments discarded by subtracting handled file attachments and other attachments from total message attachments.
 			fileAttachmentsDiscarded := len(msg.Attachments) - countNonFileAttachments - countFileAttachments
-			ah.plugin.GetMetrics().ObserveFiles(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, isDirectMessage, int64(fileAttachmentsDiscarded))
+			ah.plugin.GetMetrics().ObserveFiles(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, isDirectOrGroupMessage, int64(fileAttachmentsDiscarded))
 			break
 		}
 	}

@@ -7,7 +7,9 @@
 package client_timerlayer
 
 import (
+	"errors"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -25,18 +27,29 @@ type {{.Name}} struct {
 
 {{range $index, $element := .Methods}}
 func (c *{{$.Name}}) {{$index}}({{$element.Params | joinParamsWithType}}) {{$element.Results | joinResultsForSignature}} {
+	statusCode := "2XX"
+	success := "true"
 	start := time.Now()
+
 	{{if $element.Results | len | eq 0}}
 	c.Client.{{$index}}({{$element.Params | joinParams}})
 	{{else}}
 	{{genResultsVars $element.Results false }} := c.Client.{{$index}}({{$element.Params | joinParams}})
 	{{end}}
 	elapsed := float64(time.Since(start)) / float64(time.Second)
-        success := "false"
-        if {{$element.Results | errorToBoolean}} {
-                success = "true"
-        }
-        c.metrics.ObserveMSGraphClientMethodDuration("Client.{{$index}}", success, elapsed)
+
+	{{if $element.Results | errorPresent}}
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
+	}
+	{{end}}
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.{{$index}}", success, statusCode, elapsed)
 	{{ with (genResultsVars $element.Results false ) -}}
 	return {{ . }}
 	{{- end }}

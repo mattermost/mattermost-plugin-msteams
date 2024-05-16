@@ -43,6 +43,15 @@ func (mt *mainT) Done() {
 	}
 }
 
+func (mt *mainT) Errorf(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
+	mt.FailNow()
+}
+
+func (mt *mainT) FailNow() {
+	os.Exit(1)
+}
+
 // setupServerPath defines MM_SERVER_PATH correctly for server initialization. One day this won't
 // be necessary at all.
 func setupServerPath() error {
@@ -199,20 +208,18 @@ var setupReattachEnvironmentOnce sync.Once
 //
 // Note that while we assert on the given *testing.T, we setup cleanup functions on the global
 // *mainT to clean up once at termination.
-func setupReattachEnvironment(t *testing.T) {
+func setupReattachEnvironment(mt *mainT) {
 	setupReattachEnvironmentOnce.Do(func() {
 		err := setupServerPath()
-		require.NoError(t, err)
+		require.NoError(mt, err)
 
 		err = setupDatabase(mt)
-		require.NoError(t, err)
+		require.NoError(mt, err)
 
 		err = setupServer(mt)
-		require.NoError(t, err)
+		require.NoError(mt, err)
 	})
 }
-
-var mt *mainT
 
 // TestMain is run before any tests within this package and helps setup a mainT for global cleanup
 // if needed.
@@ -222,8 +229,10 @@ func TestMain(m *testing.M) {
 		os.Exit(status)
 	}()
 
-	mt = new(mainT)
+	mt := new(mainT)
 	defer mt.Done()
+
+	setupReattachEnvironment(mt)
 
 	// This actually runs the tests
 	status = m.Run()
