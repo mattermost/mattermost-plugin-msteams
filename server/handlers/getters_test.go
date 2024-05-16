@@ -67,6 +67,9 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
+func (pm *pluginMock) MessageFingerprint() string {
+	return "<abbr title=\"generated-from-mattermost\"></abbr>"
+}
 func (pm *pluginMock) GetSelectiveSync() bool { return pm.selectiveSync }
 func (pm *pluginMock) ChatShouldSync(channelID string) (bool, error) {
 	return true, nil
