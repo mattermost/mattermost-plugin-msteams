@@ -64,7 +64,7 @@ func main() {
 		panic("failed to find manifest: " + err.Error())
 	}
 
-	// Don't use runtime.* directly, as we may target a different archtiecture for testing.
+	// Don't use runtime.* directly, as we may target a different architecture for testing.
 	defaultGoOs := os.Getenv("DEFAULT_GOOS")
 	defaultGoArch := os.Getenv("DEFAULT_GOARCH")
 

@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
@@ -127,13 +129,13 @@ func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bo
 }
 
 func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
-	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, PreferenceNamePlatform)
+	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNamePlatform)
 	if appErr != nil {
 		// GetPreferenceForUser returns an error when a preference is unset, so we default to MM being primary platform
 		return false
 	}
 
-	return pref.Value == PreferenceValuePlatformMSTeams
+	return pref.Value == storemodels.PreferenceValuePlatformMSTeams
 }
 
 func (p *Plugin) isUserConnected(userID string) (bool, error) {
@@ -159,8 +161,20 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
-	// Automute all DM/GM channels
-	if channel.IsGroupOrDirect() {
+	// Automute all GM channels
+	if channel.Type == model.ChannelTypeGroup {
+		return true, nil
+	} else if channel.Type == model.ChannelTypeDirect {
+		userIDs := strings.Split(channel.Name, "__")
+		for _, userID := range userIDs {
+			user, appErr := p.API.GetUser(userID)
+			if appErr != nil {
+				return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get user for channel member %s ", userID))
+			}
+			if user.IsBot || user.IsGuest() {
+				return false, nil
+			}
+		}
 		return true, nil
 	}
 

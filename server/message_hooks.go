@@ -39,7 +39,7 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 
 func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 	if post.Props != nil {
-		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return
 		}
 	}
@@ -55,7 +55,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if channel.IsGroupOrDirect() {
-		if !p.getConfiguration().SyncDirectMessages {
+		if !p.ShouldSyncDMGMChannel(channel) {
 			return
 		}
 
@@ -100,7 +100,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	isDirectOrGroupMessage := channel.IsGroupOrDirect()
 
 	if post.Props != nil {
-		if _, ok := post.Props["msteams_sync_"+p.userID].(bool); ok {
+		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return
 		}
 	}
@@ -110,21 +110,21 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if isDirectOrGroupMessage {
-		if !p.getConfiguration().SyncDirectMessages {
+		if !p.ShouldSyncDMGMChannel(channel) {
 			return
 		}
 
-		members, appErr := p.API.GetChannelMembers(post.ChannelId, 0, math.MaxInt32)
-		if appErr != nil {
+		members, err := p.apiClient.Channel.ListMembers(post.ChannelId, 0, math.MaxInt32)
+		if err != nil {
 			return
 		}
 
 		isSelfPost := len(members) == 1
 		chatMembersSpanPlatforms := false
 		if !isSelfPost {
-			chatMembersSpanPlatforms, appErr = p.ChatMembersSpanPlatforms(members)
-			if appErr != nil {
-				p.API.LogWarn("Failed to check if chat members span platforms", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
+			chatMembersSpanPlatforms, err = p.ChatMembersSpanPlatforms(members)
+			if err != nil {
+				p.API.LogWarn("Failed to check if chat members span platforms", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
 			}
 
@@ -138,7 +138,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err := p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
+		_, err = p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}
@@ -186,12 +186,16 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		if appErr != nil {
 			return
 		}
-		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
+		if p.ShouldSyncDMGMChannel(channel) {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
 			}
 		}
+		return
+	}
+
+	if !p.getConfiguration().SyncLinkedChannels {
 		return
 	}
 
@@ -234,12 +238,16 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if appErr != nil {
 			return
 		}
-		if channel.IsGroupOrDirect() && p.getConfiguration().SyncDirectMessages {
+		if p.ShouldSyncDMGMChannel(channel) {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
 			}
 		}
+		return
+	}
+
+	if !p.getConfiguration().SyncLinkedChannels {
 		return
 	}
 
@@ -272,7 +280,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 		if !channel.IsGroupOrDirect() {
 			return
 		}
-		if !p.getConfiguration().SyncDirectMessages {
+		if !p.ShouldSyncDMGMChannel(channel) {
 			return
 		}
 
@@ -611,6 +619,11 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 			p.API.LogWarn("Error updating the msteams/mattermost post link metadata", "error", err)
 		}
 	}
+
+	if err := p.store.SetUserLastChatSentAt(post.UserId, storemodels.MilliToMicroSeconds(post.CreateAt)); err != nil {
+		p.API.LogWarn("Unable to set user last chat sent At", "user_id", post.UserId, "post_id", post.Id, "error", err.Error())
+	}
+
 	return newMessage.ID, nil
 }
 
@@ -626,7 +639,7 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	text := post.Message
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return "", err
 		}
@@ -707,7 +720,7 @@ func (p *Plugin) Delete(teamID, channelID string, user *model.User, post *model.
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return err
 		}
@@ -777,7 +790,7 @@ func (p *Plugin) Update(teamID, channelID string, user *model.User, newPost *mod
 
 	client, err := p.GetClientForUser(user.Id)
 	if err != nil {
-		client, err = p.GetClientForUser(p.userID)
+		client, err = p.GetClientForUser(p.botUserID)
 		if err != nil {
 			return err
 		}
@@ -1026,4 +1039,15 @@ func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client mst
 	}
 
 	return client.GetMessage(teamID, channelID, msteamsID)
+}
+
+func (p *Plugin) ShouldSyncDMGMChannel(channel *model.Channel) bool {
+	switch channel.Type {
+	case model.ChannelTypeDirect:
+		return p.getConfiguration().SyncDirectMessages
+	case model.ChannelTypeGroup:
+		return p.getConfiguration().SyncGroupMessages
+	default:
+		return false
+	}
 }

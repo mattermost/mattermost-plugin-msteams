@@ -101,9 +101,12 @@ type AccessToken struct {
 }
 
 type GraphAPIError struct {
-	Code       string `json:"code"`
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
+	Code            string    `json:"code"`
+	StatusCode      int       `json:"status_code"`
+	Message         string    `json:"message"`
+	ClientRequestID string    `json:"client_request_id"`
+	RequestID       string    `json:"request_id"`
+	Timestamp       time.Time `json:"timestamp"`
 }
 
 type ChatMessageAttachmentUser struct {
@@ -123,7 +126,15 @@ type ChatMessageAttachment struct {
 }
 
 func (e *GraphAPIError) Error() string {
-	return fmt.Sprintf("code: %s, status_code: %d, message: %s", e.Code, e.StatusCode, e.Message)
+	return fmt.Sprintf(
+		"code: %s, status_code: %d, message: %s, api_client_request_id: %s, api_request_id: %s, api_timestamp: %s",
+		e.Code,
+		e.StatusCode,
+		e.Message,
+		e.ClientRequestID,
+		e.RequestID,
+		e.Timestamp.Format(time.RFC3339),
+	)
 }
 
 func IsOAuthError(err error) bool {
@@ -135,35 +146,43 @@ func NormalizeGraphAPIError(err error) error {
 		return nil
 	}
 
-	switch e := err.(type) {
-	case *odataerrors.ODataError:
-		if terr := e.GetErrorEscaped(); terr != nil {
-			code, message := "", ""
-			if terr.GetCode() != nil {
-				code = *terr.GetCode()
-			}
-			if terr.GetMessage() != nil {
-				message = *terr.GetMessage()
-			}
-			return &GraphAPIError{
-				Code:       code,
-				Message:    message,
-				StatusCode: e.ResponseStatusCode,
-			}
+	graphErr := &GraphAPIError{}
+
+	fillFromMainErrorable := func(terr odataerrors.MainErrorable, graphErr *GraphAPIError) {
+		if terr == nil {
+			return
 		}
-	default:
-		statusCode := 0
-		if IsOAuthError(err) {
-			statusCode = 401
+
+		if terr.GetCode() != nil {
+			graphErr.Code = *terr.GetCode()
 		}
-		return &GraphAPIError{
-			Code:       "",
-			Message:    err.Error(),
-			StatusCode: statusCode,
+		if terr.GetMessage() != nil {
+			graphErr.Message = *terr.GetMessage()
+		}
+		if terr.GetInnerError().GetClientRequestId() != nil {
+			graphErr.ClientRequestID = *terr.GetInnerError().GetClientRequestId()
+		}
+		if terr.GetInnerError().GetRequestId() != nil {
+			graphErr.RequestID = *terr.GetInnerError().GetRequestId()
+		}
+		if terr.GetInnerError().GetDate() != nil {
+			graphErr.Timestamp = *terr.GetInnerError().GetDate()
 		}
 	}
 
-	return nil
+	switch e := err.(type) {
+	case odataerrors.MainErrorable:
+		fillFromMainErrorable(e, graphErr)
+	case *odataerrors.ODataError:
+		fillFromMainErrorable(e.GetErrorEscaped(), graphErr)
+	default:
+		graphErr.Message = err.Error()
+		if IsOAuthError(err) {
+			graphErr.StatusCode = 401
+		}
+	}
+
+	return graphErr
 }
 
 func (at AccessToken) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {

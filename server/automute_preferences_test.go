@@ -57,8 +57,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -67,14 +67,14 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseMattermostPrimaryMessage)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -83,7 +83,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 	})
 
 	t.Run("should unmute linked channels when their primary platform changes from MS Teams to MM", func(t *testing.T) {
@@ -93,8 +93,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -103,14 +103,14 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
@@ -119,7 +119,39 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseMattermostPrimaryMessage)
+	})
+
+	t.Run("should unmute linked channels when a MS Teams user disconnects", func(t *testing.T) {
+		p, user, linkedChannel, unlinkedChannel, dmChannel := setup(t)
+
+		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
+			{
+				UserId:   user.Id,
+				Category: PreferenceCategoryPlugin,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
+			},
+		})
+
+		assertUserHasAutomuteEnabled(t, p, user.Id)
+
+		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
+		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
+
+		checkTime := model.GetMillisForTime(time.Now())
+		args := &model.CommandArgs{
+			UserId: user.Id,
+		}
+		_, appErr := th.p.executeDisconnectCommand(args)
+		require.Nil(t, appErr)
+
+		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		th.assertNoDMFromUser(t, p.botUserID, user.Id, checkTime)
 	})
 
 	t.Run("should do nothing when unrelated preferences change", func(t *testing.T) {
@@ -133,7 +165,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 				Value:    "full",
 			},
 		})
-		th.assertNoDMFromUser(t, p.userID, user.Id)
+		th.assertNoDMFromUser(t, p.botUserID, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("should do nothing when an unconnected user turns on automuting", func(t *testing.T) {
@@ -154,8 +186,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   unconnectedUser.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
@@ -164,7 +196,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, unconnectedUser.Id)
 		assertChannelNotAutomuted(t, p, dmChannel.Id, unconnectedUser.Id)
-		th.assertNoDMFromUser(t, p.userID, unconnectedUser.Id)
+		th.assertNoDMFromUser(t, p.botUserID, unconnectedUser.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("should not affect other users when a connected user turns on automuting", func(t *testing.T) {
@@ -189,13 +221,13 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
 		assertUserHasAutomuteEnabled(t, p, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -232,13 +264,13 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMSTeams,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMSTeams,
 			},
 		})
 
 		assertUserHasAutomuteEnabled(t, p, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseTeamsPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
 		for _, channel := range channels {
 			assertChannelAutomuted(t, p, channel.Id, user.Id)
@@ -248,13 +280,13 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 			{
 				UserId:   user.Id,
 				Category: PreferenceCategoryPlugin,
-				Name:     PreferenceNamePlatform,
-				Value:    PreferenceValuePlatformMM,
+				Name:     storemodels.PreferenceNamePlatform,
+				Value:    storemodels.PreferenceValuePlatformMM,
 			},
 		})
 
 		assertUserHasAutomuteDisabled(t, p, user.Id)
-		th.assertDMFromUser(t, p.userID, user.Id, userChoseMattermostPrimaryMessage)
+		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseMattermostPrimaryMessage)
 
 		for _, channel := range channels {
 			assertChannelNotAutomuted(t, p, channel.Id, user.Id)
@@ -267,14 +299,14 @@ func TestGetUsersWhoChangedPlatform(t *testing.T) {
 		{
 			UserId:   "user1",
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMM,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMM,
 		},
 		{
 			UserId:   "user2",
 			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNamePlatform,
-			Value:    PreferenceValuePlatformMSTeams,
+			Name:     storemodels.PreferenceNamePlatform,
+			Value:    storemodels.PreferenceValuePlatformMSTeams,
 		},
 		{
 			UserId:   "user3",
