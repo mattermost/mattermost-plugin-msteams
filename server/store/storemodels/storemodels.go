@@ -9,6 +9,11 @@ const (
 	PreferenceNamePlatform         = "platform"
 	PreferenceValuePlatformMM      = "mattermost"
 	PreferenceValuePlatformMSTeams = "msteams"
+
+	// Notification preferences
+	PreferenceNameNotification     = "notification_status"
+	PreferenceValueNotificationOn  = "1"
+	PreferenceValueNotificationOff = "0"
 )
 
 type ChannelLink struct {
