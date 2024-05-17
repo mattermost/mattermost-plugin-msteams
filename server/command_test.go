@@ -1531,7 +1531,6 @@ func TestNotificationCommand(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-
 				if tc.enabled != nil {
 					err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
 					require.Nil(t, err)
@@ -1560,7 +1559,6 @@ func TestNotificationCommand(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-
 				if tc.enabled != nil {
 					err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
 					require.Nil(t, err)
