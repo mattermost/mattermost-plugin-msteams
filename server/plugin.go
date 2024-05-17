@@ -149,6 +149,10 @@ func (p *Plugin) GetSelectiveSync() bool {
 	return p.getConfiguration().SelectiveSync
 }
 
+func (p *Plugin) MessageFingerprint() string {
+	return "<abbr title=\"generated-from-mattermost\"></abbr>"
+}
+
 func (p *Plugin) GetClientForApp() msteams.Client {
 	p.msteamsAppClientMutex.RLock()
 	defer p.msteamsAppClientMutex.RUnlock()
