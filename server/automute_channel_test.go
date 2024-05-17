@@ -131,7 +131,7 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, unconnectedUser.Id)
 		require.Nil(t, err)
 
-		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUser.Id)
+		assertChannelAutomuted(t, th.p, channel.Id, connectedUser.Id)
 		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
 	})
 
