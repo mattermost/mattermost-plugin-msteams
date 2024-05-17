@@ -82,7 +82,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
-		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 	})
 
@@ -102,7 +102,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
-		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
 		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
@@ -138,7 +138,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
-		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
+		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
 		checkTime := model.GetMillisForTime(time.Now())
