@@ -11,7 +11,7 @@ const (
 	PreferenceValuePlatformMSTeams = "msteams"
 
 	// Notification preferences
-	PreferenceNameNotification     = "notification_status"
+	PreferenceNameNotification     = "notifications"
 	PreferenceValueNotificationOn  = "1"
 	PreferenceValueNotificationOff = "0"
 )
