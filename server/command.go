@@ -21,6 +21,11 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
 
+	autoCompleteData := getAutocompleteData(syncLinkedChannels)
+	for i := range autoCompleteData.SubCommands {
+		p.subCommands = append(p.subCommands, autoCompleteData.SubCommands[i].Trigger)
+	}
+
 	return &model.Command{
 		Trigger:              msteamsCommand,
 		AutoComplete:         true,
@@ -28,7 +33,7 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
-		AutocompleteData:     getAutocompleteData(syncLinkedChannels),
+		AutocompleteData:     autoCompleteData,
 		AutocompleteIconData: iconData,
 	}
 }
@@ -171,10 +176,12 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeNotificationsCommand(args, parameters)
 	}
 
-	if p.getConfiguration().SyncLinkedChannels {
-		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, status, disconnect, disconnect-bot, promote and notifications.")
+	const separator = ", "
+	list := strings.Join(p.subCommands, separator)
+	if i := strings.LastIndex(list, separator); i != -1 {
+		list = list[:i] + " and " + list[i+2:]
 	}
-	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, status, disconnect, disconnect-bot and promote and notifications.")
+	return p.cmdError(args, "Unknown command. Valid options: "+list)
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
