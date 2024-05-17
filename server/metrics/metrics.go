@@ -56,7 +56,11 @@ const (
 	DiscardedReasonFailedSubscriptionCheck   = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh           = "failed_to_refresh"
 	DiscardedReasonSelectiveSync             = "selective_sync"
+<<<<<<< HEAD
 	DiscardedReasonUserNotConnected          = "user_not_connected"
+=======
+	DiscardedReasonGeneratedFromMattermost   = "generated_from_mattermost"
+>>>>>>> main
 
 	WorkerMonitor          = "monitor"
 	WorkerSyncUsers        = "sync_users"

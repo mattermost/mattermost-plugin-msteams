@@ -68,6 +68,7 @@ func (pm *pluginMock) GetClientForTeamsUser(string) (msteams.Client, error) {
 func (pm *pluginMock) GenerateRandomPassword() string {
 	return ""
 }
+
 func (pm *pluginMock) GetSelectiveSync() bool  { return pm.selectiveSync }
 func (pm *pluginMock) GetSyncRemoteOnly() bool { return pm.syncRemoteOnly }
 
@@ -79,8 +80,8 @@ func (pm *pluginMock) IsUserConnected(string) (bool, error) {
 	return true, nil
 }
 
-func (pm *pluginMock) ChannelShouldSync(channelID string, senderID string) (bool, error) {
-	return true, nil
+func (pm *pluginMock) MessageFingerprint() string {
+	return "<abbr title=\"generated-from-mattermost\"></abbr>"
 }
 
 func newTestHandler() *ActivityHandler {

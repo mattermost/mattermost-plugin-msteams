@@ -382,6 +382,20 @@ func (_m *PluginIface) SelectiveSyncChannel(channelID string, senderID string) (
 	return r0, r1
 }
 
+// MessageFingerprint provides a mock function with given fields:
+func (_m *PluginIface) MessageFingerprint() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewPluginIface interface {
 	mock.TestingT
 	Cleanup(func())
