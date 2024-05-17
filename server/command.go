@@ -656,7 +656,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		return p.cmdSuccess(args, fmt.Sprintf("Notifications from MSTeams are currently %s.", status))
 	case "on":
 		if !notificationPreferenceEnabled {
-			err := p.setNotificationPreference(args.UserId, true)
+			err = p.setNotificationPreference(args.UserId, true)
 			if err != nil {
 				p.API.LogWarn("unable to enable notifications", "error", err.Error())
 				return p.cmdError(args, "Error: Unable to enable notifications.")
@@ -665,7 +665,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		return p.cmdSuccess(args, "Notifications from MSTeams are now enabled.")
 	case "off":
 		if notificationPreferenceEnabled {
-			p.setNotificationPreference(args.UserId, false)
+			err = p.setNotificationPreference(args.UserId, false)
 			if err != nil {
 				p.API.LogWarn("unable to disable notifications", "error", err.Error())
 				return p.cmdError(args, "Error: Unable to disable notifications.")
