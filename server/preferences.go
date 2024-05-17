@@ -32,7 +32,11 @@ func (p *Plugin) setPrimaryPlatform(userID string, primaryPlatform string) error
 		return fmt.Errorf("invalid primary platform: %s", primaryPlatform)
 	}
 
-	return p.updatePreferenceForUser(userID, storemodels.PreferenceNamePlatform, primaryPlatform)
+	appErr := p.updatePreferenceForUser(userID, storemodels.PreferenceNamePlatform, primaryPlatform)
+	if appErr != nil {
+		return appErr
+	}
+	return nil
 }
 
 func (p *Plugin) getNotificationPreference(userID string) bool {

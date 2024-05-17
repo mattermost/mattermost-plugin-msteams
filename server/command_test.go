@@ -1061,6 +1061,35 @@ func TestGetAutocompleteData(t *testing.T) {
 						},
 						SubCommands: []*model.AutocompleteData{},
 					},
+					{
+						Trigger:  "notifications",
+						HelpText: "Enable or disable notifications from MSTeams. You must be connected to perform this action.",
+						RoleID:   model.SystemUserRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								Required: true,
+								Type:     model.AutocompleteArgTypeStaticList,
+								HelpText: "status",
+								Data: &model.AutocompleteStaticListArg{
+									PossibleArguments: []model.AutocompleteListItem{
+										{
+											Item:     "status",
+											HelpText: "Show current notification status.",
+										},
+										{
+											Item:     "on",
+											HelpText: "Enable notifications.",
+										},
+										{
+											Item:     "off",
+											HelpText: "Disable notifications.",
+										},
+									},
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
 				},
 			},
 		},
@@ -1130,6 +1159,35 @@ func TestGetAutocompleteData(t *testing.T) {
 								Data: &model.AutocompleteTextArg{
 									Hint:    "new username",
 									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:  "notifications",
+						HelpText: "Enable or disable notifications from MSTeams. You must be connected to perform this action.",
+						RoleID:   model.SystemUserRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								Required: true,
+								Type:     model.AutocompleteArgTypeStaticList,
+								HelpText: "status",
+								Data: &model.AutocompleteStaticListArg{
+									PossibleArguments: []model.AutocompleteListItem{
+										{
+											Item:     "status",
+											HelpText: "Show current notification status.",
+										},
+										{
+											Item:     "on",
+											HelpText: "Enable notifications.",
+										},
+										{
+											Item:     "off",
+											HelpText: "Disable notifications.",
+										},
+									},
 								},
 							},
 						},

@@ -100,9 +100,9 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 
 	notification := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
 	notification.AddStaticListArgument("status", true, []model.AutocompleteListItem{
-		{Item: "status", HelpText: "Show current notification status"},
-		{Item: "on", HelpText: "Enable notifications"},
-		{Item: "off", HelpText: "Disable notifications"},
+		{Item: "status", HelpText: "Show current notification status."},
+		{Item: "on", HelpText: "Enable notifications."},
+		{Item: "off", HelpText: "Disable notifications."},
 	})
 	cmd.AddCommand(notification)
 
