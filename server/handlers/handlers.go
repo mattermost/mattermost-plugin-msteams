@@ -51,7 +51,8 @@ type PluginIface interface {
 	GetClientForUser(string) (msteams.Client, error)
 	GetClientForTeamsUser(string) (msteams.Client, error)
 	GenerateRandomPassword() string
-	SelectiveSyncChannel(channelID, senderID string) (bool, error)
+	ChannelShouldSync(channelID string) (bool, error)
+	ChannelShouldSyncCreated(channelID, senderID string) (bool, error)
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
@@ -325,7 +326,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, errSync := ah.plugin.SelectiveSyncChannel(channelID, senderID); errSync != nil {
+			if shouldSync, errSync := ah.plugin.ChannelShouldSyncCreated(channelID, senderID); errSync != nil {
 				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", errSync.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
@@ -637,8 +638,8 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 			return metrics.DiscardedReasonOther
 		}
 
-		if shouldSync, appErr := ah.plugin.SelectiveSyncChannel(channelID, ""); appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
+		if shouldSync, err := ah.plugin.ChannelShouldSync(channelID); err != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", err.Error())
 			return metrics.DiscardedReasonOther
 		} else if !shouldSync {
 			return metrics.DiscardedReasonSelectiveSync

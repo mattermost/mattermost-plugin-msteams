@@ -60,7 +60,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, err := p.SelectiveSyncChannel(post.ChannelId, "")
+			shouldSync, err := p.ChannelShouldSync(post.ChannelId)
 			if err != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
@@ -123,7 +123,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		if p.getConfiguration().SelectiveSync {
 			isSelfPost := len(members) == 1
 			if !isSelfPost {
-				chatShouldSync, err = p.SelectiveSyncChannel(post.ChannelId, "")
+				chatShouldSync, err = p.ChannelShouldSync(post.ChannelId)
 				if err != nil {
 					return
 				} else if !chatShouldSync {

@@ -150,18 +150,19 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 }
 
 // canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams
-// DM/GM channel are never muted as only connected users -> synthetic users are synced.
+// DM/GM channel are muted depending on Selective Sync and Sync Remote Only settings
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 	if channel.IsGroupOrDirect() {
 		if p.configuration.SelectiveSync {
 			if p.configuration.SyncRemoteOnly {
 				// if only sync'ing with remote users,
-				// do not automute any DM/GM channels
+				// do not automute any DM/GM channels,
+				// in this mode all uses considered MM primary
 				return false, nil
 			}
 			// if Selective Sync, automute if members
 			// span platforms
-			return p.SelectiveSyncChannel(channel.Id, "")
+			return p.ChannelShouldSync(channel.Id)
 		}
 
 		// if not selective sync

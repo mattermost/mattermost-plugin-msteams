@@ -9,7 +9,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) SelectiveSyncChannel(channelID, senderID string) (bool, error) {
+func (p *Plugin) ChannelShouldSyncCreated(channelID, senderID string) (bool, error) {
+	if senderID == "" {
+		return false, errors.New("Invalid function call, requires RemoteOnly and a senderID")
+	}
+
+	if p.GetSyncRemoteOnly() {
+		return p.ChannelConnectedOrRemote(channelID, senderID)
+	}
+	return p.ChannelShouldSync(channelID)
+}
+
+func (p *Plugin) ChannelShouldSync(channelID string) (bool, error) {
 	members, err := p.apiClient.Channel.ListMembers(channelID, 0, math.MaxInt32)
 	if err != nil {
 		return false, err
@@ -20,9 +31,6 @@ func (p *Plugin) SelectiveSyncChannel(channelID, senderID string) (bool, error) 
 	}
 
 	if p.GetSyncRemoteOnly() {
-		if senderID != "" {
-			return p.ChannelConnectedOrRemote(channelID, senderID)
-		}
 		return p.MembersContainsRemote(members)
 	}
 	return p.ChatMembersSpanPlatforms(members)
@@ -106,7 +114,6 @@ func (p *Plugin) ChannelConnectedOrRemote(channelID, senderID string) (bool, err
 
 // MembersContainsRemote determines if any of the given channel members are remote.
 func (p *Plugin) MembersContainsRemote(members []*model.ChannelMember) (bool, error) {
-	mlog.Debug("MembersContainsRemote", mlog.Int("count", len(members)))
 	for _, m := range members {
 		user, err := p.apiClient.User.Get(m.UserId)
 		if err != nil {

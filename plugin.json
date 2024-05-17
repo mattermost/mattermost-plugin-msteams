@@ -110,7 +110,7 @@
                 "key": "syncRemoteOnly",
                 "display_name": "Selective sync - Remote Only",
                 "type": "bool",
-                "help_text": "Selective Syncing only syncs with connected and remote users.",
+                "help_text": "Selective Sync only syncs between connected and remote users. (Requires Selective sync = true)",
                 "default": false
             },
             {
