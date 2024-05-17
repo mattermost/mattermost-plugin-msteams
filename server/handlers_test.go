@@ -1,4 +1,4 @@
-package handlers
+package main
 
 import (
 	"errors"
@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
@@ -1329,7 +1329,7 @@ func TestHandleReactions(t *testing.T) {
 	}
 }
 
-func TestShouldSyncDMGMChannel(t *testing.T) {
+func TestShouldSyncChat(t *testing.T) {
 	testCases := []struct {
 		Name             string
 		ChatMembersCount int

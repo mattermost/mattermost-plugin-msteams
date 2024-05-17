@@ -1,6 +1,6 @@
 //go:generate mockery --name=PluginIface
 
-package handlers
+package main
 
 import (
 	"errors"
@@ -29,7 +29,6 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 const (
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
-	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
 )
 
@@ -69,7 +68,7 @@ type ActivityHandler struct {
 	lastUpdateAtMap      sync.Map
 }
 
-func New(plugin PluginIface) *ActivityHandler {
+func NewActivityHandler(plugin PluginIface) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {

@@ -1,4 +1,4 @@
-package handlers
+package main
 
 import (
 	"errors"
@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
 	mocksStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"

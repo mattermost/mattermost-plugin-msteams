@@ -1,4 +1,4 @@
-package handlers
+package main
 
 import (
 	"errors"
@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/gosimple/slug"
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
@@ -80,7 +80,7 @@ func (pm *pluginMock) ChatShouldSync(channelID string) (bool, error) {
 }
 
 func newTestHandler() *ActivityHandler {
-	return New(&pluginMock{
+	return NewActivityHandler(&pluginMock{
 		appClient:                  &mocksClient.Client{},
 		userClient:                 &mocksClient.Client{},
 		teamsUserClient:            &mocksClient.Client{},
