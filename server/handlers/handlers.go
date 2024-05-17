@@ -357,7 +357,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), []string{})
 
 	// Last second check to avoid possible duplication
 	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
@@ -502,7 +502,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
