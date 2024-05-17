@@ -64,8 +64,8 @@ func (s *SQLStore) Init(remoteID string) error {
 	return nil
 }
 
-func (s *SQLStore) getSystemSetting(key string) (string, error) {
-	scanner := s.getQueryBuilder().
+func (s *SQLStore) getSystemSetting(db sq.BaseRunner, key string) (string, error) {
+	scanner := s.getQueryBuilder(db).
 		Select("value").
 		From(systemSettingsTableName).
 		Where(sq.Eq{"id": key}).
@@ -80,22 +80,14 @@ func (s *SQLStore) getSystemSetting(key string) (string, error) {
 	return result, nil
 }
 
-func (s *SQLStore) setSystemSetting(id, value string) error {
-	_, err := s.getQueryBuilder().
+func (s *SQLStore) setSystemSetting(db sq.BaseRunner, id, value string) error {
+	_, err := s.getQueryBuilder(db).
 		Insert(systemSettingsTableName).
 		Columns("id", "value").
 		Values(id, value).
 		Suffix("ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value").
 		Exec()
 	if err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "LastChatSentAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "LastChatReceivedAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
 

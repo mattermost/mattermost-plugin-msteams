@@ -20,7 +20,7 @@ const (
 )
 
 func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
-	setting, err := s.getSystemSetting(RemoteIDMigrationKey)
+	setting, err := s.getSystemSetting(s.db, RemoteIDMigrationKey)
 	if err != nil {
 		return fmt.Errorf("cannot get Remote ID migration state: %w", err)
 	}
@@ -43,7 +43,7 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 		return qErr
 	}
 
-	if err := s.setSystemSetting(RemoteIDMigrationKey, strconv.FormatBool(true)); err != nil {
+	if err := s.setSystemSetting(s.db, RemoteIDMigrationKey, strconv.FormatBool(true)); err != nil {
 		return fmt.Errorf("cannot mark Remote ID migration as completed: %w", err)
 	}
 
@@ -53,7 +53,7 @@ func (s *SQLStore) runMigrationRemoteID(remoteID string) error {
 }
 
 func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) error {
-	setting, err := s.getSystemSetting(SetEmailVerifiedToTrueForRemoteUsersMigrationKey)
+	setting, err := s.getSystemSetting(s.db, SetEmailVerifiedToTrueForRemoteUsersMigrationKey)
 	if err != nil {
 		return fmt.Errorf("cannot get Set Email Verified to True for Remote Users migration state: %w", err)
 	}
@@ -77,7 +77,7 @@ func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) erro
 		return qErr
 	}
 
-	if err := s.setSystemSetting(SetEmailVerifiedToTrueForRemoteUsersMigrationKey, strconv.FormatBool(true)); err != nil {
+	if err := s.setSystemSetting(s.db, SetEmailVerifiedToTrueForRemoteUsersMigrationKey, strconv.FormatBool(true)); err != nil {
 		return fmt.Errorf("cannot mark Set Email Verified to True for Remote Users migration as completed: %w", err)
 	}
 
@@ -87,7 +87,7 @@ func (s *SQLStore) runSetEmailVerifiedToTrueForRemoteUsers(remoteID string) erro
 }
 
 func (s *SQLStore) runMSTeamUserIDDedup() error {
-	setting, err := s.getSystemSetting(MSTeamUserIDDedupMigrationKey)
+	setting, err := s.getSystemSetting(s.db, MSTeamUserIDDedupMigrationKey)
 	if err != nil {
 		return fmt.Errorf("cannot get MSTeam User ID Dedup migration state: %w", err)
 	}
@@ -172,7 +172,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 		return err
 	}
 
-	if err := s.setSystemSetting(MSTeamUserIDDedupMigrationKey, strconv.FormatBool(true)); err != nil {
+	if err := s.setSystemSetting(s.db, MSTeamUserIDDedupMigrationKey, strconv.FormatBool(true)); err != nil {
 		return fmt.Errorf("cannot mark MSTeam User ID Dedup migration as completed: %w", err)
 	}
 
@@ -182,7 +182,7 @@ func (s *SQLStore) runMSTeamUserIDDedup() error {
 }
 
 func (s *SQLStore) runWhitelistedUsersMigration() error {
-	setting, err := s.getSystemSetting(WhitelistedUsersMigrationKey)
+	setting, err := s.getSystemSetting(s.db, WhitelistedUsersMigrationKey)
 	if err != nil {
 		return fmt.Errorf("cannot get Whitelisted Users migration state: %w", err)
 	}
@@ -198,7 +198,7 @@ func (s *SQLStore) runWhitelistedUsersMigration() error {
 
 	if !oldWhitelistToProcess {
 		// migration already done, no rows to process
-		if sErr := s.setSystemSetting(WhitelistedUsersMigrationKey, strconv.FormatBool(true)); sErr != nil {
+		if sErr := s.setSystemSetting(s.db, WhitelistedUsersMigrationKey, strconv.FormatBool(true)); sErr != nil {
 			return fmt.Errorf("cannot mark Whitelisted Users migration as completed: %w", sErr)
 		}
 
@@ -238,7 +238,7 @@ func (s *SQLStore) runWhitelistedUsersMigration() error {
 		return err
 	}
 
-	if err := s.setSystemSetting(WhitelistedUsersMigrationKey, strconv.FormatBool(true)); err != nil {
+	if err := s.setSystemSetting(s.db, WhitelistedUsersMigrationKey, strconv.FormatBool(true)); err != nil {
 		return fmt.Errorf("cannot mark Whitelisted Users migration as completed: %w", err)
 	}
 
