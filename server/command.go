@@ -103,13 +103,13 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	promoteUser.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(promoteUser)
 
-	notification := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
-	notification.AddStaticListArgument("status", true, []model.AutocompleteListItem{
+	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
+	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
 		{Item: "status", HelpText: "Show current notification status."},
 		{Item: "on", HelpText: "Enable notifications."},
 		{Item: "off", HelpText: "Disable notifications."},
 	})
-	cmd.AddCommand(notification)
+	cmd.AddCommand(notifications)
 
 	return cmd
 }
@@ -634,7 +634,7 @@ func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandRe
 
 func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
 	if len(parameters) != 1 {
-		return p.cmdSuccess(args, "Invalid notification command, one argument is required.")
+		return p.cmdSuccess(args, "Invalid notifications command, one argument is required.")
 	}
 
 	isConnected, err := p.isUserConnected(args.UserId)

@@ -41,7 +41,7 @@ func (p *Plugin) setPrimaryPlatform(userID string, primaryPlatform string) error
 
 func (p *Plugin) getNotificationPreference(userID string) bool {
 	// this call returns a generic error if the preference does not exist,
-	// we can omit the error check here and let the code assume it's on turned on
+	// we can omit the error check here and return off by default
 	pref, _ := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNameNotification)
 	return pref.Value == storemodels.PreferenceValueNotificationOn
 }

@@ -11,11 +11,12 @@ import (
 func TestGetNotificationStatus(t *testing.T) {
 	th := setupTestHelper(t)
 
+	team := th.SetupTeam(t)
+	user := th.SetupUser(t, team)
+
 	setup := func(t *testing.T) string {
 		t.Helper()
 
-		team := th.SetupTeam(t)
-		user := th.SetupUser(t, team)
 		err := th.p.API.DeletePreferencesForUser(user.Id, []model.Preference{
 			{UserId: user.Id, Category: PreferenceCategoryPlugin, Name: storemodels.PreferenceNameNotification},
 		})
@@ -35,14 +36,7 @@ func TestGetNotificationStatus(t *testing.T) {
 		assert := require.New(t)
 		userID := setup(t)
 
-		err := th.p.API.UpdatePreferencesForUser(userID, []model.Preference{
-			{
-				UserId:   userID,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNameNotification,
-				Value:    storemodels.PreferenceValueNotificationOff,
-			},
-		})
+		err := th.p.updatePreferenceForUser(userID, storemodels.PreferenceNameNotification, storemodels.PreferenceValueNotificationOff)
 		assert.Nil(err)
 
 		assert.False(th.p.getNotificationPreference(userID))
@@ -52,14 +46,7 @@ func TestGetNotificationStatus(t *testing.T) {
 		assert := require.New(t)
 		userID := setup(t)
 
-		err := th.p.API.UpdatePreferencesForUser(userID, []model.Preference{
-			{
-				UserId:   userID,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNameNotification,
-				Value:    storemodels.PreferenceValueNotificationOn,
-			},
-		})
+		err := th.p.updatePreferenceForUser(userID, storemodels.PreferenceNameNotification, storemodels.PreferenceValueNotificationOn)
 		assert.Nil(err)
 
 		assert.True(th.p.getNotificationPreference(userID))
@@ -69,34 +56,27 @@ func TestGetNotificationStatus(t *testing.T) {
 func TestSetNotificationStatus(t *testing.T) {
 	th := setupTestHelper(t)
 
-	setup := func(t *testing.T) string {
-		t.Helper()
-
-		team := th.SetupTeam(t)
-		user := th.SetupUser(t, team)
-		return user.Id
-	}
+	team := th.SetupTeam(t)
+	user := th.SetupUser(t, team)
 
 	t.Run("set to true should update the preference to on", func(t *testing.T) {
 		assert := require.New(t)
-		userID := setup(t)
 
-		err := th.p.setNotificationPreference(userID, true)
+		err := th.p.setNotificationPreference(user.Id, true)
 		assert.Nil(err)
 
-		pref, err := th.p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNameNotification)
+		pref, err := th.p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, storemodels.PreferenceNameNotification)
 		assert.Nil(err)
 		assert.Equal(storemodels.PreferenceValueNotificationOn, pref.Value)
 	})
 
 	t.Run("set to false should update the preference to off", func(t *testing.T) {
 		assert := require.New(t)
-		userID := setup(t)
 
-		err := th.p.setNotificationPreference(userID, false)
+		err := th.p.setNotificationPreference(user.Id, false)
 		assert.Nil(err)
 
-		pref, err := th.p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNameNotification)
+		pref, err := th.p.API.GetPreferenceForUser(user.Id, PreferenceCategoryPlugin, storemodels.PreferenceNameNotification)
 		assert.Nil(err)
 		assert.Equal(storemodels.PreferenceValueNotificationOff, pref.Value)
 	})
