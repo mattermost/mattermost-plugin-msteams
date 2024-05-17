@@ -11,6 +11,10 @@ const (
 	PreferenceCategoryPlugin = "pp_" + pluginID
 )
 
+func (p *Plugin) GetPreferenceCategoryName() string {
+	return PreferenceCategoryPlugin
+}
+
 // getPrimaryPlatform returns the user's primary platform preference.
 func (p *Plugin) getPrimaryPlatform(userID string) string {
 	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNamePlatform)
@@ -28,21 +32,7 @@ func (p *Plugin) setPrimaryPlatform(userID string, primaryPlatform string) error
 		return fmt.Errorf("invalid primary platform: %s", primaryPlatform)
 	}
 
-	appErr := p.API.UpdatePreferencesForUser(userID, []model.Preference{{
-		UserId:   userID,
-		Category: PreferenceCategoryPlugin,
-		Name:     storemodels.PreferenceNamePlatform,
-		Value:    primaryPlatform,
-	}})
-	if appErr != nil {
-		return appErr
-	}
-
-	return nil
-}
-
-func (p *Plugin) GetPreferenceCategoryName() string {
-	return PreferenceCategoryPlugin
+	return p.updatePreferenceForUser(userID, storemodels.PreferenceNamePlatform, primaryPlatform)
 }
 
 func (p *Plugin) getNotificationPreference(userID string) bool {
@@ -58,15 +48,19 @@ func (p *Plugin) setNotificationPreference(userID string, enable bool) error {
 		value = storemodels.PreferenceValueNotificationOn
 	}
 
-	err := p.API.UpdatePreferencesForUser(userID, []model.Preference{{
-		UserId:   userID,
-		Category: PreferenceCategoryPlugin,
-		Name:     storemodels.PreferenceNameNotification,
-		Value:    value,
-	}})
+	err := p.updatePreferenceForUser(userID, storemodels.PreferenceNameNotification, value)
 	if err != nil {
 		return fmt.Errorf("failed to set notification status: %w", err)
 	}
 
 	return nil
+}
+
+func (p *Plugin) updatePreferenceForUser(userID string, name string, value string) *model.AppError {
+	return p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+		UserId:   userID,
+		Category: PreferenceCategoryPlugin,
+		Name:     name,
+		Value:    value,
+	}})
 }
