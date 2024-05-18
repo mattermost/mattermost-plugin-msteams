@@ -77,6 +77,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
+	router.HandleFunc("/connection-status", api.connectionStatus).Methods("GET")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
@@ -380,6 +381,24 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
 
+func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	response := map[string]bool{
+		"connected": false,
+	}
+
+	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
+		response["connected"] = true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		a.p.API.LogWarn("Error while writing response", "error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
@@ -546,6 +565,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.PublishWebSocketEvent("user_connected", map[string]any{}, &model.WebsocketBroadcast{
+		UserId: mmUserID,
+	})
 
 	if err = a.p.store.DeleteUserInvite(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())

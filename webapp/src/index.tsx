@@ -1,4 +1,4 @@
-import {Store, Action} from 'redux';
+import {Store, Action, Dispatch} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
 
@@ -6,8 +6,17 @@ import ListConnectedUsers from 'components/admin_console/get_connected_users_set
 import InviteWhitelistSetting from 'components/admin_console/invite_whitelist_setting';
 import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_setting';
 
+import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from 'types/websocket';
+
+import {userHasConnectedWsHandler, userHasDisconnectedWsHandler} from 'websocket_handler';
+
+import {userHasConnected as userIsConnected, userHasDisconnected as userIsDisconnected} from 'actions';
+
+import {isUserConnected} from 'selectors';
+
 import Client from './client';
 import manifest from './manifest';
+import reducer from './reducer';
 
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
@@ -56,26 +65,31 @@ export default class Plugin {
     removeStoreSubscription?: () => void;
     activityFunc?: () => void;
 
-    public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
+    public async initialize(registry: PluginRegistry, store: Store<GlobalState>) {
         const state = store.getState();
+        registry.registerReducer(reducer);
+
         let serverRoute = getServerRoute(state);
         Client.setServerRoute(serverRoute);
+
+        this.fetchUserConnectionStatus(store.dispatch);
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
         registry.registerAdminConsoleCustomSetting('inviteWhitelistUpload', InviteWhitelistSetting);
         this.userActivityWatch();
 
-        // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
-        let settingsEnabled = true;
+        registry.registerWebSocketEventHandler(WS_EVENT_USER_CONNECTED, userHasConnectedWsHandler(store.dispatch));
+        registry.registerWebSocketEventHandler(WS_EVENT_USER_DISCONNECTED, userHasDisconnectedWsHandler(store.dispatch));
+
+        let settingsEnabled = isUserConnected(state);
         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
             const newState = store.getState();
             const newServerRoute = getServerRoute(newState);
 
-            // const newSettingsEnabled = (newState as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
-            const newSettingsEnabled = true;
+            const newSettingsEnabled = isUserConnected(state);
             if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
@@ -125,6 +139,16 @@ export default class Plugin {
             }
         };
         document.addEventListener('click', this.activityFunc);
+    }
+
+    fetchUserConnectionStatus(dispatch: Dispatch) {
+        Client.connectionStatus().then((status) => {
+            if (status.connected) {
+                dispatch(userIsConnected());
+            } else {
+                dispatch(userIsDisconnected());
+            }
+        });
     }
 
     uninitialize() {
