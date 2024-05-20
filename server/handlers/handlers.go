@@ -37,6 +37,7 @@ type PluginIface interface {
 	GetAPI() plugin.API
 	GetStore() store.Store
 	GetMetrics() metrics.Metrics
+	GetSyncNotifications() bool
 	GetSyncDirectMessages() bool
 	GetSyncGroupMessages() bool
 	GetSyncLinkedChannels() bool
@@ -46,6 +47,7 @@ type PluginIface interface {
 	GetMaxSizeForCompleteDownload() int
 	GetBufferSizeForStreaming() int
 	GetBotUserID() string
+	GetTenantID() string
 	GetURL() string
 	GetClientForApp() msteams.Client
 	GetClientForUser(string) (msteams.Client, error)
@@ -278,6 +280,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonGeneratedFromMattermost
 	}
 
+	if ah.plugin.GetSyncNotifications() {
+		return ah.handleCreatedActivityNotification(msg, chat)
+	}
+
 	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
 
 	// Avoid possible duplication
@@ -311,6 +317,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	var channelID string
 	// userIDs is used to determine the participants of a DM/GM
 	var userIDs []string
+
 	if chat != nil {
 		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
 			return reason
@@ -357,7 +364,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), []string{})
 
 	// Last second check to avoid possible duplication
 	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
@@ -423,6 +430,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
@@ -502,7 +513,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
@@ -616,6 +627,10 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

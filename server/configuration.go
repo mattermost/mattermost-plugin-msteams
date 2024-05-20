@@ -27,6 +27,7 @@ type configuration struct {
 	EvaluationAPI                      bool   `json:"evaluationapi"`
 	WebhookSecret                      string `json:"webhooksecret"`
 	EnabledTeams                       string `json:"enabledteams"`
+	SyncNotifications                  bool   `json:"syncnotifications"`
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
 	SyncGroupMessages                  bool   `json:"syncgroupmessages"`
 	SelectiveSync                      bool   `json:"selectiveSync"`

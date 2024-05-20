@@ -87,6 +87,9 @@ type Plugin struct {
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+
+	subCommands      []string
+	subCommandsMutex sync.RWMutex
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -107,6 +110,14 @@ func (p *Plugin) GetMetrics() metrics.Metrics {
 
 func (p *Plugin) GetStore() store.Store {
 	return p.store
+}
+
+func (p *Plugin) GetTenantID() string {
+	return p.getConfiguration().TenantID
+}
+
+func (p *Plugin) GetSyncNotifications() bool {
+	return p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncDirectMessages() bool {
@@ -283,7 +294,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}

@@ -305,6 +305,20 @@ func (_m *PluginIface) GetSyncLinkedChannels() bool {
 	return r0
 }
 
+// GetSyncNotifications provides a mock function with given fields:
+func (_m *PluginIface) GetSyncNotifications() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetSyncReactions provides a mock function with given fields:
 func (_m *PluginIface) GetSyncReactions() bool {
 	ret := _m.Called()
@@ -314,6 +328,20 @@ func (_m *PluginIface) GetSyncReactions() bool {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// GetTenantID provides a mock function with given fields:
+func (_m *PluginIface) GetTenantID() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
 	}
 
 	return r0

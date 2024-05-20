@@ -94,7 +94,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, bool, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, handleFileAttachments bool, existingFileIDs []string) (string, model.StringArray, string, bool, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -152,7 +152,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
-		if !ah.plugin.GetSyncFileAttachments() {
+		if !handleFileAttachments {
 			skippedFileAttachments = true
 			continue
 		}
