@@ -41,6 +41,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface, client *mocksClient.Client, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("Error while getting original chat")).Times(1)
@@ -60,6 +61,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -87,6 +89,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -117,6 +120,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -160,6 +164,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -203,6 +208,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -248,6 +254,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -299,6 +306,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -351,6 +360,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -456,6 +467,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -518,6 +531,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
@@ -558,6 +572,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
@@ -651,6 +667,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetSyncReactions").Return(true).Maybe()
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("error while getting original chat")).Times(1)
@@ -671,6 +688,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -699,6 +717,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetClientForApp").Return(client).Maybe()
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -729,6 +748,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -765,6 +785,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetClientForTeamsUser", testutils.GetTeamsUserID()).Return(client, nil).Times(1)
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -805,6 +826,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -851,6 +873,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetSyncDirectMessages").Return(true).Once()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -902,6 +925,8 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetSyncDirectMessages").Return(true).Once()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
@@ -957,6 +982,7 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
@@ -1000,6 +1026,8 @@ func TestHandleUpdatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(1)
 				p.On("GetBotUserID").Return(testutils.GetSenderID()).Times(2)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetSyncFileAttachments").Return(true).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
 				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
@@ -1084,6 +1112,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("DeletePost", testutils.GetMattermostID()).Return(nil).Times(1)
@@ -1104,6 +1133,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 			},
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetStore").Return(store).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {},
 			setupStore: func(store *mocksStore.Store) {
@@ -1120,6 +1150,7 @@ func TestHandleDeletedActivity(t *testing.T) {
 			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store, mockmetrics *mocksMetrics.Metrics) {
 				p.On("GetStore").Return(store).Maybe()
 				p.On("GetAPI").Return(mockAPI).Maybe()
+				p.On("GetSyncNotifications").Return(false).Maybe()
 			},
 			setupAPI: func(mockAPI *plugintest.API) {
 				mockAPI.On("DeletePost", "").Return(&model.AppError{
