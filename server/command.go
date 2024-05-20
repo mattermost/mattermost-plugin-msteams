@@ -22,6 +22,9 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 	}
 
 	autoCompleteData := getAutocompleteData(syncLinkedChannels)
+	p.subCommandsMutex.Lock()
+	defer p.subCommandsMutex.Unlock()
+	p.subCommands = make([]string, 0, len(autoCompleteData.SubCommands))
 	for i := range autoCompleteData.SubCommands {
 		p.subCommands = append(p.subCommands, autoCompleteData.SubCommands[i].Trigger)
 	}
@@ -176,11 +179,9 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeNotificationsCommand(args, parameters)
 	}
 
-	const separator = ", "
-	list := strings.Join(p.subCommands, separator)
-	if i := strings.LastIndex(list, separator); i != -1 {
-		list = list[:i] + " and " + list[i+2:]
-	}
+	p.subCommandsMutex.RLock()
+	list := strings.Join(p.subCommands, ", ")
+	p.subCommandsMutex.RUnlock()
 	return p.cmdError(args, "Unknown command. Valid options: "+list)
 }
 
