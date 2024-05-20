@@ -52,9 +52,9 @@ func (p *Plugin) setNotificationPreference(userID string, enable bool) error {
 		value = storemodels.PreferenceValueNotificationOn
 	}
 
-	err := p.updatePreferenceForUser(userID, storemodels.PreferenceNameNotification, value)
-	if err != nil {
-		return fmt.Errorf("failed to set notification status: %w", err)
+	appErr := p.updatePreferenceForUser(userID, storemodels.PreferenceNameNotification, value)
+	if appErr != nil {
+		return fmt.Errorf("failed to set notification status: %w", appErr)
 	}
 
 	return nil
