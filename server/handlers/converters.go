@@ -13,7 +13,7 @@ import (
 
 const hostedContentsStr = "hostedContents"
 
-func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (*model.Post, bool, bool) {
+func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmodels.Message, chat *clientmodels.Chat, handleFileAttachments bool, existingFileIDs []string) (*model.Post, bool, bool) {
 	text := ah.handleMentions(msg)
 	text = ah.handleEmojis(text)
 	var embeddedImages []clientmodels.Attachment
@@ -30,8 +30,9 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 		}
 	}
 
-	newText, attachments, parentID, skippedFileAttachments, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, existingFileIDs)
+	newText, attachments, parentID, skippedFileAttachments, errorFound := ah.handleAttachments(channelID, senderID, text, msg, chat, handleFileAttachments, existingFileIDs)
 	text = newText
+
 	if parentID != "" {
 		rootID = parentID
 	}
