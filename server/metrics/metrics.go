@@ -61,7 +61,6 @@ const (
 	DiscardedReasonNotificationsOnly               = "notifications_only"
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"
 
-
 	WorkerMonitor          = "monitor"
 	WorkerSyncUsers        = "sync_users"
 	WorkerActivityHandler  = "activity_handler"
