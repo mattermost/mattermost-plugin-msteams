@@ -42,17 +42,16 @@ export default class Plugin {
         registry.registerWebSocketEventHandler(WS_EVENT_USER_DISCONNECTED, userDisconnectedWsHandler(store.dispatch));
 
         let settingsEnabled = isUserConnected(state);
-        registry.registerUserSettings?.(getUserSettings(serverRoute, settingsEnabled));
+        registry.registerUserSettings?.(getUserSettings(serverRoute, !settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
             const newState = store.getState();
             const newServerRoute = getServerRoute(newState);
-
-            const newSettingsEnabled = isUserConnected(state);
+            const newSettingsEnabled = isUserConnected(newState);
             if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
-                registry.registerUserSettings?.(getUserSettings(serverRoute, settingsEnabled));
+                registry.registerUserSettings?.(getUserSettings(serverRoute, !settingsEnabled));
             }
         });
 

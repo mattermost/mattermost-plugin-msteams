@@ -1,3 +1,4 @@
+import Client from 'client';
 import manifest from 'manifest';
 
 export default function getUserSettings(serverRoute: string, disabled: boolean) {
@@ -5,16 +6,12 @@ export default function getUserSettings(serverRoute: string, disabled: boolean) 
         id: manifest.id,
         icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
         uiName: manifest.name,
-
-        /* TODO: fix this. the connect API requires a channelID and a botID.
-            action: disabled ? {
+        action: disabled ? {
             title: 'Connect your Microsoft Teams Account',
             text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
             buttonText: 'Connect account',
-            onClick: () => window.open(`${Client.url}/connect`),
+            onClick: () => window.open(`${Client.url}/connect?from_preferences=true`),
         } : undefined, //eslint-disable-line no-undefined
-        */
-
         sections: [makePlatformSetting(disabled), makeNotificationsSetting(disabled)],
     };
 }
