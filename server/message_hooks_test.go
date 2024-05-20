@@ -1762,7 +1762,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
 				}}, []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to send the chat")).Times(1)
 			},
@@ -1798,7 +1798,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
 				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
@@ -1843,7 +1843,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Once()
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
 				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
@@ -1889,7 +1889,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1924,7 +1924,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -1961,7 +1961,7 @@ func TestSendChat(t *testing.T) {
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
 				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
 				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -2007,7 +2007,7 @@ func TestSendChat(t *testing.T) {
 					Text:            "mockText",
 					UserDisplayName: "mockUserDisplayName",
 				}, nil).Once()
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", &clientmodels.Message{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", &clientmodels.Message{
 					ID:              "mockParentMessageID",
 					UserID:          "mockUserID",
 					Text:            "mockText",
@@ -2054,7 +2054,7 @@ func TestSendChat(t *testing.T) {
 				uclient.On("UploadFile", "", "", "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), mockChat).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
+				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), []*clientmodels.Attachment{{
 					ID: testutils.GetID(),
 				}}, []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
@@ -2145,7 +2145,7 @@ func TestSend(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -2173,7 +2173,7 @@ func TestSend(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -2203,7 +2203,7 @@ func TestSend(t *testing.T) {
 				}).Return(nil).Times(1)
 			},
 			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
 					ID: "mockMessageID",
 				}, nil).Times(1)
 			},
@@ -2231,7 +2231,7 @@ func TestSend(t *testing.T) {
 				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},
@@ -2267,7 +2267,7 @@ func TestSend(t *testing.T) {
 				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},
@@ -2305,7 +2305,7 @@ func TestSend(t *testing.T) {
 				uclient.On("UploadFile", testutils.GetID(), testutils.GetChannelID(), "mockFile.Name"+"_"+testutils.GetID()+".txt", 1, "mockMimeType", bytes.NewReader([]byte("mockData")), (*clientmodels.Chat)(nil)).Return(&clientmodels.Attachment{
 					ID: testutils.GetID(),
 				}, nil).Times(1)
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n", []*clientmodels.Attachment{
+				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", []*clientmodels.Attachment{
 					{
 						ID: testutils.GetID(),
 					},

@@ -603,6 +603,8 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 		}
 	}
 
+	content += p.MessageFingerprint()
+
 	newMessage, err := client.SendChat(chat.ID, content, parentMessage, attachments, mentions)
 	if err != nil {
 		p.API.LogWarn("Error creating post on MS Teams", "error", err.Error())
@@ -688,6 +690,8 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 	content := md.RenderToString([]byte(emoji.Parse(text)))
 
 	content, mentions := p.getMentionsData(content, teamID, channelID, "", client)
+
+	content += p.MessageFingerprint()
 
 	newMessage, err := client.SendMessageWithAttachments(teamID, channelID, parentID, content, attachments, mentions)
 	if err != nil {

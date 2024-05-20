@@ -55,6 +55,7 @@ type PluginIface interface {
 	GetSelectiveSync() bool
 	IsRemoteUser(user *model.User) bool
 	GetRemoteID() string
+	MessageFingerprint() string
 }
 
 type ActivityHandler struct {
@@ -273,6 +274,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
+	if strings.HasSuffix(msg.Text, ah.plugin.MessageFingerprint()) {
+		return metrics.DiscardedReasonGeneratedFromMattermost
+	}
+
 	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
 
 	// Avoid possible duplication
@@ -353,6 +358,11 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	}
 
 	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+
+	// Last second check to avoid possible duplication
+	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
+		return metrics.DiscardedReasonDuplicatedPost
+	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
