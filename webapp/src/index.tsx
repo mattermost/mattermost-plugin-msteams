@@ -52,7 +52,7 @@ export default class Plugin {
             if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
-                registry.registerUserSettings?.(getSettings(serverRoute, settingsEnabled));
+                registry.registerUserSettings?.(getUserSettings(serverRoute, settingsEnabled));
             }
         });
 
