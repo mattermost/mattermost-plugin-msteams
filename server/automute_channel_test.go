@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -117,42 +118,49 @@ func TestUpdateAutomutingOnUserJoinedChannel(t *testing.T) {
 func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 	th := setupTestHelper(t)
 	team := th.SetupTeam(t)
+	th.setPluginConfiguration(t, func(c *configuration) {
+		c.SelectiveSync = true
+	})
 
-	t.Run("when a DM is created, should mute it for users with automuting enabled", func(t *testing.T) {
+	t.Run("when a DM is created, should mute it for users with automuting enabled and a MSTeams user", func(t *testing.T) {
 		th.Reset(t)
 
 		connectedUser := th.SetupUser(t, team)
 		th.ConnectUser(t, connectedUser.Id)
-		unconnectedUser := th.SetupUser(t, team)
+		teamsUser := th.SetupUser(t, team)
+		appErr := th.p.updatePreferenceForUser(teamsUser.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		require.Nil(t, appErr)
 
 		err := th.p.setAutomuteIsEnabledForUser(connectedUser.Id, true)
 		require.NoError(t, err)
 
-		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, unconnectedUser.Id)
+		channel, err := th.p.API.GetDirectChannel(connectedUser.Id, teamsUser.Id)
 		require.Nil(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, connectedUser.Id)
-		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, teamsUser.Id)
 	})
 
-	t.Run("when a GM is created, should mute it for users with automuting enabled", func(t *testing.T) {
+	t.Run("when a GM is created, should mute it for users with automuting enabled with MSTeams user", func(t *testing.T) {
 		th.Reset(t)
 
 		connectedUserWithAutomute := th.SetupUser(t, team)
 		th.ConnectUser(t, connectedUserWithAutomute.Id)
 		connectedUserWithoutAutomute := th.SetupUser(t, team)
 		th.ConnectUser(t, connectedUserWithoutAutomute.Id)
-		unconnectedUser := th.SetupUser(t, team)
+		teamsUser := th.SetupUser(t, team)
+		appErr := th.p.updatePreferenceForUser(teamsUser.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		require.Nil(t, appErr)
 
 		err := th.p.setAutomuteIsEnabledForUser(connectedUserWithAutomute.Id, true)
 		require.NoError(t, err)
 
-		channel, err := th.p.API.GetGroupChannel([]string{connectedUserWithAutomute.Id, connectedUserWithoutAutomute.Id, unconnectedUser.Id})
+		channel, err := th.p.API.GetGroupChannel([]string{connectedUserWithAutomute.Id, connectedUserWithoutAutomute.Id, teamsUser.Id})
 		require.Nil(t, err)
 
-		assertChannelAutomuted(t, th.p, channel.Id, connectedUserWithAutomute.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUserWithAutomute.Id)
 		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUserWithoutAutomute.Id)
-		assertChannelNotAutomuted(t, th.p, channel.Id, unconnectedUser.Id)
+		assertChannelNotAutomuted(t, th.p, channel.Id, teamsUser.Id)
 	})
 
 	t.Run("when a regular channel is created, should do nothing", func(t *testing.T) {

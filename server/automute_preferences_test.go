@@ -71,7 +71,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseMattermostPrimaryMessage)
 
-		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		err := p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -82,14 +83,16 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 	t.Run("should unmute linked channels when their primary platform changes from MS Teams to MM", func(t *testing.T) {
 		p, user, linkedChannel, unlinkedChannel, dmChannel := setup(t)
 
-		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		err := p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
-		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMM)
+		err = p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMM)
+		assert.NoError(t, err)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -100,7 +103,8 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 	t.Run("should unmute linked channels when a MS Teams user disconnects", func(t *testing.T) {
 		p, user, linkedChannel, unlinkedChannel, dmChannel := setup(t)
 
-		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		err := p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
+		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
