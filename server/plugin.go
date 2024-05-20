@@ -87,6 +87,9 @@ type Plugin struct {
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+
+	subCommands      []string
+	subCommandsMutex sync.RWMutex
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {

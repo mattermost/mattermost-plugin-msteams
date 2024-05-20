@@ -1061,6 +1061,35 @@ func TestGetAutocompleteData(t *testing.T) {
 						},
 						SubCommands: []*model.AutocompleteData{},
 					},
+					{
+						Trigger:  "notifications",
+						HelpText: "Enable or disable notifications from MSTeams. You must be connected to perform this action.",
+						RoleID:   model.SystemUserRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								Required: true,
+								Type:     model.AutocompleteArgTypeStaticList,
+								HelpText: "status",
+								Data: &model.AutocompleteStaticListArg{
+									PossibleArguments: []model.AutocompleteListItem{
+										{
+											Item:     "status",
+											HelpText: "Show current notification status.",
+										},
+										{
+											Item:     "on",
+											HelpText: "Enable notifications.",
+										},
+										{
+											Item:     "off",
+											HelpText: "Disable notifications.",
+										},
+									},
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
 				},
 			},
 		},
@@ -1130,6 +1159,35 @@ func TestGetAutocompleteData(t *testing.T) {
 								Data: &model.AutocompleteTextArg{
 									Hint:    "new username",
 									Pattern: `^[a-z0-9\.\-_:]+$`,
+								},
+							},
+						},
+						SubCommands: []*model.AutocompleteData{},
+					},
+					{
+						Trigger:  "notifications",
+						HelpText: "Enable or disable notifications from MSTeams. You must be connected to perform this action.",
+						RoleID:   model.SystemUserRoleId,
+						Arguments: []*model.AutocompleteArg{
+							{
+								Required: true,
+								Type:     model.AutocompleteArgTypeStaticList,
+								HelpText: "status",
+								Data: &model.AutocompleteStaticListArg{
+									PossibleArguments: []model.AutocompleteListItem{
+										{
+											Item:     "status",
+											HelpText: "Show current notification status.",
+										},
+										{
+											Item:     "on",
+											HelpText: "Enable notifications.",
+										},
+										{
+											Item:     "off",
+											HelpText: "Disable notifications.",
+										},
+									},
 								},
 							},
 						},
@@ -1376,5 +1434,143 @@ func TestStatusCommand(t *testing.T) {
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
 		assertEphemeralResponse(th, t, args, "Your account is connected to Teams.")
+	})
+}
+
+func TestNotificationCommand(t *testing.T) {
+	th := setupTestHelper(t)
+
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+	args := &model.CommandArgs{
+		UserId:    user1.Id,
+		ChannelId: model.NewId(),
+	}
+
+	th.SetupWebsocketClientForUser(t, user1.Id)
+
+	reset := func(th *testHelper, t *testing.T, connectUser bool) {
+		t.Helper()
+		th.Reset(t)
+
+		if connectUser {
+			th.ConnectUser(t, user1.Id)
+		}
+
+		err := th.p.API.DeletePreferencesForUser(user1.Id, []model.Preference{{
+			UserId:   user1.Id,
+			Category: PreferenceCategoryPlugin,
+			Name:     storemodels.PreferenceNameNotification,
+		}})
+		require.Nil(t, err)
+	}
+
+	t.Run("not connected user should be rejected", func(t *testing.T) {
+		reset(th, t, false)
+		subCommands := []string{"status", "on", "off"}
+		for _, subCommand := range subCommands {
+			t.Run("subcommand "+subCommand, func(t *testing.T) {
+				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{subCommand})
+				require.Nil(t, appErr)
+				assertNoCommandResponse(t, commandResponse)
+				assertEphemeralResponse(th, t, args, "Error: Your account is not connected to Teams. To use this feature, please connect your account with `/msteams connect`.")
+			})
+		}
+	})
+
+	t.Run("status", func(t *testing.T) {
+		t.Run("connected user should get the appropriate message", func(t *testing.T) {
+			cases := []struct {
+				name     string
+				enabled  *bool
+				expected string
+			}{
+				{
+					name:     "enabled",
+					enabled:  model.NewBool(true),
+					expected: "Notifications from MSTeams are currently enabled.",
+				},
+				{
+					name:     "disabled",
+					enabled:  model.NewBool(false),
+					expected: "Notifications from MSTeams are currently disabled.",
+				},
+				{
+					name:     "not set",
+					enabled:  nil,
+					expected: "Notifications from MSTeams are currently disabled.",
+				},
+			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					reset(th, t, true)
+					if tc.enabled != nil {
+						err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
+						require.Nil(t, err)
+					}
+
+					commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"status"})
+					require.Nil(t, appErr)
+					assertNoCommandResponse(t, commandResponse)
+					assertEphemeralResponse(th, t, args, tc.expected)
+				})
+			}
+		})
+	})
+
+	t.Run("on", func(t *testing.T) {
+		reset(th, t, true)
+
+		cases := []struct {
+			name    string
+			enabled *bool
+		}{
+			{name: "was enabled", enabled: model.NewBool(true)},
+			{name: "was disabled", enabled: model.NewBool(false)},
+			{name: "was not set", enabled: nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.enabled != nil {
+					err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
+					require.Nil(t, err)
+				}
+
+				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"on"})
+				require.Nil(t, appErr)
+				assertNoCommandResponse(t, commandResponse)
+				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now enabled.")
+
+				require.True(t, th.p.getNotificationPreference(user1.Id))
+			})
+		}
+	})
+
+	t.Run("off", func(t *testing.T) {
+		reset(th, t, true)
+
+		cases := []struct {
+			name    string
+			enabled *bool
+		}{
+			{name: "was enabled", enabled: model.NewBool(true)},
+			{name: "was disabled", enabled: model.NewBool(false)},
+			{name: "was not set", enabled: nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.enabled != nil {
+					err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
+					require.Nil(t, err)
+				}
+
+				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"off"})
+				require.Nil(t, appErr)
+				assertNoCommandResponse(t, commandResponse)
+				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now disabled.")
+
+				require.False(t, th.p.getNotificationPreference(user1.Id))
+			})
+		}
 	})
 }
