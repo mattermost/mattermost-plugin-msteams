@@ -23,7 +23,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/assets"
-	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -82,7 +81,7 @@ type Plugin struct {
 	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
-	activityHandler *handlers.ActivityHandler
+	activityHandler *ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
@@ -493,7 +492,7 @@ func (p *Plugin) onActivate() error {
 		return errors.New("this plugin requires an enterprise license")
 	}
 
-	p.activityHandler = handlers.New(p)
+	p.activityHandler = NewActivityHandler(p)
 
 	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
