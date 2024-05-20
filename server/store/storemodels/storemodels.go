@@ -12,8 +12,8 @@ const (
 
 	// Notification preferences
 	PreferenceNameNotification     = "notifications"
-	PreferenceValueNotificationOn  = "1"
-	PreferenceValueNotificationOff = "0"
+	PreferenceValueNotificationOn  = "on"
+	PreferenceValueNotificationOff = "off"
 )
 
 type ChannelLink struct {
