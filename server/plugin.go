@@ -22,7 +22,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/assets"
-	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -81,12 +80,15 @@ type Plugin struct {
 	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
-	activityHandler *handlers.ActivityHandler
+	activityHandler *ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+
+	subCommands      []string
+	subCommandsMutex sync.RWMutex
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -107,6 +109,14 @@ func (p *Plugin) GetMetrics() metrics.Metrics {
 
 func (p *Plugin) GetStore() store.Store {
 	return p.store
+}
+
+func (p *Plugin) GetTenantID() string {
+	return p.getConfiguration().TenantID
+}
+
+func (p *Plugin) GetSyncNotifications() bool {
+	return p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncDirectMessages() bool {
@@ -147,6 +157,10 @@ func (p *Plugin) GetBotUserID() string {
 
 func (p *Plugin) GetSelectiveSync() bool {
 	return p.getConfiguration().SelectiveSync
+}
+
+func (p *Plugin) MessageFingerprint() string {
+	return "<abbr title=\"generated-from-mattermost\"></abbr>"
 }
 
 func (p *Plugin) GetClientForApp() msteams.Client {
@@ -279,7 +293,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -473,7 +487,7 @@ func (p *Plugin) onActivate() error {
 		return errors.New("this plugin requires an enterprise license")
 	}
 
-	p.activityHandler = handlers.New(p)
+	p.activityHandler = NewActivityHandler(p)
 
 	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {

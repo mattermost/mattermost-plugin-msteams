@@ -21,6 +21,14 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
 
+	autoCompleteData := getAutocompleteData(syncLinkedChannels)
+	p.subCommandsMutex.Lock()
+	defer p.subCommandsMutex.Unlock()
+	p.subCommands = make([]string, 0, len(autoCompleteData.SubCommands))
+	for i := range autoCompleteData.SubCommands {
+		p.subCommands = append(p.subCommands, autoCompleteData.SubCommands[i].Trigger)
+	}
+
 	return &model.Command{
 		Trigger:              msteamsCommand,
 		AutoComplete:         true,
@@ -28,7 +36,7 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
-		AutocompleteData:     getAutocompleteData(syncLinkedChannels),
+		AutocompleteData:     autoCompleteData,
 		AutocompleteIconData: iconData,
 	}
 }
@@ -98,6 +106,14 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	promoteUser.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(promoteUser)
 
+	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
+	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
+		{Item: "status", HelpText: "Show current notification status."},
+		{Item: "on", HelpText: "Enable notifications."},
+		{Item: "off", HelpText: "Disable notifications."},
+	})
+	cmd.AddCommand(notifications)
+
 	return cmd
 }
 
@@ -159,10 +175,14 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeStatusCommand(args)
 	}
 
-	if p.getConfiguration().SyncLinkedChannels {
-		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+	if action == "notifications" {
+		return p.executeNotificationsCommand(args, parameters)
 	}
-	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+
+	p.subCommandsMutex.RLock()
+	list := strings.Join(p.subCommands, ", ")
+	p.subCommandsMutex.RUnlock()
+	return p.cmdError(args, "Unknown command. Valid options: "+list)
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
@@ -595,6 +615,51 @@ func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandRe
 	}
 
 	return p.cmdSuccess(args, "Your account is not connected to Teams.")
+}
+
+func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	if len(parameters) != 1 {
+		return p.cmdSuccess(args, "Invalid notifications command, one argument is required.")
+	}
+
+	isConnected, err := p.isUserConnected(args.UserId)
+	if err != nil {
+		p.API.LogWarn("unable to check if the user is connected", "error", err.Error())
+		return p.cmdError(args, "Error: Unable to get the connection status")
+	}
+	if !isConnected {
+		return p.cmdSuccess(args, "Error: Your account is not connected to Teams. To use this feature, please connect your account with `/msteams connect`.")
+	}
+
+	notificationPreferenceEnabled := p.getNotificationPreference(args.UserId)
+	switch strings.ToLower(parameters[0]) {
+	case "status":
+		status := "disabled"
+		if notificationPreferenceEnabled {
+			status = "enabled"
+		}
+		return p.cmdSuccess(args, fmt.Sprintf("Notifications from MSTeams are currently %s.", status))
+	case "on":
+		if !notificationPreferenceEnabled {
+			err = p.setNotificationPreference(args.UserId, true)
+			if err != nil {
+				p.API.LogWarn("unable to enable notifications", "error", err.Error())
+				return p.cmdError(args, "Error: Unable to enable notifications.")
+			}
+		}
+		return p.cmdSuccess(args, "Notifications from MSTeams are now enabled.")
+	case "off":
+		if notificationPreferenceEnabled {
+			err = p.setNotificationPreference(args.UserId, false)
+			if err != nil {
+				p.API.LogWarn("unable to disable notifications", "error", err.Error())
+				return p.cmdError(args, "Error: Unable to disable notifications.")
+			}
+		}
+		return p.cmdSuccess(args, "Notifications from MSTeams are now disabled.")
+	}
+
+	return p.cmdSuccess(args, parameters[0]+" is not a valid argument.")
 }
 
 func getAutocompletePath(path string) string {

@@ -1,6 +1,4 @@
-//go:generate mockery --name=PluginIface
-
-package handlers
+package main
 
 import (
 	"errors"
@@ -14,11 +12,9 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var emojisReverseMap map[string]string
@@ -29,36 +25,11 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 const (
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
-	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
 )
 
-type PluginIface interface {
-	GetAPI() plugin.API
-	GetStore() store.Store
-	GetMetrics() metrics.Metrics
-	GetSyncDirectMessages() bool
-	GetSyncGroupMessages() bool
-	GetSyncLinkedChannels() bool
-	GetSyncReactions() bool
-	GetSyncFileAttachments() bool
-	GetSyncGuestUsers() bool
-	GetMaxSizeForCompleteDownload() int
-	GetBufferSizeForStreaming() int
-	GetBotUserID() string
-	GetURL() string
-	GetClientForApp() msteams.Client
-	GetClientForUser(string) (msteams.Client, error)
-	GetClientForTeamsUser(string) (msteams.Client, error)
-	GenerateRandomPassword() string
-	ChatShouldSync(channelID string) (bool, error)
-	GetSelectiveSync() bool
-	IsRemoteUser(user *model.User) bool
-	GetRemoteID() string
-}
-
 type ActivityHandler struct {
-	plugin               PluginIface
+	plugin               *Plugin
 	queue                chan msteams.Activity
 	quit                 chan bool
 	workersWaitGroup     sync.WaitGroup
@@ -66,7 +37,7 @@ type ActivityHandler struct {
 	lastUpdateAtMap      sync.Map
 }
 
-func New(plugin PluginIface) *ActivityHandler {
+func NewActivityHandler(plugin *Plugin) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
@@ -273,6 +244,14 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
+	if strings.HasSuffix(msg.Text, ah.plugin.MessageFingerprint()) {
+		return metrics.DiscardedReasonGeneratedFromMattermost
+	}
+
+	if ah.plugin.GetSyncNotifications() {
+		return ah.handleCreatedActivityNotification(msg, chat)
+	}
+
 	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
 
 	// Avoid possible duplication
@@ -306,6 +285,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	var channelID string
 	// userIDs is used to determine the participants of a DM/GM
 	var userIDs []string
+
 	if chat != nil {
 		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
 			return reason
@@ -352,7 +332,12 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), []string{})
+
+	// Last second check to avoid possible duplication
+	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
+		return metrics.DiscardedReasonDuplicatedPost
+	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
@@ -413,6 +398,10 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
@@ -492,7 +481,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
@@ -606,6 +595,10 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

@@ -113,14 +113,7 @@ func (p *Plugin) getAutomuteIsEnabledForUser(userID string) bool {
 
 // setAutomuteIsEnabledForUser sets a preference to track if we've muted all of the user's linked channels.
 func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bool) error {
-	appErr := p.API.UpdatePreferencesForUser(userID, []model.Preference{
-		{
-			UserId:   userID,
-			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNameAutomuteEnabled,
-			Value:    strconv.FormatBool(channelsAutomuted),
-		},
-	})
+	appErr := p.updatePreferenceForUser(userID, PreferenceNameAutomuteEnabled, strconv.FormatBool(channelsAutomuted))
 	if appErr != nil {
 		return errors.Wrap(appErr, fmt.Sprintf("Unable to set preference to track that channels are automuted for user %s", userID))
 	}

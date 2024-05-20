@@ -1,8 +1,8 @@
 # Mattermost MS Teams Plugin
 
-This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa. For a stable production release, please download the latest version from the Plugin Marketplace and follow the instructions to [install](#installation) and [configure](#setup) the plugin. If you are a developer who wants to work on this plugin, visit the [Development](#development) section on this page
+This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa.  
 
-See the [Mattermost Product Documentation](https://docs.mattermost.com/integrate/ms-teams-interoperability.html) for details on installing, configuring, enabling, and using this Mattermost integration.
+See the [Mattermost Product Documentation](https://docs.mattermost.com/integrate/ms-teams-interoperability.html) for details on installing, configuring, enabling, and using this Mattermost integration. If you are a developer who wants to work on this plugin, visit the [Development](#development) section on this page
 
 ## Features
 
