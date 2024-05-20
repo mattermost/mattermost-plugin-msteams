@@ -1,4 +1,4 @@
-package handlers
+package main
 
 import (
 	"errors"
@@ -6,11 +6,8 @@ import (
 	"testing"
 	"time"
 
-	mocksPlugin "github.com/mattermost/mattermost-plugin-msteams/server/handlers/mocks"
-	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	mocksClient "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
-	mocksStore "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
+	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
@@ -33,7 +30,6 @@ func TestMsgToPost(t *testing.T) {
 		senderID    string
 		message     *clientmodels.Message
 		post        *model.Post
-		setupPlugin func(plugin *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics)
 		setupAPI    func(*plugintest.API)
 	}{
 		{
@@ -47,12 +43,6 @@ func TestMsgToPost(t *testing.T) {
 				UserID:          testutils.GetUserID(),
 				CreateAt:        msteamsCreateAtTime,
 			},
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, client *mocksClient.Client, mockmetrics *mocksMetrics.Metrics) {
-				p.On("GetBotUserID").Return(testutils.GetSenderID())
-				p.On("GetClientForApp").Return(client).Maybe()
-				p.On("GetMetrics").Return(mockmetrics).Maybe()
-				p.On("GetAPI").Return(mockAPI).Maybe()
-			},
 			setupAPI: func(api *plugintest.API) {
 			},
 			post: &model.Post{
@@ -60,8 +50,7 @@ func TestMsgToPost(t *testing.T) {
 				ChannelId: testutils.GetChannelID(),
 				Message:   "## Subject of the messsage\n",
 				Props: model.StringInterface{
-					"from_webhook":                         "true",
-					"msteams_sync_pqoejrn65psweomewmosaqr": true,
+					"msteams_sync_bot-user-id": true,
 				},
 				FileIds:  model.StringArray{},
 				CreateAt: mmCreateAtTime,
@@ -69,13 +58,9 @@ func TestMsgToPost(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			p := mocksPlugin.NewPluginIface(t)
+			p := newTestPlugin(t)
 			ah := ActivityHandler{}
-			client := mocksClient.NewClient(t)
-			mockAPI := &plugintest.API{}
-			mockMetrics := mocksMetrics.NewMetrics(t)
-			testCase.setupAPI(mockAPI)
-			testCase.setupPlugin(p, mockAPI, client, mockMetrics)
+			testCase.setupAPI(p.API.(*plugintest.API))
 
 			ah.plugin = p
 
@@ -89,17 +74,15 @@ func TestHandleMentions(t *testing.T) {
 	ah := ActivityHandler{}
 	for _, testCase := range []struct {
 		description     string
-		setupPlugin     func(*mocksPlugin.PluginIface, *plugintest.API, *mocksStore.Store)
 		setupAPI        func(*plugintest.API)
-		setupStore      func(*mocksStore.Store)
+		setupStore      func(*storemocks.Store)
 		message         *clientmodels.Message
 		expectedMessage string
 	}{
 		{
 			description: "No mentions present",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
 			setupAPI:    func(api *plugintest.API) {},
-			setupStore:  func(store *mocksStore.Store) {},
+			setupStore:  func(store *storemocks.Store) {},
 			message: &clientmodels.Message{
 				Text: "mockMessage",
 			},
@@ -107,9 +90,8 @@ func TestHandleMentions(t *testing.T) {
 		},
 		{
 			description: "All mention present",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {},
 			setupAPI:    func(api *plugintest.API) {},
-			setupStore:  func(store *mocksStore.Store) {},
+			setupStore:  func(store *storemocks.Store) {},
 			message: &clientmodels.Message{
 				Text: `mockMessage <at id="0">Everyone</at>`,
 				Mentions: []clientmodels.Mention{
@@ -123,13 +105,9 @@ func TestHandleMentions(t *testing.T) {
 		},
 		{
 			description: "Unable to get mm user ID for user mentions",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Maybe()
-				p.On("GetStore").Return(store).Maybe()
-			},
 			setupAPI: func(api *plugintest.API) {
 			},
-			setupStore: func(store *mocksStore.Store) {
+			setupStore: func(store *storemocks.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to get mm user ID"))
 			},
 			message: &clientmodels.Message{
@@ -146,14 +124,10 @@ func TestHandleMentions(t *testing.T) {
 		},
 		{
 			description: "Unable to get mm user details for user mentions",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Maybe()
-				p.On("GetStore").Return(store).Maybe()
-			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetUser", testutils.GetMattermostID()).Return(nil, testutils.GetInternalServerAppError("unable to get mm user details")).Once()
 			},
-			setupStore: func(store *mocksStore.Store) {
+			setupStore: func(store *storemocks.Store) {
 				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetMattermostID(), nil).Once()
 			},
 			message: &clientmodels.Message{
@@ -170,10 +144,6 @@ func TestHandleMentions(t *testing.T) {
 		},
 		{
 			description: "Successful user mentions",
-			setupPlugin: func(p *mocksPlugin.PluginIface, mockAPI *plugintest.API, store *mocksStore.Store) {
-				p.On("GetAPI").Return(mockAPI).Maybe()
-				p.On("GetStore").Return(store).Maybe()
-			},
 			setupAPI: func(api *plugintest.API) {
 				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
 					Id:       "mockMMUserID-1",
@@ -184,7 +154,7 @@ func TestHandleMentions(t *testing.T) {
 					Username: "mockMMUsername-2",
 				}, nil).Once()
 			},
-			setupStore: func(store *mocksStore.Store) {
+			setupStore: func(store *storemocks.Store) {
 				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("mockMMUserID-1", nil).Once()
 				store.On("TeamsToMattermostUserID", "mockMSUserID-2").Return("mockMMUserID-2", nil).Once()
 			},
@@ -208,13 +178,10 @@ func TestHandleMentions(t *testing.T) {
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			assert := assert.New(t)
-			p := mocksPlugin.NewPluginIface(t)
-			store := mocksStore.NewStore(t)
-			mockAPI := &plugintest.API{}
-			testCase.setupPlugin(p, mockAPI, store)
-			testCase.setupAPI(mockAPI)
-			testutils.MockLogs(mockAPI)
-			testCase.setupStore(store)
+			p := newTestPlugin(t)
+			testCase.setupAPI(p.API.(*plugintest.API))
+			testutils.MockLogs(p.API.(*plugintest.API))
+			testCase.setupStore(p.store.(*storemocks.Store))
 
 			ah.plugin = p
 			message := ah.handleMentions(testCase.message)
@@ -257,7 +224,7 @@ func TestHandleEmojis(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
-			p := mocksPlugin.NewPluginIface(t)
+			p := newTestPlugin(t)
 			ah.plugin = p
 			text := ah.handleEmojis(testCase.text)
 			assert.Equal(t, text, testCase.expectedOutput)

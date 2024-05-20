@@ -31,14 +31,15 @@ func newTestPlugin(t *testing.T) *Plugin {
 			Driver: &plugintest.Driver{},
 		},
 		configuration: &configuration{
-			TenantID:          "",
-			ClientID:          "",
-			ClientSecret:      "",
-			WebhookSecret:     "webhooksecret",
-			EncryptionKey:     "encryptionkey",
-			CertificatePublic: "",
-			CertificateKey:    "",
-			DisableSyncMsg:    true,
+			TenantID:                   "",
+			ClientID:                   "",
+			ClientSecret:               "",
+			WebhookSecret:              "webhooksecret",
+			EncryptionKey:              "encryptionkey",
+			CertificatePublic:          "",
+			CertificateKey:             "",
+			DisableSyncMsg:             true,
+			MaxSizeForCompleteDownload: 1,
 		},
 		msteamsAppClient: &mocks.Client{},
 		store:            &storemocks.Store{},
@@ -85,7 +86,14 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_check_credentials", mock.Anything, mock.Anything).Return(true, nil).Maybe()
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "cron_check_credentials", mock.Anything, model.PluginKVSetOptions{ExpireInSeconds: 0}).Return(true, nil).Maybe()
 	plugin.API.(*plugintest.API).On("GetLicense").Return(&model.License{SkuShortName: "enterprise"}).Maybe()
-	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
+	plugin.API.(*plugintest.API).On("GetConfig").Return(&model.Config{
+		ServiceSettings: model.ServiceSettings{
+			SiteURL: model.NewString("/"),
+		},
+		FileSettings: model.FileSettings{
+			MaxFileSize: model.NewInt64(5),
+		},
+	}, nil).Maybe()
 	plugin.API.(*plugintest.API).On("GetPluginStatus", pluginID).Return(&model.PluginStatus{PluginId: pluginID, PluginPath: getPluginPathForTest()}, nil)
 	// TODO: Add separate mocks for each test later.
 	mockMetricsService := &metricsmocks.Metrics{}

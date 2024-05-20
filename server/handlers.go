@@ -1,6 +1,4 @@
-//go:generate mockery --name=PluginIface
-
-package handlers
+package main
 
 import (
 	"errors"
@@ -14,11 +12,9 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var emojisReverseMap map[string]string
@@ -29,39 +25,11 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 const (
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
-	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
 )
 
-type PluginIface interface {
-	GetAPI() plugin.API
-	GetStore() store.Store
-	GetMetrics() metrics.Metrics
-	GetSyncNotifications() bool
-	GetSyncDirectMessages() bool
-	GetSyncGroupMessages() bool
-	GetSyncLinkedChannels() bool
-	GetSyncReactions() bool
-	GetSyncFileAttachments() bool
-	GetSyncGuestUsers() bool
-	GetMaxSizeForCompleteDownload() int
-	GetBufferSizeForStreaming() int
-	GetBotUserID() string
-	GetTenantID() string
-	GetURL() string
-	GetClientForApp() msteams.Client
-	GetClientForUser(string) (msteams.Client, error)
-	GetClientForTeamsUser(string) (msteams.Client, error)
-	GenerateRandomPassword() string
-	ChatShouldSync(channelID string) (bool, error)
-	GetSelectiveSync() bool
-	IsRemoteUser(user *model.User) bool
-	GetRemoteID() string
-	MessageFingerprint() string
-}
-
 type ActivityHandler struct {
-	plugin               PluginIface
+	plugin               *Plugin
 	queue                chan msteams.Activity
 	quit                 chan bool
 	workersWaitGroup     sync.WaitGroup
@@ -69,7 +37,7 @@ type ActivityHandler struct {
 	lastUpdateAtMap      sync.Map
 }
 
-func New(plugin PluginIface) *ActivityHandler {
+func NewActivityHandler(plugin *Plugin) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
