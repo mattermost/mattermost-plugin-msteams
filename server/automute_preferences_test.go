@@ -16,7 +16,9 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 	th := setupTestHelper(t)
 
 	team := th.SetupTeam(t)
-
+	th.setPluginConfiguration(t, func(c *configuration) {
+		c.SelectiveSync = true
+	})
 	setup := func(t *testing.T) (*Plugin, *model.User, *model.Channel, *model.Channel, *model.Channel) {
 		t.Helper()
 		th.Reset(t)

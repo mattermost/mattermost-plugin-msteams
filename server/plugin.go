@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -894,7 +895,7 @@ func (p *Plugin) IsRemoteUser(user *model.User) bool {
 
 func (p *Plugin) IsUserConnected(userID string) (bool, error) {
 	token, err := p.store.GetTokenForMattermostUser(userID)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return false, errors.Wrap(err, "Unable to determine if user is connected to MS Teams")
 	}
 	return token != nil, nil

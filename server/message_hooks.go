@@ -121,7 +121,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 
 		chatShouldSync := false
 		if p.getConfiguration().SelectiveSync {
-			chatShouldSync, err := p.ChannelShouldSync(post.ChannelId)
+			chatShouldSync, err = p.ChannelShouldSync(post.ChannelId)
 			if err != nil {
 				return
 			} else if !chatShouldSync {
