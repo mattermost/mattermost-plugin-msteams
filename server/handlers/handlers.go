@@ -350,14 +350,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID = ah.plugin.GetBotUserID()
 	}
 
-	if ah.plugin.GetSelectiveSync() && ah.plugin.GetSyncRemoteOnly() {
-		if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
-			if !ah.isRemoteUser(senderID) {
-				return metrics.DiscardedReasonUserNotConnected
-			}
-		}
-	}
-
 	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
 		return metrics.DiscardedReasonInactiveUser
 	}
