@@ -16,8 +16,8 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -248,7 +248,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("IsUserConnected", testutils.GetUserID()).Return(true, nil)
+				p.On("GetSelectiveSync").Return(true)
 				p.On("GetSyncRemoteOnly").Return(true)
+				p.On("ChannelShouldSyncCreated", "", testutils.GetUserID()).Return(true, nil)
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -301,7 +303,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("IsUserConnected", testutils.GetUserID()).Return(true, nil)
+				p.On("GetSelectiveSync").Return(true)
 				p.On("GetSyncRemoteOnly").Return(true)
+				p.On("ChannelShouldSyncCreated", testutils.GetChannelID(), testutils.GetUserID()).Return(true, nil)
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -355,7 +359,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("IsUserConnected", testutils.GetUserID()).Return(true, nil)
+				p.On("GetSelectiveSync").Return(true)
 				p.On("GetSyncRemoteOnly").Return(true)
+				p.On("ChannelShouldSyncCreated", testutils.GetChannelID(), testutils.GetUserID()).Return(true, nil)
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -462,7 +468,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetSyncDirectMessages").Return(true).Times(1)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("IsUserConnected", testutils.GetUserID()).Return(true, nil)
+				p.On("GetSelectiveSync").Return(true)
 				p.On("GetSyncRemoteOnly").Return(true)
+				p.On("ChannelShouldSyncCreated", testutils.GetChannelID(), testutils.GetUserID()).Return(true, nil)
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
 			},
 			setupClient: func(client *mocksClient.Client) {
@@ -566,6 +574,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				p.On("GetBotUserID").Return("mock-BotUserID").Times(3)
 				p.On("GetMetrics").Return(mockmetrics).Maybe()
 				p.On("IsUserConnected", testutils.GetUserID()).Return(true, nil)
+				p.On("GetSelectiveSync").Return(true)
 				p.On("GetSyncRemoteOnly").Return(true)
 				p.On("MessageFingerprint").Return("<abbr title=\"generated-from-mattermost\"></abbr>").Maybe()
 			},

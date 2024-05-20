@@ -22,6 +22,9 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 	require.Nil(t, appErr)
 
 	th.LinkChannel(t, team, channel, user)
+	th.setPluginConfiguration(t, func(c *configuration) {
+		c.SelectiveSync = true
+	})
 
 	t.Run("initial conditions", func(t *testing.T) {
 		assertChannelNotAutomuted(t, th.p, channel.Id, user.Id)
@@ -45,7 +48,7 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
 	})
 
 	t.Run("should do nothing when true is passed and automuting was last enabled", func(t *testing.T) {
@@ -55,7 +58,7 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
 	})
 
 	t.Run("should un-automute all channels when false is passed and automuting was last enabled", func(t *testing.T) {
@@ -85,7 +88,7 @@ func TestSetAutomuteEnabledForUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		assertChannelAutomuted(t, th.p, channel.Id, user.Id)
-		assertChannelAutomuted(t, th.p, directChannel.Id, user.Id)
+		assertChannelNotAutomuted(t, th.p, directChannel.Id, user.Id)
 	})
 }
 
@@ -112,6 +115,9 @@ func TestCanAutomuteChannel(t *testing.T) {
 	th := setupTestHelper(t)
 	team := th.SetupTeam(t)
 	user := th.SetupUser(t, team)
+	th.setPluginConfiguration(t, func(c *configuration) {
+		c.SelectiveSync = true
+	})
 
 	t.Run("should return true for a linked channel", func(t *testing.T) {
 		channel := th.SetupPublicChannel(t, team)
@@ -129,7 +135,7 @@ func TestCanAutomuteChannel(t *testing.T) {
 		assert.Equal(t, true, result)
 	})
 
-	t.Run("should return true for a DM/GM channel with normal user", func(t *testing.T) {
+	t.Run("should return false for a DM/GM channel with normal user", func(t *testing.T) {
 		th.Reset(t)
 
 		user1 := th.SetupUser(t, team)
@@ -140,7 +146,7 @@ func TestCanAutomuteChannel(t *testing.T) {
 
 		result, err := th.p.canAutomuteChannel(channel)
 		assert.NoError(t, err)
-		assert.Equal(t, true, result)
+		assert.Equal(t, false, result)
 
 		channel = &model.Channel{
 			Id:   model.NewId(),
@@ -149,7 +155,7 @@ func TestCanAutomuteChannel(t *testing.T) {
 
 		result, err = th.p.canAutomuteChannel(channel)
 		assert.NoError(t, err)
-		assert.Equal(t, true, result)
+		assert.Equal(t, false, result)
 	})
 
 	t.Run("should return false for a DM/GM channel with guest user", func(t *testing.T) {

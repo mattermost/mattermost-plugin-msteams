@@ -121,14 +121,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 
 		chatShouldSync := false
 		if p.getConfiguration().SelectiveSync {
-			isSelfPost := len(members) == 1
-			if !isSelfPost {
-				chatShouldSync, err = p.ChannelShouldSync(post.ChannelId)
-				if err != nil {
-					return
-				} else if !chatShouldSync {
-					return
-				}
+			chatShouldSync, err := p.ChannelShouldSync(post.ChannelId)
+			if err != nil {
+				return
+			} else if !chatShouldSync {
+				return
 			}
 		}
 		dstUsers := []string{}

@@ -327,7 +327,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
 			if shouldSync, errSync := ah.plugin.ChannelShouldSyncCreated(channelID, senderID); errSync != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", errSync.Error())
+				ah.plugin.GetAPI().LogWarn("Unable to determine if channel should sync", "error", errSync.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
 				return metrics.DiscardedReasonSelectiveSync
@@ -350,7 +350,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		senderID = ah.plugin.GetBotUserID()
 	}
 
-	if ah.plugin.GetSyncRemoteOnly() {
+	if ah.plugin.GetSelectiveSync() && ah.plugin.GetSyncRemoteOnly() {
 		if isConnectedUser, err := ah.plugin.IsUserConnected(senderID); !isConnectedUser || err != nil {
 			if !ah.isRemoteUser(senderID) {
 				return metrics.DiscardedReasonUserNotConnected
@@ -625,27 +625,6 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-	if ah.plugin.GetSelectiveSync() {
-		_, chat, err := ah.getMessageAndChatFromActivityIds(&clientmodels.Message{}, activityIds)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
-			return metrics.DiscardedReasonUnableToGetTeamsData
-		}
-
-		channelID, _, err := ah.getChatChannelIDAndUsersID(chat)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
-			return metrics.DiscardedReasonOther
-		}
-
-		if shouldSync, err := ah.plugin.ChannelShouldSync(channelID); err != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", err.Error())
-			return metrics.DiscardedReasonOther
-		} else if !shouldSync {
-			return metrics.DiscardedReasonSelectiveSync
-		}
-	}
-
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID

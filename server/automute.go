@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -149,8 +148,8 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 	return p.canAutomuteChannel(channel)
 }
 
-// canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams
-// DM/GM channel are muted depending on Selective Sync and Sync Remote Only settings
+// canAutomuteChannel returns true if the channel is linked to a channel in MS Teams
+// DM/GM channels are muted depending on Selective Sync and Sync Remote Only settings
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 	if channel.IsGroupOrDirect() {
 		if p.configuration.SelectiveSync {
@@ -166,28 +165,7 @@ func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 		}
 
 		// if not selective sync
-		if channel.Type == model.ChannelTypeGroup {
-			return true, nil
-		} else if channel.Type == model.ChannelTypeDirect {
-			userIDs := strings.Split(channel.Name, "__")
-			// Don't mute self messages
-			if len(userIDs) == 2 && userIDs[0] == userIDs[1] {
-				return false, nil
-			}
-
-			for _, userID := range userIDs {
-				user, appErr := p.API.GetUser(userID)
-				if appErr != nil {
-					return false, errors.Wrap(appErr, fmt.Sprintf("Unable to get user for channel member %s ", userID))
-				}
-				if user.IsBot || user.IsGuest() {
-					return false, nil
-				}
-			}
-			return true, nil
-		}
-
-		return true, nil
+		return false, nil
 	}
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)
