@@ -362,6 +362,12 @@ func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	require.NoError(t, err)
 }
 
+func (th *testHelper) DisconnectUser(t *testing.T, userID string) {
+	teamID := "t" + userID
+	err := th.p.store.SetUserInfo(userID, teamID, nil)
+	require.NoError(t, err)
+}
+
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {
 	t.Helper()
 
