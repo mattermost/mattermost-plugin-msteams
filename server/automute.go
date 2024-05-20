@@ -44,9 +44,9 @@ func (p *Plugin) setAutomuteEnabledForUser(userID string, automuteEnabled bool) 
 	}
 
 	for _, channel := range channels {
-		if linked, err := p.canAutomuteChannel(channel); err != nil {
+		if automute, err := p.canAutomuteChannel(channel); err != nil {
 			return false, err
-		} else if !linked {
+		} else if automuteEnabled && !automute {
 			continue
 		}
 

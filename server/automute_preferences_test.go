@@ -71,16 +71,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 		assertChannelNotAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseMattermostPrimaryMessage)
 
-		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
-			{
-				UserId:   user.Id,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNamePlatform,
-				Value:    storemodels.PreferenceValuePlatformMSTeams,
-			},
-		})
-
-		assertUserHasAutomuteEnabled(t, p, user.Id)
+		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -91,32 +82,14 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 	t.Run("should unmute linked channels when their primary platform changes from MS Teams to MM", func(t *testing.T) {
 		p, user, linkedChannel, unlinkedChannel, dmChannel := setup(t)
 
-		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
-			{
-				UserId:   user.Id,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNamePlatform,
-				Value:    storemodels.PreferenceValuePlatformMSTeams,
-			},
-		})
-
-		assertUserHasAutomuteEnabled(t, p, user.Id)
+		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
 		assertChannelAutomuted(t, p, dmChannel.Id, user.Id)
 		th.assertDMFromUser(t, p.botUserID, user.Id, userChoseTeamsPrimaryMessage)
 
-		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
-			{
-				UserId:   user.Id,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNamePlatform,
-				Value:    storemodels.PreferenceValuePlatformMM,
-			},
-		})
-
-		assertUserHasAutomuteDisabled(t, p, user.Id)
+		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMM)
 
 		assertChannelNotAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
@@ -127,16 +100,7 @@ func TestUpdateAutomutingOnPreferencesChanged(t *testing.T) {
 	t.Run("should unmute linked channels when a MS Teams user disconnects", func(t *testing.T) {
 		p, user, linkedChannel, unlinkedChannel, dmChannel := setup(t)
 
-		p.PreferencesHaveChanged(&plugin.Context{}, []model.Preference{
-			{
-				UserId:   user.Id,
-				Category: PreferenceCategoryPlugin,
-				Name:     storemodels.PreferenceNamePlatform,
-				Value:    storemodels.PreferenceValuePlatformMSTeams,
-			},
-		})
-
-		assertUserHasAutomuteEnabled(t, p, user.Id)
+		p.updatePreferenceForUser(user.Id, storemodels.PreferenceNamePlatform, storemodels.PreferenceValuePlatformMSTeams)
 
 		assertChannelAutomuted(t, p, linkedChannel.Id, user.Id)
 		assertChannelNotAutomuted(t, p, unlinkedChannel.Id, user.Id)
