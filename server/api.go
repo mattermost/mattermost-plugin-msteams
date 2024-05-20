@@ -566,7 +566,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.p.API.PublishWebSocketEvent("user_connected", map[string]any{}, &model.WebsocketBroadcast{
+	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: mmUserID,
 	})
 

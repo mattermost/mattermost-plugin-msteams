@@ -1,9 +1,9 @@
 import * as Actions from './types/actions';
 
-export const userHasConnected = (): Actions.UserHasConnected => ({
-    type: Actions.USER_HAS_CONNECTED,
+export const userConnected = (): Actions.UserHasConnected => ({
+    type: Actions.USER_CONNECTED,
 });
 
-export const userHasDisconnected = (): Actions.UserHasDisconnected => ({
-    type: Actions.USER_HAS_DISCONNECTED,
+export const userDisconnected = (): Actions.UserHasDisconnected => ({
+    type: Actions.USER_DISCONNECTED,
 });

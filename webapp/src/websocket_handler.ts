@@ -1,16 +1,16 @@
 import {Dispatch} from 'redux';
 
-import {userHasConnected, userHasDisconnected} from 'actions';
+import {userConnected, userDisconnected} from 'actions';
 
-export const userHasConnectedWsHandler = (dispatch: Dispatch) => {
+export const userConnectedWsHandler = (dispatch: Dispatch) => {
     return () => {
-        dispatch(userHasConnected());
+        dispatch(userConnected());
     };
 };
 
-export const userHasDisconnectedWsHandler = (dispatch: Dispatch) => {
+export const userDisconnectedWsHandler = (dispatch: Dispatch) => {
     return () => {
-        dispatch(userHasDisconnected());
+        dispatch(userDisconnected());
     };
 };
 

@@ -8,9 +8,9 @@ import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_set
 
 import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from 'types/websocket';
 
-import {userHasConnectedWsHandler, userHasDisconnectedWsHandler} from 'websocket_handler';
+import {userConnectedWsHandler, userDisconnectedWsHandler} from 'websocket_handler';
 
-import {userHasConnected as userIsConnected, userHasDisconnected as userIsDisconnected} from 'actions';
+import {userConnected, userDisconnected} from 'actions';
 
 import {isUserConnected} from 'selectors';
 
@@ -79,8 +79,8 @@ export default class Plugin {
         registry.registerAdminConsoleCustomSetting('inviteWhitelistUpload', InviteWhitelistSetting);
         this.userActivityWatch();
 
-        registry.registerWebSocketEventHandler(WS_EVENT_USER_CONNECTED, userHasConnectedWsHandler(store.dispatch));
-        registry.registerWebSocketEventHandler(WS_EVENT_USER_DISCONNECTED, userHasDisconnectedWsHandler(store.dispatch));
+        registry.registerWebSocketEventHandler(WS_EVENT_USER_CONNECTED, userConnectedWsHandler(store.dispatch));
+        registry.registerWebSocketEventHandler(WS_EVENT_USER_DISCONNECTED, userDisconnectedWsHandler(store.dispatch));
 
         let settingsEnabled = isUserConnected(state);
         registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
@@ -144,9 +144,9 @@ export default class Plugin {
     fetchUserConnectionStatus(dispatch: Dispatch) {
         Client.connectionStatus().then((status) => {
             if (status.connected) {
-                dispatch(userIsConnected());
+                dispatch(userConnected());
             } else {
-                dispatch(userIsDisconnected());
+                dispatch(userDisconnected());
             }
         });
     }

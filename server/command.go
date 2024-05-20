@@ -539,7 +539,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
 	}
 
-	p.API.PublishWebSocketEvent("user_disconnected", map[string]any{}, &model.WebsocketBroadcast{
+	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: args.UserId,
 	})
 

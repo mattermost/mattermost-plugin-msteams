@@ -4,9 +4,9 @@ import * as Actions from './types/actions';
 
 const userConnected = (state = false, action: Actions.UserHasConnected | Actions.UserHasDisconnected) => {
     switch (action.type) {
-    case Actions.USER_HAS_CONNECTED:
+    case Actions.USER_CONNECTED:
         return true;
-    case Actions.USER_HAS_DISCONNECTED:
+    case Actions.USER_DISCONNECTED:
         return false;
     default:
         return state;
