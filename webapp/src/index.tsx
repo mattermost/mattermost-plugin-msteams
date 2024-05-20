@@ -1,65 +1,24 @@
-import {Store, Action, Dispatch} from 'redux';
-
+import {Store, Dispatch} from 'redux';
 import {GlobalState} from 'mattermost-redux/types/store';
 
 import ListConnectedUsers from 'components/admin_console/get_connected_users_setting';
 import InviteWhitelistSetting from 'components/admin_console/invite_whitelist_setting';
 import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_setting';
-
 import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from 'types/websocket';
-
 import {userConnectedWsHandler, userDisconnectedWsHandler} from 'websocket_handler';
-
 import {userConnected, userDisconnected} from 'actions';
-
 import {isUserConnected} from 'selectors';
+import getUserSettings from 'user_settings';
 
 import Client from './client';
 import manifest from './manifest';
 import reducer from './reducer';
-
 // eslint-disable-next-line import/no-unresolved
 import {PluginRegistry} from './types/mattermost-webapp';
 import {getServerRoute} from './selectors';
 
 const MINUTE = 60 * 1000;
 const randomInt = (max: number) => Math.floor(Math.random() * max);
-
-function getSettings(serverRoute: string, disabled: boolean) {
-    return {
-        id: manifest.id,
-        icon: `${serverRoute}/plugins/${manifest.id}/public/icon.svg`,
-        uiName: manifest.name,
-        action: disabled ? {
-            title: 'Connect your Microsoft Teams Account',
-            text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
-            buttonText: 'Connect account',
-            onClick: () => window.open(`${Client.url}/connect`),
-        } : undefined, //eslint-disable-line no-undefined
-        sections: [{
-            settings: [{
-                name: 'platform',
-                options: [
-                    {
-                        text: 'Mattermost',
-                        value: 'mattermost',
-                        helpText: 'You will get notifications in Mattermost for synced messages and channels. You will need to disable notifications in Microsoft Teams to avoid duplicates. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
-                    },
-                    {
-                        text: 'Microsoft Teams',
-                        value: 'msteams',
-                        helpText: 'Notifications in Mattermost will be muted for linked channels and DMs to prevent duplicates. You can unmute any linked channel or DM/GM if you wish to receive notifications. **[Learn more](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more)**',
-                    },
-                ],
-                type: 'radio' as const,
-                default: 'mattermost',
-                helpText: 'Note: Unread statuses for linked channels and DMs will not be synced between Mattermost & Microsoft Teams.',
-            }],
-            title: 'Primary platform for communication',
-            disabled,
-        }],
-    };
-}
 
 export default class Plugin {
     removeStoreSubscription?: () => void;
@@ -83,7 +42,7 @@ export default class Plugin {
         registry.registerWebSocketEventHandler(WS_EVENT_USER_DISCONNECTED, userDisconnectedWsHandler(store.dispatch));
 
         let settingsEnabled = isUserConnected(state);
-        registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
+        registry.registerUserSettings?.(getUserSettings(serverRoute, settingsEnabled));
 
         this.removeStoreSubscription = store.subscribe(() => {
             const newState = store.getState();
@@ -93,7 +52,7 @@ export default class Plugin {
             if (newServerRoute !== serverRoute || newSettingsEnabled !== settingsEnabled) {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
-                registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
+                registry.registerUserSettings?.(getSettings(serverRoute, settingsEnabled));
             }
         });
 
