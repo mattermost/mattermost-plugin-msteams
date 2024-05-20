@@ -23,11 +23,12 @@ import (
 )
 
 type testHelper struct {
-	p                *Plugin
-	appClientMock    *mocks.Client
-	clientMock       *mocks.Client
-	websocketClients map[string]*model.WebSocketClient
-	metricsSnapshot  []*dto.MetricFamily
+	p                 *Plugin
+	prevConfiguration *configuration
+	appClientMock     *mocks.Client
+	clientMock        *mocks.Client
+	websocketClients  map[string]*model.WebSocketClient
+	metricsSnapshot   []*dto.MetricFamily
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
@@ -41,7 +42,8 @@ func setupTestHelper(t *testing.T) *testHelper {
 		},
 	}
 	th := &testHelper{
-		p: p,
+		p:                 p,
+		prevConfiguration: p.getConfiguration(),
 	}
 
 	// ctx, and specifically cancel, gives us control over the plugin lifecycle
@@ -362,6 +364,25 @@ func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	require.NoError(t, err)
 }
 
+func (th *testHelper) DisconnectUser(t *testing.T, userID string) {
+	teamID := "t" + userID
+	err := th.p.store.SetUserInfo(userID, teamID, nil)
+	require.NoError(t, err)
+}
+
+func (th *testHelper) MarkUserInvited(t *testing.T, userID string) {
+	t.Helper()
+	invitedUser := &storemodels.InvitedUser{ID: userID, InvitePendingSince: time.Now(), InviteLastSentAt: time.Now()}
+	err := th.p.GetStore().StoreInvitedUser(invitedUser)
+	assert.NoError(t, err)
+}
+
+func (th *testHelper) MarkUserWhitelisted(t *testing.T, userID string) {
+	t.Helper()
+	err := th.p.store.StoreUserInWhitelist(userID)
+	assert.NoError(t, err)
+}
+
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {
 	t.Helper()
 
@@ -603,10 +624,24 @@ func (th *testHelper) getRelativeCounter(t *testing.T, name string, labelOptions
 	return after - before
 }
 
-func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) {
+func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) (*configuration, *configuration) {
 	t.Helper()
 
 	c := th.p.getConfiguration().Clone()
+	prev := c.Clone()
+
 	update(c)
 	th.p.setConfiguration(c)
+
+	return c, prev
+}
+
+func (th *testHelper) setPluginConfigurationCleanly(t *testing.T, update func(configuration *configuration)) {
+	t.Helper()
+
+	_, prev := th.setPluginConfiguration(t, func(config *configuration) { update(config) })
+
+	t.Cleanup(func() {
+		th.p.setConfiguration(prev)
+	})
 }

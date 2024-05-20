@@ -14,7 +14,7 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, nil
 	}
 
-	if userID == p.userID {
+	if userID == p.botUserID {
 		return false, errors.New("cannot invite plugin bot")
 	}
 
@@ -161,7 +161,7 @@ func (p *Plugin) canInviteUser(userID string) (bool, error) {
 }
 
 func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
-	if mmUserID == p.userID {
+	if mmUserID == p.botUserID {
 		// plugin bot always permitted to connect
 		return true, nil
 	}
