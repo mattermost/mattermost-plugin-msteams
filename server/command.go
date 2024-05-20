@@ -526,7 +526,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
-	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
+	if token, _ := p.store.GetTokenForMattermostUser(args.UserId); token == nil {
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 

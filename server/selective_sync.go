@@ -5,7 +5,6 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/pkg/errors"
 )
 
@@ -50,7 +49,6 @@ func (p *Plugin) ChatMembersSpanPlatforms(members []*model.ChannelMember) (bool,
 			return false, err
 		}
 
-		mlog.Debug("ChatMembersSpanPlatforms user" + user.Username)
 		if p.IsRemoteUser(user) {
 			// Synthetic users are always remote.
 			atLeastOneRemoteUser = true
@@ -119,13 +117,10 @@ func (p *Plugin) MembersContainsRemote(members []*model.ChannelMember) (bool, er
 		if err != nil {
 			return false, err
 		}
-		mlog.Debug("MembersContainsRemote - got user")
 
 		if p.IsRemoteUser(user) {
-			mlog.Debug("MembersContainsRemote true")
 			return true, nil
 		}
 	}
-	mlog.Debug("MembersContainsRemote false")
 	return false, nil
 }

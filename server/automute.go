@@ -170,6 +170,11 @@ func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 			return true, nil
 		} else if channel.Type == model.ChannelTypeDirect {
 			userIDs := strings.Split(channel.Name, "__")
+			// Don't mute self messages
+			if len(userIDs) == 2 && userIDs[0] == userIDs[1] {
+				return false, nil
+			}
+
 			for _, userID := range userIDs {
 				user, appErr := p.API.GetUser(userID)
 				if appErr != nil {
