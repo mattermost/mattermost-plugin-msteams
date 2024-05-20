@@ -384,10 +384,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	response := map[string]bool{
-		"connected": false,
-	}
-
+	response := map[string]bool{"connected": false}
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
 		response["connected"] = true
 	}

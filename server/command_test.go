@@ -24,6 +24,11 @@ func assertNoCommandResponse(t *testing.T, actual *model.CommandResponse) {
 	require.Equal(t, &model.CommandResponse{}, actual)
 }
 
+func assertWebsocketEvent(th *testHelper, t *testing.T, userID string, eventType string) {
+	t.Helper()
+	th.assertWebsocketEvent(t, userID, eventType)
+}
+
 func assertEphemeralResponse(th *testHelper, t *testing.T, args *model.CommandArgs, message string) {
 	t.Helper()
 	th.assertEphemeralMessage(t, args.UserId, args.ChannelId, message)
@@ -452,6 +457,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		commandResponse, appErr := th.p.executeDisconnectCommand(args)
 		require.Nil(t, appErr)
 		assertNoCommandResponse(t, commandResponse)
+		assertWebsocketEvent(th, t, user1.Id, makePluginWebsocketEventName(WSEventUserDisconnected))
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
 
 		require.Equal(t, storemodels.PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
