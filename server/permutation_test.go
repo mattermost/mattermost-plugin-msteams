@@ -18,7 +18,7 @@ func runPermutations[T any](t *testing.T, params T, f func(t *testing.T, params 
 	numberOfPermutations := 1
 	for i := 0; i < v.NumField(); i++ {
 		if v.Field(i).Kind() != reflect.Bool {
-			panic("unsupported permutation parameter type: " + v.Field(i).Kind().String())
+			t.Fatal("unsupported permutation parameter type: " + v.Field(i).Kind().String())
 		}
 		numberOfPermutations *= 2
 	}
