@@ -14,6 +14,14 @@ func runPermutations[T any](t *testing.T, params T, f func(t *testing.T, params 
 	t.Helper()
 
 	v := reflect.ValueOf(params)
+	if v.Kind() == reflect.Ptr {
+		if v.Elem().Kind() != reflect.Struct {
+			t.Fatal("params should be a struct or a pointer to a struct")
+		}
+		v = v.Elem()
+	} else if v.Kind() != reflect.Struct {
+		t.Fatal("params should be a struct or a pointer to a struct")
+	}
 
 	numberOfPermutations := 1
 	for i := 0; i < v.NumField(); i++ {
