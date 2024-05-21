@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -440,7 +441,9 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+	now := time.Now()
+
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
 		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
@@ -577,7 +580,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
+		canOpenlyConnect, nAvailable, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
 		if openConnectErr != nil {
 			a.p.API.LogWarn("Unable to check if user can openly connect", "error", openConnectErr.Error())
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -588,7 +591,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 				a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 			}
-			http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+
+			if nAvailable > 0 {
+				http.Error(w, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.", http.StatusBadRequest)
+			} else {
+				http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+			}
 			return
 		}
 	}

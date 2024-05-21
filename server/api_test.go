@@ -909,7 +909,53 @@ func TestWhitelistDownload(t *testing.T) {
 }
 
 func TestNotifyConnect(t *testing.T) {
-	t.Skip()
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/notify-connect")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
+
+		u := apiURL
+
+		request, err := http.NewRequest(http.MethodGet, u, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		return response
+	}
+
+	t.Run("not authorized", func(t *testing.T) {
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+	})
+
+	t.Run("notify connect", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+
+		response := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
 }
 
 func TestChoosePrimaryPlatform(t *testing.T) {

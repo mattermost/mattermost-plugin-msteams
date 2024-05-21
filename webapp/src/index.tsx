@@ -1,8 +1,10 @@
 import {Store, Dispatch} from 'redux';
 import {GlobalState} from 'mattermost-redux/types/store';
+import {getCurrentUserRoles} from 'mattermost-redux/selectors/entities/users';
+import {isGuest} from 'mattermost-redux/utils/user_utils';
 
 import ListConnectedUsers from 'components/admin_console/get_connected_users_setting';
-import InviteWhitelistSetting from 'components/admin_console/invite_whitelist_setting';
+import ConnectedUsersWhitelistSetting from 'components/admin_console/connected_users_whitelist_setting';
 import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_setting';
 import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from 'types/websocket';
 import {userConnectedWsHandler, userDisconnectedWsHandler} from 'websocket_handler';
@@ -35,7 +37,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
-        registry.registerAdminConsoleCustomSetting('inviteWhitelistUpload', InviteWhitelistSetting);
+        registry.registerAdminConsoleCustomSetting('connectedUsersWhitelist', ConnectedUsersWhitelistSetting);
         this.userActivityWatch();
 
         registry.registerWebSocketEventHandler(WS_EVENT_USER_CONNECTED, userConnectedWsHandler(store.dispatch));
@@ -52,6 +54,10 @@ export default class Plugin {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
                 registry.registerUserSettings?.(getUserSettings(serverRoute, !settingsEnabled));
+            }
+
+            if (isGuest(getCurrentUserRoles(newState))) {
+                this.stopUserActivityWatch();
             }
         });
 
@@ -109,13 +115,16 @@ export default class Plugin {
         });
     }
 
-    uninitialize() {
-        this.removeStoreSubscription?.();
-
+    stopUserActivityWatch(): void {
         if (this.activityFunc) {
             document.removeEventListener('click', this.activityFunc);
             delete this.activityFunc;
         }
+    }
+
+    uninitialize() {
+        this.removeStoreSubscription?.();
+        this.stopUserActivityWatch();
     }
 }
 

@@ -1205,6 +1205,10 @@ func (s *SQLStore) storeInvitedUser(db sq.BaseRunner, invitedUser *storemodels.I
 		return err
 	}
 
+	if err := s.DeleteUserFromWhitelist(invitedUser.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
