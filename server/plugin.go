@@ -176,10 +176,10 @@ func (p *Plugin) GetURL() string {
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
-	if strings.HasSuffix(siteURL, "/") {
-		return siteURL + "plugins/" + pluginID
+	if !strings.HasSuffix(siteURL, "/") {
+		siteURL += "/"
 	}
-	return siteURL + "/plugins/" + pluginID
+	return siteURL + "plugins/" + pluginID
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {

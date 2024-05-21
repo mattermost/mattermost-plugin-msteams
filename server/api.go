@@ -90,6 +90,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
+	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -628,30 +629,59 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
 
-	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	switch originInfo[0] {
-	case "fromBotMessage":
-		post := &model.Post{
-			Id:        postID,
-			Message:   userConnectedMessage,
-			ChannelId: channelID,
-			UserId:    a.p.GetBotUserID(),
-			CreateAt:  model.GetMillis(),
+	switch {
+	case a.p.getConfiguration().SyncNotifications:
+		switch originInfo[0] {
+		case "fromPreferences":
+			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+			if err != nil {
+				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
+			}
+		case "fromBotMessage":
+			welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
+			originalPost, appErr := a.p.GetAPI().GetPost(postID)
+			if appErr == nil {
+				originalPost.Message = welcomePost.Message
+				originalPost.SetProps(welcomePost.Props)
+				_, appErr = a.p.GetAPI().UpdatePost(originalPost)
+				if appErr != nil {
+					a.p.API.LogWarn("Unable to update post", "post", postID, "error", err.Error())
+				}
+			} else {
+				a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
+				err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+				if err != nil {
+					a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
+				}
+			}
 		}
 
-		_, appErr = a.p.GetAPI().GetPost(post.Id)
-		if appErr == nil {
-			_, appErr = a.p.GetAPI().UpdatePost(post)
-			if appErr != nil {
-				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+	default:
+		const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
+		switch originInfo[0] {
+		case "fromBotMessage":
+			post := &model.Post{
+				Id:        postID,
+				Message:   userConnectedMessage,
+				ChannelId: channelID,
+				UserId:    a.p.GetBotUserID(),
+				CreateAt:  model.GetMillis(),
 			}
-		} else {
-			_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
-		}
-	case "fromPreferences":
-		err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
-		if err != nil {
-			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
+
+			_, appErr = a.p.GetAPI().GetPost(post.Id)
+			if appErr == nil {
+				_, appErr = a.p.GetAPI().UpdatePost(post)
+				if appErr != nil {
+					a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+				}
+			} else {
+				_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+			}
+		case "fromPreferences":
+			err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
+			if err != nil {
+				a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
+			}
 		}
 	}
 
@@ -1037,4 +1067,45 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write(data)
+}
+
+func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
+	var actionHandler model.PostActionIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
+		a.p.API.LogWarn("Unable to decode the action handler", "error", err.Error())
+		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
+		return
+	}
+
+	err := a.p.setNotificationPreference(actionHandler.UserId, true)
+	if err != nil {
+		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
+		return
+	}
+
+	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the post", "error", err.Error())
+		http.Error(w, "unable to get the post", http.StatusBadRequest)
+		return
+	}
+
+	attachments := post.Attachments()
+	if len(attachments) == 1 && len(attachments[0].Actions) == 1 {
+		attachments[0].Actions[0].Disabled = true
+		attachments[0].Actions[0].Name = "Notifications enabled!"
+		post.SetProps(map[string]interface{}{
+			"attachments": attachments,
+		})
+	}
+
+	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
+		Update: post,
+	})
+
+	if err != nil {
+		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
+		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
+	}
 }
