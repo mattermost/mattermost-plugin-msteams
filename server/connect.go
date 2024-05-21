@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
+func (p *Plugin) MaybeSendInviteMessage(userID string, currentTime time.Time) (bool, error) {
 	if p.getConfiguration().ConnectedUsersMaxPendingInvites == 0 {
 		return false, nil
 	}
@@ -50,7 +50,6 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 	}
 
 	var pendingSince time.Time
-	now := time.Now()
 
 	if invitedUser != nil {
 		pendingSince = invitedUser.InvitePendingSince
@@ -65,11 +64,11 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		}
 	}
 
-	if !p.shouldSendInviteMessage(pendingSince, now, user.GetTimezoneLocation()) {
+	if !p.shouldSendInviteMessage(pendingSince, currentTime, user.GetTimezoneLocation()) {
 		return false, nil
 	}
 
-	if err := p.SendInviteMessage(user, pendingSince, now); err != nil {
+	if err := p.SendInviteMessage(user, pendingSince, currentTime); err != nil {
 		return false, errors.Wrapf(err, "error sending invite")
 	}
 

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -417,7 +418,9 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+	now := time.Now()
+
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
 		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -11,6 +12,9 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	team := th.SetupTeam(t)
 	user := th.SetupUser(t, team)
 
+	tuesdayNoon, _ := time.Parse(time.RFC3339, "2024-01-09T12:00:00Z")
+	saturdayEvening, _ := time.Parse(time.RFC3339, "2024-01-06T22:00:00Z")
+
 	t.Run("don't send invite, invites disabled", func(t *testing.T) {
 		th.Reset(t)
 
@@ -18,12 +22,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 			c.ConnectedUsersMaxPendingInvites = 0
 		})
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
 	})
 
-	t.Run("don't send invite, max reached", func(t *testing.T) {
+	t.Run("don't send invite, max pending invites reached", func(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfigurationCleanly(t, func(c *configuration) {
@@ -31,7 +35,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
 	})
@@ -45,7 +49,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 			c.ConnectedUsersRestricted = true
 		})
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
 	})
@@ -60,12 +64,27 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 
 		th.MarkUserInvited(t, user.Id)
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
 	})
 
-	t.Run("send invite", func(t *testing.T) {
+	t.Run("don't send invite, already connected", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+			c.ConnectedUsersAllowed = 2
+			c.ConnectedUsersMaxPendingInvites = 1
+		})
+
+		th.ConnectUser(t, user.Id)
+
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("don't send invite, weekend", func(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfigurationCleanly(t, func(c *configuration) {
@@ -73,7 +92,48 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, saturdayEvening)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("don't send invite, guest account", func(t *testing.T) {
+		th.Reset(t)
+		guestUser := th.SetupGuestUser(t, team)
+
+		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+			c.ConnectedUsersAllowed = 1
+			c.ConnectedUsersMaxPendingInvites = 1
+		})
+
+		result, err := th.p.MaybeSendInviteMessage(guestUser.Id, tuesdayNoon)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("don't send invite, bot account", func(t *testing.T) {
+		th.Reset(t)
+		botUser := th.CreateBot(t)
+
+		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+			c.ConnectedUsersAllowed = 1
+			c.ConnectedUsersMaxPendingInvites = 1
+		})
+
+		result, err := th.p.MaybeSendInviteMessage(botUser.UserId, tuesdayNoon)
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
+	})
+
+	t.Run("send invite, open invites allowed", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+			c.ConnectedUsersAllowed = 1
+			c.ConnectedUsersMaxPendingInvites = 1
+		})
+
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
 	})
@@ -89,7 +149,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 
 		th.MarkUserWhitelisted(t, user.Id)
 
-		result, err := th.p.MaybeSendInviteMessage(user.Id)
+		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
 	})
