@@ -7,7 +7,7 @@ type Props = {
     disabled: boolean;
 };
 
-const InviteWhitelistSetting = ({label, disabled}: Props) => {
+const ConnectedUsersWhitelistSetting = ({label, disabled}: Props) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pendingFile, setPendingFile] = useState<File>();
     const [statusMsg, setStatusMsg] = useState('');
@@ -94,7 +94,7 @@ const InviteWhitelistSetting = ({label, disabled}: Props) => {
                     {statusMsg || pendingFile?.name}
                 </div>
                 <p className='help-text'>
-                    {'Upload a CSV file containing mattermost user-emails that may receive invites to connect to MS Teams. NOTE: This will replace the entire whitelist, not add to it.'}
+                    {'Upload a CSV file containing mattermost user-emails that may connect their account. \nNOTE: This will replace the entire whitelist, not add to it.'}
                 </p>
                 <div style={styles.divMargin}>
                     <a
@@ -123,4 +123,4 @@ const styles = {
     },
 };
 
-export default InviteWhitelistSetting;
+export default ConnectedUsersWhitelistSetting;

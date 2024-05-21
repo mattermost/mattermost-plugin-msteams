@@ -1,9 +1,11 @@
 import {Store, Action} from 'redux';
 
 import {GlobalState} from 'mattermost-redux/types/store';
+import {getCurrentUserRoles} from 'mattermost-redux/selectors/entities/users';
+import {isGuest} from 'mattermost-redux/utils/user_utils';
 
 import ListConnectedUsers from 'components/admin_console/get_connected_users_setting';
-import InviteWhitelistSetting from 'components/admin_console/invite_whitelist_setting';
+import ConnectedUsersWhitelistSetting from 'components/admin_console/connected_users_whitelist_setting';
 import MSTeamsAppManifestSetting from 'components/admin_console/app_manifest_setting';
 
 import Client from './client';
@@ -63,7 +65,7 @@ export default class Plugin {
 
         registry.registerAdminConsoleCustomSetting('appManifestDownload', MSTeamsAppManifestSetting);
         registry.registerAdminConsoleCustomSetting('ConnectedUsersReportDownload', ListConnectedUsers);
-        registry.registerAdminConsoleCustomSetting('inviteWhitelistUpload', InviteWhitelistSetting);
+        registry.registerAdminConsoleCustomSetting('connectedUsersWhitelist', ConnectedUsersWhitelistSetting);
         this.userActivityWatch();
 
         // let settingsEnabled = (state as any)[`plugins-${manifest.id}`]?.connectedStateSlice?.connected || false; //TODO use connected selector from https://github.com/mattermost/mattermost-plugin-msteams/pull/438
@@ -80,6 +82,10 @@ export default class Plugin {
                 serverRoute = newServerRoute;
                 settingsEnabled = newSettingsEnabled;
                 registry.registerUserSettings?.(getSettings(serverRoute, !settingsEnabled));
+            }
+
+            if (isGuest(getCurrentUserRoles(newState))) {
+                this.stopUserActivityWatch();
             }
         });
 
@@ -126,14 +132,16 @@ export default class Plugin {
         };
         document.addEventListener('click', this.activityFunc);
     }
-
-    uninitialize() {
-        this.removeStoreSubscription?.();
-
+    stopUserActivityWatch(): void {
         if (this.activityFunc) {
             document.removeEventListener('click', this.activityFunc);
             delete this.activityFunc;
         }
+    }
+
+    uninitialize() {
+        this.removeStoreSubscription?.();
+        this.stopUserActivityWatch();
     }
 }
 

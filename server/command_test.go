@@ -895,30 +895,6 @@ func TestExecuteConnectBotCommand(t *testing.T) {
 		assertEphemeralResponse(th, t, args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	})
 
-	t.Run("not in whitelist, already at limit", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    sysadmin1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		configuration := th.p.configuration.Clone()
-		configuration.ConnectedUsersAllowed = 0
-		th.p.setConfiguration(configuration)
-		defer func() {
-			configuration := th.p.configuration.Clone()
-			configuration.ConnectedUsersAllowed = 1000
-			th.p.setConfiguration(configuration)
-		}()
-
-		commandResponse, appErr := th.p.executeConnectBotCommand(args)
-		require.Nil(t, appErr)
-
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
-	})
-
 	t.Run("successfully started connection", func(t *testing.T) {
 		th.Reset(t)
 
