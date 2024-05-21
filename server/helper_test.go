@@ -23,12 +23,11 @@ import (
 )
 
 type testHelper struct {
-	p                 *Plugin
-	prevConfiguration *configuration
-	appClientMock     *mocks.Client
-	clientMock        *mocks.Client
-	websocketClients  map[string]*model.WebSocketClient
-	metricsSnapshot   []*dto.MetricFamily
+	p                *Plugin
+	appClientMock    *mocks.Client
+	clientMock       *mocks.Client
+	websocketClients map[string]*model.WebSocketClient
+	metricsSnapshot  []*dto.MetricFamily
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
@@ -42,8 +41,7 @@ func setupTestHelper(t *testing.T) *testHelper {
 		},
 	}
 	th := &testHelper{
-		p:                 p,
-		prevConfiguration: p.getConfiguration(),
+		p: p,
 	}
 
 	// ctx, and specifically cancel, gives us control over the plugin lifecycle
@@ -636,7 +634,7 @@ func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configura
 	return c, prev
 }
 
-func (th *testHelper) setPluginConfigurationCleanly(t *testing.T, update func(configuration *configuration)) {
+func (th *testHelper) setPluginConfigurationTemporarily(t *testing.T, update func(configuration *configuration)) {
 	t.Helper()
 
 	_, prev := th.setPluginConfiguration(t, func(config *configuration) { update(config) })

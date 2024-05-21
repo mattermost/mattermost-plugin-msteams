@@ -18,7 +18,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, invites disabled", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 0
 		})
 
@@ -30,7 +30,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, max pending invites reached", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -43,7 +43,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, not whitelisted", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 			c.ConnectedUsersRestricted = true
@@ -57,7 +57,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, already invited", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -72,7 +72,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, already connected", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 2
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -87,7 +87,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("don't send invite, weekend", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -101,7 +101,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		th.Reset(t)
 		guestUser := th.SetupGuestUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -115,7 +115,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		th.Reset(t)
 		botUser := th.CreateBot(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -128,7 +128,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("send invite, open invites allowed", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -141,7 +141,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 	t.Run("send invite, whitelist restricted", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 			c.ConnectedUsersRestricted = true
@@ -171,7 +171,7 @@ func TestCanInviteUser(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 0
 		})
 
@@ -185,7 +185,7 @@ func TestCanInviteUser(t *testing.T) {
 		user := th.SetupUser(t, team)
 		otherUser := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
 
@@ -200,7 +200,7 @@ func TestCanInviteUser(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 1
 			c.ConnectedUsersRestricted = true
 		})
@@ -215,7 +215,7 @@ func TestCanInviteUser(t *testing.T) {
 		user := th.SetupUser(t, team)
 		otherUser := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -231,7 +231,7 @@ func TestCanInviteUser(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 1
 			c.ConnectedUsersRestricted = true
 		})
@@ -261,7 +261,7 @@ func TestUserHasRightToConnect(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
 		})
 
@@ -276,7 +276,7 @@ func TestUserHasRightToConnect(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
 		})
 
@@ -291,7 +291,7 @@ func TestUserHasRightToConnect(t *testing.T) {
 	t.Run("has right to connect, is plugin bot", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
 		})
 
@@ -310,7 +310,7 @@ func TestUserCanOpenlyConnect(t *testing.T) {
 	t.Run("cannot openly connect", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
 		})
 
@@ -323,7 +323,7 @@ func TestUserCanOpenlyConnect(t *testing.T) {
 	t.Run("can openly connect", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 		})
 
@@ -336,7 +336,7 @@ func TestUserCanOpenlyConnect(t *testing.T) {
 	t.Run("cannot openly connect, invite pool full", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
@@ -352,7 +352,7 @@ func TestUserCanOpenlyConnect(t *testing.T) {
 	t.Run("cannot openly connect, whitelist restricted", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersRestricted = true
 		})
@@ -366,7 +366,7 @@ func TestUserCanOpenlyConnect(t *testing.T) {
 	t.Run("can openly connect, whitelist restricted", func(t *testing.T) {
 		th.Reset(t)
 
-		th.setPluginConfigurationCleanly(t, func(c *configuration) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersRestricted = true
 		})
