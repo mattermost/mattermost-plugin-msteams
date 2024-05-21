@@ -480,6 +480,31 @@ func (th *testHelper) GetWebsocketClientForUser(t *testing.T, userID string) *mo
 	return websocketClient
 }
 
+func makePluginWebsocketEventName(short string) string {
+	return fmt.Sprintf("custom_%s_%s", manifest.Id, short)
+}
+
+func (th *testHelper) assertWebsocketEvent(t *testing.T, userID, eventType string) {
+	t.Helper()
+
+	websocketClient := th.GetWebsocketClientForUser(t, userID)
+
+	for {
+		select {
+		case event, ok := <-websocketClient.EventChannel:
+			if !ok {
+				t.Fatal("channel closed before getting websocket event")
+			}
+
+			if event.EventType() == model.WebsocketEventType(eventType) {
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("failed to get websocket event " + eventType)
+		}
+	}
+}
+
 func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, message string) {
 	t.Helper()
 

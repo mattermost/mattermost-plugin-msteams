@@ -1065,3 +1065,58 @@ func TestIFrameMattermostTab(t *testing.T) {
 func TestIFrameManifest(t *testing.T) {
 	t.Skip()
 }
+
+func TestConnectionStatus(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connection-status")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User) (connected bool) {
+		t.Helper()
+		client := th.SetupClient(t, user.Id)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		resMap := map[string]bool{}
+		err = json.NewDecoder(response.Body).Decode(&resMap)
+		require.NoError(t, err)
+
+		return resMap["connected"]
+	}
+
+	t.Run("connected users should get true", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.True(t, connected)
+	})
+
+	t.Run("never connected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
+
+	t.Run("disconnected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+		th.DisconnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
+}

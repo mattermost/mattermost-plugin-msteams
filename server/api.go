@@ -53,6 +53,7 @@ const (
 	QueryParamPrimaryPlatform                 = "primary_platform"
 	QueryParamChannelID                       = "channel_id"
 	QueryParamPostID                          = "post_id"
+	QueryParamFromPreferences                 = "from_preferences"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
@@ -78,6 +79,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
+	router.HandleFunc("/connection-status", api.connectionStatus).Methods("GET")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
@@ -348,10 +350,16 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		userID = a.p.GetBotUserID()
 	}
 
+	stateSuffix := ""
+	fromPreferences := query.Get(QueryParamFromPreferences)
 	channelID := query.Get(QueryParamChannelID)
 	postID := query.Get(QueryParamPostID)
-	if channelID == "" || postID == "" {
-		a.p.API.LogWarn("Missing channelID or postID from query parameters", "channel_id", channelID, "post_id", postID)
+	if fromPreferences == "true" {
+		stateSuffix = "fromPreferences:true"
+	} else if channelID != "" && postID != "" {
+		stateSuffix = fmt.Sprintf("fromBotMessage:%s|%s", channelID, postID)
+	} else {
+		a.p.API.LogWarn("could not determine origin of the connect request", "channel_id", channelID, "post_id", postID, "from_preferences", fromPreferences)
 		http.Error(w, "Missing required query parameters.", http.StatusBadRequest)
 		return
 	}
@@ -362,7 +370,7 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state := fmt.Sprintf("%s_%s_%s_%s", model.NewId(), userID, postID, channelID)
+	state := fmt.Sprintf("%s_%s_%s", model.NewId(), userID, stateSuffix)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
@@ -379,6 +387,21 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+}
+
+func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	response := map[string]bool{"connected": false}
+	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
+		response["connected"] = true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		a.p.API.LogWarn("Error while writing response", "error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
@@ -448,7 +471,36 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 
 	stateArr := strings.Split(state, "_")
-	if len(stateArr) != 4 {
+	if len(stateArr) != 3 {
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+
+	// determine origin of the connect request
+	// if the state is fromPreferences, the user is connecting from the preferences page
+	// if the state is fromBotMessage, the user is connecting from a bot message
+	originInfo := strings.Split(stateArr[2], ":")
+	if len(originInfo) != 2 {
+		a.p.API.LogWarn("unable to get origin info from state", "state", stateArr[2])
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+
+	channelID := ""
+	postID := ""
+	switch originInfo[0] {
+	case "fromPreferences":
+		// do nothing
+	case "fromBotMessage":
+		fromBotMessageArgs := strings.Split(originInfo[1], "|")
+		if len(fromBotMessageArgs) != 2 {
+			a.p.API.LogWarn("unable to get args from bot message", "origin_info", originInfo[1])
+			http.Error(w, "Invalid state", http.StatusBadRequest)
+			return
+		}
+		channelID = fromBotMessageArgs[0]
+		postID = fromBotMessageArgs[1]
+	default:
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
@@ -555,6 +607,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
+		UserId: mmUserID,
+	})
+
 	if err = a.p.store.DeleteUserInvite(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
 	}
@@ -573,22 +629,30 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
 
 	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	post := &model.Post{
-		Id:        stateArr[2],
-		Message:   userConnectedMessage,
-		ChannelId: stateArr[3],
-		UserId:    a.p.GetBotUserID(),
-		CreateAt:  model.GetMillis(),
-	}
-
-	_, appErr = a.p.GetAPI().GetPost(stateArr[2])
-	if appErr == nil {
-		_, appErr = a.p.GetAPI().UpdatePost(post)
-		if appErr != nil {
-			a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+	switch originInfo[0] {
+	case "fromBotMessage":
+		post := &model.Post{
+			Id:        postID,
+			Message:   userConnectedMessage,
+			ChannelId: channelID,
+			UserId:    a.p.GetBotUserID(),
+			CreateAt:  model.GetMillis(),
 		}
-	} else {
-		_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+
+		_, appErr = a.p.GetAPI().GetPost(post.Id)
+		if appErr == nil {
+			_, appErr = a.p.GetAPI().UpdatePost(post)
+			if appErr != nil {
+				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+			}
+		} else {
+			_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+		}
+	case "fromPreferences":
+		err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
+		if err != nil {
+			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
+		}
 	}
 
 	connectURL := a.p.GetURL() + "/primary-platform"

@@ -543,6 +543,10 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
 	}
 
+	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
+		UserId: args.UserId,
+	})
+
 	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
 	return p.cmdSuccess(args, "Your account has been disconnected.")
