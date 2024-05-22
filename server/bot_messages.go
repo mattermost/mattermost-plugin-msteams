@@ -96,7 +96,7 @@ func (p *Plugin) notifyUserTeamsPrimary(userID string) {
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string) {
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string, attachmentCount int) {
 	var preamble string
 
 	if chatSize <= 1 {
@@ -111,10 +111,21 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 
 	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
 
+	attachments := ""
+	if attachmentCount > 0 {
+		attachments += "\n*"
+		if attachmentCount == 1 {
+			attachments += "This message was originally sent with one attachment."
+		} else {
+			attachments += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
+		}
+		attachments += "*\n"
+	}
+
 	formattedMessage := fmt.Sprintf(`%s
 %s
-
-**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, chatLink)
+%s
+**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, attachments, chatLink)
 
 	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
