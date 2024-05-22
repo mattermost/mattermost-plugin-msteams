@@ -18,7 +18,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattermost/mattermost/server/public v0.1.3
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
-	github.com/microsoft/kiota-abstractions-go v1.5.6
+	github.com/microsoft/kiota-abstractions-go v1.6.0
 	github.com/microsoft/kiota-http-go v1.3.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.36.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
@@ -201,7 +201,7 @@ require (
 	github.com/splitio/go-split-commons/v5 v5.2.1 // indirect
 	github.com/splitio/go-toolkit/v5 v5.4.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.50 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.55 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/throttled/throttled v2.2.5+incompatible // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
@@ -227,9 +227,9 @@ require (
 	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	go.etcd.io/bbolt v1.3.9 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect
-	go.opentelemetry.io/otel v1.23.1 // indirect
-	go.opentelemetry.io/otel/metric v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
