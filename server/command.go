@@ -530,7 +530,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
-	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
+	if token, _ := p.store.GetTokenForMattermostUser(args.UserId); token == nil {
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
@@ -626,7 +626,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		return p.cmdSuccess(args, "Invalid notifications command, one argument is required.")
 	}
 
-	isConnected, err := p.isUserConnected(args.UserId)
+	isConnected, err := p.IsUserConnected(args.UserId)
 	if err != nil {
 		p.API.LogWarn("unable to check if the user is connected", "error", err.Error())
 		return p.cmdError(args, "Error: Unable to get the connection status")

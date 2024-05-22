@@ -114,6 +114,13 @@
                 "default": false
             },
             {
+                "key": "syncRemoteOnly",
+                "display_name": "Selective sync - Remote Only",
+                "type": "bool",
+                "help_text": "Selective Sync only syncs between connected and remote users. (Requires Selective sync = true)",
+                "default": false
+            },
+            {
                 "key": "syncLinkedChannels",
                 "display_name": "Sync linked channels",
                 "type": "bool",
