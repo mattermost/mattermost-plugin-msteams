@@ -324,6 +324,9 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
 	require.Nil(t, appErr)
 
+	err := th.p.store.SetUserInfo(user.Id, "t"+user.Id, nil)
+	require.NoError(t, err)
+
 	return user
 }
 

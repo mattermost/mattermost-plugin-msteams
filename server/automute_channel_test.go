@@ -158,7 +158,7 @@ func TestUpdateAutomutingOnChannelCreated(t *testing.T) {
 		channel, err := th.p.API.GetGroupChannel([]string{connectedUserWithAutomute.Id, connectedUserWithoutAutomute.Id, teamsUser.Id})
 		require.Nil(t, err)
 
-		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUserWithAutomute.Id)
+		assertChannelAutomuted(t, th.p, channel.Id, connectedUserWithAutomute.Id)
 		assertChannelNotAutomuted(t, th.p, channel.Id, connectedUserWithoutAutomute.Id)
 		assertChannelNotAutomuted(t, th.p, channel.Id, teamsUser.Id)
 	})
