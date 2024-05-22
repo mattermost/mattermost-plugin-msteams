@@ -407,6 +407,12 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
+	who := "Your account"
+	query := r.URL.Query()
+	if query.Has("isBot") {
+		who = "The bot account's"
+	}
+
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
 		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
@@ -419,7 +425,11 @@ func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
 	}
 
-	err = t.Execute(w, nil)
+	err = t.Execute(w, struct {
+		Who string
+	}{
+		Who: who,
+	})
 	if err != nil {
 		a.p.API.LogError("unable to execute the template", "error", err.Error())
 		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
@@ -643,8 +653,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	if mmUser.Id == a.p.GetBotUserID() {
-		connectionMessage := "The bot account has been connected"
-		_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+		http.Redirect(w, r, a.p.GetURL()+"/account-connected?isBot", http.StatusSeeOther)
 		return
 	}
 
