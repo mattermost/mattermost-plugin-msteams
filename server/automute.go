@@ -149,7 +149,7 @@ func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
 			if p.configuration.SyncRemoteOnly {
 				// if only sync'ing with remote users,
 				// do not automute any DM/GM channels,
-				// in this mode all uses considered MM primary
+				// in this mode all connected users considered MM primary
 				return false, nil
 			}
 			// if Selective Sync, automute if members

@@ -70,7 +70,6 @@ func (p *Plugin) ChatMembersSpanPlatforms(members []*model.ChannelMember) (bool,
 func (p *Plugin) ChannelConnectedOrRemote(channelID, senderID string) (bool, error) {
 	senderConnected, err := p.IsUserConnected(senderID)
 	if err != nil {
-		// ah.plugin.GetAPI().LogWarn("Unable to determine if sender is connected", "error", err.Error())
 		return false, err
 	}
 	members, err := p.apiClient.Channel.ListMembers(channelID, 0, math.MaxInt32)
