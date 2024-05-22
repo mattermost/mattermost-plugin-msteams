@@ -88,6 +88,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/whitelist/download", api.getWhitelistEmailsFile).Methods(http.MethodGet)
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
+	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
@@ -405,6 +406,26 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
+	bundlePath, err := a.p.API.GetBundlePath()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
+		return
+	}
+
+	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/account-connected/index.html"))
+	if err != nil {
+		a.p.API.LogError("unable to parse the template", "error", err.Error())
+		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
+	}
+
+	err = t.Execute(w, nil)
+	if err != nil {
+		a.p.API.LogError("unable to execute the template", "error", err.Error())
+		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
+	}
+}
+
 func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
@@ -631,63 +652,72 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case a.p.getConfiguration().SyncNotifications:
-		switch originInfo[0] {
-		case "fromPreferences":
-			err = a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, postID)
+		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
+		return
+	default:
+		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
+		http.Redirect(w, r, a.p.GetURL()+"/primary-platform", http.StatusSeeOther)
+		return
+	}
+
+}
+
+func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
+	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
+	switch originInfo {
+	case "fromBotMessage":
+		post := &model.Post{
+			Id:        postID,
+			Message:   userConnectedMessage,
+			ChannelId: channelID,
+			UserId:    a.p.GetBotUserID(),
+			CreateAt:  model.GetMillis(),
+		}
+
+		_, appErr := a.p.GetAPI().GetPost(post.Id)
+		if appErr == nil {
+			_, appErr = a.p.GetAPI().UpdatePost(post)
+			if appErr != nil {
+				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", appErr.Error())
+			}
+		} else {
+			_ = a.p.GetAPI().UpdateEphemeralPost(mmUserID, post)
+		}
+	case "fromPreferences":
+		err := a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
+		if err != nil {
+			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
+		}
+	}
+}
+
+func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, postID string) {
+	switch originInfo {
+	case "fromPreferences":
+		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+		if err != nil {
+			a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
+		}
+	case "fromBotMessage":
+		welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
+		var originalPost *model.Post
+		originalPost, appErr := a.p.GetAPI().GetPost(postID)
+		if appErr == nil {
+			originalPost.Message = welcomePost.Message
+			originalPost.SetProps(welcomePost.Props)
+			_, appErr = a.p.GetAPI().UpdatePost(originalPost)
+			if appErr != nil {
+				a.p.API.LogWarn("Unable to update post", "post", postID, "error", appErr.Error())
+			}
+		} else {
+			a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
+			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 			}
-		case "fromBotMessage":
-			welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
-			var originalPost *model.Post
-			originalPost, appErr = a.p.GetAPI().GetPost(postID)
-			if appErr == nil {
-				originalPost.Message = welcomePost.Message
-				originalPost.SetProps(welcomePost.Props)
-				_, appErr = a.p.GetAPI().UpdatePost(originalPost)
-				if appErr != nil {
-					a.p.API.LogWarn("Unable to update post", "post", postID, "error", err.Error())
-				}
-			} else {
-				a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
-				err = a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
-				if err != nil {
-					a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
-				}
-			}
-		}
-
-	default:
-		const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-		switch originInfo[0] {
-		case "fromBotMessage":
-			post := &model.Post{
-				Id:        postID,
-				Message:   userConnectedMessage,
-				ChannelId: channelID,
-				UserId:    a.p.GetBotUserID(),
-				CreateAt:  model.GetMillis(),
-			}
-
-			_, appErr = a.p.GetAPI().GetPost(post.Id)
-			if appErr == nil {
-				_, appErr = a.p.GetAPI().UpdatePost(post)
-				if appErr != nil {
-					a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
-				}
-			} else {
-				_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
-			}
-		case "fromPreferences":
-			err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
-			if err != nil {
-				a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
-			}
 		}
 	}
-
-	connectURL := a.p.GetURL() + "/primary-platform"
-	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
