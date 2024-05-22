@@ -669,7 +669,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, a.p.GetURL()+"/primary-platform", http.StatusSeeOther)
 		return
 	}
-
 }
 
 func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
