@@ -666,7 +666,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
-		http.Redirect(w, r, a.p.GetURL()+"/primary-platform", http.StatusSeeOther)
+		if a.p.GetSelectiveSync() {
+			http.Redirect(w, r, a.p.GetURL()+"/primary-platform", http.StatusSeeOther)
+			return
+		}
+
+		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
 		return
 	}
 }
