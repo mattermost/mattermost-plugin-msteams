@@ -407,10 +407,10 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
-	who := "Your account"
+	message := "You are now now connected."
 	query := r.URL.Query()
 	if query.Has("isBot") {
-		who = "The bot account's"
+		message = "The bot account's is now connected."
 	}
 
 	bundlePath, err := a.p.API.GetBundlePath()
@@ -426,9 +426,9 @@ func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = t.Execute(w, struct {
-		Who string
+		Message string
 	}{
-		Who: who,
+		Message: message,
 	})
 	if err != nil {
 		a.p.API.LogError("unable to execute the template", "error", err.Error())
