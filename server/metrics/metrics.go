@@ -56,6 +56,7 @@ const (
 	DiscardedReasonFailedSubscriptionCheck         = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh                 = "failed_to_refresh"
 	DiscardedReasonSelectiveSync                   = "selective_sync"
+	DiscardedReasonUserNotConnected                = "user_not_connected"
 	DiscardedReasonGeneratedFromMattermost         = "generated_from_mattermost"
 	DiscardedReasonNotificationsOnly               = "notifications_only"
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"

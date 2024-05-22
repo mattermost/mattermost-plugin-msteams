@@ -51,8 +51,8 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 		}
 
 		if p.getConfiguration().SelectiveSync {
-			shouldSync, appErr := p.ChatShouldSync(post.ChannelId)
-			if appErr != nil {
+			shouldSync, err := p.ChannelShouldSync(post.ChannelId)
+			if err != nil {
 				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
 			} else if !shouldSync {
@@ -115,26 +115,21 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			return
 		}
 
-		isSelfPost := len(members) == 1
-		chatMembersSpanPlatforms := false
-		if !isSelfPost {
-			chatMembersSpanPlatforms, err = p.ChatMembersSpanPlatforms(members)
+		chatShouldSync := false
+		if p.getConfiguration().SelectiveSync {
+			chatShouldSync, err = p.ChannelShouldSync(post.ChannelId)
 			if err != nil {
-				p.API.LogWarn("Failed to check if chat members span platforms", "error", err.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
 				return
-			}
-
-			if p.getConfiguration().SelectiveSync && !chatMembersSpanPlatforms {
+			} else if !chatShouldSync {
 				return
 			}
 		}
-
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err = p.SendChat(post.UserId, dstUsers, post, chatMembersSpanPlatforms)
+		_, err = p.SendChat(post.UserId, dstUsers, post, chatShouldSync)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}

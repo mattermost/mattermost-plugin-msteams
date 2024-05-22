@@ -14,7 +14,7 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 	userIDsToEnable, userIDsToDisable := getUsersWhoChangedPlatform(preferences)
 
 	for _, userID := range userIDsToEnable {
-		if connected, err := p.isUserConnected(userID); err != nil {
+		if connected, err := p.IsUserConnected(userID); err != nil {
 			p.API.LogWarn(
 				"Unable to potentially enable automute for user",
 				"user_id", userID,
@@ -36,7 +36,7 @@ func (p *Plugin) updateAutomutingOnPreferencesChanged(_ *plugin.Context, prefere
 	}
 
 	for _, userID := range userIDsToDisable {
-		if connected, err := p.isUserConnected(userID); err != nil {
+		if connected, err := p.IsUserConnected(userID); err != nil {
 			p.API.LogWarn(
 				"Unable to determine if user connected",
 				"user_id", userID,

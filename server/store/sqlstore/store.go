@@ -362,7 +362,7 @@ func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*
 	}
 
 	if encryptedToken == "" {
-		return nil, errors.New("token not found")
+		return nil, nil
 	}
 
 	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)
@@ -371,7 +371,7 @@ func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*
 	}
 
 	if tokendata == "" {
-		return nil, errors.New("token not found")
+		return nil, nil
 	}
 
 	var token oauth2.Token

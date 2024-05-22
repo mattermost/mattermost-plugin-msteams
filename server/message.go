@@ -21,7 +21,7 @@ import (
 	"gitlab.com/golang-commonmark/markdown"
 )
 
-func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, chatMembersSpanPlatforms bool) (string, error) {
+func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, containsRemoteUser bool) (string, error) {
 	parentID := ""
 	if post.RootId != "" {
 		parentInfo, _ := p.store.GetPostInfoByMattermostID(post.RootId)
@@ -32,7 +32,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 
 	_, err := p.store.MattermostToTeamsUserID(srcUser)
 	if err != nil {
-		if chatMembersSpanPlatforms {
+		if containsRemoteUser {
 			p.handlePromptForConnection(srcUser, post.ChannelId)
 		}
 		return "", err
@@ -40,7 +40,7 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 
 	client, err := p.GetClientForUser(srcUser)
 	if err != nil {
-		if chatMembersSpanPlatforms {
+		if containsRemoteUser {
 			p.handlePromptForConnection(srcUser, post.ChannelId)
 		}
 		return "", err
