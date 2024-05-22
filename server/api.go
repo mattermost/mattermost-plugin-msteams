@@ -633,13 +633,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	case a.p.getConfiguration().SyncNotifications:
 		switch originInfo[0] {
 		case "fromPreferences":
-			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+			err = a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 			}
 		case "fromBotMessage":
 			welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
-			originalPost, appErr := a.p.GetAPI().GetPost(postID)
+			var originalPost *model.Post
+			originalPost, appErr = a.p.GetAPI().GetPost(postID)
 			if appErr == nil {
 				originalPost.Message = welcomePost.Message
 				originalPost.SetProps(welcomePost.Props)
@@ -649,7 +650,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
-				err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+				err = a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
 				if err != nil {
 					a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 				}

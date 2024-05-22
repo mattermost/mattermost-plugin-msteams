@@ -1152,7 +1152,8 @@ func TestEnableNotifications(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 
 		// Arrange: Send the welcome message and retrieve it
-		th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
+		err := th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
+		require.NoError(t, err)
 		dc, err := th.p.apiClient.Channel.GetDirect(user1.Id, th.p.botUserID)
 		require.NoError(t, err)
 		posts, err := th.p.apiClient.Post.GetPostsSince(dc.Id, time.Now().Add(-1*time.Minute).UnixMilli())
