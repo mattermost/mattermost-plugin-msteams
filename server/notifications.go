@@ -6,6 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.Message, chat *clientmodels.Chat) string {
@@ -17,6 +18,7 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		return metrics.DiscardedReasonChannelNotificationsUnsupported
 	}
 
+	participants := []string{}
 	for _, member := range chat.Members {
 		// Don't notify senders about their own posts.
 		if member.UserID == msg.UserID {
@@ -30,6 +32,11 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 			ah.plugin.GetAPI().LogWarn("Failed to map Teams user to Mattermost user", "teams_user_id", member.UserID, "error", err)
 			continue
 		}
+
+		if !ah.plugin.getNotificationPreference(mattermostUserID) {
+			continue
+		}
+		participants = append(participants, mattermostUserID)
 
 		botDMChannel, appErr := ah.plugin.GetAPI().GetDirectChannel(mattermostUserID, botUserID)
 		if appErr != nil {
@@ -53,6 +60,13 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		_, appErr = ah.plugin.GetAPI().CreatePost(notificationPost)
 		if appErr != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to create notification post", "error", appErr)
+		}
+	}
+
+	if len(participants) > 0 {
+		err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, storemodels.MilliToMicroSeconds(post.CreateAt))
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
 		}
 	}
 
