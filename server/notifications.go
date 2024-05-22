@@ -38,29 +38,8 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
-		botDMChannel, appErr := ah.plugin.GetAPI().GetDirectChannel(mattermostUserID, botUserID)
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to get direct channel with bot to send notification to user", "user_id", mattermostUserID, "error", appErr.Error())
-			continue
-		}
-
-		notificationPost := post.Clone()
-		notificationPost.ChannelId = botDMChannel.Id
-
 		chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
-
-		if len(chat.Members) == 2 {
-			notificationPost.Message = fmt.Sprintf("%s messaged you in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
-		} else if len(chat.Members) == 3 {
-			notificationPost.Message = fmt.Sprintf("%s messaged you and 1 other user in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
-		} else {
-			notificationPost.Message = fmt.Sprintf("%s messaged you and %d other users in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, len(chat.Members)-2, chatLink, notificationPost.Message)
-		}
-
-		_, appErr = ah.plugin.GetAPI().CreatePost(notificationPost)
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to create notification post", "error", appErr)
-		}
+		ah.plugin.notifyChat(mattermostUserID, msg.UserDisplayName, len(chat.Members), chatLink, post.Message)
 	}
 
 	if len(notifiedUsers) > 0 {
