@@ -138,3 +138,29 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 		},
 	}
 }
+
+// notifyMessage sends the given receipient a notification of a chat received on Teams.
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string) {
+	var preamble string
+
+	if chatSize <= 1 {
+		return
+	} else if chatSize == 2 {
+		preamble = fmt.Sprintf("%s messaged you in MS Teams:", actorDisplayName)
+	} else if chatSize == 3 {
+		preamble = fmt.Sprintf("%s messaged you and 1 other user in MS Teams:", actorDisplayName)
+	} else {
+		preamble = fmt.Sprintf("%s messaged you and %d other users in MS Teams:", actorDisplayName, chatSize-2)
+	}
+
+	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
+
+	formattedMessage := fmt.Sprintf(`%s
+%s
+
+**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, chatLink)
+
+	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
+		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
+	}
+}
