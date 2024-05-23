@@ -115,7 +115,7 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 	msg := []string{
 		"**Welcome to the MS Teams integration!**",
 		"Enable notifications to get notified about any mentions you get in direct messages or group messages in MS Teams directly within Mattermost.",
-		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetURL()),
+		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
 	}
 
 	return &model.Post{
@@ -126,7 +126,7 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 					Actions: []*model.PostAction{
 						{
 							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/enable-notifications", p.GetURL()),
+								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
 							},
 							Name:  "Enable Notifications",
 							Style: "primary",
