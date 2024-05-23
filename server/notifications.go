@@ -19,6 +19,14 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 	}
 
 	notifiedUsers := []string{}
+	chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
+	attachmentCount := 0
+	for _, attachment := range msg.Attachments {
+		if attachment.ContentType == "messageReference" || attachment.ContentType == "application/vnd.microsoft.card.codesnippet" {
+			continue
+		}
+		attachmentCount++
+	}
 	for _, member := range chat.Members {
 		// Don't notify senders about their own posts.
 		if member.UserID == msg.UserID {
@@ -38,8 +46,14 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
-		chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
-		ah.plugin.notifyChat(mattermostUserID, msg.UserDisplayName, len(chat.Members), chatLink, post.Message)
+		ah.plugin.notifyChat(
+			mattermostUserID,
+			msg.UserDisplayName,
+			len(chat.Members),
+			chatLink,
+			post.Message,
+			attachmentCount,
+		)
 	}
 
 	if len(notifiedUsers) > 0 {
