@@ -44,9 +44,9 @@ func (p *Plugin) setAutomuteEnabledForUser(userID string, automuteEnabled bool) 
 	}
 
 	for _, channel := range channels {
-		if linked, err := p.canAutomuteChannel(channel); err != nil {
+		if automute, err := p.canAutomuteChannel(channel); err != nil {
 			return false, err
-		} else if !linked {
+		} else if automuteEnabled && !automute {
 			continue
 		}
 
@@ -112,14 +112,7 @@ func (p *Plugin) getAutomuteIsEnabledForUser(userID string) bool {
 
 // setAutomuteIsEnabledForUser sets a preference to track if we've muted all of the user's linked channels.
 func (p *Plugin) setAutomuteIsEnabledForUser(userID string, channelsAutomuted bool) error {
-	appErr := p.API.UpdatePreferencesForUser(userID, []model.Preference{
-		{
-			UserId:   userID,
-			Category: PreferenceCategoryPlugin,
-			Name:     PreferenceNameAutomuteEnabled,
-			Value:    strconv.FormatBool(channelsAutomuted),
-		},
-	})
+	appErr := p.updatePreferenceForUser(userID, PreferenceNameAutomuteEnabled, strconv.FormatBool(channelsAutomuted))
 	if appErr != nil {
 		return errors.Wrap(appErr, fmt.Sprintf("Unable to set preference to track that channels are automuted for user %s", userID))
 	}
@@ -137,15 +130,6 @@ func (p *Plugin) isUsersPrimaryPlatformTeams(userID string) bool {
 	return pref.Value == storemodels.PreferenceValuePlatformMSTeams
 }
 
-func (p *Plugin) isUserConnected(userID string) (bool, error) {
-	token, err := p.store.GetTokenForMattermostUser(userID)
-	if err != nil && err != sql.ErrNoRows {
-		return false, errors.Wrap(err, "Unable to determine if user is connected to MS Teams")
-	}
-
-	return token != nil, nil
-}
-
 // canAutomuteChannelID returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
 // DM/GM channel that is implicitly linked to MS Teams.
 func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
@@ -157,12 +141,24 @@ func (p *Plugin) canAutomuteChannelID(channelID string) (bool, error) {
 	return p.canAutomuteChannel(channel)
 }
 
-// canAutomuteChannel returns true if the channel is either explicitly linked to a channel in MS Teams or if it's a
-// DM/GM channel that is implicitly linked to MS Teams.
+// canAutomuteChannel returns true if the channel is linked to a channel in MS Teams
+// DM/GM channels are muted depending on Selective Sync and Sync Remote Only settings
 func (p *Plugin) canAutomuteChannel(channel *model.Channel) (bool, error) {
-	// Automute all DM/GM channels
 	if channel.IsGroupOrDirect() {
-		return true, nil
+		if p.configuration.SelectiveSync {
+			if p.configuration.SyncRemoteOnly {
+				// if only sync'ing with remote users,
+				// do not automute any DM/GM channels,
+				// in this mode all connected users considered MM primary
+				return false, nil
+			}
+			// if Selective Sync, automute if members
+			// span platforms
+			return p.ChannelShouldSync(channel.Id)
+		}
+
+		// if not selective sync
+		return false, nil
 	}
 
 	link, err := p.store.GetLinkByChannelID(channel.Id)

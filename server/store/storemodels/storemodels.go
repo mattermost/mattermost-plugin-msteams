@@ -9,19 +9,12 @@ const (
 	PreferenceNamePlatform         = "platform"
 	PreferenceValuePlatformMM      = "mattermost"
 	PreferenceValuePlatformMSTeams = "msteams"
+
+	// Notification preferences
+	PreferenceNameNotification     = "notifications"
+	PreferenceValueNotificationOn  = "on"
+	PreferenceValueNotificationOff = "off"
 )
-
-type Stats struct {
-	ConnectedUsers   int64
-	PendingInvites   int64
-	WhitelistedUsers int64
-
-	SyntheticUsers int64
-	LinkedChannels int64
-
-	MattermostPrimary int64
-	MSTeamsPrimary    int64
-}
 
 type ChannelLink struct {
 	MattermostTeamID      string
@@ -84,4 +77,8 @@ type InvitedUser struct {
 	ID                 string
 	InvitePendingSince time.Time
 	InviteLastSentAt   time.Time
+}
+
+func MilliToMicroSeconds(milli int64) int64 {
+	return milli * 1000
 }

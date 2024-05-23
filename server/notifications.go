@@ -1,0 +1,96 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+)
+
+func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.Message, chat *clientmodels.Chat) string {
+	botUserID := ah.plugin.GetBotUserID()
+	post, _, _ := ah.msgToPost("", botUserID, msg, chat, false, []string{})
+
+	if chat == nil {
+		// We're only going to support notifications from chats for now.
+		return metrics.DiscardedReasonChannelNotificationsUnsupported
+	}
+
+	for _, member := range chat.Members {
+		// Don't notify senders about their own posts.
+		if member.UserID == msg.UserID {
+			continue
+		}
+
+		mattermostUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(member.UserID)
+		if err == sql.ErrNoRows {
+			continue
+		} else if err != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to map Teams user to Mattermost user", "teams_user_id", member.UserID, "error", err)
+			continue
+		}
+
+		botDMChannel, appErr := ah.plugin.GetAPI().GetDirectChannel(mattermostUserID, botUserID)
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to get direct channel with bot to send notification to user", "user_id", mattermostUserID, "error", appErr.Error())
+			continue
+		}
+
+		notificationPost := post.Clone()
+		notificationPost.ChannelId = botDMChannel.Id
+
+		chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
+
+		if len(chat.Members) == 2 {
+			notificationPost.Message = fmt.Sprintf("%s messaged you in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
+		} else if len(chat.Members) == 3 {
+			notificationPost.Message = fmt.Sprintf("%s messaged you and 1 other user in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
+		} else {
+			notificationPost.Message = fmt.Sprintf("%s messaged you and %d other users in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, len(chat.Members)-2, chatLink, notificationPost.Message)
+		}
+
+		_, appErr = ah.plugin.GetAPI().CreatePost(notificationPost)
+		if appErr != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to create notification post", "error", appErr)
+		}
+	}
+
+	return metrics.DiscardedReasonNone
+}
+
+// Intentionally keep this block of code around as illustrative of what might be necessary to
+// process channel notifications.
+// // TODO: permissions
+// for _, mention := range msg.Mentions {
+// 	// Don't notify senders if they mention themselves.
+// 	if mention.UserID == msg.UserID {
+// 		continue
+// 	}
+
+// 	mattermostUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
+// 	if err == sql.ErrNoRows {
+// 		continue
+// 	} else if err != nil {
+// 		ah.plugin.GetAPI().LogWarn("Unable to map Teams user to Mattermost user", "teams_user_id", mention.UserID, "error", err)
+// 		continue
+// 	}
+
+// 	botDMChannel, appErr := ah.plugin.GetAPI().GetDirectChannel(mattermostUserID, botUserID)
+// 	if appErr != nil {
+// 		ah.plugin.GetAPI().LogWarn("Unable to get direct channel with bot to send notification to user", "user_id", mattermostUserID, "error", appErr.Error())
+// 		continue
+// 	}
+
+// 	notificationPost := post.Clone()
+// 	notificationPost.ChannelId = botDMChannel.Id
+
+// 	channelLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&parentMessageId=%s", msg.ChannelID, msg.ID, ah.plugin.GetTenantID(), msg.ID)
+// 	notificationPost.Message = fmt.Sprintf("%s mentioned you in an MS Teams [channel](%s):\n> %s", msg.UserDisplayName, channelLink, notificationPost.Message)
+
+// 	_, appErr = ah.plugin.GetAPI().CreatePost(notificationPost)
+// 	if appErr != nil {
+// 		ah.plugin.GetAPI().LogWarn("Unable to create notification post", "error", appErr)
+// 	}
+// }
+// }

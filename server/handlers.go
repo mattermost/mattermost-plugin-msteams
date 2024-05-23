@@ -1,6 +1,4 @@
-//go:generate mockery --name=PluginIface
-
-package handlers
+package main
 
 import (
 	"errors"
@@ -14,11 +12,9 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var emojisReverseMap map[string]string
@@ -29,35 +25,11 @@ var imageRE = regexp.MustCompile(`<img .*?>`)
 const (
 	numberOfWorkers             = 50
 	activityQueueSize           = 5000
-	msteamsUserTypeGuest        = "Guest"
 	maxFileAttachmentsSupported = 10
 )
 
-type PluginIface interface {
-	GetAPI() plugin.API
-	GetStore() store.Store
-	GetMetrics() metrics.Metrics
-	GetSyncDirectMessages() bool
-	GetSyncLinkedChannels() bool
-	GetSyncReactions() bool
-	GetSyncFileAttachments() bool
-	GetSyncGuestUsers() bool
-	GetMaxSizeForCompleteDownload() int
-	GetBufferSizeForStreaming() int
-	GetBotUserID() string
-	GetURL() string
-	GetClientForApp() msteams.Client
-	GetClientForUser(string) (msteams.Client, error)
-	GetClientForTeamsUser(string) (msteams.Client, error)
-	GenerateRandomPassword() string
-	ChatShouldSync(channelID string) (bool, *model.AppError)
-	GetSelectiveSync() bool
-	IsRemoteUser(user *model.User) bool
-	GetRemoteID() string
-}
-
 type ActivityHandler struct {
-	plugin               PluginIface
+	plugin               *Plugin
 	queue                chan msteams.Activity
 	quit                 chan bool
 	workersWaitGroup     sync.WaitGroup
@@ -65,7 +37,7 @@ type ActivityHandler struct {
 	lastUpdateAtMap      sync.Map
 }
 
-func New(plugin PluginIface) *ActivityHandler {
+func NewActivityHandler(plugin *Plugin) *ActivityHandler {
 	// Initialize the emoji translator
 	emojisReverseMap = map[string]string{}
 	for alias, unicode := range emoji.Map() {
@@ -263,7 +235,6 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
-
 	if msg == nil {
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
@@ -272,7 +243,15 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
-	isDirectMessage := IsDirectMessage(activityIds.ChatID)
+	if strings.HasSuffix(msg.Text, ah.plugin.MessageFingerprint()) {
+		return metrics.DiscardedReasonGeneratedFromMattermost
+	}
+
+	if ah.plugin.GetSyncNotifications() {
+		return ah.handleCreatedActivityNotification(msg, chat)
+	}
+
+	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
 
 	// Avoid possible duplication
 	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
@@ -280,8 +259,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonDuplicatedPost
 	}
 
-	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsUserID {
+	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
+	if msg.UserID == msteamsBotUserID {
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -303,28 +282,29 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	var senderID string
 	var channelID string
+	// userIDs is used to determine the participants of a DM/GM
+	var userIDs []string
+
 	if chat != nil {
-		if !ah.plugin.GetSyncDirectMessages() {
-			// Skipping because direct/group messages are disabled
-			return metrics.DiscardedReasonDirectMessagesDisabled
+		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
+			return reason
 		}
 
-		channelID, err = ah.getChatChannelID(chat)
+		channelID, userIDs, err = ah.getChatChannelIDAndUsersID(chat)
 		if err != nil {
 			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
 			return metrics.DiscardedReasonOther
 		}
 
+		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, appErr := ah.plugin.ChatShouldSync(channelID); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Failed to determine if shouldSyncChat", "channel_id", channelID, "error", appErr.Error())
+			if shouldSync, errSync := ah.plugin.ChannelShouldSyncCreated(channelID, senderID); errSync != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to determine if channel should sync", "error", errSync.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
 				return metrics.DiscardedReasonSelectiveSync
 			}
 		}
-
-		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
 			// Skipping because linked channels are disabled
@@ -350,7 +330,12 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), []string{})
+
+	// Last second check to avoid possible duplication
+	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
+		return metrics.DiscardedReasonDuplicatedPost
+	}
 
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
@@ -371,8 +356,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		}
 	}
 
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage)
-	ah.plugin.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectMessage, time.Since(msg.CreateAt))
+	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
+	ah.plugin.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage, time.Since(msg.CreateAt))
 
 	if errorFound {
 		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
@@ -388,11 +373,33 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		}
 	}
 
+	// Update the last chat received at for the participants of DM/GM
+	if chat != nil && len(userIDs) > 0 {
+		// exclude the sender from the list of participants
+		participants := make([]string, 0, len(userIDs)-1)
+		for _, userID := range userIDs {
+			if userID != post.UserId {
+				participants = append(participants, userID)
+			}
+		}
+
+		if len(participants) > 0 {
+			err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, storemodels.MilliToMicroSeconds(post.CreateAt))
+			if err != nil {
+				ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
+			}
+		}
+	}
+
 	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
 func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
@@ -407,8 +414,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
-	msteamsUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsUserID {
+	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
+	if msg.UserID == msteamsBotUserID {
 		return metrics.DiscardedReasonIsBotUser
 	}
 
@@ -438,10 +445,10 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		}
 		channelID = channelLink.MattermostChannelID
 	} else {
-		if !ah.plugin.GetSyncDirectMessages() {
-			// Skipping because direct/group messages are disabled
-			return metrics.DiscardedReasonDirectMessagesDisabled
+		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
+			return reason
 		}
+
 		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 		if postErr != nil {
 			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
@@ -472,7 +479,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
@@ -503,15 +510,15 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		}
 	}
 
-	isDirectMessage := IsDirectMessage(activityIds.ChatID)
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectMessage)
-	ah.handleReactions(postInfo.MattermostID, channelID, isDirectMessage, msg.Reactions)
+	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
+	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
+	ah.handleReactions(postInfo.MattermostID, channelID, isDirectOrGroupMessage, msg.Reactions)
 
 	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
 	return metrics.DiscardedReasonNone
 }
 
-func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMessage bool, reactions []clientmodels.Reaction) {
+func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrGroupMessage bool, reactions []clientmodels.Reaction) {
 	if !ah.plugin.GetSyncReactions() {
 		return
 	}
@@ -551,7 +558,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
 				ah.plugin.GetAPI().LogWarn("Unable to remove reaction", "error", appErr.Error())
 			}
-			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
 		}
 	}
 
@@ -580,12 +587,16 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectMes
 				ah.plugin.GetAPI().LogWarn("failed to create the reaction", "err", appErr)
 				continue
 			}
-			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectMessage)
+			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
 		}
 	}
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
+	if ah.plugin.GetSyncNotifications() {
+		return metrics.DiscardedReasonNotificationsOnly
+	}
+
 	messageID := activityIds.MessageID
 	if activityIds.ReplyID != "" {
 		messageID = activityIds.ReplyID
@@ -601,7 +612,7 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 		return metrics.DiscardedReasonOther
 	}
 
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectMessage(activityIds.ChatID))
+	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectOrGroupMessage(activityIds.ChatID))
 
 	return metrics.DiscardedReasonNone
 }
@@ -630,6 +641,17 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 	return ah.plugin.IsRemoteUser(user)
 }
 
-func IsDirectMessage(chatID string) bool {
+func IsDirectOrGroupMessage(chatID string) bool {
 	return chatID != ""
+}
+
+func (ah *ActivityHandler) ShouldSyncDMGMChannel(chat *clientmodels.Chat) (bool, string) {
+	nb := len(chat.Members)
+	if nb <= 2 && !ah.plugin.GetSyncDirectMessages() {
+		return false, metrics.DiscardedReasonDirectMessagesDisabled
+	} else if nb > 2 && !ah.plugin.GetSyncGroupMessages() {
+		return false, metrics.DiscardedReasonGroupMessagesDisabled
+	}
+
+	return true, ""
 }

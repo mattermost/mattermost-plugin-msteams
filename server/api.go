@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -52,6 +53,7 @@ const (
 	QueryParamPrimaryPlatform                 = "primary_platform"
 	QueryParamChannelID                       = "channel_id"
 	QueryParamPostID                          = "post_id"
+	QueryParamFromPreferences                 = "from_preferences"
 
 	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
@@ -77,6 +79,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/lifecycle", api.processLifecycle).Methods("POST")
 	router.HandleFunc("/autocomplete/teams", api.autocompleteTeams).Methods("GET")
 	router.HandleFunc("/autocomplete/channels", api.autocompleteChannels).Methods("GET")
+	router.HandleFunc("/connection-status", api.connectionStatus).Methods("GET")
 	router.HandleFunc("/connect", api.connect).Methods("GET", "OPTIONS")
 	router.HandleFunc("/oauth-redirect", api.oauthRedirectHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/connected-users", api.getConnectedUsers).Methods(http.MethodGet)
@@ -347,20 +350,27 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		userID = a.p.GetBotUserID()
 	}
 
+	stateSuffix := ""
+	fromPreferences := query.Get(QueryParamFromPreferences)
 	channelID := query.Get(QueryParamChannelID)
 	postID := query.Get(QueryParamPostID)
-	if channelID == "" || postID == "" {
-		a.p.API.LogWarn("Missing channelID or postID from query paramaeters", "channelID", channelID, "postID", postID)
+	if fromPreferences == "true" {
+		stateSuffix = "fromPreferences:true"
+	} else if channelID != "" && postID != "" {
+		stateSuffix = fmt.Sprintf("fromBotMessage:%s|%s", channelID, postID)
+	} else {
+		a.p.API.LogWarn("could not determine origin of the connect request", "channel_id", channelID, "post_id", postID, "from_preferences", fromPreferences)
 		http.Error(w, "Missing required query parameters.", http.StatusBadRequest)
+		return
 	}
 
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
 		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
-		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusForbidden)
 		return
 	}
 
-	state := fmt.Sprintf("%s_%s_%s_%s", model.NewId(), userID, postID, channelID)
+	state := fmt.Sprintf("%s_%s_%s", model.NewId(), userID, stateSuffix)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
@@ -377,6 +387,21 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+}
+
+func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	response := map[string]bool{"connected": false}
+	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
+		response["connected"] = true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		a.p.API.LogWarn("Error while writing response", "error", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
@@ -416,7 +441,9 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID); err != nil {
+	now := time.Now()
+
+	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
 	} else if inviteWasSent {
 		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
@@ -444,7 +471,36 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 
 	stateArr := strings.Split(state, "_")
-	if len(stateArr) != 4 {
+	if len(stateArr) != 3 {
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+
+	// determine origin of the connect request
+	// if the state is fromPreferences, the user is connecting from the preferences page
+	// if the state is fromBotMessage, the user is connecting from a bot message
+	originInfo := strings.Split(stateArr[2], ":")
+	if len(originInfo) != 2 {
+		a.p.API.LogWarn("unable to get origin info from state", "state", stateArr[2])
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+
+	channelID := ""
+	postID := ""
+	switch originInfo[0] {
+	case "fromPreferences":
+		// do nothing
+	case "fromBotMessage":
+		fromBotMessageArgs := strings.Split(originInfo[1], "|")
+		if len(fromBotMessageArgs) != 2 {
+			a.p.API.LogWarn("unable to get args from bot message", "origin_info", originInfo[1])
+			http.Error(w, "Invalid state", http.StatusBadRequest)
+			return
+		}
+		channelID = fromBotMessageArgs[0]
+		postID = fromBotMessageArgs[1]
+	default:
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
@@ -524,7 +580,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
+		canOpenlyConnect, nAvailable, openConnectErr := a.p.UserCanOpenlyConnect(mmUserID)
 		if openConnectErr != nil {
 			a.p.API.LogWarn("Unable to check if user can openly connect", "error", openConnectErr.Error())
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -535,7 +591,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, nil); err != nil {
 				a.p.API.LogWarn("Unable to delete the OAuth token for user", "user_id", mmUserID, "error", err.Error())
 			}
-			http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+
+			if nAvailable > 0 {
+				http.Error(w, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.", http.StatusBadRequest)
+			} else {
+				http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
+			}
 			return
 		}
 	}
@@ -545,6 +606,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
+		UserId: mmUserID,
+	})
 
 	if err = a.p.store.DeleteUserInvite(mmUserID); err != nil {
 		a.p.API.LogWarn("Unable to clear user invite", "user_id", mmUserID, "error", err.Error())
@@ -564,22 +629,30 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
 
 	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	post := &model.Post{
-		Id:        stateArr[2],
-		Message:   userConnectedMessage,
-		ChannelId: stateArr[3],
-		UserId:    a.p.GetBotUserID(),
-		CreateAt:  model.GetMillis(),
-	}
-
-	_, appErr = a.p.GetAPI().GetPost(stateArr[2])
-	if appErr == nil {
-		_, appErr = a.p.GetAPI().UpdatePost(post)
-		if appErr != nil {
-			a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+	switch originInfo[0] {
+	case "fromBotMessage":
+		post := &model.Post{
+			Id:        postID,
+			Message:   userConnectedMessage,
+			ChannelId: channelID,
+			UserId:    a.p.GetBotUserID(),
+			CreateAt:  model.GetMillis(),
 		}
-	} else {
-		_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+
+		_, appErr = a.p.GetAPI().GetPost(post.Id)
+		if appErr == nil {
+			_, appErr = a.p.GetAPI().UpdatePost(post)
+			if appErr != nil {
+				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+			}
+		} else {
+			_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+		}
+	case "fromPreferences":
+		err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
+		if err != nil {
+			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
+		}
 	}
 
 	connectURL := a.p.GetURL() + "/primary-platform"
@@ -927,10 +1000,34 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := a.p.store.GetStats(a.p.GetRemoteID(), a.p.GetPreferenceCategoryName())
+	connectedUsersCount, err := a.p.store.GetConnectedUsersCount()
 	if err != nil {
-		a.p.API.LogWarn("Failed to get site stats", "error", err.Error())
-		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
+		a.p.API.LogWarn("Failed to get connected users count", "error", err.Error())
+		http.Error(w, "unable to get connected users count", http.StatusInternalServerError)
+		return
+	}
+	pendingInvites, err := a.p.store.GetInvitedCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get invited users count", "error", err.Error())
+		http.Error(w, "unable to get invited users count", http.StatusInternalServerError)
+		return
+	}
+	whitelistedUsers, err := a.p.store.GetWhitelistCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get whitelisted users count", "error", err.Error())
+		http.Error(w, "unable to get whitelisted users count", http.StatusInternalServerError)
+		return
+	}
+	receiving, err := a.p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange)
+	if err != nil {
+		a.p.API.LogWarn("Failed to get users receiving count", "error", err.Error())
+		http.Error(w, "unable to get users receiving count", http.StatusInternalServerError)
+		return
+	}
+	sending, err := a.p.store.GetActiveUsersSendingCount(metricsActiveUsersRange)
+	if err != nil {
+		a.p.API.LogWarn("Failed to get sending users count", "error", err.Error())
+		http.Error(w, "unable to get sending users count", http.StatusInternalServerError)
 		return
 	}
 
@@ -938,10 +1035,14 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		TotalConnectedUsers   int64 `json:"total_connected_users"`
 		PendingInvitedUsers   int64 `json:"pending_invited_users"`
 		CurrentWhitelistUsers int64 `json:"current_whitelist_users"`
+		UserReceivingMessages int64 `json:"total_users_receiving"`
+		UserSendingMessages   int64 `json:"total_users_sending"`
 	}{
-		TotalConnectedUsers:   stats.ConnectedUsers,
-		PendingInvitedUsers:   stats.PendingInvites,
-		CurrentWhitelistUsers: stats.WhitelistedUsers,
+		TotalConnectedUsers:   connectedUsersCount,
+		PendingInvitedUsers:   int64(pendingInvites),
+		CurrentWhitelistUsers: int64(whitelistedUsers),
+		UserReceivingMessages: receiving,
+		UserSendingMessages:   sending,
 	}
 
 	data, err := json.Marshal(siteStats)

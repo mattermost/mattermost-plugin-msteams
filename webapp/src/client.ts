@@ -10,6 +10,12 @@ export interface SiteStats {
     total_connected_users: number;
     pending_invited_users: number;
     current_whitelist_users: number;
+    total_users_receiving: number;
+    total_users_sending: number;
+}
+
+export interface ConnectionStatus {
+    connected: boolean;
 }
 
 class ClientClass {
@@ -33,6 +39,14 @@ class ClientClass {
             return null;
         }
         return data as SiteStats;
+    };
+
+    connectionStatus = async (): Promise<ConnectionStatus> => {
+        const data = await this.doGet(`${this.url}/connection-status`);
+        if (!data) {
+            return {connected: false};
+        }
+        return data as ConnectionStatus;
     };
 
     doGet = async (url: string, headers: {[key: string]: any} = {}) => {

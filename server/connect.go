@@ -9,16 +9,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	NewConnectionsEnabled               = "enabled"
-	NewConnectionsRolloutOpen           = "rolloutOpen"
-	NewConnectionsRolloutOpenRestricted = "rolloutOpenRestricted"
-)
-
-func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
-	if p.getConfiguration().NewUserConnections == NewConnectionsEnabled {
-		// new connections allowed, but invites disabled
+func (p *Plugin) MaybeSendInviteMessage(userID string, currentTime time.Time) (bool, error) {
+	if p.getConfiguration().ConnectedUsersMaxPendingInvites == 0 {
 		return false, nil
+	}
+
+	if userID == p.botUserID {
+		return false, errors.New("cannot invite plugin bot")
 	}
 
 	user, err := p.apiClient.User.Get(userID)
@@ -26,16 +23,12 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user")
 	}
 
-	if p.getConfiguration().NewUserConnections == NewConnectionsRolloutOpenRestricted {
-		// new connections allowed, but invites restricted to whitelist
-		isWhitelisted, whitelistErr := p.store.IsUserWhitelisted(userID)
-		if whitelistErr != nil {
-			return false, errors.Wrapf(whitelistErr, "error getting user in whitelist")
-		}
+	if user.IsBot {
+		return false, errors.Wrapf(err, "bot accounts cannot be invited")
+	}
 
-		if !isWhitelisted {
-			return false, nil
-		}
+	if user.IsGuest() {
+		return false, errors.Wrapf(err, "guest accounts cannot be invited")
 	}
 
 	p.connectClusterMutex.Lock()
@@ -56,44 +49,39 @@ func (p *Plugin) MaybeSendInviteMessage(userID string) (bool, error) {
 		return false, errors.Wrapf(err, "error getting user invite")
 	}
 
-	var nWhitelisted int64
 	var pendingSince time.Time
-	now := time.Now()
 
 	if invitedUser != nil {
 		pendingSince = invitedUser.InvitePendingSince
 	} else {
-		moreInvitesAllowed, n, err := p.moreInvitesAllowed()
+		canInvite, err := p.canInviteUser(user.Id)
 		if err != nil {
-			return false, errors.Wrapf(err, "error checking invite pool size")
+			return false, errors.Wrapf(err, "error checking if can invite")
 		}
 
-		if !moreInvitesAllowed {
-			// user not connected, but invite threshold is presently met
+		if !canInvite {
 			return false, nil
 		}
-
-		nWhitelisted = n
 	}
 
-	if !p.shouldSendInviteMessage(pendingSince, now, user.GetTimezoneLocation()) {
+	if !p.shouldSendInviteMessage(pendingSince, currentTime, user.GetTimezoneLocation()) {
 		return false, nil
 	}
 
-	if err := p.SendInviteMessage(user, pendingSince, now, nWhitelisted); err != nil {
+	if err := p.SendInviteMessage(user, pendingSince, currentTime); err != nil {
 		return false, errors.Wrapf(err, "error sending invite")
 	}
 
 	return true, nil
 }
 
-func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time, nWhitelisted int64) error {
+func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time) error {
 	invitedUser := &storemodels.InvitedUser{ID: user.Id, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
 	if invitedUser.InvitePendingSince.IsZero() {
 		invitedUser.InvitePendingSince = currentTime
 	}
 
-	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.userID)
+	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.botUserID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
 	}
@@ -101,7 +89,7 @@ func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, cur
 	message := fmt.Sprintf("@%s, you’re invited to use the Microsoft Teams connected experience for Mattermost. ", user.Username)
 	invitePost := &model.Post{
 		Message:   message,
-		UserId:    p.userID,
+		UserId:    p.botUserID,
 		ChannelId: channel.Id,
 	}
 	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
@@ -141,25 +129,42 @@ func (p *Plugin) shouldSendInviteMessage(
 	return true
 }
 
-func (p *Plugin) moreInvitesAllowed() (bool, int64, error) {
+func (p *Plugin) canInviteUser(userID string) (bool, error) {
+	if p.getConfiguration().ConnectedUsersRestricted {
+		isWhitelisted, err := p.store.IsUserWhitelisted(userID)
+		if err != nil {
+			return false, errors.Wrapf(err, "error in checking if user is whitelisted")
+		}
+
+		if !isWhitelisted {
+			// only whitelisted users can connect in restricted mode
+			return false, nil
+		}
+	}
+
 	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting has-connected count")
+		return false, errors.Wrapf(err, "error in getting has-connected count")
 	}
 	nInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		return false, 0, errors.Wrapf(err, "error in getting invited count")
+		return false, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	if (nConnected + nInvited) >= int64(p.getConfiguration().ConnectedUsersAllowed) {
+	if (nConnected + nInvited) >= p.getConfiguration().ConnectedUsersAllowed {
 		// only invite up to max connected
-		return false, 0, nil
+		return false, nil
 	}
 
-	return nInvited < int64(p.getConfiguration().ConnectedUsersInvitePoolSize), nConnected, nil
+	return nInvited < p.getConfiguration().ConnectedUsersMaxPendingInvites, nil
 }
 
 func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
+	if mmUserID == p.botUserID {
+		// plugin bot always permitted to connect
+		return true, nil
+	}
+
 	hasConnected, err := p.store.UserHasConnected(mmUserID)
 	if err != nil {
 		return false, errors.Wrapf(err, "error in checking if user has connected or not")
@@ -181,20 +186,30 @@ func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
 	return false, nil
 }
 
-func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, error) {
-	numHasConnected, err := p.store.GetHasConnectedCount()
+func (p *Plugin) UserCanOpenlyConnect(mmUserID string) (bool, int, error) {
+	nConnected, err := p.store.GetHasConnectedCount()
 	if err != nil {
-		return false, errors.Wrapf(err, "error in getting has connected count")
+		return false, 0, errors.Wrapf(err, "error in getting has connected count")
 	}
 
-	numInvited, err := p.store.GetInvitedCount()
+	nInvited, err := p.store.GetInvitedCount()
 	if err != nil {
-		return false, errors.Wrapf(err, "error in getting invited count")
+		return false, 0, errors.Wrapf(err, "error in getting invited count")
 	}
 
-	if (numHasConnected + numInvited) >= int64(p.getConfiguration().ConnectedUsersAllowed) {
-		return false, nil
+	nAvailable := p.getConfiguration().ConnectedUsersAllowed - nConnected - nInvited
+
+	if p.getConfiguration().ConnectedUsersRestricted {
+		isWhitelisted, err := p.store.IsUserWhitelisted(mmUserID)
+		if err != nil {
+			return false, 0, errors.Wrapf(err, "error in checking if user is whitelisted")
+		}
+
+		if !isWhitelisted {
+			// only whitelisted users can connect in restricted mode
+			return false, nAvailable, nil
+		}
 	}
 
-	return true, nil
+	return nAvailable > 0, nAvailable, nil
 }

@@ -2,1125 +2,1121 @@ package main
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
-	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
 var fakeToken = oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}
 
-func TestSubscriptionValidation(t *testing.T) {
-	plugin := newTestPlugin(t)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/changes?validationToken=test", nil)
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 200, result.StatusCode)
-	assert.Equal(t, "test", bodyString)
-}
-
-func TestSubscriptionInvalidRequest(t *testing.T) {
-	plugin := newTestPlugin(t)
-	plugin.metricsService.(*metricsmocks.Metrics).On("ObserveAPIEndpointDuration", "/changes", http.MethodPost, fmt.Sprint(http.StatusBadRequest), mock.AnythingOfType("float64")).Times(1)
-	plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/changes", strings.NewReader(""))
-
-	plugin.ServeHTTP(nil, w, r)
-
-	result := w.Result()
-	assert.NotNil(t, result)
-	defer result.Body.Close()
-	bodyBytes, err := io.ReadAll(result.Body)
-	assert.Nil(t, err)
-	bodyString := string(bodyBytes)
-
-	assert.Equal(t, 400, result.StatusCode)
-	assert.Equal(t, "unable to get the activities from the message\n", bodyString)
-}
-
-func TestSubscriptionNewMesage(t *testing.T) {
-	plugin := newTestPlugin(t)
-	ttcases := []struct {
-		Name          string
-		Activities    Activities
-		PopulateMocks func()
-		ExpectedCode  int
-		ExpectedBody  string
-	}{
-		{
-			"Valid message",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
-			},
-			http.StatusAccepted,
-			"",
-		},
-		{
-			"Valid reply",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
-			},
-			http.StatusAccepted,
-			"",
-		},
-		{
-			"Message not found",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
-			},
-			http.StatusAccepted,
-			"",
-		},
-		{
-			"Invalid activity",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "test",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", metrics.ActionCreated).Times(1)
-			},
-			http.StatusAccepted,
-			"",
-		},
-		{
-			"Invalid webhook secret",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
-						ChangeType:                     "created",
-						ClientState:                    "invalid",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil).Times(1)
-			},
-			http.StatusBadRequest,
-			"Invalid webhook secret\n",
-		},
-		{
-			"Encrypted message on encrypted subscription",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-						EncryptedContent:               &msteams.EncryptedContent{},
-					},
-				},
-			},
-			func() {
-				plugin.configuration.CertificateKey = "test"
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
-			},
-			http.StatusBadRequest,
-			"Unable to get private key: invalid certificate key\n\n",
-		},
-		{
-			"Non encrypted message on encrypted subscription",
-			Activities{
-				Value: []msteams.Activity{
-					{
-						Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-						ChangeType:                     "created",
-						ClientState:                    "webhooksecret",
-						SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-					},
-				},
-			},
-			func() {
-				plugin.configuration.CertificateKey = "test"
-				plugin.store.(*storemocks.Store).On("GetTokenForMattermostUser", "bot-user-id").Return(&fakeToken, nil)
-			},
-			http.StatusBadRequest,
-			"Not encrypted content for encrypted subscription\n",
-		},
-	}
-	for _, tc := range ttcases {
-		t.Run(tc.Name, func(t *testing.T) {
-			data, err := json.Marshal(tc.Activities)
-			require.NoError(t, err)
-
-			tc.PopulateMocks()
-			if tc.ExpectedBody != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			} else {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", metrics.ActionCreated).Times(1)
-			}
-
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewReader(data))
-
-			plugin.ServeHTTP(nil, w, r)
-
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
-			bodyBytes, err := io.ReadAll(result.Body)
-			assert.Nil(t, err)
-			bodyString := string(bodyBytes)
-
-			assert.Equal(t, tc.ExpectedCode, result.StatusCode)
-			assert.Equal(t, tc.ExpectedBody, bodyString)
-		})
-	}
-}
-
 func TestProcessActivity(t *testing.T) {
-	newTime := time.Now().Add(30 * time.Minute)
-	for _, test := range []struct {
-		Name               string
-		SetupAPI           func(*plugintest.API)
-		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
-		SetupStore         func(*storemocks.Store)
-		RequestBody        string
-		ValidationToken    string
-		ExpectedStatusCode int
-		ExpectedResult     string
-	}{
-		{
-			Name:               "ProcessActivity: With validation token present",
-			SetupAPI:           func(api *plugintest.API) {},
-			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:         func(store *storemocks.Store) {},
-			ValidationToken:    "mockValidationToken",
-			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     "mockValidationToken",
-		},
-		{
-			Name:               "ProcessActivity: Invalid body",
-			SetupAPI:           func(api *plugintest.API) {},
-			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:         func(store *storemocks.Store) {},
-			RequestBody:        `{`,
-			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedResult:     "unable to get the activities from the message\n",
-		},
-		{
-			Name: "ProcessActivity: Valid body with invalid webhook secret",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
-			RequestBody: `{
-				"Value": [{
-				"Resource": "mockResource",
-				"ClientState": "mockClientState",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "mockLifecycleEvent"
-			}]}`,
-			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedResult:     "Invalid webhook secret\n",
-		},
-		{
-			Name:     "ProcessActivity: Valid body with valid webhook secret",
-			SetupAPI: func(api *plugintest.API) {},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
-			},
-			RequestBody: `{
-				"Value": [{
-				"SubscriptionID": "mockID",
-				"Resource": "mockResource",
-				"ClientState": "webhooksecret",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "mockLifecycleEvent"
-			}]}`,
-			ExpectedStatusCode: http.StatusAccepted,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "changes")
 
-			if test.ExpectedStatusCode == http.StatusAccepted {
-				plugin.metricsService.(*metricsmocks.Metrics).On("ObserveChangeEventTotal", "mockChangeType").Times(1)
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementChangeEventQueueLength", "mockChangeType").Times(1)
-			}
+	sendRequest := func(t *testing.T, activities []msteams.Activity) (*http.Response, string) {
+		t.Helper()
 
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/changes", bytes.NewBufferString(test.RequestBody))
-			if test.ValidationToken != "" {
-				queryParams := url.Values{
-					"validationToken": {"mockValidationToken"},
-				}
+		data, err := json.Marshal(Activities{Value: activities})
+		require.NoError(t, err)
 
-				r.URL.RawQuery = queryParams.Encode()
-			}
-			plugin.ServeHTTP(nil, w, r)
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
-			bodyBytes, _ := io.ReadAll(result.Body)
-			bodyString := string(bodyBytes)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
-			assert.Equal(test.ExpectedResult, bodyString)
-		})
+		response, err := http.Post(apiURL, "text/json", bytes.NewReader(data))
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		return response, bodyString
 	}
+
+	t.Run("validation token", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL+"?validationToken=test", "text/plain", nil)
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, "test", bodyString)
+	})
+
+	t.Run("nil body", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL, "text/plain", nil)
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "unable to get the activities from the message\n", bodyString)
+	})
+
+	t.Run("invalid body", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL, "text/plain", bytes.NewReader([]byte("{")))
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "unable to get the activities from the message\n", bodyString)
+	})
+
+	t.Run("invalid webhook secret", func(t *testing.T) {
+		th.Reset(t)
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
+				ChangeType:                     "created",
+				ClientState:                    "invalid",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "Invalid webhook secret\n", bodyString)
+	})
+
+	t.Run("valid message", func(t *testing.T) {
+		th.Reset(t)
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')",
+				ChangeType:                     "created",
+				ClientState:                    "webhooksecret",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		assert.Empty(t, bodyString)
+	})
+
+	t.Run("valid reply", func(t *testing.T) {
+		th.Reset(t)
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+				ChangeType:                     "created",
+				ClientState:                    "webhooksecret",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		assert.Empty(t, bodyString)
+	})
+
+	t.Run("other resource", func(t *testing.T) {
+		th.Reset(t)
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "test",
+				ChangeType:                     "created",
+				ClientState:                    "webhooksecret",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		assert.Empty(t, bodyString)
+	})
+
+	t.Run("encrypted message on encrypted subscription", func(t *testing.T) {
+		th.Reset(t)
+
+		th.p.configuration.CertificateKey = "test"
+		t.Cleanup(func() {
+			th.p.configuration.CertificateKey = ""
+		})
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+				ChangeType:                     "created",
+				ClientState:                    "webhooksecret",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+				EncryptedContent:               &msteams.EncryptedContent{},
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "Unable to get private key: invalid certificate key\n\n", bodyString)
+	})
+
+	t.Run("non-encrypted message on encrypted subscription", func(t *testing.T) {
+		th.Reset(t)
+
+		th.p.configuration.CertificateKey = "test"
+		t.Cleanup(func() {
+			th.p.configuration.CertificateKey = ""
+		})
+
+		activities := []msteams.Activity{
+			{
+				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
+				ChangeType:                     "created",
+				ClientState:                    "webhooksecret",
+				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "Not encrypted content for encrypted subscription\n", bodyString)
+	})
 }
 
 func TestProcessLifecycle(t *testing.T) {
-	newTime := time.Now().Add(30 * time.Minute)
-	for _, test := range []struct {
-		Name               string
-		ValidationToken    string
-		SetupAPI           func(*plugintest.API)
-		SetupClient        func(client *clientmocks.Client, uclient *clientmocks.Client)
-		SetupStore         func(*storemocks.Store)
-		SetupMetrics       func(mockmetrics *metricsmocks.Metrics)
-		RequestBody        string
-		ExpectedStatusCode int
-		ExpectedResult     string
-	}{
-		{
-			Name:        "ProcessLifecycle: With validation token present",
-			SetupAPI:    func(api *plugintest.API) {},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", "").Times(1)
-			},
-			ValidationToken: "mockValidationToken",
-			RequestBody: `{
-				"Value": [{
-				"Resource": "mockResource",
-				"ClientState": "webhooksecret",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "mockLifecycleEvent"
-			}]}`,
-			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     "mockValidationToken",
-		},
-		{
-			Name:        "ProcessLifecycle: Invalid body",
-			SetupAPI:    func(api *plugintest.API) {},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("IncrementHTTPErrors").Times(1)
-			},
-			RequestBody:        `{`,
-			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedResult:     "unable to get the lifecycle events from the message\n",
-		},
-		{
-			Name: "ProcessLifecycle: Valid body with invalid webhook secret",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore:  func(store *storemocks.Store) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("IncrementHTTPErrors").Times(1)
-				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", mock.AnythingOfType("string")).Times(1)
-			},
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "lifecycle")
+	team := th.SetupTeam(t)
 
-			RequestBody: `{
-				"Value": [{
-				"Resource": "mockResource",
-				"ClientState": "mockClientState",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "mockLifecycleEvent"
-			}]}`,
-			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedResult:     "Invalid webhook secret\n",
-		},
-		{
-			Name:        "ProcessLifecycle: Valid body with valid webhook secret and without refresh needed",
-			SetupAPI:    func(api *plugintest.API) {},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetChannelSubscription", "mockID").Return(&storemodels.ChannelSubscription{
-					TeamID:    testutils.GetTeamsTeamID(),
-					ChannelID: testutils.GetMSTeamsChannelID(),
-				}, nil).Once()
-				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveLifecycleEvent", "mockLifecycleEvent", "").Times(1)
-			},
-			RequestBody: `{
-				"Value": [{
-				"SubscriptionID": "mockID",
-				"Resource": "mockResource",
-				"ClientState": "webhooksecret",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "mockLifecycleEvent"
-			}]}`,
-			ExpectedStatusCode: http.StatusOK,
-		},
-		{
-			Name:     "ProcessLifecycle: Valid body with valid webhook secret and with refresh needed",
-			SetupAPI: func(api *plugintest.API) {},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("RefreshSubscription", "mockID").Return(&newTime, nil)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetChannelSubscription", "mockID").Return(&storemodels.ChannelSubscription{
-					TeamID:    testutils.GetTeamsTeamID(),
-					ChannelID: testutils.GetMSTeamsChannelID(),
-				}, nil).Once()
-				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsTeamID(), testutils.GetMSTeamsChannelID()).Return(nil, nil).Once()
-				store.On("UpdateSubscriptionExpiresOn", "mockID", newTime).Return(nil)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveSubscription", metrics.SubscriptionRefreshed).Times(1)
-				mockmetrics.On("ObserveLifecycleEvent", "reauthorizationRequired", "").Times(1)
-			},
-			RequestBody: `{
-				"Value": [{
-				"SubscriptionID": "mockID",
-				"ClientState": "webhooksecret",
-				"ChangeType": "mockChangeType",
-				"LifecycleEvent": "reauthorizationRequired"
-			}]}`,
-			ExpectedStatusCode: http.StatusOK,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
+	sendRequest := func(t *testing.T, activities []msteams.Activity) (*http.Response, string) {
+		t.Helper()
 
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/lifecycle", bytes.NewBufferString(test.RequestBody))
-			if test.ValidationToken != "" {
-				queryParams := url.Values{
-					"validationToken": {"mockValidationToken"},
-				}
+		data, err := json.Marshal(Activities{Value: activities})
+		require.NoError(t, err)
 
-				r.URL.RawQuery = queryParams.Encode()
-			}
-			plugin.ServeHTTP(nil, w, r)
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
-			bodyBytes, _ := io.ReadAll(result.Body)
-			bodyString := string(bodyBytes)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
-			assert.Equal(test.ExpectedResult, bodyString)
-		})
+		response, err := http.Post(apiURL, "text/json", bytes.NewReader(data))
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		return response, bodyString
 	}
+
+	t.Run("validation token", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL+"?validationToken=test", "text/plain", nil)
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, "test", bodyString)
+	})
+
+	t.Run("nil body", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL, "text/plain", nil)
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "unable to get the lifecycle events from the message\n", bodyString)
+	})
+
+	t.Run("invalid body", func(t *testing.T) {
+		th.Reset(t)
+
+		response, err := http.Post(apiURL, "text/plain", bytes.NewReader([]byte("{")))
+		require.NoError(t, err)
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "unable to get the lifecycle events from the message\n", bodyString)
+	})
+
+	t.Run("invalid webhook secret", func(t *testing.T) {
+		th.Reset(t)
+
+		activities := []msteams.Activity{
+			{
+				Resource:       "mockResource",
+				ChangeType:     "mockChangeType",
+				ClientState:    "mockClientState",
+				LifecycleEvent: "mockLifecycleEvent",
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		assert.Equal(t, "Invalid webhook secret\n", bodyString)
+	})
+
+	t.Run("valid event, no refresh needed", func(t *testing.T) {
+		th.Reset(t)
+
+		channel := th.SetupPublicChannel(t, team)
+
+		subscription := storemodels.ChannelSubscription{
+			SubscriptionID: model.NewId(),
+			TeamID:         model.NewId(),
+			ChannelID:      model.NewId(),
+			ExpiresOn:      time.Now().Add(10 * time.Minute),
+			Secret:         th.p.getConfiguration().WebhookSecret,
+		}
+		err := th.p.GetStore().SaveChannelSubscription(subscription)
+		require.NoError(t, err)
+
+		link := &storemodels.ChannelLink{
+			MattermostTeamID:      channel.TeamId,
+			MattermostTeamName:    team.Name,
+			MattermostChannelID:   channel.Id,
+			MattermostChannelName: channel.Name,
+			MSTeamsTeam:           subscription.TeamID,
+			MSTeamsChannel:        subscription.ChannelID,
+			Creator:               "creator_id",
+		}
+		err = th.p.GetStore().StoreChannelLink(link)
+		require.NoError(t, err)
+
+		activities := []msteams.Activity{
+			{
+				SubscriptionID: subscription.SubscriptionID,
+				Resource:       "mockResource",
+				ClientState:    "webhooksecret",
+				ChangeType:     "mockChangeType",
+				LifecycleEvent: "mockLifecycleEvent",
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, bodyString)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_lifecycle_events_total",
+				withLabel("event_type", "mockLifecycleEvent"),
+				withLabel("discarded_reason", metrics.DiscardedReasonNone),
+			) == 1
+		}, 5*time.Second, 500*time.Millisecond)
+	})
+
+	t.Run("valid event, refresh needed", func(t *testing.T) {
+		th.Reset(t)
+
+		channel := th.SetupPublicChannel(t, team)
+
+		subscription := storemodels.ChannelSubscription{
+			SubscriptionID: model.NewId(),
+			TeamID:         model.NewId(),
+			ChannelID:      model.NewId(),
+			ExpiresOn:      time.Now().Add(10 * time.Minute),
+			Secret:         th.p.getConfiguration().WebhookSecret,
+		}
+		err := th.p.GetStore().SaveChannelSubscription(subscription)
+		require.NoError(t, err)
+
+		link := &storemodels.ChannelLink{
+			MattermostTeamID:      channel.TeamId,
+			MattermostTeamName:    team.Name,
+			MattermostChannelID:   channel.Id,
+			MattermostChannelName: channel.Name,
+			MSTeamsTeam:           subscription.TeamID,
+			MSTeamsChannel:        subscription.ChannelID,
+			Creator:               "creator_id",
+		}
+		err = th.p.GetStore().StoreChannelLink(link)
+		require.NoError(t, err)
+
+		activities := []msteams.Activity{
+			{
+				SubscriptionID: subscription.SubscriptionID,
+				Resource:       "mockResource",
+				ClientState:    "webhooksecret",
+				ChangeType:     "mockChangeType",
+				LifecycleEvent: "reauthorizationRequired",
+			},
+		}
+
+		expiresOn := time.Now().Add(1 * time.Hour)
+		th.appClientMock.On("RefreshSubscription", subscription.SubscriptionID).Return(&expiresOn, nil).Times(1)
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, bodyString)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_lifecycle_events_total",
+				withLabel("event_type", "reauthorizationRequired"),
+				withLabel("discarded_reason", metrics.DiscardedReasonNone),
+			) == 1
+		}, 5*time.Second, 500*time.Millisecond)
+	})
 }
 
 func TestAutocompleteTeams(t *testing.T) {
-	for _, test := range []struct {
-		Name           string
-		SetupAPI       func(*plugintest.API)
-		SetupStore     func(*storemocks.Store)
-		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics   func(metrics *metricsmocks.Metrics)
-		ExpectedResult []model.AutocompleteListItem
-	}{
-		{
-			Name: "AutocompleteTeams: Unable to get client for the user",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
-			ExpectedResult: []model.AutocompleteListItem{},
-		},
-		{
-			Name: "AutocompleteTeams: Unable to get the teams list",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "false", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedResult: []model.AutocompleteListItem{},
-		},
-		{
-			Name: "AutocompleteTeams: Valid",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListTeams").Return([]clientmodels.Team{
-					{
-						ID:          "mockTeamsTeamID-1",
-						DisplayName: "mockDisplayName-1",
-						Description: "mockDescription-1",
-					},
-					{
-						ID:          "mockTeamsTeamID-2",
-						DisplayName: "mockDisplayName-2",
-						Description: "mockDescription-2",
-					},
-				}, nil).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListTeams", "true", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedResult: []model.AutocompleteListItem{
-				{
-					Item:     "mockTeamsTeamID-1",
-					Hint:     "mockDisplayName-1",
-					HelpText: "mockDescription-1",
-				},
-				{
-					Item:     "mockTeamsTeamID-2",
-					Hint:     "mockDisplayName-2",
-					HelpText: "mockDescription-2",
-				},
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "",
-				"", nil, nil).(*clientmocks.Client))
-			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/autocomplete/teams", nil)
-			r.Header.Add("Mattermost-User-ID", testutils.GetID())
-			plugin.ServeHTTP(nil, w, r)
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/autocomplete/teams")
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+	client1 := th.SetupClient(t, user1.Id)
 
-			var list []model.AutocompleteListItem
-			err := json.NewDecoder(result.Body).Decode(&list)
-			require.Nil(t, err)
-			assert.Equal(test.ExpectedResult, list)
+	sendRequest := func(t *testing.T, user *model.User) (*http.Response, []model.AutocompleteListItem) {
+		t.Helper()
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		var list []model.AutocompleteListItem
+		if response.StatusCode == http.StatusOK {
+			err := json.NewDecoder(response.Body).Decode(&list)
+			require.Nil(t, err)
+		}
+
+		return response, list
 	}
+
+	t.Run("no client for user", func(t *testing.T) {
+		th.Reset(t)
+
+		response, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, list)
+	})
+
+	t.Run("failed to get teams list", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
+
+		response, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, list)
+	})
+
+	t.Run("single team returned", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListTeams").Return([]clientmodels.Team{
+			{
+				ID:          "mockTeamsTeamID-1",
+				DisplayName: "mockDisplayName-1",
+				Description: "mockDescription-1",
+			},
+		}, nil).Times(1)
+
+		response, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []model.AutocompleteListItem{
+			{
+				Item:     "mockTeamsTeamID-1",
+				Hint:     "mockDisplayName-1",
+				HelpText: "mockDescription-1",
+			},
+		}, list)
+	})
+
+	t.Run("multiple teams returned", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListTeams").Return([]clientmodels.Team{
+			{
+				ID:          "mockTeamsTeamID-1",
+				DisplayName: "mockDisplayName-1",
+				Description: "mockDescription-1",
+			},
+			{
+				ID:          "mockTeamsTeamID-2",
+				DisplayName: "mockDisplayName-2",
+				Description: "mockDescription-2",
+			},
+		}, nil).Times(1)
+
+		response, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []model.AutocompleteListItem{
+			{
+				Item:     "mockTeamsTeamID-1",
+				Hint:     "mockDisplayName-1",
+				HelpText: "mockDescription-1",
+			},
+			{
+				Item:     "mockTeamsTeamID-2",
+				Hint:     "mockDisplayName-2",
+				HelpText: "mockDescription-2",
+			},
+		}, list)
+	})
 }
 
 func TestAutocompleteChannels(t *testing.T) {
-	for _, test := range []struct {
-		Name           string
-		QueryParams    string
-		SetupAPI       func(*plugintest.API)
-		SetupStore     func(*storemocks.Store)
-		SetupClient    func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics   func(metrics *metricsmocks.Metrics)
-		ExpectedResult []model.AutocompleteListItem
-	}{
-		{
-			Name:           "AutocompleteChannels: Query params not present",
-			SetupAPI:       func(a *plugintest.API) {},
-			SetupStore:     func(store *storemocks.Store) {},
-			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
-			ExpectedResult: []model.AutocompleteListItem{},
-		},
-		{
-			Name: "AutocompleteChannels: Unable to get client for the user",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			QueryParams: "mockData-1 mockData-2 mockData-3",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			SetupClient:    func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:   func(metrics *metricsmocks.Metrics) {},
-			ExpectedResult: []model.AutocompleteListItem{},
-		},
-		{
-			Name: "AutocompleteChannels: Unable to get the channels list",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			QueryParams: "mockData-1 mockData-2 mockData-3",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "false", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedResult: []model.AutocompleteListItem{},
-		},
-		{
-			Name: "AutocompleteChannels: Valid",
-			SetupAPI: func(api *plugintest.API) {
-			},
-			QueryParams: "mockData-1 mockData-2 mockData-3",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("ListChannels", "mockData-3").Return([]clientmodels.Channel{
-					{
-						ID:          "mockTeamsTeamID-1",
-						DisplayName: "mockDisplayName-1",
-						Description: "mockDescription-1",
-					},
-					{
-						ID:          "mockTeamsTeamID-2",
-						DisplayName: "mockDisplayName-2",
-						Description: "mockDescription-2",
-					},
-				}, nil).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.ListChannels", "true", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedResult: []model.AutocompleteListItem{
-				{
-					Item:     "mockTeamsTeamID-1",
-					Hint:     "mockDisplayName-1",
-					HelpText: "mockDescription-1",
-				},
-				{
-					Item:     "mockTeamsTeamID-2",
-					Hint:     "mockDisplayName-2",
-					HelpText: "mockDescription-2",
-				},
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			test.SetupAPI(plugin.API.(*plugintest.API))
-			test.SetupStore(plugin.store.(*storemocks.Store))
-			test.SetupClient(plugin.msteamsAppClient.(*clientmocks.Client), plugin.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			test.SetupMetrics(plugin.metricsService.(*metricsmocks.Metrics))
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/autocomplete/channels", nil)
-			if test.QueryParams != "" {
-				queryParams := url.Values{
-					"parsed": {test.QueryParams},
-				}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/autocomplete/channels")
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+	client1 := th.SetupClient(t, user1.Id)
 
-				r.URL.RawQuery = queryParams.Encode()
-			}
+	sendRequest := func(t *testing.T, user *model.User, queryParams string) (*http.Response, []model.AutocompleteListItem) {
+		t.Helper()
 
-			r.Header.Add("Mattermost-User-ID", testutils.GetID())
-			plugin.ServeHTTP(nil, w, r)
-			result := w.Result()
-			assert.NotNil(t, result)
-			defer result.Body.Close()
+		u := apiURL
+		if queryParams != "" {
+			u += "?" + url.Values{"parsed": {queryParams}}.Encode()
+		}
 
-			var list []model.AutocompleteListItem
-			err := json.NewDecoder(result.Body).Decode(&list)
-			require.Nil(t, err)
-			assert.Equal(test.ExpectedResult, list)
+		request, err := http.NewRequest(http.MethodGet, u, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		var list []model.AutocompleteListItem
+		if response.StatusCode == http.StatusOK {
+			err := json.NewDecoder(response.Body).Decode(&list)
+			require.Nil(t, err)
+		}
+
+		return response, list
 	}
+
+	t.Run("no query parameters", func(t *testing.T) {
+		th.Reset(t)
+
+		response, list := sendRequest(t, user1, "")
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, list)
+	})
+
+	t.Run("no client for user", func(t *testing.T) {
+		th.Reset(t)
+
+		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, list)
+	})
+
+	t.Run("failed to get channels list", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
+
+		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, list)
+	})
+
+	t.Run("single channel returned", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListChannels", "mockData-3").Return([]clientmodels.Channel{
+			{
+				ID:          "mockTeamsChannelID-1",
+				DisplayName: "mockDisplayName-1",
+				Description: "mockDescription-1",
+			},
+		}, nil).Times(1)
+
+		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []model.AutocompleteListItem{
+			{
+				Item:     "mockTeamsChannelID-1",
+				Hint:     "mockDisplayName-1",
+				HelpText: "mockDescription-1",
+			},
+		}, list)
+	})
+
+	t.Run("multiple channels returned", func(t *testing.T) {
+		th.Reset(t)
+
+		th.ConnectUser(t, user1.Id)
+		th.clientMock.On("ListChannels", "mockData-3").Return([]clientmodels.Channel{
+			{
+				ID:          "mockTeamsChannelID-1",
+				DisplayName: "mockDisplayName-1",
+				Description: "mockDescription-1",
+			},
+			{
+				ID:          "mockTeamsChannelID-2",
+				DisplayName: "mockDisplayName-2",
+				Description: "mockDescription-2",
+			},
+		}, nil).Times(1)
+
+		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []model.AutocompleteListItem{
+			{
+				Item:     "mockTeamsChannelID-1",
+				Hint:     "mockDisplayName-1",
+				HelpText: "mockDescription-1",
+			},
+			{
+				Item:     "mockTeamsChannelID-2",
+				Hint:     "mockDisplayName-2",
+				HelpText: "mockDescription-2",
+			},
+		}, list)
+	})
 }
 
 func TestConnect(t *testing.T) {
-	for _, test := range []struct {
-		Name               string
-		SetupPlugin        func(*plugintest.API)
-		SetupStore         func(*storemocks.Store)
-		ExpectedResult     string
-		ExpectedStatusCode int
-		isBot              bool
-	}{
-		{
-			Name: "connect: User already connected",
-			SetupPlugin: func(api *plugintest.API) {
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(&oauth2.Token{}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusInternalServerError,
-		},
-		{
-			Name: "connect: User connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
-				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", testutils.GetUserID()), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
-				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusSeeOther,
-		},
-		{
-			Name: "connect: Error in storing the OAuth state",
-			SetupPlugin: func(api *plugintest.API) {
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(errors.New("error in storing the oauth state")).Times(1)
-				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
-			},
-			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
-			ExpectedStatusCode: http.StatusInternalServerError,
-		},
-		{
-			Name: "connect: Error in storing the code verifier",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("KVSet", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(&model.AppError{
-					Message: "error in storing the code verifier",
-				}).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
-				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
-			},
-			ExpectedResult:     "Error in trying to connect the account, please try again.\n",
-			ExpectedStatusCode: http.StatusInternalServerError,
-		},
-		{
-			Name: "connect: Bot Permissions",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", mock.AnythingOfType("string"), model.PermissionManageSystem).Return(false).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-			},
-			ExpectedStatusCode: http.StatusInternalServerError,
-			isBot:              true,
-		},
-		{
-			Name: "connect: Bot connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(1)
-				api.On("KVSet", fmt.Sprintf("_code_verifier_%s", "bot-user-id"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
-				api.On("HasPermissionTo", mock.AnythingOfType("string"), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", mock.AnythingOfType("string")).Return(nil, nil).Times(1)
-				store.On("StoreOAuth2State", mock.AnythingOfType("string")).Return(nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusSeeOther,
-			isBot:              true,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connect")
+	team := th.SetupTeam(t)
 
-			mockAPI := &plugintest.API{}
-			testutils.MockLogs(mockAPI)
-			plugin.SetAPI(mockAPI)
+	sendRequest := func(t *testing.T, user *model.User, channelID, postID string) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
 
-			defer mockAPI.AssertExpectations(t)
+		u := apiURL
 
-			test.SetupPlugin(mockAPI)
-			test.SetupStore(plugin.store.(*storemocks.Store))
+		// 		endPoint := "/connect?"
+		// 		if test.isBot {
+		// 			endPoint += "isBot&"
+		// 		}
 
-			w := httptest.NewRecorder()
-			endPoint := "/connect?"
-			if test.isBot {
-				endPoint += "isBot&"
-			}
-			endPoint += "channel_id=123&post_id=456"
-			r := httptest.NewRequest(http.MethodGet, endPoint, nil)
-			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
-			plugin.ServeHTTP(nil, w, r)
+		values := make(url.Values)
+		if channelID != "" {
+			values["channel_id"] = []string{channelID}
+		}
+		if postID != "" {
+			values["post_id"] = []string{postID}
+		}
+		if len(values) > 0 {
+			u += "?" + values.Encode()
+		}
 
-			result := w.Result()
-			defer result.Body.Close()
+		request, err := http.NewRequest(http.MethodGet, u, nil)
+		require.NoError(t, err)
 
-			assert.NotNil(t, result)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+		client := &http.Client{
+			// Don't follow redirects
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 
-			bodyBytes, err := io.ReadAll(result.Body)
-			assert.Nil(err)
-			if test.ExpectedResult != "" {
-				assert.Equal(test.ExpectedResult, string(bodyBytes))
-			}
+		response, err := client.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		return response
 	}
+
+	t.Run("missing channel parameter", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		response := sendRequest(t, user1, "", "post_id")
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	})
+
+	t.Run("missing post parameter", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		response := sendRequest(t, user1, "channel_id", "")
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	})
+
+	t.Run("missing channel and post parameters", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		response := sendRequest(t, user1, "", "")
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	})
+
+	t.Run("user already connected", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		response := sendRequest(t, user1, "channel_id", "post_id")
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+	})
+
+	t.Run("user connected", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		response := sendRequest(t, user1, "channel_id", "post_id")
+		assert.Equal(t, http.StatusSeeOther, response.StatusCode)
+
+		actualURL, err := url.Parse(response.Header.Get("Location"))
+		require.NoError(t, err)
+		assert.Equal(t, "login.microsoftonline.com", actualURL.Host)
+		assert.Regexp(t, "oauth2/v2.0/authorize$", actualURL.Path)
+	})
+
+	t.Run("not system admin when connecting bot", func(t *testing.T) {
+		t.Skip()
+	})
+
+	t.Run("bot already connected", func(t *testing.T) {
+		t.Skip()
+	})
+
+	t.Run("bot connected", func(t *testing.T) {
+		t.Skip()
+	})
+}
+
+func TestOAuthRedirectHandler(t *testing.T) {
+	t.Skip()
 }
 
 func TestGetConnectedUsers(t *testing.T) {
-	for _, test := range []struct {
-		Name               string
-		SetupPlugin        func(*plugintest.API)
-		SetupStore         func(*storemocks.Store)
-		ExpectedResult     string
-		ExpectedStatusCode int
-	}{
-		{
-			Name: "getConnectedUsers: Insufficient permissions for the user",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-			},
-			SetupStore:         func(store *storemocks.Store) {},
-			ExpectedStatusCode: http.StatusForbidden,
-			ExpectedResult:     "not able to authorize the user\n",
-		},
-		{
-			Name: "getConnectedUsers: Unable to get the list of connected users from the store",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
-			},
-			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedResult:     "unable to get connected users list\n",
-		},
-		{
-			Name: "getConnectedUsers: No user is connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUser{}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-		},
-		{
-			Name: "getConnectedUsers: Users are connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUser{
-					{
-						MattermostUserID: testutils.GetUserID(),
-						TeamsUserID:      testutils.GetTeamsUserID(),
-						Email:            testutils.GetTestEmail(),
-					},
-				}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connected-users")
+	team := th.SetupTeam(t)
 
-			mockAPI := &plugintest.API{}
-			testutils.MockLogs(mockAPI)
+	sendRequest := func(t *testing.T, user *model.User) (*http.Response, []storemodels.ConnectedUser) {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
 
-			plugin.SetAPI(mockAPI)
-			defer mockAPI.AssertExpectations(t)
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
 
-			test.SetupPlugin(mockAPI)
-			test.SetupStore(plugin.store.(*storemocks.Store))
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
 
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connected-users", nil)
-			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
-			plugin.ServeHTTP(nil, w, r)
-
-			result := w.Result()
-			defer result.Body.Close()
-
-			assert.NotNil(t, result)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
-
-			bodyBytes, err := io.ReadAll(result.Body)
-			assert.Nil(err)
-			if test.ExpectedResult != "" {
-				assert.Equal(test.ExpectedResult, string(bodyBytes))
-			}
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		var list []storemodels.ConnectedUser
+		if response.StatusCode == http.StatusOK {
+			err := json.NewDecoder(response.Body).Decode(&list)
+			require.Nil(t, err)
+		}
+
+		return response, list
 	}
+
+	t.Run("insufficient permissions", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		response, connectedUsers := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		assert.Empty(t, connectedUsers)
+	})
+
+	t.Run("no connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		response, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, connectedUsers)
+	})
+
+	t.Run("some connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+		user3 := th.SetupUser(t, team)
+		th.ConnectUser(t, user3.Id)
+		user4 := th.SetupUser(t, team)
+		th.ConnectUser(t, user4.Id)
+
+		response, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []storemodels.ConnectedUser{
+			{
+				MattermostUserID: user1.Id,
+				TeamsUserID:      "t" + user1.Id,
+				FirstName:        user1.FirstName,
+				LastName:         user1.LastName,
+				Email:            user1.Email,
+			},
+			{
+				MattermostUserID: user2.Id,
+				TeamsUserID:      "t" + user2.Id,
+				FirstName:        user2.FirstName,
+				LastName:         user2.LastName,
+				Email:            user2.Email,
+			},
+			{
+				MattermostUserID: user3.Id,
+				TeamsUserID:      "t" + user3.Id,
+				FirstName:        user3.FirstName,
+				LastName:         user3.LastName,
+				Email:            user3.Email,
+			},
+			{
+				MattermostUserID: user4.Id,
+				TeamsUserID:      "t" + user4.Id,
+				FirstName:        user4.FirstName,
+				LastName:         user4.LastName,
+				Email:            user4.Email,
+			},
+		}, connectedUsers)
+	})
 }
 
 func TestGetConnectedUsersFile(t *testing.T) {
-	for _, test := range []struct {
-		Name               string
-		SetupPlugin        func(*plugintest.API)
-		SetupStore         func(*storemocks.Store)
-		ExpectedResult     string
-		ExpectedStatusCode int
-	}{
-		{
-			Name: "getConnectedUsers: Insufficient permissions for the user",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-			},
-			SetupStore:         func(store *storemocks.Store) {},
-			ExpectedStatusCode: http.StatusForbidden,
-			ExpectedResult:     "not able to authorize the user\n",
-		},
-		{
-			Name: "getConnectedUsers: Unable to get the list of connected users from the store",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return(nil, errors.New("unable to get the list of connected users from the store")).Times(1)
-			},
-			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedResult:     "unable to get connected users list\n",
-		},
-		{
-			Name: "getConnectedUsers: No user is connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUser{}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-		},
-		{
-			Name: "getConnectedUsers: Users are connected",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetConnectedUsers", 0, 100).Return([]*storemodels.ConnectedUser{
-					{
-						MattermostUserID: testutils.GetUserID(),
-						TeamsUserID:      testutils.GetTeamsUserID(),
-						Email:            testutils.GetTestEmail(),
-					},
-				}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connected-users/download")
+	team := th.SetupTeam(t)
 
-			mockAPI := &plugintest.API{}
-			plugin.SetAPI(mockAPI)
-			testutils.MockLogs(mockAPI)
+	sendRequest := func(t *testing.T, user *model.User) (*http.Response, [][]string) {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
 
-			defer mockAPI.AssertExpectations(t)
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
 
-			test.SetupPlugin(mockAPI)
-			test.SetupStore(plugin.store.(*storemocks.Store))
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
 
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/connected-users/download", nil)
-			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
-			plugin.ServeHTTP(nil, w, r)
-
-			result := w.Result()
-			defer result.Body.Close()
-
-			assert.NotNil(t, result)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
-
-			bodyBytes, err := io.ReadAll(result.Body)
-			assert.Nil(err)
-			if test.ExpectedResult != "" {
-				assert.Equal(test.ExpectedResult, string(bodyBytes))
-			}
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		var records [][]string
+		if response.StatusCode == http.StatusOK {
+			assert.Equal(t, "text/csv", response.Header.Get("Content-Type"))
+			assert.Equal(t, "attachment;filename=connected-users.csv", response.Header.Get("Content-Disposition"))
+
+			csvReader := csv.NewReader(response.Body)
+			records, err = csvReader.ReadAll()
+			require.Nil(t, err)
+		}
+
+		return response, records
 	}
+
+	t.Run("insufficient permissions", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		response, connectedUsers := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		assert.Empty(t, connectedUsers)
+	})
+
+	t.Run("no connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		response, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, [][]string{
+			{"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id"},
+		}, connectedUsers)
+	})
+
+	t.Run("some connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+		user3 := th.SetupUser(t, team)
+		th.ConnectUser(t, user3.Id)
+		user4 := th.SetupUser(t, team)
+		th.ConnectUser(t, user4.Id)
+
+		response, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, []string{
+			"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id",
+		}, connectedUsers[0])
+		assert.ElementsMatch(t, [][]string{
+			{user1.FirstName, user1.LastName, user1.Email, user1.Id, "t" + user1.Id},
+			{user2.FirstName, user2.LastName, user2.Email, user2.Id, "t" + user2.Id},
+			{user3.FirstName, user3.LastName, user3.Email, user3.Id, "t" + user3.Id},
+			{user4.FirstName, user4.LastName, user4.Email, user4.Id, "t" + user4.Id},
+		}, connectedUsers[1:])
+	})
+}
+
+func TestWhitelist(t *testing.T) {
+	t.Skip()
+}
+
+func TestWhitelistDownload(t *testing.T) {
+	t.Skip()
+}
+
+func TestNotifyConnect(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/notify-connect")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
+
+		u := apiURL
+
+		request, err := http.NewRequest(http.MethodGet, u, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		return response
+	}
+
+	t.Run("not authorized", func(t *testing.T) {
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+	})
+
+	t.Run("notify connect", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+
+		response := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
+}
+
+func TestChoosePrimaryPlatform(t *testing.T) {
+	t.Skip()
 }
 
 func TestGetSiteStats(t *testing.T) {
-	for _, test := range []struct {
-		Name               string
-		SetupPlugin        func(*plugintest.API)
-		SetupStore         func(*storemocks.Store)
-		ExpectedResult     string
-		ExpectedStatusCode int
-	}{
-		{
-			Name: "getSiteStats: Insufficient permissions for the user",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(false).Times(1)
-			},
-			SetupStore:         func(store *storemocks.Store) {},
-			ExpectedStatusCode: http.StatusForbidden,
-			ExpectedResult:     "not able to authorize the user\n",
-		},
-		{
-			Name: "getSiteStats: Unable to get the list of connected users from the store",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(nil, errors.New("failed")).Times(1)
-			},
-			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedResult:     "unable to get site stats\n",
-		},
-		{
-			Name: "getSiteStats: no connected users",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
-					ConnectedUsers:    0,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
-					MattermostPrimary: 0,
-					MSTeamsPrimary:    0,
-				}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":0}`,
-		},
-		{
-			Name: "getSiteStats: 1 connected user",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
-					ConnectedUsers:    1,
-					PendingInvites:    1,
-					WhitelistedUsers:  1,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
-					MattermostPrimary: 1,
-					MSTeamsPrimary:    0,
-				}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":1}`,
-		},
-		{
-			Name: "getSiteStats: 10 connected users",
-			SetupPlugin: func(api *plugintest.API) {
-				api.On("HasPermissionTo", testutils.GetUserID(), model.PermissionManageSystem).Return(true).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetStats", "remote-id", "pp_"+pluginID).Return(&storemodels.Stats{
-					ConnectedUsers:    10,
-					PendingInvites:    20,
-					WhitelistedUsers:  100,
-					SyntheticUsers:    999,
-					LinkedChannels:    999,
-					MattermostPrimary: 5,
-					MSTeamsPrimary:    5,
-				}, nil).Times(1)
-			},
-			ExpectedStatusCode: http.StatusOK,
-			ExpectedResult:     `{"total_connected_users":10}`,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			plugin := newTestPlugin(t)
-			if test.ExpectedResult != "" {
-				plugin.metricsService.(*metricsmocks.Metrics).On("IncrementHTTPErrors").Times(1)
-			}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/stats/site")
+	team := th.SetupTeam(t)
 
-			mockAPI := &plugintest.API{}
-			testutils.MockLogs(mockAPI)
+	sendRequest := func(t *testing.T, user *model.User) (*http.Response, string) {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
 
-			plugin.SetAPI(mockAPI)
-			defer mockAPI.AssertExpectations(t)
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
 
-			test.SetupPlugin(mockAPI)
-			test.SetupStore(plugin.store.(*storemocks.Store))
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
 
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/stats/site", nil)
-			r.Header.Add("Mattermost-User-Id", testutils.GetUserID())
-			plugin.ServeHTTP(nil, w, r)
-
-			result := w.Result()
-			defer result.Body.Close()
-
-			assert.NotNil(t, result)
-			assert.Equal(test.ExpectedStatusCode, result.StatusCode)
-
-			bodyBytes, err := io.ReadAll(result.Body)
-			assert.Nil(err)
-			if test.ExpectedResult != "" {
-				assert.Equal(test.ExpectedResult, string(bodyBytes))
-			}
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
 		})
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		bodyString := string(bodyBytes)
+
+		return response, bodyString
 	}
+
+	t.Run("insufficient permissions", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		response, bodyString := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		assert.Equal(t, "not able to authorize the user\n", bodyString)
+	})
+
+	t.Run("no connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		response, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.JSONEq(t, `{"total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+	})
+
+	t.Run("1 connected user", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		err := th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+		require.NoError(t, err)
+		err = th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+		require.NoError(t, err)
+
+		response, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.JSONEq(t, `{"total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+	})
+
+	t.Run("10 connected users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		for i := 0; i < 10; i++ {
+			user := th.SetupUser(t, team)
+			th.ConnectUser(t, user.Id)
+
+			if i < 5 {
+				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
+			} else {
+				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
+			}
+			if i < 2 {
+				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
+			} else {
+				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
+				require.NoError(t, err)
+			}
+		}
+
+		response, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+	})
+}
+
+func TestPrimaryPlatform(t *testing.T) {
+	t.Skip()
+}
+
+func TestIFrameMattermostTab(t *testing.T) {
+	t.Skip()
+}
+
+func TestIFrameManifest(t *testing.T) {
+	t.Skip()
+}
+
+func TestConnectionStatus(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connection-status")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User) (connected bool) {
+		t.Helper()
+		client := th.SetupClient(t, user.Id)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		resMap := map[string]bool{}
+		err = json.NewDecoder(response.Body).Decode(&resMap)
+		require.NoError(t, err)
+
+		return resMap["connected"]
+	}
+
+	t.Run("connected users should get true", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.True(t, connected)
+	})
+
+	t.Run("never connected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
+
+	t.Run("disconnected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+		th.DisconnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
 }

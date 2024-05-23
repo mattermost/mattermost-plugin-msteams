@@ -1,3 +1,8 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import {Reducer} from 'redux';
+
 export type BasePluginConfigurationSetting = {
 
     /** Name of the setting. This will be the name used to store in the preferences. */
@@ -81,6 +86,9 @@ export interface PluginRegistry {
     registerAdminConsoleCustomSetting(key: string, component: React.ElementType)
     registerUserSettings?(setting: PluginConfiguration)
     registerSiteStatisticsHandler(handler: any)
+    registerWebSocketEventHandler(event: string, handler: any)
+    registerReconnectHandler(handler: any)
+    registerReducer(reducer: Reducer)
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }

@@ -392,95 +392,108 @@ func TestSelectiveSync(t *testing.T) {
 	// }, 10*time.Second, 500*time.Millisecond)
 
 	ttCases := []struct {
-		name                         string
-		fromUser                     *model.User
-		toUser                       *model.User
-		expectedWithSelectiveSync    bool
-		expectedWithoutSelectiveSync bool
+		name                                string
+		fromUser                            *model.User
+		toUser                              *model.User
+		expectedWithSelectiveSync           bool
+		expectedWithSelectiveSyncRemoteOnly bool
+		expectedWithoutSelectiveSync        bool
 	}{
 		{
-			name:                         "from not connected to not connected",
-			fromUser:                     notConnected1,
-			toUser:                       notConnected2,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from not connected to not connected",
+			fromUser:                            notConnected1,
+			toUser:                              notConnected2,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from not connected to mmprimary",
-			fromUser:                     notConnected1,
-			toUser:                       mmPrimary1,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from not connected to mmprimary",
+			fromUser:                            notConnected1,
+			toUser:                              mmPrimary1,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from not connected to msteamsprimary",
-			fromUser:                     notConnected1,
-			toUser:                       msteamsPrimary1,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from not connected to msteamsprimary",
+			fromUser:                            notConnected1,
+			toUser:                              msteamsPrimary1,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from not connected to synthetic",
-			fromUser:                     notConnected1,
-			toUser:                       synthetic,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from not connected to synthetic",
+			fromUser:                            notConnected1,
+			toUser:                              synthetic,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from mmprimary to not connected",
-			fromUser:                     mmPrimary1,
-			toUser:                       notConnected2,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from mmprimary to not connected",
+			fromUser:                            mmPrimary1,
+			toUser:                              notConnected2,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from mmprimary to mmprimary",
-			fromUser:                     mmPrimary1,
-			toUser:                       mmPrimary2,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from mmprimary to mmprimary",
+			fromUser:                            mmPrimary1,
+			toUser:                              mmPrimary2,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        true,
 		},
 		{
-			name:                         "from mmprimary to msteamsprimary",
-			fromUser:                     mmPrimary1,
-			toUser:                       msteamsPrimary1,
-			expectedWithSelectiveSync:    true,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from mmprimary to msteamsprimary",
+			fromUser:                            mmPrimary1,
+			toUser:                              msteamsPrimary1,
+			expectedWithSelectiveSync:           true,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        true,
 		},
 		{
-			name:                         "from mmprimary to synthetic",
-			fromUser:                     mmPrimary1,
-			toUser:                       synthetic,
-			expectedWithSelectiveSync:    true,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from mmprimary to synthetic",
+			fromUser:                            mmPrimary1,
+			toUser:                              synthetic,
+			expectedWithSelectiveSync:           true,
+			expectedWithSelectiveSyncRemoteOnly: true,
+			expectedWithoutSelectiveSync:        true,
 		},
 		{
-			name:                         "from msteamsprimary to not connected",
-			fromUser:                     msteamsPrimary1,
-			toUser:                       notConnected2,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: false,
+			name:                                "from msteamsprimary to not connected",
+			fromUser:                            msteamsPrimary1,
+			toUser:                              notConnected2,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        false,
 		},
 		{
-			name:                         "from msteamsprimary to mmprimary",
-			fromUser:                     msteamsPrimary1,
-			toUser:                       mmPrimary1,
-			expectedWithSelectiveSync:    true,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from msteamsprimary to mmprimary",
+			fromUser:                            msteamsPrimary1,
+			toUser:                              mmPrimary1,
+			expectedWithSelectiveSync:           true,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        true,
 		},
 		{
-			name:                         "from msteamsprimary to msteamsprimary",
-			fromUser:                     msteamsPrimary1,
-			toUser:                       msteamsPrimary2,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from msteamsprimary to msteamsprimary",
+			fromUser:                            msteamsPrimary1,
+			toUser:                              msteamsPrimary2,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: false,
+			expectedWithoutSelectiveSync:        true,
 		},
 		{
-			name:                         "from msteamsprimary to synthetic",
-			fromUser:                     msteamsPrimary1,
-			toUser:                       synthetic,
-			expectedWithSelectiveSync:    false,
-			expectedWithoutSelectiveSync: true,
+			name:                                "from msteamsprimary to synthetic",
+			fromUser:                            msteamsPrimary1,
+			toUser:                              synthetic,
+			expectedWithSelectiveSync:           false,
+			expectedWithSelectiveSyncRemoteOnly: true,
+			expectedWithoutSelectiveSync:        true,
 		},
 	}
 
@@ -496,248 +509,274 @@ func TestSelectiveSync(t *testing.T) {
 			name = "selective sync enabled"
 		}
 
-		t.Run(name, func(t *testing.T) {
-			for _, tc := range ttCases {
-				client, err := mattermost.GetClient(context.Background(), tc.fromUser.Username, "password")
-				require.NoError(t, err)
-
-				dm, _, err := client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
-				require.NoError(t, err)
-
-				require.NoError(t, mockClient.Reset())
-
-				newDMID := model.NewId()
-
-				err = mockClient.Post("create-chat", "/v1.0/chats", map[string]any{
-					"id":              newDMID,
-					"createdDateTime": time.Now().Format(time.RFC3339),
-					"displayName":     "test channel",
-					"description":     "Test channel",
-					"membershipType":  "oneOnOne",
-				})
-				require.NoError(t, err)
-
-				err = mockClient.Get("get-chat", "/v1.0/chats/"+newDMID, map[string]any{
-					"id":              newDMID,
-					"createdDateTime": time.Now().Format(time.RFC3339),
-					"displayName":     "test channel",
-					"description":     "Test channel",
-					"membershipType":  "oneOnOne",
-				})
-				require.NoError(t, err)
-
-				newPostID := model.NewId()
-				err = mockClient.Post("post-message", "/v1.0/chats/"+newDMID+"/messages", map[string]any{
-					"id":                   newPostID,
-					"messageType":          "message",
-					"createdDateTime":      time.Now().Format(time.RFC3339),
-					"lastModifiedDateTime": time.Now().Format(time.RFC3339),
-					"from": map[string]any{
-						"user": map[string]any{
-							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
-							"id":               "ms-" + tc.fromUser.Username,
-							"displayName":      tc.fromUser.Username,
-							"userIdentityType": "aadUser",
-							"tenantId":         "tenant-id",
-						},
-					},
-					"body": map[string]any{
-						"contentType": "text",
-						"content":     "Hello World",
-					},
-					"channelIdentity": map[string]any{
-						"channelId": newDMID,
-					},
-				})
-				require.NoError(t, err)
-
-				fakePost := map[string]any{
-					"id":                   newPostID,
-					"messageType":          "message",
-					"createdDateTime":      time.Now().Format(time.RFC3339),
-					"lastModifiedDateTime": time.Now().Format(time.RFC3339),
-					"from": map[string]any{
-						"user": map[string]any{
-							"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
-							"id":               "ms-" + tc.fromUser.Username,
-							"displayName":      tc.fromUser.Username,
-							"userIdentityType": "aadUser",
-							"tenantId":         "tenant-id",
-						},
-					},
-					"body": map[string]any{
-						"contentType": "text",
-						"content":     "Hello World",
-					},
-					"channelIdentity": map[string]any{
-						"channelId": newDMID,
-					},
-				}
-
-				err = mockClient.MockBatch("edit-message", []containere2e.BatchRequest{
-					{
-						Method: http.MethodPatch,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}, {
-						Method: http.MethodGet,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}},
-					[]containere2e.BatchResponse{
-						{
-							StatusCode: http.StatusNoContent,
-							Body:       fakePost,
-						},
-						{
-							StatusCode: http.StatusOK,
-							Body:       fakePost,
-						},
-					},
-				)
-				require.NoError(t, err)
-
-				require.NoError(t, mockClient.Get("get-posted-message", "/v1.0/chats/"+newDMID+"/messages/"+newPostID, fakePost))
-
-				err = mockClient.MockBatch("set-reaction", []containere2e.BatchRequest{
-					{
-						Method: http.MethodPost,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/setReaction",
-					}, {
-						Method: http.MethodGet,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}},
-					[]containere2e.BatchResponse{
-						{
-							StatusCode: http.StatusNoContent,
-						},
-						{
-							StatusCode: http.StatusOK,
-							Body:       fakePost,
-						},
-					})
-				require.NoError(t, err)
-
-				err = mockClient.MockBatch("unset-reaction", []containere2e.BatchRequest{
-					{
-						Method: http.MethodPost,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/unsetReaction",
-					}, {
-						Method: http.MethodGet,
-						URL:    "/chats/" + newDMID + "/messages/" + newPostID,
-					}},
-					[]containere2e.BatchResponse{
-						{
-							StatusCode: http.StatusNoContent,
-						},
-						{
-							StatusCode: http.StatusOK,
-							Body:       fakePost,
-						},
-					})
-				require.NoError(t, err)
-
-				post := model.Post{
-					UserId:    tc.fromUser.Id,
-					ChannelId: dm.Id,
-					Message:   "message",
-				}
-
-				t.Run(tc.name, func(t *testing.T) {
-					newPost, _, err := client.CreatePost(context.Background(), &post)
-					require.NoError(t, err)
-
-					t.Run("new post", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("post-message", 1))
-							} else {
-								assert.NoError(c, mockClient.Assert("post-message", 0))
-							}
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-
-					reply := model.Post{
-						UserId:    tc.fromUser.Id,
-						ChannelId: dm.Id,
-						Message:   "reply",
-						RootId:    newPost.Id,
-					}
-					newReply, _, err := client.CreatePost(context.Background(), &reply)
-					require.NoError(t, err)
-
-					t.Run("reply", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("post-message", 2))
-							} else {
-								assert.NoError(c, mockClient.Assert("post-message", 0))
-							}
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-
-					newPost.Message = "edited message"
-					_, _, err = client.UpdatePost(context.Background(), newPost.Id, newPost)
-					require.NoError(t, err)
-
-					t.Run("edit", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("edit-message", 1))
-							} else {
-								assert.NoError(c, mockClient.Assert("edit-message", 0))
-							}
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-
-					newReply.Message = "edited reply"
-					_, _, err = client.UpdatePost(context.Background(), newReply.Id, newReply)
-					require.NoError(t, err)
-
-					t.Run("edit reply", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("edit-message", 2))
-							} else {
-								assert.NoError(c, mockClient.Assert("edit-message", 0))
-							}
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-
-					reaction := model.Reaction{
-						UserId:    tc.fromUser.Id,
-						EmojiName: "heart",
-						PostId:    newPost.Id,
-						ChannelId: dm.Id,
-					}
-					newReaction, _, err := client.SaveReaction(context.Background(), &reaction)
-					require.NoError(t, err)
-
-					t.Run("add reaction", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("set-reaction", 1))
-							} else {
-								assert.NoError(c, mockClient.Assert("set-reaction", 0))
-							}
-							assert.NoError(c, mockClient.Assert("unset-reaction", 0))
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-
-					_, err = client.DeleteReaction(context.Background(), newReaction)
-					require.NoError(t, err)
-
-					t.Run("remove reaction", func(t *testing.T) {
-						require.EventuallyWithT(t, func(c *assert.CollectT) {
-							if enabledSelectiveSync && tc.expectedWithSelectiveSync || !enabledSelectiveSync && tc.expectedWithoutSelectiveSync {
-								assert.NoError(c, mockClient.Assert("set-reaction", 1))
-								assert.NoError(c, mockClient.Assert("unset-reaction", 1))
-							} else {
-								assert.NoError(c, mockClient.Assert("set-reaction", 0))
-								assert.NoError(c, mockClient.Assert("unset-reaction", 0))
-							}
-						}, 5*time.Second, 200*time.Millisecond)
-					})
-				})
+		for _, syncRemoteOnly := range []bool{false, true} {
+			// no reason to run without selective sync
+			if !enabledSelectiveSync && syncRemoteOnly {
+				continue
 			}
-		})
+			config.PluginSettings.Plugins[pluginID]["SyncRemoteOnly"] = syncRemoteOnly
+			_, _, err = adminClient.UpdateConfig(context.Background(), config)
+			require.NoError(t, err)
+
+			if syncRemoteOnly {
+				name += "-sync remote only"
+			}
+
+			t.Run(name, func(t *testing.T) {
+				for _, tc := range ttCases {
+					client, err := mattermost.GetClient(context.Background(), tc.fromUser.Username, "password")
+					require.NoError(t, err)
+
+					dm, _, err := client.CreateDirectChannel(context.Background(), tc.fromUser.Id, tc.toUser.Id)
+					require.NoError(t, err)
+
+					require.NoError(t, mockClient.Reset())
+
+					newDMID := model.NewId()
+
+					err = mockClient.Post("create-chat", "/v1.0/chats", map[string]any{
+						"id":              newDMID,
+						"createdDateTime": time.Now().Format(time.RFC3339),
+						"displayName":     "test channel",
+						"description":     "Test channel",
+						"membershipType":  "oneOnOne",
+					})
+					require.NoError(t, err)
+
+					err = mockClient.Get("get-chat", "/v1.0/chats/"+newDMID, map[string]any{
+						"id":              newDMID,
+						"createdDateTime": time.Now().Format(time.RFC3339),
+						"displayName":     "test channel",
+						"description":     "Test channel",
+						"membershipType":  "oneOnOne",
+					})
+					require.NoError(t, err)
+
+					newPostID := model.NewId()
+					err = mockClient.Post("post-message", "/v1.0/chats/"+newDMID+"/messages", map[string]any{
+						"id":                   newPostID,
+						"messageType":          "message",
+						"createdDateTime":      time.Now().Format(time.RFC3339),
+						"lastModifiedDateTime": time.Now().Format(time.RFC3339),
+						"from": map[string]any{
+							"user": map[string]any{
+								"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
+								"id":               "ms-" + tc.fromUser.Username,
+								"displayName":      tc.fromUser.Username,
+								"userIdentityType": "aadUser",
+								"tenantId":         "tenant-id",
+							},
+						},
+						"body": map[string]any{
+							"contentType": "text",
+							"content":     "Hello World",
+						},
+						"channelIdentity": map[string]any{
+							"channelId": newDMID,
+						},
+					})
+					require.NoError(t, err)
+
+					fakePost := map[string]any{
+						"id":                   newPostID,
+						"messageType":          "message",
+						"createdDateTime":      time.Now().Format(time.RFC3339),
+						"lastModifiedDateTime": time.Now().Format(time.RFC3339),
+						"from": map[string]any{
+							"user": map[string]any{
+								"@odata.type":      "#microsoft.graph.teamworkUserIdentity",
+								"id":               "ms-" + tc.fromUser.Username,
+								"displayName":      tc.fromUser.Username,
+								"userIdentityType": "aadUser",
+								"tenantId":         "tenant-id",
+							},
+						},
+						"body": map[string]any{
+							"contentType": "text",
+							"content":     "Hello World",
+						},
+						"channelIdentity": map[string]any{
+							"channelId": newDMID,
+						},
+					}
+
+					err = mockClient.MockBatch("edit-message", []containere2e.BatchRequest{
+						{
+							Method: http.MethodPatch,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+						}, {
+							Method: http.MethodGet,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+						}},
+						[]containere2e.BatchResponse{
+							{
+								StatusCode: http.StatusNoContent,
+								Body:       fakePost,
+							},
+							{
+								StatusCode: http.StatusOK,
+								Body:       fakePost,
+							},
+						},
+					)
+					require.NoError(t, err)
+
+					require.NoError(t, mockClient.Get("get-posted-message", "/v1.0/chats/"+newDMID+"/messages/"+newPostID, fakePost))
+
+					err = mockClient.MockBatch("set-reaction", []containere2e.BatchRequest{
+						{
+							Method: http.MethodPost,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/setReaction",
+						}, {
+							Method: http.MethodGet,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+						}},
+						[]containere2e.BatchResponse{
+							{
+								StatusCode: http.StatusNoContent,
+							},
+							{
+								StatusCode: http.StatusOK,
+								Body:       fakePost,
+							},
+						})
+					require.NoError(t, err)
+
+					err = mockClient.MockBatch("unset-reaction", []containere2e.BatchRequest{
+						{
+							Method: http.MethodPost,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID + "/unsetReaction",
+						}, {
+							Method: http.MethodGet,
+							URL:    "/chats/" + newDMID + "/messages/" + newPostID,
+						}},
+						[]containere2e.BatchResponse{
+							{
+								StatusCode: http.StatusNoContent,
+							},
+							{
+								StatusCode: http.StatusOK,
+								Body:       fakePost,
+							},
+						})
+					require.NoError(t, err)
+
+					post := model.Post{
+						UserId:    tc.fromUser.Id,
+						ChannelId: dm.Id,
+						Message:   "message",
+					}
+
+					t.Run(tc.name, func(t *testing.T) {
+						newPost, _, err := client.CreatePost(context.Background(), &post)
+						require.NoError(t, err)
+
+						t.Run("new post", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("post-message", 1))
+								} else {
+									assert.NoError(c, mockClient.Assert("post-message", 0))
+								}
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+
+						reply := model.Post{
+							UserId:    tc.fromUser.Id,
+							ChannelId: dm.Id,
+							Message:   "reply",
+							RootId:    newPost.Id,
+						}
+						newReply, _, err := client.CreatePost(context.Background(), &reply)
+						require.NoError(t, err)
+
+						t.Run("reply", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("post-message", 2))
+								} else {
+									assert.NoError(c, mockClient.Assert("post-message", 0))
+								}
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+
+						newPost.Message = "edited message"
+						_, _, err = client.UpdatePost(context.Background(), newPost.Id, newPost)
+						require.NoError(t, err)
+
+						t.Run("edit", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("edit-message", 1))
+								} else {
+									assert.NoError(c, mockClient.Assert("edit-message", 0))
+								}
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+
+						newReply.Message = "edited reply"
+						_, _, err = client.UpdatePost(context.Background(), newReply.Id, newReply)
+						require.NoError(t, err)
+
+						t.Run("edit reply", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("edit-message", 2))
+								} else {
+									assert.NoError(c, mockClient.Assert("edit-message", 0))
+								}
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+
+						reaction := model.Reaction{
+							UserId:    tc.fromUser.Id,
+							EmojiName: "heart",
+							PostId:    newPost.Id,
+							ChannelId: dm.Id,
+						}
+						newReaction, _, err := client.SaveReaction(context.Background(), &reaction)
+						require.NoError(t, err)
+
+						t.Run("add reaction", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("set-reaction", 1))
+								} else {
+									assert.NoError(c, mockClient.Assert("set-reaction", 0))
+								}
+								assert.NoError(c, mockClient.Assert("unset-reaction", 0))
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+
+						_, err = client.DeleteReaction(context.Background(), newReaction)
+						require.NoError(t, err)
+
+						t.Run("remove reaction", func(t *testing.T) {
+							require.EventuallyWithT(t, func(c *assert.CollectT) {
+								if (enabledSelectiveSync && syncRemoteOnly && tc.expectedWithSelectiveSyncRemoteOnly) ||
+									(enabledSelectiveSync && !syncRemoteOnly && tc.expectedWithSelectiveSync) ||
+									(!enabledSelectiveSync && tc.expectedWithoutSelectiveSync) {
+									assert.NoError(c, mockClient.Assert("set-reaction", 1))
+									assert.NoError(c, mockClient.Assert("unset-reaction", 1))
+								} else {
+									assert.NoError(c, mockClient.Assert("set-reaction", 0))
+									assert.NoError(c, mockClient.Assert("unset-reaction", 0))
+								}
+							}, 5*time.Second, 200*time.Millisecond)
+						})
+					})
+				}
+			})
+		}
 	}
 }
