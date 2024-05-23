@@ -35,6 +35,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
+	"github.com/mattermost/mattermost/server/v8/channels/utils"
 )
 
 const (
@@ -181,10 +182,19 @@ func (p *Plugin) GetURL() string {
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
-	if strings.HasSuffix(siteURL, "/") {
-		return siteURL + "plugins/" + pluginID
+	if !strings.HasSuffix(siteURL, "/") {
+		siteURL += "/"
 	}
-	return siteURL + "/plugins/" + pluginID
+	return siteURL + "plugins/" + pluginID
+}
+
+func (p *Plugin) GetRelativeURL() string {
+	config := p.API.GetConfig()
+	subpath, _ := utils.GetSubpathFromConfig(config)
+	if !strings.HasSuffix(subpath, "/") {
+		subpath += "/"
+	}
+	return subpath + "plugins/" + pluginID
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {

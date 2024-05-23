@@ -2,22 +2,28 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
 
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
+	return p.botSendDirectPost(userID, &model.Post{
+		Message: message,
+	})
+}
+
+func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.botUserID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
 	}
 
-	return p.apiClient.Post.CreatePost(&model.Post{
-		Message:   message,
-		UserId:    p.botUserID,
-		ChannelId: channel.Id,
-	})
+	post.ChannelId = channel.Id
+	post.UserId = p.botUserID
+
+	return p.apiClient.Post.CreatePost(post)
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
@@ -91,5 +97,44 @@ const userChoseTeamsPrimaryMessage = "You’ve chosen Microsoft Teams as your pr
 func (p *Plugin) notifyUserTeamsPrimary(userID string) {
 	if err := p.botSendDirectMessage(userID, userChoseTeamsPrimaryMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
+	}
+}
+
+func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
+	if err := p.botSendDirectPost(
+		userID,
+		p.makeWelcomeMessageWithNotificationActionPost(),
+	); err != nil {
+		return errors.Wrapf(err, "failed to send welcome message to user %s", userID)
+	}
+
+	return nil
+}
+
+func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
+	msg := []string{
+		"**Welcome to the MS Teams integration!**",
+		"Enable notifications to get notified about any mentions you get in direct messages or group messages in MS Teams directly within Mattermost.",
+		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
+	}
+
+	return &model.Post{
+		Message: strings.Join(msg, "\n\n"),
+		Props: model.StringInterface{
+			"attachments": []*model.SlackAttachment{
+				{
+					Actions: []*model.PostAction{
+						{
+							Integration: &model.PostActionIntegration{
+								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
+							},
+							Name:  "Enable Notifications",
+							Style: "primary",
+							Type:  model.PostActionTypeButton,
+						},
+					},
+				},
+			},
+		},
 	}
 }
