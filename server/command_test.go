@@ -463,7 +463,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
 
 		require.Equal(t, storemodels.PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
-		require.Equal(t, false, th.p.getNotificationPreference(user1.Id))
+		require.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 }
 
