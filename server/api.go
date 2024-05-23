@@ -410,7 +410,7 @@ func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 	message := "You are now now connected."
 	query := r.URL.Query()
 	if query.Has("isBot") {
-		message = "The bot account's is now connected."
+		message = "The bot account is now connected."
 	}
 
 	bundlePath, err := a.p.API.GetBundlePath()
