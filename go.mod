@@ -20,7 +20,7 @@ require (
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
 	github.com/microsoft/kiota-abstractions-go v1.6.0
 	github.com/microsoft/kiota-http-go v1.3.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.36.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.43.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
@@ -151,7 +151,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.0.2 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v1.0.6 // indirect
+	github.com/microsoft/kiota-serialization-json-go v1.0.7 // indirect
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
