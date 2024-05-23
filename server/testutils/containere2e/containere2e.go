@@ -43,8 +43,9 @@ func buildPlugin(t *testing.T) {
 type Option func(*mmcontainer.MattermostContainer)
 
 func WithEnv(key string, value string) testcontainers.CustomizeRequestOption {
-	return func(req *testcontainers.GenericContainerRequest) {
+	return func(req *testcontainers.GenericContainerRequest) error {
 		req.Env[key] = value
+		return nil
 	}
 }
 
