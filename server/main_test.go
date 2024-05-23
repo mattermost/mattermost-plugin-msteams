@@ -135,7 +135,6 @@ func setupServer(mt *mainT) error {
 	config.LocalizationSettings.SetDefaults()
 	config.SqlSettings = *storetest.MakeSqlSettings("postgres", false)
 	config.ServiceSettings.SiteURL = model.NewString("http://example.com/")
-	config.ServiceSettings.AllowedUntrustedInternalConnections = model.NewString("localhost")
 	config.LogSettings.EnableConsole = model.NewBool(true)
 	config.LogSettings.EnableFile = model.NewBool(false)
 	config.LogSettings.ConsoleLevel = model.NewString("DEBUG")
