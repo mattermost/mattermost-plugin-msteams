@@ -39,13 +39,21 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
+		attachmentCount := 0
+		for _, attachment := range msg.Attachments {
+			if attachment.ContentType == "messageReference" || attachment.ContentType == "application/vnd.microsoft.card.codesnippet" {
+				continue
+			}
+			attachmentCount++
+		}
+
 		ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
 			len(chat.Members),
 			chatLink,
 			post.Message,
-			len(msg.Attachments),
+			attachmentCount,
 		)
 	}
 

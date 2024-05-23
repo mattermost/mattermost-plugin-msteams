@@ -678,7 +678,9 @@ func TestHandleCreatedActivity(t *testing.T) {
 			}
 			if params.WithAttachments {
 				chatMsg.Attachments = []clientmodels.Attachment{
-					{}, {},
+					{}, {}, {}, //should be counted
+					{ContentType: "messageReference"},                           //should not be counted
+					{ContentType: "application/vnd.microsoft.card.codesnippet"}, //should not be counted
 				}
 			}
 			th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(chatMsg, nil).Times(1)
@@ -689,7 +691,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 			if params.NotificationPref {
 				re := "message"
 				if params.WithAttachments {
-					re += "(.*)attachments"
+					re += "(.*)3 attachments"
 				}
 				th.assertDMFromUserRe(t, botUser.Id, user1.Id, re)
 			} else {
