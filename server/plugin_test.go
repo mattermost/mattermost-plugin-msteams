@@ -161,6 +161,56 @@ func TestGetURL(t *testing.T) {
 	}
 }
 
+func TestGetRelativeURL(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		URL      string
+		Expected string
+	}{
+		{
+			Name:     "Empty URL",
+			URL:      "",
+			Expected: "/plugins/" + pluginID,
+		},
+		{
+			Name:     "no subpath, ending with /",
+			URL:      "https://example.com/",
+			Expected: "/plugins/" + pluginID,
+		},
+		{
+			Name:     "no subpath, not ending with /",
+			URL:      "https://example.com",
+			Expected: "/plugins/" + pluginID,
+		},
+		{
+			Name:     "with subpath, ending with /",
+			URL:      "https://example.com/subpath/",
+			Expected: "/subpath/plugins/" + pluginID,
+		},
+		{
+			Name:     "with subpath, not ending with /",
+			URL:      "https://example.com/subpath",
+			Expected: "/subpath/plugins/" + pluginID,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			p := newTestPlugin(t)
+			apiMock := &plugintest.API{}
+			apiMock.On("GetConfig").Return(&model.Config{
+				ServiceSettings: model.ServiceSettings{
+					SiteURL: model.NewString(testCase.URL),
+				},
+			}).Times(1)
+			p.SetAPI(apiMock)
+
+			resp := p.GetRelativeURL()
+
+			assert.Equal(t, testCase.Expected, resp)
+		})
+	}
+}
+
 func TestGetClientForUser(t *testing.T) {
 	for _, test := range []struct {
 		Name          string
