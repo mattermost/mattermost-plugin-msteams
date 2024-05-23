@@ -453,6 +453,8 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		require.NoError(t, err)
 		err = th.p.setPrimaryPlatform(user1.Id, storemodels.PreferenceValuePlatformMSTeams)
 		require.NoError(t, err)
+		err = th.p.setNotificationPreference(user1.Id, true)
+		require.NoError(t, err)
 
 		commandResponse, appErr := th.p.executeDisconnectCommand(args)
 		require.Nil(t, appErr)
@@ -461,6 +463,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
 
 		require.Equal(t, storemodels.PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
+		require.Equal(t, false, th.p.getNotificationPreference(user1.Id))
 	})
 }
 

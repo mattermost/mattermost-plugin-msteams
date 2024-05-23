@@ -549,6 +549,11 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 
 	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
+	err = p.setNotificationPreference(args.UserId, false)
+	if err != nil {
+		p.API.LogWarn("unable to disable notifications preference", "error", err.Error())
+	}
+
 	return p.cmdSuccess(args, "Your account has been disconnected.")
 }
 
