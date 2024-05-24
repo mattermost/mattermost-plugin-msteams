@@ -132,6 +132,14 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 							Style: "primary",
 							Type:  model.PostActionTypeButton,
 						},
+						{
+							Integration: &model.PostActionIntegration{
+								URL: fmt.Sprintf("%s/dismiss-notifications", p.GetRelativeURL()),
+							},
+							Name:  "Dismiss",
+							Style: "default",
+							Type:  model.PostActionTypeButton,
+						},
 					},
 				},
 			},
