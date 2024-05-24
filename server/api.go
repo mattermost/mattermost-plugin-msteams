@@ -661,7 +661,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case a.p.getConfiguration().SyncNotifications:
-		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, postID)
+		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
 		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
 		return
 	default:
@@ -705,7 +705,7 @@ func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelI
 	}
 }
 
-func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, postID string) {
+func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {
 	switch originInfo {
 	case "fromPreferences":
 		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
@@ -724,7 +724,17 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 				a.p.API.LogWarn("Unable to update post", "post", postID, "error", appErr.Error())
 			}
 		} else {
-			a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
+			// Update the original connection prompt and remove any calls to action.
+			// This occurs where the ephemeral message was sent, and likely where the
+			// user returned to after closing the oAuth2 flow.
+			a.p.GetAPI().UpdateEphemeralPost(mmUserID, &model.Post{
+				Id:        postID,
+				ChannelId: channelID,
+				UserId:    a.p.GetBotUserID(),
+				Message:   "Your account is now connected to MS Teams.",
+			})
+
+			// Send the welcome message in the bot channel.
 			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
