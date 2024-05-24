@@ -2,22 +2,28 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
 
 func (p *Plugin) botSendDirectMessage(userID, message string) error {
+	return p.botSendDirectPost(userID, &model.Post{
+		Message: message,
+	})
+}
+
+func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.botUserID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", userID)
 	}
 
-	return p.apiClient.Post.CreatePost(&model.Post{
-		Message:   message,
-		UserId:    p.botUserID,
-		ChannelId: channel.Id,
-	})
+	post.ChannelId = channel.Id
+	post.UserId = p.botUserID
+
+	return p.apiClient.Post.CreatePost(post)
 }
 
 func (p *Plugin) handlePromptForConnection(userID, channelID string) {
@@ -91,5 +97,81 @@ const userChoseTeamsPrimaryMessage = "You’ve chosen Microsoft Teams as your pr
 func (p *Plugin) notifyUserTeamsPrimary(userID string) {
 	if err := p.botSendDirectMessage(userID, userChoseTeamsPrimaryMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
+	}
+}
+
+func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
+	if err := p.botSendDirectPost(
+		userID,
+		p.makeWelcomeMessageWithNotificationActionPost(),
+	); err != nil {
+		return errors.Wrapf(err, "failed to send welcome message to user %s", userID)
+	}
+
+	return nil
+}
+
+func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
+	msg := []string{
+		"**Welcome to the MS Teams integration!**",
+		"Enable notifications to get notified about any mentions you get in direct messages or group messages in MS Teams directly within Mattermost.",
+		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
+	}
+
+	return &model.Post{
+		Message: strings.Join(msg, "\n\n"),
+		Props: model.StringInterface{
+			"attachments": []*model.SlackAttachment{
+				{
+					Actions: []*model.PostAction{
+						{
+							Integration: &model.PostActionIntegration{
+								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
+							},
+							Name:  "Enable Notifications",
+							Style: "primary",
+							Type:  model.PostActionTypeButton,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// notifyMessage sends the given receipient a notification of a chat received on Teams.
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string, attachmentCount int) {
+	var preamble string
+
+	if chatSize <= 1 {
+		return
+	} else if chatSize == 2 {
+		preamble = fmt.Sprintf("%s messaged you in MS Teams:", actorDisplayName)
+	} else if chatSize == 3 {
+		preamble = fmt.Sprintf("%s messaged you and 1 other user in MS Teams:", actorDisplayName)
+	} else {
+		preamble = fmt.Sprintf("%s messaged you and %d other users in MS Teams:", actorDisplayName, chatSize-2)
+	}
+
+	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
+
+	attachments := ""
+	if attachmentCount > 0 {
+		attachments += "\n*"
+		if attachmentCount == 1 {
+			attachments += "This message was originally sent with one attachment."
+		} else {
+			attachments += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
+		}
+		attachments += "*\n"
+	}
+
+	formattedMessage := fmt.Sprintf(`%s
+%s
+%s
+**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, attachments, chatLink)
+
+	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
+		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
 	}
 }

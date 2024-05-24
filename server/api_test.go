@@ -1137,3 +1137,73 @@ func TestConnectionStatus(t *testing.T) {
 		assert.False(t, connected)
 	})
 }
+
+func TestEnableNotifications(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/enable-notifications")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User, req model.PostActionIntegrationRequest) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
+
+		body, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		request, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(body))
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		return response
+	}
+
+	t.Run("enable notifications", func(t *testing.T) {
+		th.Reset(t)
+		user1 := th.SetupUser(t, team)
+
+		// Arrange: Send the welcome message and retrieve it
+		err := th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
+		require.NoError(t, err)
+		dc, err := th.p.apiClient.Channel.GetDirect(user1.Id, th.p.botUserID)
+		require.NoError(t, err)
+		posts, err := th.p.apiClient.Post.GetPostsSince(dc.Id, time.Now().Add(-1*time.Minute).UnixMilli())
+		require.NoError(t, err)
+		require.Len(t, posts.Order, 1)
+		post := posts.Posts[posts.Order[0]]
+
+		// Act: make the request pretending the user clicked the button
+		response := sendRequest(t, user1, model.PostActionIntegrationRequest{
+			UserId: user1.Id,
+			PostId: post.Id,
+		})
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+
+		// Assert: 1. we return an update for the post
+		var resp model.PostActionIntegrationResponse
+		err = json.NewDecoder(response.Body).Decode(&resp)
+		require.NoError(t, err)
+
+		require.Len(t, resp.Update.Attachments(), 1)
+		require.Len(t, resp.Update.Attachments()[0].Actions, 1)
+
+		// the button's text should have changed and be disabled
+		assert.Equal(t, "Notifications enabled!", resp.Update.Attachments()[0].Actions[0].Name)
+		assert.True(t, resp.Update.Attachments()[0].Actions[0].Disabled)
+
+		// Assert: 2. the notification preference is updated
+		pref, appErr := th.p.API.GetPreferenceForUser(
+			user1.Id,
+			PreferenceCategoryPlugin,
+			storemodels.PreferenceNameNotification,
+		)
+		require.Nil(t, appErr)
+		assert.EqualValues(t, storemodels.PreferenceValueNotificationOn, pref.Value)
+	})
+}

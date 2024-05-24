@@ -21,535 +21,740 @@ import (
 )
 
 func TestHandleCreatedActivity(t *testing.T) {
-	msteamsCreateAtTime := time.Now()
-	mmCreateAtTime := msteamsCreateAtTime.UnixNano() / int64(time.Millisecond)
-	for _, testCase := range []struct {
-		description  string
-		activityIds  clientmodels.ActivityIds
-		setupClient  func(*clientmocks.Client, *clientmocks.Client)
-		setupAPI     func(*plugintest.API)
-		setupStore   func(*storemocks.Store)
-		setupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			description: "Unable to get original message",
-			activityIds: clientmodels.ActivityIds{
-				ChatID: "invalid-ChatID",
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("Error while getting original chat")).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Message is nil",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("mock-mmUserID", nil)
-				store.On("GetTokenForMattermostUser", "mock-mmUserID").Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Skipping not user event",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Duplicate post",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{MattermostID: "mockMattermostID"}, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Skipping messages from bot user",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetTeamsUserID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to get channel ID",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-				client.On("GetUser", testutils.GetTeamsUserID()).Return(nil, fmt.Errorf("unable to get user")).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Channel ID is empty",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{UserID: "mockUserID-1"},
-						{UserID: "mockUserID-2"},
-					},
-					Type: "D",
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
-				client.On("GetUser", "mockUserID-2").Return(&clientmodels.User{ID: "mockUserID-2"}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", "mockUserID-1").Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to create post",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{UserID: "mockUserID-1"},
-						{UserID: "mockUserID-2"},
-					},
-					Type: "D",
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
-				client.On("GetUser", "mockUserID-2").Return(&clientmodels.User{ID: "mockUserID-2"}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(nil, testutils.GetInternalServerAppError("unable to create the post")).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-				store.On("GetTokenForMattermostUser", "mockUserID-1").Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Error updating the post link table",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{UserID: "mockUserID-1"},
-						{UserID: "mockUserID-2"},
-					},
-					Type: "D",
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
-				client.On("GetUser", "mockUserID-2").Return(&clientmodels.User{ID: "mockUserID-2"}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:        testutils.GetID(),
-					MSTeamsID:           testutils.GetMessageID(),
-					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
-					MSTeamsLastUpdateAt: msteamsCreateAtTime,
-				}).Return(errors.New("unable to update the post")).Times(1)
-				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, storemodels.MilliToMicroSeconds(mmCreateAtTime)).Return(nil)
-				store.On("GetTokenForMattermostUser", "mockUserID-1").Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
-				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, true, mock.AnythingOfType("time.Duration")).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Message generated from Mattermost",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{UserID: "mockUserID-1"},
-						{UserID: "mockUserID-2"},
-					},
-					Type: "D",
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText<abbr title=\"generated-from-mattermost\"></abbr>",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", "mockUserID-1").Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Valid: chat message",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{UserID: "mockUserID-1"},
-						{UserID: "mockUserID-2"},
-					},
-					Type: "D",
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-				client.On("GetUser", "mockUserID-1").Return(&clientmodels.User{ID: "mockUserID-1"}, nil).Once()
-				client.On("GetUser", "mockUserID-2").Return(&clientmodels.User{ID: "mockUserID-2"}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetDirectChannel", "mockUserID-1", "mockUserID-2").Return(&model.Channel{Id: testutils.GetChannelID()}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-1").Return("mockUserID-1", nil).Times(1)
-				store.On("TeamsToMattermostUserID", "mockUserID-2").Return("mockUserID-2", nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:        testutils.GetID(),
-					MSTeamsID:           testutils.GetMessageID(),
-					MSTeamsChannel:      testutils.GetMSTeamsChannelID(),
-					MSTeamsLastUpdateAt: msteamsCreateAtTime,
-				}).Return(nil).Times(1)
-				store.On("SetUsersLastChatReceivedAt", []string{"mockUserID-1", "mockUserID-2"}, storemodels.MilliToMicroSeconds(mmCreateAtTime)).Return(nil)
-				store.On("GetTokenForMattermostUser", "mockUserID-1").Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, true).Times(1)
-				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, true, mock.AnythingOfType("time.Duration")).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Valid: sync linked channels disabled",
-			activityIds: clientmodels.ActivityIds{
-				TeamID:    "mockTeamID",
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					TeamID:          "mockTeamID",
-					ChannelID:       testutils.GetChannelID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			description: "Valid: channel message",
-			activityIds: clientmodels.ActivityIds{
-				TeamID:    "mockTeamID",
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					TeamID:          "mockTeamID",
-					ChannelID:       testutils.GetChannelID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					CreateAt:        msteamsCreateAtTime,
-					LastUpdateAt:    msteamsCreateAtTime,
-				}, nil).Times(1)
-				client.On("GetUser", testutils.GetSenderID()).Return(&clientmodels.User{ID: testutils.GetSenderID()}, nil).Once()
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("CreatePost", testutils.GetPostFromTeamsMessage(mmCreateAtTime)).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), mmCreateAtTime), nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator:             "mockCreator",
-					MattermostChannelID: testutils.GetChannelID(),
-				}, nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(nil, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:        testutils.GetID(),
-					MSTeamsID:           testutils.GetMessageID(),
-					MSTeamsChannel:      testutils.GetChannelID(),
-					MSTeamsLastUpdateAt: msteamsCreateAtTime,
-				}).Return(nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMSTeams, false).Times(1)
-				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMSTeams, false, mock.AnythingOfType("time.Duration")).Times(1)
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			ah := ActivityHandler{}
+	t.Run("unable to get original message", func(t *testing.T) {
+		th.Reset(t)
 
-			testCase.setupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			testCase.setupStore(p.store.(*storemocks.Store))
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testCase.setupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			testutils.MockLogs(p.API.(*plugintest.API))
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID: "invalid_chat_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(nil, errors.New("Error while getting original chat")).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
+	})
+
+	t.Run("nil message", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(nil, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
+	})
+
+	t.Run("skipping not user event", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(&clientmodels.Message{}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNotUserEvent, discardReason)
+	})
+
+	t.Run("known duplicate post", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+		postID := model.NewId()
+		teamsChannelID := ""
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		err := th.p.GetStore().LinkPosts(storemodels.PostInfo{
+			MattermostID:        postID,
+			MSTeamsID:           activityIds.MessageID,
+			MSTeamsChannel:      fmt.Sprintf(activityIds.ChatID + teamsChannelID),
+			MSTeamsLastUpdateAt: now,
+		})
+		require.NoError(t, err)
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonDuplicatedPost, discardReason)
+	})
+
+	t.Run("discovered duplicate post", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+		})
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + user2.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + user2.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: user2.GetDisplayName(model.ShowFullName),
+				Text:            "message<abbr title=\"generated-from-mattermost\"></abbr>",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonGeneratedFromMattermost, discardReason)
+	})
+
+	t.Run("skipping messages from bot user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		senderBotUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+		require.NoError(t, err)
+		th.ConnectUser(t, senderBotUser.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderBotUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderBotUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderBotUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonIsBotUser, discardReason)
+	})
+
+	t.Run("direct messages disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+	})
+
+	t.Run("group messages disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncGroupMessages = false
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user2.Id,
+				},
+			},
+			Type: "G",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+	})
+
+	t.Run("unable to get user", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Twice()
+		th.appClientMock.On("GetUser", "t"+user1.Id).Return(nil, fmt.Errorf("unable to get user")).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonOther, discardReason)
+	})
+
+	t.Run("valid chat message", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Twice()
+		th.appClientMock.On("GetUser", "t"+user1.Id).Return(&clientmodels.User{
+			ID: "t" + user1.Id,
+		}, nil).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+		th.assertDMFromUser(t, senderUser.Id, user1.Id, "message")
+	})
+
+	t.Run("linked channels disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncLinkedChannels = false
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			TeamID:    "team_id",
+			ChannelID: "channel_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				TeamID:          activityIds.TeamID,
+				ChannelID:       activityIds.ChannelID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonLinkedChannelsDisabled, discardReason)
+	})
+
+	t.Run("valid linked channel message", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncLinkedChannels = true
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		require.Nil(t, appErr)
+
+		channelLink := storemodels.ChannelLink{
+			MattermostTeamID:    team.Id,
+			MattermostChannelID: channel.Id,
+			MSTeamsTeam:         model.NewId(),
+			MSTeamsChannel:      model.NewId(),
+			Creator:             user1.Id,
+		}
+
+		err := th.p.store.StoreChannelLink(&channelLink)
+		require.NoError(t, err)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			TeamID:    channelLink.MSTeamsTeam,
+			ChannelID: channelLink.MSTeamsChannel,
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				TeamID:          activityIds.TeamID,
+				ChannelID:       activityIds.ChannelID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
+			ID: "t" + senderUser.Id,
+		}, nil).Once()
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+		th.assertPostInChannel(t, senderUser.Id, channel.Id, "message")
+	})
+
+	t.Run("notification for chat, preference unset", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncNotifications = true
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+		require.NoError(t, err)
+		th.ConnectUser(t, botUser.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+		th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+	})
+
+	t.Run("notification for chat", func(t *testing.T) {
+		type notificationForChatPermutations struct {
+			NotificationPref bool
+			WithAttachments  bool
+		}
+		runPermutations(t, notificationForChatPermutations{}, func(t *testing.T, params notificationForChatPermutations) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncNotifications = true
+			})
+
+			senderUser := th.SetupUser(t, team)
+			th.ConnectUser(t, senderUser.Id)
+
+			user1 := th.SetupUser(t, team)
+			th.ConnectUser(t, user1.Id)
+
+			err := th.p.setNotificationPreference(user1.Id, params.NotificationPref)
+			require.NoError(t, err)
+
+			botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+			require.NoError(t, err)
+			th.ConnectUser(t, botUser.Id)
+
+			msg := (*clientmodels.Message)(nil)
 
 			subscriptionID := "test"
+			activityIds := clientmodels.ActivityIds{
+				ChatID:    "chat_id",
+				MessageID: "message_id",
+			}
+			now := time.Now()
 
-			ah.plugin = p
+			th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+				ID: activityIds.ChatID,
+				Members: []clientmodels.ChatMember{
+					{
+						UserID: "t" + user1.Id,
+					},
+					{
+						UserID: "t" + senderUser.Id,
+					},
+				},
+				Type: "D",
+			}, nil).Times(1)
 
-			discardedReason := ah.handleCreatedActivity(nil, subscriptionID, testCase.activityIds)
+			chatMsg := &clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}
+			if params.WithAttachments {
+				chatMsg.Attachments = []clientmodels.Attachment{
+					{}, {}, {}, //should be counted
+					{ContentType: "messageReference"},                           //should not be counted
+					{ContentType: "application/vnd.microsoft.card.codesnippet"}, //should not be counted
+				}
+			}
+			th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(chatMsg, nil).Times(1)
 
-			lastSubscriptionActivity, ok := ah.lastUpdateAtMap.Load(subscriptionID)
-			if discardedReason == "" {
-				assert.True(t, ok)
-				assert.Equal(t, lastSubscriptionActivity.(time.Time), msteamsCreateAtTime)
+			discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+			assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+			if params.NotificationPref {
+				re := "message"
+				if params.WithAttachments {
+					re += "(.*)3 attachments"
+				}
+				th.assertDMFromUserRe(t, botUser.Id, user1.Id, re)
 			} else {
-				assert.False(t, ok)
+				th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 			}
 		})
-	}
+	})
+
+	t.Run("notification for channel", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncNotifications = true
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+		require.NoError(t, err)
+		th.ConnectUser(t, botUser.Id)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+		require.Nil(t, appErr)
+
+		channelLink := storemodels.ChannelLink{
+			MattermostTeamID:    team.Id,
+			MattermostChannelID: channel.Id,
+			MSTeamsTeam:         model.NewId(),
+			MSTeamsChannel:      model.NewId(),
+			Creator:             user1.Id,
+		}
+
+		err = th.p.store.StoreChannelLink(&channelLink)
+		require.NoError(t, err)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			TeamID:    channelLink.MSTeamsTeam,
+			ChannelID: channelLink.MSTeamsChannel,
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				TeamID:          activityIds.TeamID,
+				ChannelID:       activityIds.ChannelID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonChannelNotificationsUnsupported, discardReason)
+	})
 }
 
 func TestHandleUpdatedActivity(t *testing.T) {
