@@ -215,11 +215,6 @@ func (_m *Metrics) ObserveWhitelistedUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveWhitelistedUsersLimit provides a mock function with given fields: count
-func (_m *Metrics) ObserveWhitelistedUsersLimit(count int64) {
-	_m.Called(count)
-}
-
 // ObserveWorker provides a mock function with given fields: worker
 func (_m *Metrics) ObserveWorker(worker string) func() {
 	ret := _m.Called(worker)

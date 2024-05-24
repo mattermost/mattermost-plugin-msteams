@@ -1004,7 +1004,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -1021,7 +1021,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -1050,7 +1050,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
 }
 

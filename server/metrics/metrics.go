@@ -89,7 +89,6 @@ type Metrics interface {
 	ObservePendingInvites(count int64)
 	ObservePendingInvitesLimit(count int64)
 	ObserveWhitelistedUsers(count int64)
-	ObserveWhitelistedUsersLimit(count int64)
 
 	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
@@ -152,12 +151,11 @@ type metrics struct {
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
 
-	connectedUsers        prometheus.Gauge
-	connectedUsersLimit   prometheus.Gauge
-	pendingInvites        prometheus.Gauge
-	pendingInvitesLimit   prometheus.Gauge
-	whitelistedUsers      prometheus.Gauge
-	whitelistedUsersLimit prometheus.Gauge
+	connectedUsers      prometheus.Gauge
+	connectedUsersLimit prometheus.Gauge
+	pendingInvites      prometheus.Gauge
+	pendingInvitesLimit prometheus.Gauge
+	whitelistedUsers    prometheus.Gauge
 
 	syntheticUsers prometheus.Gauge
 	linkedChannels prometheus.Gauge
@@ -368,7 +366,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.connectedUsersLimit = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "whitelist_limit", // really max connected users
+		Name:        "whitelist_limit", // really: connected_users_limit
 		Help:        "The maximum number of users allowed to connect.",
 		ConstLabels: additionalLabels,
 	})
@@ -383,6 +381,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.pendingInvites)
+
+	m.pendingInvitesLimit = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "pending_invites_limit",
+		Help:        "The limit of pending connection invites.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.pendingInvitesLimit)
 
 	m.whitelistedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -581,12 +588,6 @@ func (m *metrics) ObservePendingInvitesLimit(count int64) {
 func (m *metrics) ObserveWhitelistedUsers(count int64) {
 	if m != nil {
 		m.whitelistedUsers.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveWhitelistedUsersLimit(count int64) {
-	if m != nil {
-		m.whitelistedUsersLimit.Set(float64(count))
 	}
 }
 

@@ -288,7 +288,6 @@ func (p *Plugin) start(isRestart bool) {
 
 	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
 	p.metricsService.ObservePendingInvitesLimit(int64(p.configuration.ConnectedUsersMaxPendingInvites))
-	p.metricsService.ObserveWhitelistedUsersLimit(int64(p.configuration.ConnectedUsersMaxPendingInvites))
 
 	// We don't restart the activity handler since it's stateless.
 	if !isRestart {
