@@ -407,7 +407,7 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
-	message := "You are now connected."
+	message := "Your account is now connected to MS Teams."
 	query := r.URL.Query()
 	if query.Has("isBot") {
 		message = "The bot account is now connected."
