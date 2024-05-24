@@ -49,14 +49,14 @@ function makeNotificationsSetting(disabled: boolean) {
             name: 'notifications',
             options: [
                 {
-                    text: 'Mentions in DMs and GMs',
+                    text: 'Notifications from chats and group chats',
                     value: 'on',
-                    helpText: 'You get reminders for mentions in DMs, GMs, and channels.',
+                    helpText: 'You will get notified by the MS Teams bot whenever you receive a message from a chat or group chat in Teams.',
                 },
                 {
                     text: 'Disabled',
                     value: 'off',
-                    helpText: 'You will not get notified for any messages in MS Teams.',
+                    helpText: 'You will not get notified.',
                 },
             ],
             type: 'radio' as const,
