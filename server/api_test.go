@@ -1172,13 +1172,8 @@ func TestEnableNotifications(t *testing.T) {
 		var resp model.PostActionIntegrationResponse
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
-
-		require.Len(t, resp.Update.Attachments(), 1)
-		require.Len(t, resp.Update.Attachments()[0].Actions, 1)
-
-		// the button's text should have changed and be disabled
-		assert.Equal(t, "Notifications enabled!", resp.Update.Attachments()[0].Actions[0].Name)
-		assert.True(t, resp.Update.Attachments()[0].Actions[0].Disabled)
+		assert.Len(t, resp.Update.Attachments(), 0)
+		assert.Equal(t, "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
 
 		// Assert: 2. the notification preference is updated
 		pref, appErr := th.p.API.GetPreferenceForUser(

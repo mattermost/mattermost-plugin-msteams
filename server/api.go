@@ -1145,14 +1145,8 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attachments := post.Attachments()
-	if len(attachments) == 1 && len(attachments[0].Actions) == 1 {
-		attachments[0].Actions[0].Disabled = true
-		attachments[0].Actions[0].Name = "Notifications enabled!"
-		post.SetProps(map[string]interface{}{
-			"attachments": attachments,
-		})
-	}
+	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
+	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
 		Update: post,
