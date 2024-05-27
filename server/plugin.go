@@ -926,19 +926,13 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
-	now := time.Now()
-	p.API.LogInfo("Updating metrics")
-
-	// it's a bit of a special case because it returns two values
-	msTeamsPrimary, mmPrimary, primaryPlatformErr := p.store.GetUsersByPrimaryPlatformsCount(PreferenceCategoryPlugin)
-
 	stats := []struct {
 		name        string
 		getData     func() (int64, error)
 		observeData func(int64)
 	}{
 		{
-			name:        "connecter users",
+			name:        "connected users",
 			getData:     p.store.GetConnectedUsersCount,
 			observeData: p.GetMetrics().ObserveConnectedUsers,
 		},
@@ -953,16 +947,6 @@ func (p *Plugin) updateMetrics() {
 				return p.store.GetSyntheticUsersCount(p.remoteID)
 			},
 			observeData: p.GetMetrics().ObserveSyntheticUsers,
-		},
-		{
-			name:        "msteams primary users",
-			getData:     func() (int64, error) { return msTeamsPrimary, primaryPlatformErr },
-			observeData: p.GetMetrics().ObserveMSTeamsPrimary,
-		},
-		{
-			name:        "mattermost primary users",
-			getData:     func() (int64, error) { return mmPrimary, primaryPlatformErr },
-			observeData: p.GetMetrics().ObserveMattermostPrimary,
 		},
 		{
 			name:        "active users sending",
@@ -984,8 +968,6 @@ func (p *Plugin) updateMetrics() {
 
 		stat.observeData(data)
 	}
-
-	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {

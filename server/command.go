@@ -275,10 +275,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		}
 	}
 
-	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
-	}
-
 	return p.cmdSuccess(args, "The MS Teams channel is now linked to this Mattermost channel.")
 }
 
@@ -327,10 +323,6 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 			p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		}
-	}
-
-	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return p.cmdSuccess(args, "The MS Teams channel is no longer linked to this Mattermost channel.")
@@ -538,16 +530,10 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	if err != nil {
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
-	err = p.setPrimaryPlatform(args.UserId, storemodels.PreferenceValuePlatformMM)
-	if err != nil {
-		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
-	}
 
 	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: args.UserId,
 	})
-
-	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
 
 	err = p.setNotificationPreference(args.UserId, false)
 	if err != nil {

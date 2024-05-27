@@ -84,22 +84,6 @@ func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
 	p.API.SendEphemeralPost(userID, post)
 }
 
-const userChoseMattermostPrimaryMessage = "You’ve chosen Mattermost as your primary platform: you’ll receive Microsoft Teams messages and notifications in Mattermost. Consider [disabling MS Teams notifications](https://support.microsoft.com/en-us/office/manage-notifications-in-microsoft-teams-1cc31834-5fe5-412b-8edb-43fecc78413d) to avoid duplicated notifications."
-
-func (p *Plugin) notifyUserMattermostPrimary(userID string) {
-	if err := p.botSendDirectMessage(userID, userChoseMattermostPrimaryMessage); err != nil {
-		p.GetAPI().LogWarn("Failed to notify user is Mattermost primary", "user_id", userID, "error", err)
-	}
-}
-
-const userChoseTeamsPrimaryMessage = "You’ve chosen Microsoft Teams as your primary platform: your Mattermost notifications for DMs and GMs are muted, and you’ll receive chats from Mattermost in Microsoft Teams."
-
-func (p *Plugin) notifyUserTeamsPrimary(userID string) {
-	if err := p.botSendDirectMessage(userID, userChoseTeamsPrimaryMessage); err != nil {
-		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
-	}
-}
-
 func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 	if err := p.botSendDirectPost(
 		userID,

@@ -3,7 +3,6 @@ package main
 import (
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,25 +92,6 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 		assert.True(t, chatShouldSync)
 	})
 
-	t.Run("dm between a local and a local user with teams as primary platform", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		user2 := th.SetupUser(t, team)
-
-		err := th.p.setPrimaryPlatform(user2.Id, storemodels.PreferenceValuePlatformMSTeams)
-		require.NoError(t, err)
-
-		_, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-		})
-		require.Nil(t, err)
-		assert.True(t, chatShouldSync)
-	})
-
 	t.Run("gm between three local users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupUser(t, team)
@@ -170,27 +150,6 @@ func TestChatMembersSpanPlatforms(t *testing.T) {
 
 		user3.RemoteId = model.NewString(th.p.remoteID)
 		user3, appErr = th.p.API.UpdateUser(user3)
-		require.Nil(t, appErr)
-
-		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-			{UserId: user3.Id},
-		})
-		require.NoError(t, err)
-		assert.True(t, chatShouldSync)
-	})
-
-	t.Run("gm between two local users and a local user with teams as primary platform", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		user2 := th.SetupUser(t, team)
-		user3 := th.SetupUser(t, team)
-
-		err := th.p.setPrimaryPlatform(user3.Id, storemodels.PreferenceValuePlatformMSTeams)
-		require.NoError(t, err)
-
-		_, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, appErr)
 
 		chatShouldSync, err := th.p.ChatMembersSpanPlatforms([]*model.ChannelMember{
@@ -283,25 +242,6 @@ func TestMembersContainRemote(t *testing.T) {
 		assert.True(t, remoteUsers)
 	})
 
-	t.Run("dm between a local and a local user with teams as primary platform", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		user2 := th.SetupUser(t, team)
-
-		err := th.p.setPrimaryPlatform(user2.Id, storemodels.PreferenceValuePlatformMSTeams)
-		require.NoError(t, err)
-
-		_, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-		})
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
-	})
-
 	t.Run("gm between three local users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupUser(t, team)
@@ -369,27 +309,6 @@ func TestMembersContainRemote(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, remoteUsers)
-	})
-
-	t.Run("gm between two local users and a local user with teams as primary platform", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		user2 := th.SetupUser(t, team)
-		user3 := th.SetupUser(t, team)
-
-		err := th.p.setPrimaryPlatform(user3.Id, storemodels.PreferenceValuePlatformMSTeams)
-		require.NoError(t, err)
-
-		_, appErr := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-			{UserId: user3.Id},
-		})
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
 	})
 }
 

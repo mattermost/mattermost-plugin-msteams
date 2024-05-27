@@ -451,8 +451,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 
 		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 		require.NoError(t, err)
-		err = th.p.setPrimaryPlatform(user1.Id, storemodels.PreferenceValuePlatformMSTeams)
-		require.NoError(t, err)
 		err = th.p.setNotificationPreference(user1.Id, true)
 		require.NoError(t, err)
 
@@ -462,7 +460,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		assertWebsocketEvent(th, t, user1.Id, makePluginWebsocketEventName(WSEventUserDisconnected))
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
 
-		require.Equal(t, storemodels.PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
 		require.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 }
