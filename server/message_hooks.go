@@ -24,11 +24,6 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
-	// Ignore two-way sync when notifications are enabled.
-	if p.GetSyncNotifications() {
-		return
-	}
-
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return
@@ -83,11 +78,6 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 }
 
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	// Ignore two-way sync when notifications are enabled.
-	if p.GetSyncNotifications() {
-		return
-	}
-
 	channel, appErr := p.API.GetChannel(post.ChannelId)
 	if appErr != nil {
 		return
@@ -157,11 +147,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		return
 	}
 
-	// Ignore two-way sync when notifications are enabled.
-	if p.GetSyncNotifications() {
-		return
-	}
-
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
@@ -211,11 +196,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		return
 	}
 
-	// Ignore two-way sync when notifications are enabled.
-	if p.GetSyncNotifications() {
-		return
-	}
-
 	if reaction.ChannelId == "removedfromplugin" {
 		return
 	}
@@ -259,11 +239,6 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 }
 
 func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/ *model.Post) {
-	// Ignore two-way sync when notifications are enabled.
-	if p.GetSyncNotifications() {
-		return
-	}
-
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("post_%s", newPost.Id))
