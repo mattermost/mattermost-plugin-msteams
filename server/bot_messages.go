@@ -154,30 +154,29 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 	if chatSize <= 1 {
 		return
 	} else if chatSize == 2 {
-		preamble = fmt.Sprintf("**%s** messaged you in MS Teams:", actorDisplayName)
+		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat](%s):", actorDisplayName, chatLink)
 	} else if chatSize == 3 {
-		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in MS Teams:", actorDisplayName)
+		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat](%s):", actorDisplayName, chatLink)
 	} else {
-		preamble = fmt.Sprintf("**%s** messaged you and %d other users in MS Teams:", actorDisplayName, chatSize-2)
+		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat](%s):", actorDisplayName, chatSize-2, chatLink)
 	}
 
 	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
 
-	attachments := ""
+	attachmentsNotice := ""
 	if attachmentCount > 0 {
-		attachments += "\n*"
+		attachmentsNotice += "\n*"
 		if attachmentCount == 1 {
-			attachments += "This message was originally sent with one attachment."
+			attachmentsNotice += "This message was originally sent with one attachment."
 		} else {
-			attachments += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
+			attachmentsNotice += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
 		}
-		attachments += "*\n"
+		attachmentsNotice += "*\n"
 	}
 
 	formattedMessage := fmt.Sprintf(`%s
 %s
-%s
-**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, attachments, chatLink)
+%s`, preamble, message, attachmentsNotice)
 
 	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
