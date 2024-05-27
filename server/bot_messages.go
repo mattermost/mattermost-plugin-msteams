@@ -148,17 +148,22 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string, attachmentCount int) {
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) {
 	var preamble string
+
+	var chatTopicDesc string
+	if chatTopic != "" {
+		chatTopicDesc = ": " + chatTopic
+	}
 
 	if chatSize <= 1 {
 		return
 	} else if chatSize == 2 {
-		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat](%s):", actorDisplayName, chatLink)
+		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
 	} else if chatSize == 3 {
-		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat](%s):", actorDisplayName, chatLink)
+		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
 	} else {
-		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat](%s):", actorDisplayName, chatSize-2, chatLink)
+		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat%s](%s):", actorDisplayName, chatSize-2, chatTopicDesc, chatLink)
 	}
 
 	message = "> " + strings.ReplaceAll(message, "\n", "\n>")

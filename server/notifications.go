@@ -49,6 +49,7 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
+			chat.Topic,
 			len(chat.Members),
 			chatLink,
 			post.Message,
