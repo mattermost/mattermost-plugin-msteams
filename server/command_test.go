@@ -1063,11 +1063,11 @@ func TestGetAutocompleteData(t *testing.T) {
 										},
 										{
 											Item:     "on",
-											HelpText: "Enable notifications.",
+											HelpText: "Enable notifications from chats and group chats.",
 										},
 										{
 											Item:     "off",
-											HelpText: "Disable notifications.",
+											HelpText: "Disable notifications from chats and group chats.",
 										},
 									},
 								},
@@ -1166,11 +1166,11 @@ func TestGetAutocompleteData(t *testing.T) {
 										},
 										{
 											Item:     "on",
-											HelpText: "Enable notifications.",
+											HelpText: "Enable notifications from chats and group chats.",
 										},
 										{
 											Item:     "off",
-											HelpText: "Disable notifications.",
+											HelpText: "Disable notifications from chats and group chats.",
 										},
 									},
 								},
@@ -1473,17 +1473,17 @@ func TestNotificationCommand(t *testing.T) {
 				{
 					name:     "enabled",
 					enabled:  model.NewBool(true),
-					expected: "Notifications from MSTeams are currently enabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently enabled.",
 				},
 				{
 					name:     "disabled",
 					enabled:  model.NewBool(false),
-					expected: "Notifications from MSTeams are currently disabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
 				},
 				{
 					name:     "not set",
 					enabled:  nil,
-					expected: "Notifications from MSTeams are currently disabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
 				},
 			}
 			for _, tc := range cases {
@@ -1524,7 +1524,7 @@ func TestNotificationCommand(t *testing.T) {
 				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"on"})
 				require.Nil(t, appErr)
 				assertNoCommandResponse(t, commandResponse)
-				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now enabled.")
+				assertEphemeralResponse(th, t, args, "Notifications from chats and group chats in MS Teams are now enabled.")
 
 				require.True(t, th.p.getNotificationPreference(user1.Id))
 			})
@@ -1552,7 +1552,7 @@ func TestNotificationCommand(t *testing.T) {
 				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"off"})
 				require.Nil(t, appErr)
 				assertNoCommandResponse(t, commandResponse)
-				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now disabled.")
+				assertEphemeralResponse(th, t, args, "Notifications from chats and group chats in MS Teams are now disabled.")
 
 				require.False(t, th.p.getNotificationPreference(user1.Id))
 			})

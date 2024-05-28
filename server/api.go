@@ -92,6 +92,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
+	router.HandleFunc("/dismiss-notifications", api.dismissNotifications).Methods("POST")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -407,7 +408,7 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
-	message := "You are now connected."
+	message := "Your account is now connected to MS Teams."
 	query := r.URL.Query()
 	if query.Has("isBot") {
 		message = "The bot account is now connected."
@@ -661,7 +662,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case a.p.getConfiguration().SyncNotifications:
-		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, postID)
+		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
 		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
 		return
 	default:
@@ -705,7 +706,7 @@ func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelI
 	}
 }
 
-func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, postID string) {
+func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {
 	switch originInfo {
 	case "fromPreferences":
 		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
@@ -724,7 +725,19 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 				a.p.API.LogWarn("Unable to update post", "post", postID, "error", appErr.Error())
 			}
 		} else {
-			a.p.GetAPI().DeleteEphemeralPost(mmUserID, postID)
+			// Update the original connection prompt and remove any calls to action.
+			// This occurs where the ephemeral message was sent, and likely where the
+			// user returned to after closing the oAuth2 flow.
+			a.p.GetAPI().UpdateEphemeralPost(mmUserID, &model.Post{
+				Id:        postID,
+				ChannelId: channelID,
+				UserId:    a.p.GetBotUserID(),
+				Message:   "Your account is now connected to MS Teams.",
+				CreateAt:  model.GetMillis(),
+				UpdateAt:  model.GetMillis(),
+			})
+
+			// Send the welcome message in the bot channel.
 			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
@@ -1135,14 +1148,8 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attachments := post.Attachments()
-	if len(attachments) == 1 && len(attachments[0].Actions) == 1 {
-		attachments[0].Actions[0].Disabled = true
-		attachments[0].Actions[0].Name = "Notifications enabled!"
-		post.SetProps(map[string]interface{}{
-			"attachments": attachments,
-		})
-	}
+	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
+	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
 		Update: post,
@@ -1151,5 +1158,50 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
 		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
+	}
+}
+
+func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	var actionHandler model.PostActionIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
+		a.p.API.LogWarn("Unable to decode the action handler", "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
+		return
+	}
+
+	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the post", "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to get the post", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the post was authored by the bot itself.
+	if post.UserId != a.p.botUserID {
+		a.p.API.LogWarn("Attempt to delete post not authored by the bot", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Verify the post is in the direct message channel between the bot and the user.
+	botDMChannel, err := a.p.apiClient.Channel.GetDirect(a.p.botUserID, userID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
+		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
+		return
+	} else if botDMChannel.Id != post.ChannelId {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// At this point, it might be /another/ post by the bot in the DM with that user, but we
+	// allow this for now.
+	err = a.p.apiClient.Post.DeletePost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to delete the post", "post_id", actionHandler.PostId, "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to delete the post", http.StatusInternalServerError)
 	}
 }
