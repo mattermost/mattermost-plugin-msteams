@@ -110,6 +110,7 @@ type Metrics interface {
 	ObserveSyncMsgPostDelay(action string, delayMillis int64)
 	ObserveSyncMsgReactionDelay(action string, delayMillis int64)
 	ObserveSyncMsgFileDelay(action string, delayMillis int64)
+	ObserveNotification(isGroupChat, hasAttachments bool)
 }
 
 type InstanceInfo struct {
@@ -159,8 +160,9 @@ type metrics struct {
 	activeWorkersTotal            *prometheus.GaugeVec
 	clientSecretEndDateTime       prometheus.Gauge
 
-	storeTime   *prometheus.HistogramVec
-	workersTime *prometheus.HistogramVec
+	storeTime          *prometheus.HistogramVec
+	workersTime        *prometheus.HistogramVec
+	notificationsTotal *prometheus.CounterVec
 }
 
 // NewMetrics Factory method to create a new metrics collector.
@@ -479,6 +481,15 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"worker"})
 	m.registry.MustRegister(m.workersTime)
 
+	m.notificationsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemEvents,
+		Name:        "notifications_total",
+		Help:        "The total number of chat notifications delivered.",
+		ConstLabels: additionalLabels,
+	}, []string{"is_group_chat", "has_attachments"})
+	m.registry.MustRegister(m.notificationsTotal)
+
 	return m
 }
 
@@ -703,4 +714,13 @@ func (m *metrics) ObserveWorker(worker string) func() {
 	}
 
 	return func() {}
+}
+
+func (m *metrics) ObserveNotification(isGroupChat, hasAttachments bool) {
+	if m != nil {
+		m.notificationsTotal.With(prometheus.Labels{
+			"is_group_chat":   strconv.FormatBool(isGroupChat),
+			"has_attachments": strconv.FormatBool(hasAttachments),
+		}).Inc()
+	}
 }
