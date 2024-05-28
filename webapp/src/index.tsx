@@ -82,7 +82,7 @@ export default class Plugin {
                         name: 'MS Teams: Whitelisted Users',
                         id: 'msteams_whitelisted_users',
                         icon: 'fa-users', // font-awesome-4.7.0 handler
-                        value: siteStats?.total_connected_users || 0,
+                        value: siteStats?.current_whitelist_users || 0,
                     },
                     msteams_users_sending: {
                         name: 'MS Teams: Users sending',
