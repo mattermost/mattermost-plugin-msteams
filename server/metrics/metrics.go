@@ -353,12 +353,11 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action"})
 	m.registry.MustRegister(m.syncMsgFileDelayTime)
 
-	// connected, invited, whitelisted
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "connected_users",
-		Help:        "The total number of Mattermost users connected to MS Teams users.",
+		Help:        "The total number of users connected to MS Teams users.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.connectedUsers)
@@ -366,7 +365,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 	m.connectedUsersLimit = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
-		Name:        "whitelist_limit", // really: connected_users_limit
+		Name:        "connected_users_limit",
 		Help:        "The maximum number of users allowed to connect.",
 		ConstLabels: additionalLabels,
 	})
@@ -377,7 +376,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "pending_invites",
-		Help:        "The total number of Mattermost users with pending connection invites.",
+		Help:        "The total number of users with pending connection invites.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.pendingInvites)
@@ -386,7 +385,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "pending_invites_limit",
-		Help:        "The limit of pending connection invites.",
+		Help:        "The maximum number of pending connection invites.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.pendingInvitesLimit)
@@ -395,12 +394,10 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "whitelisted_users",
-		Help:        "The total number of Mattermost users on the whitelist for invites or new connections.",
+		Help:        "The total number of users whitelisted for connection invites or new connections.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.whitelistedUsers)
-
-	// ===
 
 	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
