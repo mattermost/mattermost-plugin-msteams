@@ -72,18 +72,6 @@ export default class Plugin {
                         icon: 'fa-users', // font-awesome-4.7.0 handler
                         value: siteStats?.total_connected_users || 0,
                     },
-                    msteams_invited_users: {
-                        name: 'MS Teams: Invited Users',
-                        id: 'msteams_invited_users',
-                        icon: 'fa-users', // font-awesome-4.7.0 handler
-                        value: siteStats?.pending_invited_users || 0,
-                    },
-                    msteams_whitelisted_users: {
-                        name: 'MS Teams: Whitelisted Users',
-                        id: 'msteams_whitelisted_users',
-                        icon: 'fa-users', // font-awesome-4.7.0 handler
-                        value: siteStats?.current_whitelist_users || 0,
-                    },
                     msteams_users_sending: {
                         name: 'MS Teams: Users sending',
                         id: 'msteams_users_sending',
