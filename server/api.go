@@ -691,6 +691,8 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 				ChannelId: channelID,
 				UserId:    a.p.GetBotUserID(),
 				Message:   "Your account is now connected to MS Teams.",
+				CreateAt:  model.GetMillis(),
+				UpdateAt:  model.GetMillis(),
 			})
 
 			// Send the welcome message in the bot channel.
