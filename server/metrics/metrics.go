@@ -91,8 +91,6 @@ type Metrics interface {
 	ObserveUpstreamUsers(count int64)
 	ObserveActiveUsersSending(count int64)
 	ObserveActiveUsersReceiving(count int64)
-	ObserveMattermostPrimary(count int64)
-	ObserveMSTeamsPrimary(count int64)
 
 	ObserveChangeEventQueueCapacity(count int64)
 	IncrementChangeEventQueueLength(changeType string)
@@ -154,8 +152,6 @@ type metrics struct {
 	upstreamUsers        prometheus.Gauge
 	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
-	mattermostPrimary    prometheus.Gauge
-	msTeamsPrimary       prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
 	changeEventQueueLength        *prometheus.GaugeVec
@@ -408,24 +404,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.activeUsersReceiving)
 
-	m.mattermostPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "mattermost_primary",
-		Help:        "The total number of active users who selected Mattermost as their primary platform.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.mattermostPrimary)
-
-	m.msTeamsPrimary = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "msteams_primary",
-		Help:        "The total number of active users who selected Microsoft Teams as their primary platform.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.msTeamsPrimary)
-
 	m.changeEventQueueCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -607,18 +585,6 @@ func (m *metrics) ObserveActiveUsersSending(count int64) {
 func (m *metrics) ObserveActiveUsersReceiving(count int64) {
 	if m != nil {
 		m.activeUsersReceiving.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveMattermostPrimary(count int64) {
-	if m != nil {
-		m.mattermostPrimary.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveMSTeamsPrimary(count int64) {
-	if m != nil {
-		m.msTeamsPrimary.Set(float64(count))
 	}
 }
 

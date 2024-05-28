@@ -50,12 +50,9 @@ const (
 	UpdateWhitelistNotFoundEmailsErrThreshold = 10
 	QueryParamPage                            = "page"
 	QueryParamPerPage                         = "per_page"
-	QueryParamPrimaryPlatform                 = "primary_platform"
 	QueryParamChannelID                       = "channel_id"
 	QueryParamPostID                          = "post_id"
 	QueryParamFromPreferences                 = "from_preferences"
-
-	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
 
 type UpdateWhitelistResult struct {
@@ -87,10 +84,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/whitelist", api.updateWhitelist).Methods(http.MethodPut)
 	router.HandleFunc("/whitelist/download", api.getWhitelistEmailsFile).Methods(http.MethodGet)
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
-	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
 	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
-	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
 	router.HandleFunc("/dismiss-notifications", api.dismissNotifications).Methods("POST")
 
@@ -437,34 +432,6 @@ func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
-	bundlePath, err := a.p.API.GetBundlePath()
-	if err != nil {
-		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
-		return
-	}
-
-	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
-	if err != nil {
-		a.p.API.LogError("unable to parse the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	}
-
-	err = t.Execute(w, struct {
-		ServerURL                 string
-		APIEndPoint               string
-		QueryParamPrimaryPlatform string
-	}{
-		ServerURL:                 a.p.GetURL(),
-		APIEndPoint:               APIChoosePrimaryPlatform,
-		QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
-	})
-	if err != nil {
-		a.p.API.LogError("unable to execute the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
-	}
-}
-
 func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
@@ -658,23 +625,14 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
-
 	switch {
 	case a.p.getConfiguration().SyncNotifications:
 		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
-		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
-		return
 	default:
 		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
-		if a.p.GetSelectiveSync() {
-			http.Redirect(w, r, a.p.GetURL()+"/primary-platform", http.StatusSeeOther)
-			return
-		}
-
-		http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
-		return
 	}
+
+	http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
 }
 
 func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
@@ -978,32 +936,6 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		a.p.API.LogWarn("Error writing update whitelist response")
 	}
-}
-
-func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
-		http.Error(w, "not authorized", http.StatusUnauthorized)
-		return
-	}
-
-	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
-
-	if primaryPlatform != storemodels.PreferenceValuePlatformMM && primaryPlatform != storemodels.PreferenceValuePlatformMSTeams {
-		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
-		http.Error(w, "invalid primary platform", http.StatusBadRequest)
-		return
-	}
-
-	err := a.p.setPrimaryPlatform(userID, primaryPlatform)
-	if err != nil {
-		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
-		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {

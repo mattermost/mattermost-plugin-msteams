@@ -958,10 +958,6 @@ func TestNotifyConnect(t *testing.T) {
 	})
 }
 
-func TestChoosePrimaryPlatform(t *testing.T) {
-	t.Skip()
-}
-
 func TestGetSiteStats(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "/stats/site")
@@ -1052,10 +1048,6 @@ func TestGetSiteStats(t *testing.T) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
-}
-
-func TestPrimaryPlatform(t *testing.T) {
-	t.Skip()
 }
 
 func TestIFrameMattermostTab(t *testing.T) {

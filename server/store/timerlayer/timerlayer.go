@@ -413,20 +413,6 @@ func (s *TimerLayer) GetUserConnectStatus(mmUserID string) (*storemodels.UserCon
 	return result, err
 }
 
-func (s *TimerLayer) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
-	start := time.Now()
-
-	result, resultVar1, err := s.Store.GetUsersByPrimaryPlatformsCount(preferenceCategory)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetUsersByPrimaryPlatformsCount", success, elapsed)
-	return result, resultVar1, err
-}
-
 func (s *TimerLayer) GetWhitelistCount() (int, error) {
 	start := time.Now()
 

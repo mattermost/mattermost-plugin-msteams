@@ -944,42 +944,6 @@ func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (sy
 }
 
 //db:withReplica
-func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
-	query := s.getQueryBuilder(db).
-		Select("p.value", "count(*)").
-		From("preferences p").
-		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
-		Where(sq.And{
-			sq.Eq{"p.category": preferenceCategory},
-			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
-			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
-		}).
-		GroupBy("p.value")
-	rows, err := query.Query()
-	if err != nil {
-		return msTeamsPrimary, mmPrimary, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var platform string
-		var count int64
-		if err := rows.Scan(&platform, &count); err != nil {
-			return msTeamsPrimary, mmPrimary, err
-		}
-
-		switch platform {
-		case storemodels.PreferenceValuePlatformMM:
-			mmPrimary = count
-		case storemodels.PreferenceValuePlatformMSTeams:
-			msTeamsPrimary = count
-		}
-	}
-
-	return msTeamsPrimary, mmPrimary, nil
-}
-
-//db:withReplica
 func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duration) (activeUsersSending int64, err error) {
 	now := time.Now()
 
