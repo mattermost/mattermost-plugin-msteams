@@ -74,7 +74,6 @@ type Metrics interface {
 	IncrementHTTPErrors()
 	ObserveOAuthTokenInvalidated()
 	ObserveChangeEventQueueRejected()
-	ObserveWhitelistLimit(limit int)
 
 	ObserveChangeEvent(changeType string, discardedReason string)
 	ObserveLifecycleEvent(lifecycleEventType, discardedReason string)
@@ -86,6 +85,11 @@ type Metrics interface {
 	ObserveSubscription(action string)
 
 	ObserveConnectedUsers(count int64)
+	ObserveConnectedUsersLimit(count int64)
+	ObservePendingInvites(count int64)
+	ObservePendingInvitesLimit(count int64)
+	ObserveWhitelistedUsers(count int64)
+
 	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
 	ObserveUpstreamUsers(count int64)
@@ -114,9 +118,9 @@ type Metrics interface {
 }
 
 type InstanceInfo struct {
-	InstallationID string
-	WhiteListLimit int
-	PluginVersion  string
+	InstallationID      string
+	ConnectedUsersLimit int
+	PluginVersion       string
 }
 
 // metrics used to instrumentate metrics in prometheus.
@@ -126,7 +130,6 @@ type metrics struct {
 	pluginStartTime        prometheus.Gauge
 	pluginInfo             prometheus.Gauge
 	goroutineFailuresTotal prometheus.Counter
-	whitelistLimit         prometheus.Gauge
 
 	apiTime *prometheus.HistogramVec
 
@@ -147,10 +150,16 @@ type metrics struct {
 	syncMsgReactionDelayTime *prometheus.HistogramVec
 	syncMsgFileDelayTime     *prometheus.HistogramVec
 
-	connectedUsers       prometheus.Gauge
-	syntheticUsers       prometheus.Gauge
-	linkedChannels       prometheus.Gauge
-	upstreamUsers        prometheus.Gauge
+	connectedUsers      prometheus.Gauge
+	connectedUsersLimit prometheus.Gauge
+	pendingInvites      prometheus.Gauge
+	pendingInvitesLimit prometheus.Gauge
+	whitelistedUsers    prometheus.Gauge
+
+	syntheticUsers prometheus.Gauge
+	linkedChannels prometheus.Gauge
+	upstreamUsers  prometheus.Gauge
+
 	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
 
@@ -190,16 +199,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.pluginStartTime.SetToCurrentTime()
 	m.registry.MustRegister(m.pluginStartTime)
-
-	m.whitelistLimit = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "whitelist_limit",
-		Help:        "The maximum number of users allowed to connect.",
-		ConstLabels: additionalLabels,
-	})
-	m.whitelistLimit.Set(float64(info.WhiteListLimit))
-	m.registry.MustRegister(m.whitelistLimit)
 
 	m.pluginInfo = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: MetricsNamespace,
@@ -356,10 +355,47 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
 		Name:        "connected_users",
-		Help:        "The total number of Mattermost users connected to MS Teams users.",
+		Help:        "The total number of users connected to MS Teams users.",
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.connectedUsers)
+
+	m.connectedUsersLimit = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "connected_users_limit",
+		Help:        "The maximum number of users allowed to connect.",
+		ConstLabels: additionalLabels,
+	})
+	m.connectedUsersLimit.Set(float64(info.ConnectedUsersLimit))
+	m.registry.MustRegister(m.connectedUsersLimit)
+
+	m.pendingInvites = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "pending_invites",
+		Help:        "The total number of users with pending connection invites.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.pendingInvites)
+
+	m.pendingInvitesLimit = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "pending_invites_limit",
+		Help:        "The maximum number of pending connection invites.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.pendingInvitesLimit)
+
+	m.whitelistedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   MetricsNamespace,
+		Subsystem:   MetricsSubsystemApp,
+		Name:        "whitelisted_users",
+		Help:        "The total number of users whitelisted for connection invites or new connections.",
+		ConstLabels: additionalLabels,
+	})
+	m.registry.MustRegister(m.whitelistedUsers)
 
 	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -503,23 +539,45 @@ func (m *metrics) ObserveGoroutineFailure() {
 	}
 }
 
-func (m *metrics) ObserveWhitelistLimit(limit int) {
-	if m != nil {
-		m.whitelistLimit.Set(float64(limit))
-	}
-}
-
 func (m *metrics) ObserveAPIEndpointDuration(handler, method, statusCode string, elapsed float64) {
 	if m != nil {
 		m.apiTime.With(prometheus.Labels{"handler": handler, "method": method, "status_code": statusCode}).Observe(elapsed)
 	}
 }
 
+// START CONNECT FLOW METRICS
+
 func (m *metrics) ObserveConnectedUsers(count int64) {
 	if m != nil {
 		m.connectedUsers.Set(float64(count))
 	}
 }
+
+func (m *metrics) ObserveConnectedUsersLimit(limit int64) {
+	if m != nil {
+		m.connectedUsersLimit.Set(float64(limit))
+	}
+}
+
+func (m *metrics) ObservePendingInvites(count int64) {
+	if m != nil {
+		m.pendingInvites.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObservePendingInvitesLimit(count int64) {
+	if m != nil {
+		m.pendingInvitesLimit.Set(float64(count))
+	}
+}
+
+func (m *metrics) ObserveWhitelistedUsers(count int64) {
+	if m != nil {
+		m.whitelistedUsers.Set(float64(count))
+	}
+}
+
+// END CONNECT FLOW METRICS
 
 func (m *metrics) ObserveChangeEvent(changeType string, discardedReason string) {
 	if m != nil {

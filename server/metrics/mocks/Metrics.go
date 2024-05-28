@@ -100,6 +100,11 @@ func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
 }
 
+// ObserveConnectedUsersLimit provides a mock function with given fields: count
+func (_m *Metrics) ObserveConnectedUsersLimit(count int64) {
+	_m.Called(count)
+}
+
 // ObserveFile provides a mock function with given fields: action, source, discardedReason, isDirectOrGroupMessage
 func (_m *Metrics) ObserveFile(action string, source string, discardedReason string, isDirectOrGroupMessage bool) {
 	_m.Called(action, source, discardedReason, isDirectOrGroupMessage)
@@ -150,6 +155,16 @@ func (_m *Metrics) ObserveOAuthTokenInvalidated() {
 	_m.Called()
 }
 
+// ObservePendingInvites provides a mock function with given fields: count
+func (_m *Metrics) ObservePendingInvites(count int64) {
+	_m.Called(count)
+}
+
+// ObservePendingInvitesLimit provides a mock function with given fields: count
+func (_m *Metrics) ObservePendingInvitesLimit(count int64) {
+	_m.Called(count)
+}
+
 // ObserveReaction provides a mock function with given fields: action, source, isDirectOrGroupMessage
 func (_m *Metrics) ObserveReaction(action string, source string, isDirectOrGroupMessage bool) {
 	_m.Called(action, source, isDirectOrGroupMessage)
@@ -190,9 +205,9 @@ func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveWhitelistLimit provides a mock function with given fields: limit
-func (_m *Metrics) ObserveWhitelistLimit(limit int) {
-	_m.Called(limit)
+// ObserveWhitelistedUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveWhitelistedUsers(count int64) {
+	_m.Called(count)
 }
 
 // ObserveWorker provides a mock function with given fields: worker

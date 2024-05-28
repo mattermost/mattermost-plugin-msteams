@@ -296,7 +296,8 @@ func (p *Plugin) start(isRestart bool) {
 		}
 	}
 
-	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
+	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
+	p.metricsService.ObservePendingInvitesLimit(int64(p.configuration.ConnectedUsersMaxPendingInvites))
 
 	// We don't restart the activity handler since it's stateless.
 	if !isRestart {
@@ -935,6 +936,22 @@ func (p *Plugin) updateMetrics() {
 			name:        "connected users",
 			getData:     p.store.GetConnectedUsersCount,
 			observeData: p.GetMetrics().ObserveConnectedUsers,
+		},
+		{
+			name: "invited users",
+			getData: func() (int64, error) {
+				val, err := p.store.GetInvitedCount()
+				return int64(val), err
+			},
+			observeData: p.GetMetrics().ObservePendingInvites,
+		},
+		{
+			name: "whitelisted users",
+			getData: func() (int64, error) {
+				val, err := p.store.GetWhitelistCount()
+				return int64(val), err
+			},
+			observeData: p.GetMetrics().ObserveWhitelistedUsers,
 		},
 		{
 			name:        "linked channels",

@@ -1025,6 +1025,18 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to get connected users count", http.StatusInternalServerError)
 		return
 	}
+	pendingInvites, err := a.p.store.GetInvitedCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get invited users count", "error", err.Error())
+		http.Error(w, "unable to get invited users count", http.StatusInternalServerError)
+		return
+	}
+	whitelistedUsers, err := a.p.store.GetWhitelistCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get whitelisted users count", "error", err.Error())
+		http.Error(w, "unable to get whitelisted users count", http.StatusInternalServerError)
+		return
+	}
 	receiving, err := a.p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange)
 	if err != nil {
 		a.p.API.LogWarn("Failed to get users receiving count", "error", err.Error())
@@ -1040,10 +1052,14 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 
 	siteStats := struct {
 		TotalConnectedUsers   int64 `json:"total_connected_users"`
+		PendingInvitedUsers   int64 `json:"pending_invited_users"`
+		CurrentWhitelistUsers int64 `json:"current_whitelist_users"`
 		UserReceivingMessages int64 `json:"total_users_receiving"`
 		UserSendingMessages   int64 `json:"total_users_sending"`
 	}{
 		TotalConnectedUsers:   connectedUsersCount,
+		PendingInvitedUsers:   int64(pendingInvites),
+		CurrentWhitelistUsers: int64(whitelistedUsers),
 		UserReceivingMessages: receiving,
 		UserSendingMessages:   sending,
 	}
