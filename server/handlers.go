@@ -298,7 +298,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
 		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, errSync := ah.plugin.ChannelShouldSyncCreated(channelID, senderID); errSync != nil {
+			if shouldSync, errSync := ah.plugin.ChannelConnectedOrRemote(channelID, senderID); errSync != nil {
 				ah.plugin.GetAPI().LogWarn("Unable to determine if channel should sync", "error", errSync.Error())
 				return metrics.DiscardedReasonOther
 			} else if !shouldSync {
