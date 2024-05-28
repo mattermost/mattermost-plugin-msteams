@@ -23,6 +23,10 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	post.ChannelId = channel.Id
 	post.UserId = p.botUserID
 
+	// Force posts from the bot to render the user profile icon each time instead of collapsing
+	// adjacent posts. This helps draw attention to each individual post.
+	post.AddProp("from_webhook", "true")
+
 	return p.apiClient.Post.CreatePost(post)
 }
 
