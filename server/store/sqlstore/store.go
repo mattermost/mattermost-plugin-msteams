@@ -287,7 +287,7 @@ func (s *SQLStore) mattermostToTeamsUserID(db sq.BaseRunner, userID string) (str
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -304,7 +304,7 @@ func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postI
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMattermostID(db sq.BaseRunner, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -775,7 +775,7 @@ func (s *SQLStore) deleteSubscription(db sq.BaseRunner, subscriptionID string) e
 
 //db:withReplica
 func (s *SQLStore) getChannelSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
+	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
 	var certificate *string
