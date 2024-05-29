@@ -122,11 +122,11 @@ func (p *Plugin) GetSyncNotifications() bool {
 }
 
 func (p *Plugin) GetSyncDirectMessages() bool {
-	return p.getConfiguration().SyncDirectMessages
+	return p.getConfiguration().SyncDirectMessages && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncGroupMessages() bool {
-	return p.getConfiguration().SyncGroupMessages
+	return p.getConfiguration().SyncGroupMessages && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncLinkedChannels() bool {
