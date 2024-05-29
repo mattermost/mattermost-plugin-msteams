@@ -18,6 +18,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattermost/mattermost/server/public v0.1.3
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
+	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.6.0
 	github.com/microsoft/kiota-http-go v1.4.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.43.0
@@ -141,7 +142,6 @@ require (
 	github.com/mattermost/go-i18n v1.11.1-0.20211013152124-5c415071e404 // indirect
 	github.com/mattermost/ldap v0.0.0-20231116144001-0f480c025956 // indirect
 	github.com/mattermost/logr/v2 v2.0.21 // indirect
-	github.com/mattermost/morph v1.1.0 // indirect
 	github.com/mattermost/rsc v0.0.0-20160330161541-bbaefb05eaa0 // indirect
 	github.com/mattermost/squirrel v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
