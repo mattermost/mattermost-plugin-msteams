@@ -27,6 +27,7 @@ type configuration struct {
 	EvaluationAPI                      bool   `json:"evaluationapi"`
 	WebhookSecret                      string `json:"webhooksecret"`
 	EnabledTeams                       string `json:"enabledteams"`
+	SyncNotifications                  bool   `json:"syncnotifications"`
 	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
 	SyncGroupMessages                  bool   `json:"syncgroupmessages"`
 	SelectiveSync                      bool   `json:"selectiveSync"`
@@ -35,13 +36,14 @@ type configuration struct {
 	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
+	SyncRemoteOnly                     bool   `json:"syncRemoteOnly"`
 	CertificatePublic                  string `json:"certificatepublic"`
 	CertificateKey                     string `json:"certificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
-	NewUserConnections                 string `json:"newUserConnections"`
-	ConnectedUsersInvitePoolSize       int    `json:"connectedUsersInvitePoolSize"`
+	ConnectedUsersRestricted           bool   `json:"connectedUsersRestricted"`
+	ConnectedUsersMaxPendingInvites    int    `json:"connectedUsersMaxPendingInvites"`
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`

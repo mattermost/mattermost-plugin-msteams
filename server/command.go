@@ -21,6 +21,14 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		p.API.LogWarn("Unable to get the MS Teams icon for the slash command")
 	}
 
+	autoCompleteData := getAutocompleteData(syncLinkedChannels)
+	p.subCommandsMutex.Lock()
+	defer p.subCommandsMutex.Unlock()
+	p.subCommands = make([]string, 0, len(autoCompleteData.SubCommands))
+	for i := range autoCompleteData.SubCommands {
+		p.subCommands = append(p.subCommands, autoCompleteData.SubCommands[i].Trigger)
+	}
+
 	return &model.Command{
 		Trigger:              msteamsCommand,
 		AutoComplete:         true,
@@ -28,7 +36,7 @@ func (p *Plugin) createCommand(syncLinkedChannels bool) *model.Command {
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
-		AutocompleteData:     getAutocompleteData(syncLinkedChannels),
+		AutocompleteData:     autoCompleteData,
 		AutocompleteIconData: iconData,
 	}
 }
@@ -98,6 +106,14 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	promoteUser.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(promoteUser)
 
+	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
+	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
+		{Item: "status", HelpText: "Show current notification status."},
+		{Item: "on", HelpText: "Enable notifications from chats and group chats."},
+		{Item: "off", HelpText: "Disable notifications from chats and group chats."},
+	})
+	cmd.AddCommand(notifications)
+
 	return cmd
 }
 
@@ -159,10 +175,14 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeStatusCommand(args)
 	}
 
-	if p.getConfiguration().SyncLinkedChannels {
-		return p.cmdError(args, "Unknown command. Valid options: link, unlink, show, show-links, connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+	if action == "notifications" {
+		return p.executeNotificationsCommand(args, parameters)
 	}
-	return p.cmdError(args, "Unknown command. Valid options: connect, connect-bot, status, disconnect, disconnect-bot and promote.")
+
+	p.subCommandsMutex.RLock()
+	list := strings.Join(p.subCommands, ", ")
+	p.subCommandsMutex.RUnlock()
+	return p.cmdError(args, "Unknown command. Valid options: "+list)
 }
 
 func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
@@ -255,10 +275,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		}
 	}
 
-	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
-	}
-
 	return p.cmdSuccess(args, "The MS Teams channel is now linked to this Mattermost channel.")
 }
 
@@ -307,10 +323,6 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 			p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		}
-	}
-
-	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return p.cmdSuccess(args, "The MS Teams channel is no longer linked to this Mattermost channel.")
@@ -472,13 +484,17 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	}
 
 	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(args.UserId)
+		canOpenlyConnect, nAvailable, openConnectErr := p.UserCanOpenlyConnect(args.UserId)
 		if openConnectErr != nil {
 			p.API.LogWarn("Error in checking if the user can openly connect", "user_id", args.UserId, "error", openConnectErr.Error())
 			return p.cmdError(args, genericErrorMessage)
 		}
 
 		if !canOpenlyConnect {
+			if nAvailable > 0 {
+				// spots available, but need to be on whitelist in order to connect
+				return p.cmdError(args, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.")
+			}
 			return p.cmdError(args, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.")
 		}
 	}
@@ -496,26 +512,6 @@ func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdError(args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
 	}
 
-	genericErrorMessage := "Error in trying to connect the bot account, please try again."
-
-	hasRightToConnect, err := p.UserHasRightToConnect(p.botUserID)
-	if err != nil {
-		p.API.LogWarn("Error in checking if the bot user has the right to connect", "bot_user_id", p.botUserID, "error", err.Error())
-		return p.cmdError(args, genericErrorMessage)
-	}
-
-	if !hasRightToConnect {
-		canOpenlyConnect, openConnectErr := p.UserCanOpenlyConnect(p.botUserID)
-		if openConnectErr != nil {
-			p.API.LogWarn("Error in checking if the bot user can openly connect", "bot_user_id", p.botUserID, "error", openConnectErr.Error())
-			return p.cmdError(args, genericErrorMessage)
-		}
-
-		if !canOpenlyConnect {
-			return p.cmdError(args, "You cannot connect the bot account because the maximum limit of users allowed to connect has been reached.")
-		}
-	}
-
 	p.SendConnectBotMessage(args.ChannelId, args.UserId)
 	return &model.CommandResponse{}, nil
 }
@@ -526,7 +522,7 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
-	if _, err = p.store.GetTokenForMattermostUser(args.UserId); err != nil {
+	if token, _ := p.store.GetTokenForMattermostUser(args.UserId); token == nil {
 		return p.cmdSuccess(args, "Error: the account is not connected")
 	}
 
@@ -534,12 +530,15 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	if err != nil {
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
-	err = p.setPrimaryPlatform(args.UserId, storemodels.PreferenceValuePlatformMM)
-	if err != nil {
-		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
-	}
 
-	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
+	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
+		UserId: args.UserId,
+	})
+
+	err = p.setNotificationPreference(args.UserId, false)
+	if err != nil {
+		p.API.LogWarn("unable to disable notifications preference", "error", err.Error())
+	}
 
 	return p.cmdSuccess(args, "Your account has been disconnected.")
 }
@@ -611,6 +610,51 @@ func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandRe
 	}
 
 	return p.cmdSuccess(args, "Your account is not connected to Teams.")
+}
+
+func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
+	if len(parameters) != 1 {
+		return p.cmdSuccess(args, "Invalid notifications command, one argument is required.")
+	}
+
+	isConnected, err := p.IsUserConnected(args.UserId)
+	if err != nil {
+		p.API.LogWarn("unable to check if the user is connected", "error", err.Error())
+		return p.cmdError(args, "Error: Unable to get the connection status")
+	}
+	if !isConnected {
+		return p.cmdSuccess(args, "Error: Your account is not connected to Teams. To use this feature, please connect your account with `/msteams connect`.")
+	}
+
+	notificationPreferenceEnabled := p.getNotificationPreference(args.UserId)
+	switch strings.ToLower(parameters[0]) {
+	case "status":
+		status := "disabled"
+		if notificationPreferenceEnabled {
+			status = "enabled"
+		}
+		return p.cmdSuccess(args, fmt.Sprintf("Notifications from chats and group chats in MS Teams are currently %s.", status))
+	case "on":
+		if !notificationPreferenceEnabled {
+			err = p.setNotificationPreference(args.UserId, true)
+			if err != nil {
+				p.API.LogWarn("unable to enable notifications", "error", err.Error())
+				return p.cmdError(args, "Error: Unable to enable notifications.")
+			}
+		}
+		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now enabled.")
+	case "off":
+		if notificationPreferenceEnabled {
+			err = p.setNotificationPreference(args.UserId, false)
+			if err != nil {
+				p.API.LogWarn("unable to disable notifications", "error", err.Error())
+				return p.cmdError(args, "Error: Unable to disable notifications.")
+			}
+		}
+		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now disabled.")
+	}
+
+	return p.cmdSuccess(args, parameters[0]+" is not a valid argument.")
 }
 
 func getAutocompletePath(path string) string {

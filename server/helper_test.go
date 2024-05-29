@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -324,6 +325,9 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
 	require.Nil(t, appErr)
 
+	err := th.p.store.SetUserInfo(user.Id, "t"+user.Id, nil)
+	require.NoError(t, err)
+
 	return user
 }
 
@@ -360,6 +364,25 @@ func (th *testHelper) ConnectUser(t *testing.T, userID string) {
 	teamID := "t" + userID
 	err := th.p.store.SetUserInfo(userID, teamID, &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 	require.NoError(t, err)
+}
+
+func (th *testHelper) DisconnectUser(t *testing.T, userID string) {
+	teamID := "t" + userID
+	err := th.p.store.SetUserInfo(userID, teamID, nil)
+	require.NoError(t, err)
+}
+
+func (th *testHelper) MarkUserInvited(t *testing.T, userID string) {
+	t.Helper()
+	invitedUser := &storemodels.InvitedUser{ID: userID, InvitePendingSince: time.Now(), InviteLastSentAt: time.Now()}
+	err := th.p.GetStore().StoreInvitedUser(invitedUser)
+	assert.NoError(t, err)
+}
+
+func (th *testHelper) MarkUserWhitelisted(t *testing.T, userID string) {
+	t.Helper()
+	err := th.p.store.StoreUserInWhitelist(userID)
+	assert.NoError(t, err)
 }
 
 func (th *testHelper) SetupSysadmin(t *testing.T, team *model.Team) *model.User {
@@ -461,6 +484,31 @@ func (th *testHelper) GetWebsocketClientForUser(t *testing.T, userID string) *mo
 	return websocketClient
 }
 
+func makePluginWebsocketEventName(short string) string {
+	return fmt.Sprintf("custom_%s_%s", manifest.Id, short)
+}
+
+func (th *testHelper) assertWebsocketEvent(t *testing.T, userID, eventType string) {
+	t.Helper()
+
+	websocketClient := th.GetWebsocketClientForUser(t, userID)
+
+	for {
+		select {
+		case event, ok := <-websocketClient.EventChannel:
+			if !ok {
+				t.Fatal("channel closed before getting websocket event")
+			}
+
+			if event.EventType() == model.WebsocketEventType(eventType) {
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("failed to get websocket event " + eventType)
+		}
+	}
+}
+
 func (th *testHelper) assertEphemeralMessage(t *testing.T, userID, channelID, message string) {
 	t.Helper()
 
@@ -543,6 +591,50 @@ func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expec
 	}, 1*time.Second, 10*time.Millisecond)
 }
 
+func (th *testHelper) assertGMFromUsers(t *testing.T, fromUserID string, otherUsers []string, expectedMessage string) {
+	t.Helper()
+
+	var users []string
+	users = append(users, fromUserID)
+	users = append(users, otherUsers...)
+
+	channel, appErr := th.p.API.GetGroupChannel(users)
+	require.Nil(t, appErr)
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.Message == expectedMessage {
+				return
+			}
+		}
+		t.Errorf("failed to find post with expected message: %s", expectedMessage)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
+func (th *testHelper) assertDMFromUserRe(t *testing.T, fromUserID, toUserID, expectedMessageRe string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			matched, err := regexp.MatchString(expectedMessageRe, post.Message)
+			require.NoError(t, err)
+			if matched {
+				return
+			}
+		}
+		t.Errorf("failed to find post matching expected message re: %s", expectedMessageRe)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
 func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string, checkTime int64) {
 	t.Helper()
 
@@ -555,6 +647,57 @@ func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID stri
 
 		return len(postList.Posts) > 0
 	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
+}
+
+func (th *testHelper) assertNoGMFromUsers(t *testing.T, fromUserID string, otherUsers []string, checkTime int64) {
+	t.Helper()
+
+	var users []string
+	users = append(users, fromUserID)
+	users = append(users, otherUsers...)
+
+	channel, appErr := th.p.API.GetGroupChannel(users)
+	require.Nil(t, appErr)
+
+	assert.Never(t, func() bool {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, checkTime)
+		require.Nil(t, appErr)
+
+		return len(postList.Posts) > 0
+	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
+}
+
+func (th *testHelper) assertPostInChannel(t *testing.T, fromUserID, channelID, expectedMessage string) {
+	t.Helper()
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channelID, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.UserId == fromUserID && post.Message == expectedMessage {
+				return
+			}
+		}
+		t.Errorf("failed to find post with expected message: %s", expectedMessage)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
+func (th *testHelper) assertNoPostInChannel(t *testing.T, fromUserID, channelID string) {
+	t.Helper()
+
+	assert.Never(t, func() bool {
+		postList, appErr := th.p.API.GetPostsSince(channelID, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.UserId == fromUserID {
+				return true
+			}
+		}
+
+		return false
+	}, 1*time.Second, 10*time.Millisecond)
 }
 
 type labelOptionFunc func(metric *dto.Metric) bool
@@ -603,10 +746,24 @@ func (th *testHelper) getRelativeCounter(t *testing.T, name string, labelOptions
 	return after - before
 }
 
-func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) {
+func (th *testHelper) setPluginConfiguration(t *testing.T, update func(configuration *configuration)) (*configuration, *configuration) {
 	t.Helper()
 
 	c := th.p.getConfiguration().Clone()
+	prev := c.Clone()
+
 	update(c)
 	th.p.setConfiguration(c)
+
+	return c, prev
+}
+
+func (th *testHelper) setPluginConfigurationTemporarily(t *testing.T, update func(configuration *configuration)) {
+	t.Helper()
+
+	_, prev := th.setPluginConfiguration(t, func(config *configuration) { update(config) })
+
+	t.Cleanup(func() {
+		th.p.setConfiguration(prev)
+	})
 }

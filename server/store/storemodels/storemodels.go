@@ -5,10 +5,10 @@ import (
 )
 
 const (
-	// The preference with this name stores the user's choice of primary platform.
-	PreferenceNamePlatform         = "platform"
-	PreferenceValuePlatformMM      = "mattermost"
-	PreferenceValuePlatformMSTeams = "msteams"
+	// Notification preferences
+	PreferenceNameNotification     = "notifications"
+	PreferenceValueNotificationOn  = "on"
+	PreferenceValueNotificationOff = "off"
 )
 
 type ChannelLink struct {

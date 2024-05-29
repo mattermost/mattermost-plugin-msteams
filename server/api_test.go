@@ -909,11 +909,53 @@ func TestWhitelistDownload(t *testing.T) {
 }
 
 func TestNotifyConnect(t *testing.T) {
-	t.Skip()
-}
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/notify-connect")
+	team := th.SetupTeam(t)
 
-func TestChoosePrimaryPlatform(t *testing.T) {
-	t.Skip()
+	sendRequest := func(t *testing.T, user *model.User) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
+
+		u := apiURL
+
+		request, err := http.NewRequest(http.MethodGet, u, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		return response
+	}
+
+	t.Run("not authorized", func(t *testing.T) {
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+	})
+
+	t.Run("notify connect", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+
+		response := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
 }
 
 func TestGetSiteStats(t *testing.T) {
@@ -958,7 +1000,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -975,7 +1017,24 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+	})
+
+	t.Run("1 invited user, 2 whitelisted users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		user1 := th.SetupUser(t, team)
+		user2 := th.SetupUser(t, team)
+		user3 := th.SetupUser(t, team)
+
+		th.MarkUserWhitelisted(t, user1.Id)
+		th.MarkUserWhitelisted(t, user2.Id)
+		th.MarkUserInvited(t, user3.Id)
+
+		response, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -1004,12 +1063,8 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
-}
-
-func TestPrimaryPlatform(t *testing.T) {
-	t.Skip()
 }
 
 func TestIFrameMattermostTab(t *testing.T) {
@@ -1018,4 +1073,124 @@ func TestIFrameMattermostTab(t *testing.T) {
 
 func TestIFrameManifest(t *testing.T) {
 	t.Skip()
+}
+
+func TestConnectionStatus(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/connection-status")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User) (connected bool) {
+		t.Helper()
+		client := th.SetupClient(t, user.Id)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		resMap := map[string]bool{}
+		err = json.NewDecoder(response.Body).Decode(&resMap)
+		require.NoError(t, err)
+
+		return resMap["connected"]
+	}
+
+	t.Run("connected users should get true", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.True(t, connected)
+	})
+
+	t.Run("never connected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
+
+	t.Run("disconnected users should get false", func(t *testing.T) {
+		th.Reset(t)
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+		th.DisconnectUser(t, user.Id)
+
+		connected := sendRequest(t, user)
+		assert.False(t, connected)
+	})
+}
+
+func TestEnableNotifications(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/enable-notifications")
+	team := th.SetupTeam(t)
+
+	sendRequest := func(t *testing.T, user *model.User, req model.PostActionIntegrationRequest) *http.Response {
+		t.Helper()
+		client1 := th.SetupClient(t, user.Id)
+
+		body, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		request, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(body))
+		require.NoError(t, err)
+
+		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		return response
+	}
+
+	t.Run("enable notifications", func(t *testing.T) {
+		th.Reset(t)
+		user1 := th.SetupUser(t, team)
+
+		// Arrange: Send the welcome message and retrieve it
+		err := th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
+		require.NoError(t, err)
+		dc, err := th.p.apiClient.Channel.GetDirect(user1.Id, th.p.botUserID)
+		require.NoError(t, err)
+		posts, err := th.p.apiClient.Post.GetPostsSince(dc.Id, time.Now().Add(-1*time.Minute).UnixMilli())
+		require.NoError(t, err)
+		require.Len(t, posts.Order, 1)
+		post := posts.Posts[posts.Order[0]]
+
+		// Act: make the request pretending the user clicked the button
+		response := sendRequest(t, user1, model.PostActionIntegrationRequest{
+			UserId: user1.Id,
+			PostId: post.Id,
+		})
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+
+		// Assert: 1. we return an update for the post
+		var resp model.PostActionIntegrationResponse
+		err = json.NewDecoder(response.Body).Decode(&resp)
+		require.NoError(t, err)
+		assert.Len(t, resp.Update.Attachments(), 0)
+		assert.Equal(t, "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
+
+		// Assert: 2. the notification preference is updated
+		pref, appErr := th.p.API.GetPreferenceForUser(
+			user1.Id,
+			PreferenceCategoryPlugin,
+			storemodels.PreferenceNameNotification,
+		)
+		require.Nil(t, appErr)
+		assert.EqualValues(t, storemodels.PreferenceValueNotificationOn, pref.Value)
+	})
 }

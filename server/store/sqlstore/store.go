@@ -217,7 +217,7 @@ func (s *SQLStore) mattermostToTeamsUserID(db sq.BaseRunner, userID string) (str
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -234,7 +234,7 @@ func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postI
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMattermostID(db sq.BaseRunner, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -292,7 +292,7 @@ func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*
 	}
 
 	if encryptedToken == "" {
-		return nil, errors.New("token not found")
+		return nil, nil
 	}
 
 	tokendata, err := decrypt(s.encryptionKey(), encryptedToken)
@@ -301,7 +301,7 @@ func (s *SQLStore) getTokenForMattermostUser(db sq.BaseRunner, userID string) (*
 	}
 
 	if tokendata == "" {
-		return nil, errors.New("token not found")
+		return nil, nil
 	}
 
 	var token oauth2.Token
@@ -705,7 +705,7 @@ func (s *SQLStore) deleteSubscription(db sq.BaseRunner, subscriptionID string) e
 
 //db:withReplica
 func (s *SQLStore) getChannelSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
+	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
 	var certificate *string
@@ -871,42 +871,6 @@ func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (sy
 		Scan(&syntheticUsers)
 
 	return syntheticUsers, err
-}
-
-//db:withReplica
-func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
-	query := s.getQueryBuilder(db).
-		Select("p.value", "count(*)").
-		From("preferences p").
-		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
-		Where(sq.And{
-			sq.Eq{"p.category": preferenceCategory},
-			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
-			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
-		}).
-		GroupBy("p.value")
-	rows, err := query.Query()
-	if err != nil {
-		return msTeamsPrimary, mmPrimary, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var platform string
-		var count int64
-		if err := rows.Scan(&platform, &count); err != nil {
-			return msTeamsPrimary, mmPrimary, err
-		}
-
-		switch platform {
-		case storemodels.PreferenceValuePlatformMM:
-			mmPrimary = count
-		case storemodels.PreferenceValuePlatformMSTeams:
-			msTeamsPrimary = count
-		}
-	}
-
-	return msTeamsPrimary, mmPrimary, nil
 }
 
 //db:withReplica
@@ -1132,6 +1096,10 @@ func (s *SQLStore) storeInvitedUser(db sq.BaseRunner, invitedUser *storemodels.I
 		SuffixExpr(sq.Expr("ON CONFLICT (mmUserID) DO UPDATE SET invitePendingSince = ?, inviteLastSentAt = ?", pendingSince, lastSentAt))
 
 	if _, err := query.Exec(); err != nil {
+		return err
+	}
+
+	if err := s.DeleteUserFromWhitelist(invitedUser.ID); err != nil {
 		return err
 	}
 

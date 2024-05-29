@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/assets"
-	"github.com/mattermost/mattermost-plugin-msteams/server/handlers"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/monitor"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -35,6 +35,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
+	"github.com/mattermost/mattermost/server/v8/channels/utils"
 )
 
 const (
@@ -81,12 +82,15 @@ type Plugin struct {
 	checkCredentialsJob       *cluster.Job
 	apiHandler                *API
 
-	activityHandler *handlers.ActivityHandler
+	activityHandler *ActivityHandler
 
 	clientBuilderWithToken func(string, string, string, string, *oauth2.Token, *pluginapi.LogService) msteams.Client
 	metricsService         metrics.Metrics
 	metricsHandler         http.Handler
 	metricsJob             *cluster.Job
+
+	subCommands      []string
+	subCommandsMutex sync.RWMutex
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -109,12 +113,20 @@ func (p *Plugin) GetStore() store.Store {
 	return p.store
 }
 
+func (p *Plugin) GetTenantID() string {
+	return p.getConfiguration().TenantID
+}
+
+func (p *Plugin) GetSyncNotifications() bool {
+	return p.getConfiguration().SyncNotifications
+}
+
 func (p *Plugin) GetSyncDirectMessages() bool {
-	return p.getConfiguration().SyncDirectMessages
+	return p.getConfiguration().SyncDirectMessages && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncGroupMessages() bool {
-	return p.getConfiguration().SyncGroupMessages
+	return p.getConfiguration().SyncGroupMessages && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncLinkedChannels() bool {
@@ -149,6 +161,10 @@ func (p *Plugin) GetSelectiveSync() bool {
 	return p.getConfiguration().SelectiveSync
 }
 
+func (p *Plugin) GetSyncRemoteOnly() bool {
+	return p.getConfiguration().SyncRemoteOnly
+}
+
 func (p *Plugin) MessageFingerprint() string {
 	return "<abbr title=\"generated-from-mattermost\"></abbr>"
 }
@@ -166,10 +182,19 @@ func (p *Plugin) GetURL() string {
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
-	if strings.HasSuffix(siteURL, "/") {
-		return siteURL + "plugins/" + pluginID
+	if !strings.HasSuffix(siteURL, "/") {
+		siteURL += "/"
 	}
-	return siteURL + "/plugins/" + pluginID
+	return siteURL + "plugins/" + pluginID
+}
+
+func (p *Plugin) GetRelativeURL() string {
+	config := p.API.GetConfig()
+	subpath, _ := utils.GetSubpathFromConfig(config)
+	if !strings.HasSuffix(subpath, "/") {
+		subpath += "/"
+	}
+	return subpath + "plugins/" + pluginID
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {
@@ -271,7 +296,8 @@ func (p *Plugin) start(isRestart bool) {
 		}
 	}
 
-	p.metricsService.ObserveWhitelistLimit(p.configuration.ConnectedUsersAllowed)
+	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
+	p.metricsService.ObservePendingInvitesLimit(int64(p.configuration.ConnectedUsersMaxPendingInvites))
 
 	// We don't restart the activity handler since it's stateless.
 	if !isRestart {
@@ -283,7 +309,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -477,7 +503,7 @@ func (p *Plugin) onActivate() error {
 		return errors.New("this plugin requires an enterprise license")
 	}
 
-	p.activityHandler = handlers.New(p)
+	p.activityHandler = NewActivityHandler(p)
 
 	p.subscriptionsClusterMutex, err = cluster.NewMutex(p.API, subscriptionsClusterMutexKey)
 	if err != nil {
@@ -888,26 +914,44 @@ func (p *Plugin) IsRemoteUser(user *model.User) bool {
 	return user.RemoteId != nil && *user.RemoteId == p.remoteID
 }
 
+func (p *Plugin) IsUserConnected(userID string) (bool, error) {
+	token, err := p.store.GetTokenForMattermostUser(userID)
+	if err != nil && err != sql.ErrNoRows {
+		return false, errors.Wrap(err, "Unable to determine if user is connected to MS Teams")
+	}
+	return token != nil, nil
+}
+
 func (p *Plugin) GetRemoteID() string {
 	return p.remoteID
 }
 
 func (p *Plugin) updateMetrics() {
-	now := time.Now()
-	p.API.LogInfo("Updating metrics")
-
-	// it's a bit of a special case because it returns two values
-	msTeamsPrimary, mmPrimary, primaryPlatformErr := p.store.GetUsersByPrimaryPlatformsCount(PreferenceCategoryPlugin)
-
 	stats := []struct {
 		name        string
 		getData     func() (int64, error)
 		observeData func(int64)
 	}{
 		{
-			name:        "connecter users",
+			name:        "connected users",
 			getData:     p.store.GetConnectedUsersCount,
 			observeData: p.GetMetrics().ObserveConnectedUsers,
+		},
+		{
+			name: "invited users",
+			getData: func() (int64, error) {
+				val, err := p.store.GetInvitedCount()
+				return int64(val), err
+			},
+			observeData: p.GetMetrics().ObservePendingInvites,
+		},
+		{
+			name: "whitelisted users",
+			getData: func() (int64, error) {
+				val, err := p.store.GetWhitelistCount()
+				return int64(val), err
+			},
+			observeData: p.GetMetrics().ObserveWhitelistedUsers,
 		},
 		{
 			name:        "linked channels",
@@ -920,16 +964,6 @@ func (p *Plugin) updateMetrics() {
 				return p.store.GetSyntheticUsersCount(p.remoteID)
 			},
 			observeData: p.GetMetrics().ObserveSyntheticUsers,
-		},
-		{
-			name:        "msteams primary users",
-			getData:     func() (int64, error) { return msTeamsPrimary, primaryPlatformErr },
-			observeData: p.GetMetrics().ObserveMSTeamsPrimary,
-		},
-		{
-			name:        "mattermost primary users",
-			getData:     func() (int64, error) { return mmPrimary, primaryPlatformErr },
-			observeData: p.GetMetrics().ObserveMattermostPrimary,
 		},
 		{
 			name:        "active users sending",
@@ -951,8 +985,6 @@ func (p *Plugin) updateMetrics() {
 
 		stat.observeData(data)
 	}
-
-	p.API.LogInfo("Updating metrics done", "duration_ms", time.Since(now).Milliseconds())
 }
 
 func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {

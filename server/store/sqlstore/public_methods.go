@@ -130,10 +130,6 @@ func (s *SQLStore) GetUserConnectStatus(mmUserID string) (*storemodels.UserConne
 	return s.getUserConnectStatus(s.replica, mmUserID)
 }
 
-func (s *SQLStore) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
-	return s.getUsersByPrimaryPlatformsCount(s.replica, preferenceCategory)
-}
-
 func (s *SQLStore) GetWhitelistCount() (int, error) {
 	return s.getWhitelistCount(s.replica)
 }

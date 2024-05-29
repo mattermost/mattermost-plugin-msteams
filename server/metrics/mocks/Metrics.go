@@ -100,6 +100,11 @@ func (_m *Metrics) ObserveConnectedUsers(count int64) {
 	_m.Called(count)
 }
 
+// ObserveConnectedUsersLimit provides a mock function with given fields: count
+func (_m *Metrics) ObserveConnectedUsersLimit(count int64) {
+	_m.Called(count)
+}
+
 // ObserveFile provides a mock function with given fields: action, source, discardedReason, isDirectOrGroupMessage
 func (_m *Metrics) ObserveFile(action string, source string, discardedReason string, isDirectOrGroupMessage bool) {
 	_m.Called(action, source, discardedReason, isDirectOrGroupMessage)
@@ -130,16 +135,6 @@ func (_m *Metrics) ObserveMSGraphClientMethodDuration(method string, success str
 	_m.Called(method, success, statusCode, elapsed)
 }
 
-// ObserveMSTeamsPrimary provides a mock function with given fields: count
-func (_m *Metrics) ObserveMSTeamsPrimary(count int64) {
-	_m.Called(count)
-}
-
-// ObserveMattermostPrimary provides a mock function with given fields: count
-func (_m *Metrics) ObserveMattermostPrimary(count int64) {
-	_m.Called(count)
-}
-
 // ObserveMessage provides a mock function with given fields: action, source, isDirectOrGroupMessage
 func (_m *Metrics) ObserveMessage(action string, source string, isDirectOrGroupMessage bool) {
 	_m.Called(action, source, isDirectOrGroupMessage)
@@ -150,9 +145,24 @@ func (_m *Metrics) ObserveMessageDelay(action string, source string, isDirectOrG
 	_m.Called(action, source, isDirectOrGroupMessage, delay)
 }
 
+// ObserveNotification provides a mock function with given fields: isGroupChat, hasAttachments
+func (_m *Metrics) ObserveNotification(isGroupChat bool, hasAttachments bool) {
+	_m.Called(isGroupChat, hasAttachments)
+}
+
 // ObserveOAuthTokenInvalidated provides a mock function with given fields:
 func (_m *Metrics) ObserveOAuthTokenInvalidated() {
 	_m.Called()
+}
+
+// ObservePendingInvites provides a mock function with given fields: count
+func (_m *Metrics) ObservePendingInvites(count int64) {
+	_m.Called(count)
+}
+
+// ObservePendingInvitesLimit provides a mock function with given fields: count
+func (_m *Metrics) ObservePendingInvitesLimit(count int64) {
+	_m.Called(count)
 }
 
 // ObserveReaction provides a mock function with given fields: action, source, isDirectOrGroupMessage
@@ -195,9 +205,9 @@ func (_m *Metrics) ObserveUpstreamUsers(count int64) {
 	_m.Called(count)
 }
 
-// ObserveWhitelistLimit provides a mock function with given fields: limit
-func (_m *Metrics) ObserveWhitelistLimit(limit int) {
-	_m.Called(limit)
+// ObserveWhitelistedUsers provides a mock function with given fields: count
+func (_m *Metrics) ObserveWhitelistedUsers(count int64) {
+	_m.Called(count)
 }
 
 // ObserveWorker provides a mock function with given fields: worker
