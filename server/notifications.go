@@ -46,6 +46,7 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
+		ah.plugin.metricsService.ObserveNotification(len(chat.Members) >= 3, attachmentCount > 0)
 		ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
