@@ -891,211 +891,213 @@ func TestMessageHasBeenPosted(t *testing.T) {
 		t.Skip("Not yet implemented")
 	})
 
-	type parameters struct {
-		SenderConnected    bool
-		SelectiveSync      bool
-		SyncDirectMessages bool
-		SyncGroupMessages  bool
-		SyncLinkedChannels bool
-	}
-	runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
-		th.Reset(t)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SelectiveSync = params.SelectiveSync
-			c.SyncDirectMessages = params.SyncDirectMessages
-			c.SyncGroupMessages = params.SyncGroupMessages
-			c.SyncLinkedChannels = params.SyncLinkedChannels
-		})
-
-		t.Run("dm with self", func(t *testing.T) {
+	t.Run("chat", func(t *testing.T) {
+		type parameters struct {
+			SenderConnected    bool
+			SelectiveSync      bool
+			SyncDirectMessages bool
+			SyncGroupMessages  bool
+			SyncLinkedChannels bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
 
-			user1 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user1.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChat(th, t, user1, user1)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
+			th.setPluginConfiguration(t, func(c *configuration) {
+				c.SelectiveSync = params.SelectiveSync
+				c.SyncDirectMessages = params.SyncDirectMessages
+				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncLinkedChannels = params.SyncLinkedChannels
 			})
-			require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChatSync(t)
-			} else {
+			t.Run("dm with self", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user1.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+					expectChat(th, t, user1, user1)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("dm with remote user", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupRemoteUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncDirectMessages {
+					expectChat(th, t, user1, user2)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncDirectMessages {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("dm with local user", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
 				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("dm with remote user", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupRemoteUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChat(th, t, user1, user2)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
 			})
-			require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChatSync(t)
-			} else {
+			t.Run("gm with only remote users", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupRemoteUser(t, team)
+				user3 := th.SetupRemoteUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncGroupMessages {
+					expectChat(th, t, user1, user2, user3)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncGroupMessages {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("gm with only local users", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+				user3 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
 				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("dm with local user", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
 			})
-			require.NoError(t, err)
 
-			expectNoChatSync(t)
-		})
+			t.Run("gm with local and remote users", func(t *testing.T) {
+				th.Reset(t)
 
-		t.Run("gm with only remote users", func(t *testing.T) {
-			th.Reset(t)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+				user3 := th.SetupRemoteUser(t, team)
 
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupRemoteUser(t, team)
-			user3 := th.SetupRemoteUser(t, team)
+				client1 := th.SetupClient(t, user1.Id)
 
-			client1 := th.SetupClient(t, user1.Id)
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
 
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
 
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
+				// Unconditionally link user2 with their Teams account. This is actually
+				// a current shortcoming with GMs in that we can't even start a conversation
+				// until we know the mapping for all users involved.
+				err = th.p.store.SetUserInfo(user2.Id, "t"+user2.Id, nil)
+				require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChat(th, t, user1, user2, user3)
-			}
+				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+					expectChat(th, t, user1, user2, user3)
+				}
 
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
 			})
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChatSync(t)
-			} else {
-				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("gm with only local users", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-			user3 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
-			})
-			require.NoError(t, err)
-
-			expectNoChatSync(t)
-		})
-
-		t.Run("gm with local and remote users", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-			user3 := th.SetupRemoteUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			// Unconditionally link user2 with their Teams account. This is actually
-			// a current shortcoming with GMs in that we can't even start a conversation
-			// until we know the mapping for all users involved.
-			err = th.p.store.SetUserInfo(user2.Id, "t"+user2.Id, nil)
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChat(th, t, user1, user2, user3)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
-			})
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChatSync(t)
-			} else {
-				expectNoChatSync(t)
-			}
 		})
 	})
 
@@ -1113,6 +1115,7 @@ func TestMessageHasBeenDeleted(t *testing.T) {
 	t.Skip("Not yet implemented")
 }
 
+// TODO: Rewrite THIS!
 func TestMockMessageHasBeenUpdated(t *testing.T) {
 	mockChat := &clientmodels.Chat{
 		ID: testutils.GetChatID(),
@@ -1148,7 +1151,7 @@ func TestMockMessageHasBeenUpdated(t *testing.T) {
 				p.configuration.SyncLinkedChannels = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
+				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(2)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
@@ -1239,7 +1242,7 @@ func TestMockMessageHasBeenUpdated(t *testing.T) {
 				p.configuration.SyncLinkedChannels = true
 			},
 			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
+				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(2)
 				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
 				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
 			},

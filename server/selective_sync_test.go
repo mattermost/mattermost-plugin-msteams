@@ -3,89 +3,146 @@ package main
 import (
 	"testing"
 
-	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMembersContainRemote(t *testing.T) {
+func TestChatShouldSync(t *testing.T) {
 	th := setupTestHelper(t)
-
-	t.Run("empty set of channel members", func(t *testing.T) {
-		chatMembersSpanPlatforms, err := th.p.MembersContainsRemote([]*model.ChannelMember{})
-		require.NoError(t, err)
-		require.False(t, chatMembersSpanPlatforms)
+	th.setPluginConfiguration(t, func(c *configuration) {
+		c.SelectiveSync = true
+		c.SyncDirectMessages = true
+		c.SyncGroupMessages = true
 	})
 
-	t.Run("single user", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupRemoteUser(t, team)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
+	t.Run("sync direct messages disabled", func(t *testing.T) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncDirectMessages = false
 		})
 
-		require.NoError(t, err)
-		assert.True(t, remoteUsers)
-	})
-
-	t.Run("user with empty id", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
-		chatMembersSpanPlatforms, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: ""},
-			{UserId: user1.Id}})
-		require.Error(t, err)
-		require.False(t, chatMembersSpanPlatforms)
+		user2 := th.SetupUser(t, team)
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user2.Id)
+		require.NoError(t, err)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser) // False because chatShouldSync is false
+		assert.Len(t, members, 0)
+		assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+	})
+
+	t.Run("sync group messages disabled", func(t *testing.T) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncGroupMessages = false
+		})
+
+		team := th.SetupTeam(t)
+		user1 := th.SetupRemoteUser(t, team)
+		user2 := th.SetupUser(t, team)
+		user3 := th.SetupUser(t, team)
+		channel, err := th.p.apiClient.Channel.GetGroup([]string{user1.Id, user2.Id, user3.Id})
+		require.NoError(t, err)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser) // False because chatShouldSync is false
+		assert.Len(t, members, 0)
+		assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+	})
+
+	t.Run("selective sync disabled", func(t *testing.T) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SelectiveSync = false
+		})
+
+		team := th.SetupTeam(t)
+		user1 := th.SetupRemoteUser(t, team)
+		user2 := th.SetupUser(t, team)
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user2.Id)
+		require.NoError(t, err)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.True(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 2)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+	})
+
+	t.Run("not a direct message or group message", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		channel := th.SetupPublicChannel(t, team)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser)
+		assert.Empty(t, members)
+		assert.Equal(t, metrics.DiscardedReasonOther, discardReason)
+	})
+
+	t.Run("dm with self", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user1 := th.SetupUser(t, team)
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user1.Id)
+		require.NoError(t, err)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser)
+		assert.Len(t, members, 1)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 
 	t.Run("dm between two local users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user2.Id)
 		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser)
+		assert.Len(t, members, 2)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 
 	t.Run("dm between two remote users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 		user2 := th.SetupRemoteUser(t, team)
-
-		var appErr *model.AppError
-
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
-		user2.RemoteId = model.NewString(th.p.remoteID)
-		user2, appErr = th.p.API.UpdateUser(user2)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user2.Id)
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 2)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 
 	t.Run("dm between a local and a remote user", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 		user2 := th.SetupUser(t, team)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetDirect(user1.Id, user2.Id)
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.True(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 2)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 	})
 
 	t.Run("gm between three local users", func(t *testing.T) {
@@ -93,14 +150,15 @@ func TestMembersContainRemote(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupUser(t, team)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-			{UserId: user3.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetGroup([]string{user1.Id, user2.Id, user3.Id})
 		require.NoError(t, err)
-		assert.False(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.False(t, containsRemoteUser)
+		assert.Len(t, members, 3)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 
 	t.Run("gm between three remote users", func(t *testing.T) {
@@ -108,156 +166,46 @@ func TestMembersContainRemote(t *testing.T) {
 		user1 := th.SetupRemoteUser(t, team)
 		user2 := th.SetupRemoteUser(t, team)
 		user3 := th.SetupRemoteUser(t, team)
-
-		var appErr *model.AppError
-
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
-		user2.RemoteId = model.NewString(th.p.remoteID)
-		user2, appErr = th.p.API.UpdateUser(user2)
-		require.Nil(t, appErr)
-
-		user3.RemoteId = model.NewString(th.p.remoteID)
-		user3, appErr = th.p.API.UpdateUser(user3)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-			{UserId: user3.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetGroup([]string{user1.Id, user2.Id, user3.Id})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 3)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 
-	t.Run("gm between a mixture of local and remote users", func(t *testing.T) {
+	t.Run("gm between one local user and two remote users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
 		user2 := th.SetupUser(t, team)
 		user3 := th.SetupRemoteUser(t, team)
-
-		var appErr *model.AppError
-
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
-		user3.RemoteId = model.NewString(th.p.remoteID)
-		user3, appErr = th.p.API.UpdateUser(user3)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.MembersContainsRemote([]*model.ChannelMember{
-			{UserId: user1.Id},
-			{UserId: user2.Id},
-			{UserId: user3.Id},
-		})
+		channel, err := th.p.apiClient.Channel.GetGroup([]string{user1.Id, user2.Id, user3.Id})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
-	})
-}
 
-func TestChannelConnectedOrRemote(t *testing.T) {
-	th := setupTestHelper(t)
-
-	t.Run("unknown sender id", func(t *testing.T) {
-		remoteUsers, err := th.p.ChannelConnectedOrRemote("", model.NewId())
-		require.Error(t, err)
-		assert.False(t, remoteUsers)
-	})
-
-	t.Run("unknown channel id", func(t *testing.T) {
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(model.NewId(), "")
-		require.Error(t, err)
-		assert.False(t, remoteUsers)
-	})
-
-	t.Run("dm with a single users", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user1.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+		assert.True(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 3)
+		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 	})
 
-	t.Run("dm between two local users", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-		user2 := th.SetupUser(t, team)
-		th.ConnectUser(t, user2.Id)
-
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
-	})
-
-	t.Run("dm between two remote users", func(t *testing.T) {
+	t.Run("gm between two local users and one remote users", func(t *testing.T) {
 		team := th.SetupTeam(t)
 		user1 := th.SetupRemoteUser(t, team)
-		user2 := th.SetupRemoteUser(t, team)
-
-		var appErr *model.AppError
-
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
-		user2.RemoteId = model.NewString(th.p.remoteID)
-		user2, appErr = th.p.API.UpdateUser(user2)
-		require.Nil(t, appErr)
-
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
-		require.NoError(t, err)
-		assert.False(t, remoteUsers)
-	})
-
-	t.Run("dm between a local and a remote user", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		user2 := th.SetupRemoteUser(t, team)
-		var appErr *model.AppError
-		user2.RemoteId = model.NewString(th.p.remoteID)
-		user2, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
-		require.NoError(t, err)
-		assert.True(t, remoteUsers)
-	})
-
-	t.Run("dm between a remote and a local user", func(t *testing.T) {
-		team := th.SetupTeam(t)
-		user1 := th.SetupRemoteUser(t, team)
-		var appErr *model.AppError
-		user1.RemoteId = model.NewString(th.p.remoteID)
-		user1, appErr = th.p.API.UpdateUser(user1)
-		require.Nil(t, appErr)
-
 		user2 := th.SetupUser(t, team)
-		th.ConnectUser(t, user2.Id)
-
-		channel, appErr := th.p.API.GetDirectChannel(user1.Id, user2.Id)
-		require.Nil(t, appErr)
-
-		remoteUsers, err := th.p.ChannelConnectedOrRemote(channel.Id, user1.Id)
+		user3 := th.SetupUser(t, team)
+		channel, err := th.p.apiClient.Channel.GetGroup([]string{user1.Id, user2.Id, user3.Id})
 		require.NoError(t, err)
-		assert.True(t, remoteUsers)
+
+		chatShouldSync, containsRemoteUser, members, discardReason, err := th.p.ChatShouldSync(channel)
+		require.NoError(t, err)
+		assert.False(t, chatShouldSync)
+		assert.True(t, containsRemoteUser)
+		assert.Len(t, members, 3)
+		assert.Equal(t, metrics.DiscardedReasonSelectiveSync, discardReason)
 	})
 }

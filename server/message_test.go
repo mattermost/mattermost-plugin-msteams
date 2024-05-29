@@ -1680,51 +1680,52 @@ func TestUserWillLogin(t *testing.T) {
 
 func TestShouldSyncDMGMChannel(t *testing.T) {
 	testCases := []struct {
-		Name        string
-		EnableDM    bool
-		EnableGM    bool
-		ChannelType model.ChannelType
-		ShouldSync  bool
+		Name          string
+		EnableDM      bool
+		EnableGM      bool
+		ChannelType   model.ChannelType
+		ShouldSync    bool
+		DiscardReason string
 	}{
 		{
 			Name:     "DM allowed, and channel type is direct => sync",
-			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true,
+			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
 		},
 		{
 			Name:     "DM allowed, and channel type is group => no sync",
-			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "DM not allowed, and channel type is direct => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:     "DM not allowed, and channel type is group => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "GM allowed, and channel type is group => sync",
-			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true,
+			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
 		},
 		{
 			Name:     "GM allowed, and channel type is direct => no sync",
-			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:     "GM not allowed, and channel type is group => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "GM not allowed, and channel type is direct => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:        "channel type is public => no sync",
-			ChannelType: model.ChannelTypeOpen, ShouldSync: false,
+			ChannelType: model.ChannelTypeOpen, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
 		},
 		{
 			Name:        "channel type is private => no sync",
-			ChannelType: model.ChannelTypePrivate, ShouldSync: false,
+			ChannelType: model.ChannelTypePrivate, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
 		},
 	}
 
@@ -1739,7 +1740,9 @@ func TestShouldSyncDMGMChannel(t *testing.T) {
 				Type: tc.ChannelType,
 			}
 
-			assert.Equal(tc.ShouldSync, p.ShouldSyncDMGMChannel(channel))
+			shouldSync, discardReason := p.ShouldSyncDMGMChannel(channel)
+			assert.Equal(tc.ShouldSync, shouldSync)
+			assert.Equal(tc.DiscardReason, discardReason)
 		})
 	}
 }

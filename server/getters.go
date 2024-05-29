@@ -156,7 +156,7 @@ func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, cre
 	return u.Id, err
 }
 
-func (ah *ActivityHandler) getChatChannelIDAndUsersID(chat *clientmodels.Chat) (string, []string, error) {
+func (ah *ActivityHandler) getChatChannelAndUsersID(chat *clientmodels.Chat) (*model.Channel, []string, error) {
 	userIDs := []string{}
 	for _, member := range chat.Members {
 		msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(member.UserID)
@@ -177,27 +177,28 @@ func (ah *ActivityHandler) getChatChannelIDAndUsersID(chat *clientmodels.Chat) (
 
 		mmUserID, err := ah.getOrCreateSyntheticUser(msteamsUser, true)
 		if err != nil {
-			return "", nil, err
+			return nil, nil, err
 		}
 		userIDs = append(userIDs, mmUserID)
 	}
 	if len(userIDs) < 2 {
-		return "", nil, errors.New("not enough users for creating a channel")
+		return nil, nil, errors.New("not enough users for creating a channel")
 	}
 
 	if chat.Type == "D" {
 		channel, appErr := ah.plugin.GetAPI().GetDirectChannel(userIDs[0], userIDs[1])
 		if appErr != nil {
-			return "", nil, appErr
+			return nil, nil, appErr
 		}
-		return channel.Id, userIDs, nil
+		return channel, userIDs, nil
 	}
 	if chat.Type == "G" {
 		channel, appErr := ah.plugin.GetAPI().GetGroupChannel(userIDs)
 		if appErr != nil {
-			return "", nil, appErr
+			return nil, nil, appErr
 		}
-		return channel.Id, userIDs, nil
+		return channel, userIDs, nil
 	}
-	return "", nil, errors.New("dm/gm not found")
+
+	return nil, nil, errors.New("dm/gm not found")
 }

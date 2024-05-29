@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -41,18 +40,12 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if channel.IsGroupOrDirect() {
-		if !p.ShouldSyncDMGMChannel(channel) {
+		chatShouldSync, _, _, _, err := p.ChatShouldSync(channel)
+		if err != nil {
+			p.API.LogWarn("Failed to determine if deleted message should sync", "channel_id", channel.Id, "post_id", post.Id, "error", err.Error())
 			return
-		}
-
-		if p.getConfiguration().SelectiveSync {
-			shouldSync, err := p.ChannelShouldSync(post.ChannelId)
-			if err != nil {
-				p.API.LogWarn("Failed to check if chat should be synced", "error", appErr.Error(), "post_id", post.Id, "channel_id", post.ChannelId)
-				return
-			} else if !shouldSync {
-				return
-			}
+		} else if !chatShouldSync {
+			return
 		}
 
 		if err := p.DeleteChat(post); err != nil {
@@ -96,30 +89,20 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if isDirectOrGroupMessage {
-		if !p.ShouldSyncDMGMChannel(channel) {
-			return
-		}
-
-		members, err := p.apiClient.Channel.ListMembers(post.ChannelId, 0, math.MaxInt32)
+		chatShouldSync, containsRemoteUser, members, _, err := p.ChatShouldSync(channel)
 		if err != nil {
+			p.API.LogWarn("Failed to determine if posted message should sync", "channel_id", channel.Id, "error", err.Error())
+			return
+		} else if !chatShouldSync {
 			return
 		}
 
-		chatShouldSync := false
-		if p.getConfiguration().SelectiveSync {
-			chatShouldSync, err = p.ChannelShouldSync(post.ChannelId)
-			if err != nil {
-				return
-			} else if !chatShouldSync {
-				return
-			}
-		}
 		dstUsers := []string{}
 		for _, m := range members {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err = p.SendChat(post.UserId, dstUsers, post, chatShouldSync)
+		_, err = p.SendChat(post.UserId, dstUsers, post, containsRemoteUser)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}
@@ -167,7 +150,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 		if appErr != nil {
 			return
 		}
-		if p.ShouldSyncDMGMChannel(channel) {
+		if shouldSync, _ := p.ShouldSyncDMGMChannel(channel); shouldSync {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
@@ -219,7 +202,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 		if appErr != nil {
 			return
 		}
-		if p.ShouldSyncDMGMChannel(channel) {
+		if shouldSync, _ := p.ShouldSyncDMGMChannel(channel); shouldSync {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())
@@ -261,14 +244,17 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 		if !channel.IsGroupOrDirect() {
 			return
 		}
-		if !p.ShouldSyncDMGMChannel(channel) {
+
+		var chatShouldSync bool
+		var members []*model.ChannelMember
+		chatShouldSync, _, members, _, err = p.ChatShouldSync(channel)
+		if err != nil {
+			p.API.LogWarn("Failed to determine if updated message should sync", "channel_id", channel.Id, "post_id", newPost.Id, "error", err.Error())
+			return
+		} else if !chatShouldSync {
 			return
 		}
 
-		members, appErr := p.API.GetChannelMembers(newPost.ChannelId, 0, math.MaxInt32)
-		if appErr != nil {
-			return
-		}
 		usersIDs := []string{}
 		for _, m := range members {
 			var teamsUserID string

@@ -98,15 +98,15 @@ func TestGetOrCreateSyntheticUser(t *testing.T) {
 
 func TestGetChatChannelID(t *testing.T) {
 	for _, testCase := range []struct {
-		description      string
-		chat             *clientmodels.Chat
-		messageID        string
-		expectedResponse string
-		expectedError    string
-		expectedUserIDs  []string
-		setupAPI         func(api *plugintest.API)
-		setupStore       func(store *storemocks.Store)
-		setupClient      func(client *clientmocks.Client)
+		description       string
+		chat              *clientmodels.Chat
+		messageID         string
+		expectedChannelID string
+		expectedError     string
+		expectedUserIDs   []string
+		setupAPI          func(api *plugintest.API)
+		setupStore        func(store *storemocks.Store)
+		setupClient       func(client *clientmocks.Client)
 	}{
 		{
 			description: "Successfully got the ID of direct channel",
@@ -132,7 +132,7 @@ func TestGetChatChannelID(t *testing.T) {
 				client.On("GetUser", testutils.GetUserID()+"1").Return(&clientmodels.User{ID: testutils.GetUserID() + "1"}, nil).Once()
 				client.On("GetUser", testutils.GetUserID()+"2").Return(&clientmodels.User{ID: testutils.GetUserID() + "2"}, nil).Once()
 			},
-			expectedResponse: testutils.GetChannelID(),
+			expectedChannelID: testutils.GetChannelID(),
 		},
 		{
 			description: "Successfully got the ID of group channel",
@@ -158,7 +158,7 @@ func TestGetChatChannelID(t *testing.T) {
 				client.On("GetUser", testutils.GetUserID()+"1").Return(&clientmodels.User{ID: testutils.GetUserID() + "1"}, nil).Once()
 				client.On("GetUser", testutils.GetUserID()+"2").Return(&clientmodels.User{ID: testutils.GetUserID() + "2"}, nil).Once()
 			},
-			expectedResponse: testutils.GetChannelID(),
+			expectedChannelID: testutils.GetChannelID(),
 		},
 		{
 			description: "Unable to get or create synthetic user",
@@ -185,8 +185,8 @@ func TestGetChatChannelID(t *testing.T) {
 					Mail:        "mock-userID@msteamssync",
 				}, nil)
 			},
-			expectedError:    "Error while setting user info",
-			expectedResponse: "",
+			expectedError:     "Error while setting user info",
+			expectedChannelID: "",
 		},
 		{
 			description: "Not enough user for creating a channel",
@@ -238,13 +238,15 @@ func TestGetChatChannelID(t *testing.T) {
 			ah := ActivityHandler{}
 			ah.plugin = p
 
-			resp, userIDs, err := ah.getChatChannelIDAndUsersID(testCase.chat)
-			assert.Equal(t, resp, testCase.expectedResponse)
-			assert.Equal(t, userIDs, testCase.expectedUserIDs)
+			channel, userIDs, err := ah.getChatChannelAndUsersID(testCase.chat)
 			if testCase.expectedError != "" {
 				assert.EqualError(t, err, testCase.expectedError)
+				assert.Nil(t, channel)
+				assert.Empty(t, userIDs)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
+				assert.Equal(t, channel.Id, testCase.expectedChannelID)
+				assert.Equal(t, userIDs, testCase.expectedUserIDs)
 			}
 		})
 	}
