@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -324,6 +325,9 @@ func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.Use
 	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
 	require.Nil(t, appErr)
 
+	err := th.p.store.SetUserInfo(user.Id, "t"+user.Id, nil)
+	require.NoError(t, err)
+
 	return user
 }
 
@@ -587,6 +591,27 @@ func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expec
 	}, 1*time.Second, 10*time.Millisecond)
 }
 
+func (th *testHelper) assertDMFromUserRe(t *testing.T, fromUserID, toUserID, expectedMessageRe string) {
+	t.Helper()
+
+	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
+	require.Nil(t, appErr)
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			matched, err := regexp.MatchString(expectedMessageRe, post.Message)
+			require.NoError(t, err)
+			if matched {
+				return
+			}
+		}
+		t.Errorf("failed to find post matching expected message re: %s", expectedMessageRe)
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
 func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID string, checkTime int64) {
 	t.Helper()
 
@@ -599,6 +624,22 @@ func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID stri
 
 		return len(postList.Posts) > 0
 	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
+}
+
+func (th *testHelper) assertPostInChannel(t *testing.T, fromUserID, channelID, expectedMessage string) {
+	t.Helper()
+
+	assert.EventuallyWithT(t, func(t *assert.CollectT) {
+		postList, appErr := th.p.API.GetPostsSince(channelID, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+		require.Nil(t, appErr)
+
+		for _, post := range postList.Posts {
+			if post.UserId == fromUserID && post.Message == expectedMessage {
+				return
+			}
+		}
+		t.Errorf("failed to find post with expected message: %s", expectedMessage)
+	}, 1*time.Second, 10*time.Millisecond)
 }
 
 type labelOptionFunc func(metric *dto.Metric) bool

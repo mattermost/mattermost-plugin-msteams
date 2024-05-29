@@ -50,12 +50,9 @@ const (
 	UpdateWhitelistNotFoundEmailsErrThreshold = 10
 	QueryParamPage                            = "page"
 	QueryParamPerPage                         = "per_page"
-	QueryParamPrimaryPlatform                 = "primary_platform"
 	QueryParamChannelID                       = "channel_id"
 	QueryParamPostID                          = "post_id"
 	QueryParamFromPreferences                 = "from_preferences"
-
-	APIChoosePrimaryPlatform = "/choose-primary-platform"
 )
 
 type UpdateWhitelistResult struct {
@@ -87,9 +84,10 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/whitelist", api.updateWhitelist).Methods(http.MethodPut)
 	router.HandleFunc("/whitelist/download", api.getWhitelistEmailsFile).Methods(http.MethodGet)
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
-	router.HandleFunc(APIChoosePrimaryPlatform, api.choosePrimaryPlatform).Methods(http.MethodGet)
+	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
-	router.HandleFunc("/primary-platform", api.primaryPlatform).Methods("GET")
+	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
+	router.HandleFunc("/dismiss-notifications", api.dismissNotifications).Methods("POST")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -404,31 +402,33 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) primaryPlatform(w http.ResponseWriter, r *http.Request) {
+func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
+	message := "Your account is now connected to MS Teams."
+	query := r.URL.Query()
+	if query.Has("isBot") {
+		message = "The bot account is now connected."
+	}
+
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
 		a.p.API.LogWarn("Failed to get bundle path.", "error", err.Error())
 		return
 	}
 
-	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/info-page/index.html"))
+	t, err := template.ParseFiles(filepath.Join(bundlePath, "assets/account-connected/index.html"))
 	if err != nil {
 		a.p.API.LogError("unable to parse the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
 	}
 
 	err = t.Execute(w, struct {
-		ServerURL                 string
-		APIEndPoint               string
-		QueryParamPrimaryPlatform string
+		Message string
 	}{
-		ServerURL:                 a.p.GetURL(),
-		APIEndPoint:               APIChoosePrimaryPlatform,
-		QueryParamPrimaryPlatform: QueryParamPrimaryPlatform,
+		Message: message,
 	})
 	if err != nil {
 		a.p.API.LogError("unable to execute the template", "error", err.Error())
-		http.Error(w, "unable to view the primary platform selection page", http.StatusInternalServerError)
+		http.Error(w, "unable to view the connected page", http.StatusInternalServerError)
 	}
 }
 
@@ -637,15 +637,23 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	if mmUser.Id == a.p.GetBotUserID() {
-		connectionMessage := "The bot account has been connected"
-		_, _ = w.Write([]byte(fmt.Sprintf("<html><body><h1>%s</h1><p>You can close this window.</p></body></html>", connectionMessage)))
+		http.Redirect(w, r, a.p.GetURL()+"/account-connected?isBot", http.StatusSeeOther)
 		return
 	}
 
-	_, _ = a.p.updateAutomutingOnUserConnect(mmUserID)
+	switch {
+	case a.p.getConfiguration().SyncNotifications:
+		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
+	default:
+		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
+	}
 
+	http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
+}
+
+func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
 	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	switch originInfo[0] {
+	switch originInfo {
 	case "fromBotMessage":
 		post := &model.Post{
 			Id:        postID,
@@ -655,24 +663,61 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			CreateAt:  model.GetMillis(),
 		}
 
-		_, appErr = a.p.GetAPI().GetPost(post.Id)
+		_, appErr := a.p.GetAPI().GetPost(post.Id)
 		if appErr == nil {
 			_, appErr = a.p.GetAPI().UpdatePost(post)
 			if appErr != nil {
-				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", err.Error())
+				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", appErr.Error())
 			}
 		} else {
-			_ = a.p.GetAPI().UpdateEphemeralPost(mmUser.Id, post)
+			_ = a.p.GetAPI().UpdateEphemeralPost(mmUserID, post)
 		}
 	case "fromPreferences":
-		err = a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
+		err := a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
 		if err != nil {
 			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
 		}
 	}
+}
 
-	connectURL := a.p.GetURL() + "/primary-platform"
-	http.Redirect(w, r, connectURL, http.StatusSeeOther)
+func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {
+	switch originInfo {
+	case "fromPreferences":
+		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+		if err != nil {
+			a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
+		}
+	case "fromBotMessage":
+		welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
+		var originalPost *model.Post
+		originalPost, appErr := a.p.GetAPI().GetPost(postID)
+		if appErr == nil {
+			originalPost.Message = welcomePost.Message
+			originalPost.SetProps(welcomePost.Props)
+			_, appErr = a.p.GetAPI().UpdatePost(originalPost)
+			if appErr != nil {
+				a.p.API.LogWarn("Unable to update post", "post", postID, "error", appErr.Error())
+			}
+		} else {
+			// Update the original connection prompt and remove any calls to action.
+			// This occurs where the ephemeral message was sent, and likely where the
+			// user returned to after closing the oAuth2 flow.
+			a.p.GetAPI().UpdateEphemeralPost(mmUserID, &model.Post{
+				Id:        postID,
+				ChannelId: channelID,
+				UserId:    a.p.GetBotUserID(),
+				Message:   "Your account is now connected to MS Teams.",
+				CreateAt:  model.GetMillis(),
+				UpdateAt:  model.GetMillis(),
+			})
+
+			// Send the welcome message in the bot channel.
+			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+			if err != nil {
+				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
+			}
+		}
+	}
 }
 
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
@@ -909,32 +954,6 @@ func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) choosePrimaryPlatform(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
-		http.Error(w, "not authorized", http.StatusUnauthorized)
-		return
-	}
-
-	primaryPlatform := r.URL.Query().Get(QueryParamPrimaryPlatform)
-
-	if primaryPlatform != storemodels.PreferenceValuePlatformMM && primaryPlatform != storemodels.PreferenceValuePlatformMSTeams {
-		a.p.API.LogWarn("Invalid primary platform", "primary_platform", primaryPlatform)
-		http.Error(w, "invalid primary platform", http.StatusBadRequest)
-		return
-	}
-
-	err := a.p.setPrimaryPlatform(userID, primaryPlatform)
-	if err != nil {
-		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
-		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func (p *Plugin) getConnectedUsersList() ([]*storemodels.ConnectedUser, error) {
 	page := DefaultPage
 	perPage := MaxPerPage
@@ -1022,6 +1041,18 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to get connected users count", http.StatusInternalServerError)
 		return
 	}
+	pendingInvites, err := a.p.store.GetInvitedCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get invited users count", "error", err.Error())
+		http.Error(w, "unable to get invited users count", http.StatusInternalServerError)
+		return
+	}
+	whitelistedUsers, err := a.p.store.GetWhitelistCount()
+	if err != nil {
+		a.p.API.LogWarn("Failed to get whitelisted users count", "error", err.Error())
+		http.Error(w, "unable to get whitelisted users count", http.StatusInternalServerError)
+		return
+	}
 	receiving, err := a.p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange)
 	if err != nil {
 		a.p.API.LogWarn("Failed to get users receiving count", "error", err.Error())
@@ -1037,10 +1068,14 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 
 	siteStats := struct {
 		TotalConnectedUsers   int64 `json:"total_connected_users"`
+		PendingInvitedUsers   int64 `json:"pending_invited_users"`
+		CurrentWhitelistUsers int64 `json:"current_whitelist_users"`
 		UserReceivingMessages int64 `json:"total_users_receiving"`
 		UserSendingMessages   int64 `json:"total_users_sending"`
 	}{
 		TotalConnectedUsers:   connectedUsersCount,
+		PendingInvitedUsers:   int64(pendingInvites),
+		CurrentWhitelistUsers: int64(whitelistedUsers),
 		UserReceivingMessages: receiving,
 		UserSendingMessages:   sending,
 	}
@@ -1053,4 +1088,84 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write(data)
+}
+
+func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
+	var actionHandler model.PostActionIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
+		a.p.API.LogWarn("Unable to decode the action handler", "error", err.Error())
+		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
+		return
+	}
+
+	err := a.p.setNotificationPreference(actionHandler.UserId, true)
+	if err != nil {
+		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
+		return
+	}
+
+	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the post", "error", err.Error())
+		http.Error(w, "unable to get the post", http.StatusBadRequest)
+		return
+	}
+
+	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
+	post.DelProp("attachments")
+
+	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
+		Update: post,
+	})
+
+	if err != nil {
+		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
+		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
+	}
+}
+
+func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	var actionHandler model.PostActionIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
+		a.p.API.LogWarn("Unable to decode the action handler", "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
+		return
+	}
+
+	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the post", "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to get the post", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the post was authored by the bot itself.
+	if post.UserId != a.p.botUserID {
+		a.p.API.LogWarn("Attempt to delete post not authored by the bot", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Verify the post is in the direct message channel between the bot and the user.
+	botDMChannel, err := a.p.apiClient.Channel.GetDirect(a.p.botUserID, userID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
+		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
+		return
+	} else if botDMChannel.Id != post.ChannelId {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// At this point, it might be /another/ post by the bot in the DM with that user, but we
+	// allow this for now.
+	err = a.p.apiClient.Post.DeletePost(actionHandler.PostId)
+	if err != nil {
+		a.p.API.LogWarn("Unable to delete the post", "post_id", actionHandler.PostId, "user_id", userID, "error", err.Error())
+		http.Error(w, "unable to delete the post", http.StatusInternalServerError)
+	}
 }

@@ -1302,61 +1302,6 @@ func TestGetSyntheticUsersCount(t *testing.T) {
 	})
 }
 
-func TestGetUsersByPrimaryPlatformsCount(t *testing.T) {
-	store, _ := setupTestStore(t)
-	store.encryptionKey = func() []byte {
-		return make([]byte, 16)
-	}
-
-	cleanup := func() {
-		t.Helper()
-		_, err := store.getQueryBuilder(store.db).Delete("Preferences").Where("1=1").Exec()
-		require.Nil(t, err)
-		_, err = store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
-		require.Nil(t, err)
-	}
-	cleanup()
-	defer cleanup()
-
-	const category = "pp_pluginid"
-
-	t.Run("all zero", func(t *testing.T) {
-		assert := require.New(t)
-		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
-		assert.Nil(err)
-		assert.EqualValues(0, teamsPrimary)
-		assert.EqualValues(0, mmPrimary)
-	})
-
-	t.Run("all values set", func(t *testing.T) {
-		assert := require.New(t)
-
-		for i := 0; i < 5; i++ {
-			userID := model.NewId()
-			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
-				AccessToken: model.NewId(),
-			})
-			assert.Nil(err)
-
-			platform := storemodels.PreferenceValuePlatformMM
-			if i >= 3 {
-				platform = storemodels.PreferenceValuePlatformMSTeams
-			}
-
-			_, err = store.getQueryBuilder(store.db).Insert("preferences").
-				Columns("userid, category, name, value").
-				Values(userID, category, storemodels.PreferenceNamePlatform, platform).
-				Exec()
-			assert.Nil(err)
-		}
-
-		teamsPrimary, mmPrimary, err := store.GetUsersByPrimaryPlatformsCount(category)
-		assert.Nil(err)
-		assert.EqualValues(2, teamsPrimary)
-		assert.EqualValues(3, mmPrimary)
-	})
-}
-
 func TestGetActiveUsersReceivingCount(t *testing.T) {
 	store, _ := setupTestStore(t)
 	store.encryptionKey = func() []byte {

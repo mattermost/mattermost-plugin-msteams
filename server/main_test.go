@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,19 +48,6 @@ func (mt *mainT) Errorf(format string, args ...interface{}) {
 
 func (mt *mainT) FailNow() {
 	os.Exit(1)
-}
-
-// setupServerPath defines MM_SERVER_PATH correctly for server initialization. One day this won't
-// be necessary at all.
-func setupServerPath() error {
-	// Find the server to define MM_SERVER_PATH when running tests.
-	serverPath, err := exec.Command("go", "list", "-f", "'{{.Dir}}'", "-m", "github.com/mattermost/mattermost/server/v8").Output()
-	if err != nil {
-		return err
-	}
-	os.Setenv("MM_SERVER_PATH", strings.Trim(strings.TrimSpace(string(serverPath)), "'"))
-
-	return nil
 }
 
 // setupDatabase initializes a singleton Postgres testcontainer and mattermost_test database for
@@ -210,10 +195,7 @@ var setupReattachEnvironmentOnce sync.Once
 // *mainT to clean up once at termination.
 func setupReattachEnvironment(mt *mainT) {
 	setupReattachEnvironmentOnce.Do(func() {
-		err := setupServerPath()
-		require.NoError(mt, err)
-
-		err = setupDatabase(mt)
+		err := setupDatabase(mt)
 		require.NoError(mt, err)
 
 		err = setupServer(mt)

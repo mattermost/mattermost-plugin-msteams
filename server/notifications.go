@@ -6,6 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.Message, chat *clientmodels.Chat) string {
@@ -17,6 +18,15 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		return metrics.DiscardedReasonChannelNotificationsUnsupported
 	}
 
+	notifiedUsers := []string{}
+	chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
+	attachmentCount := 0
+	for _, attachment := range msg.Attachments {
+		if attachment.ContentType == "messageReference" || attachment.ContentType == "application/vnd.microsoft.card.codesnippet" {
+			continue
+		}
+		attachmentCount++
+	}
 	for _, member := range chat.Members {
 		// Don't notify senders about their own posts.
 		if member.UserID == msg.UserID {
@@ -31,28 +41,27 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 			continue
 		}
 
-		botDMChannel, appErr := ah.plugin.GetAPI().GetDirectChannel(mattermostUserID, botUserID)
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to get direct channel with bot to send notification to user", "user_id", mattermostUserID, "error", appErr.Error())
+		if !ah.plugin.getNotificationPreference(mattermostUserID) {
 			continue
 		}
+		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
-		notificationPost := post.Clone()
-		notificationPost.ChannelId = botDMChannel.Id
+		ah.plugin.metricsService.ObserveNotification(len(chat.Members) >= 3, attachmentCount > 0)
+		ah.plugin.notifyChat(
+			mattermostUserID,
+			msg.UserDisplayName,
+			chat.Topic,
+			len(chat.Members),
+			chatLink,
+			post.Message,
+			attachmentCount,
+		)
+	}
 
-		chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
-
-		if len(chat.Members) == 2 {
-			notificationPost.Message = fmt.Sprintf("%s messaged you in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
-		} else if len(chat.Members) == 3 {
-			notificationPost.Message = fmt.Sprintf("%s messaged you and 1 other user in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, chatLink, notificationPost.Message)
-		} else {
-			notificationPost.Message = fmt.Sprintf("%s messaged you and %d other users in an MS Teams [chat](%s):\n> %s", msg.UserDisplayName, len(chat.Members)-2, chatLink, notificationPost.Message)
-		}
-
-		_, appErr = ah.plugin.GetAPI().CreatePost(notificationPost)
-		if appErr != nil {
-			ah.plugin.GetAPI().LogWarn("Failed to create notification post", "error", appErr)
+	if len(notifiedUsers) > 0 {
+		err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(notifiedUsers, storemodels.MilliToMicroSeconds(post.CreateAt))
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
 		}
 	}
 

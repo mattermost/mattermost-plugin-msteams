@@ -15,30 +15,6 @@ func (p *Plugin) GetPreferenceCategoryName() string {
 	return PreferenceCategoryPlugin
 }
 
-// getPrimaryPlatform returns the user's primary platform preference.
-func (p *Plugin) getPrimaryPlatform(userID string) string {
-	pref, appErr := p.API.GetPreferenceForUser(userID, PreferenceCategoryPlugin, storemodels.PreferenceNamePlatform)
-	if appErr != nil {
-		// Default to Mattermost if not found or an error occurred
-		return storemodels.PreferenceValuePlatformMM
-	}
-
-	return pref.Value
-}
-
-// setPrimaryPlatform sets a user's primary platform preference.
-func (p *Plugin) setPrimaryPlatform(userID string, primaryPlatform string) error {
-	if primaryPlatform != storemodels.PreferenceValuePlatformMM && primaryPlatform != storemodels.PreferenceValuePlatformMSTeams {
-		return fmt.Errorf("invalid primary platform: %s", primaryPlatform)
-	}
-
-	appErr := p.updatePreferenceForUser(userID, storemodels.PreferenceNamePlatform, primaryPlatform)
-	if appErr != nil {
-		return appErr
-	}
-	return nil
-}
-
 func (p *Plugin) getNotificationPreference(userID string) bool {
 	// this call returns a generic error if the preference does not exist,
 	// we can omit the error check here and return off by default
