@@ -23,6 +23,10 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	post.ChannelId = channel.Id
 	post.UserId = p.botUserID
 
+	// Force posts from the bot to render the user profile icon each time instead of collapsing
+	// adjacent posts. This helps draw attention to each individual post.
+	post.AddProp("from_webhook", "true")
+
 	return p.apiClient.Post.CreatePost(post)
 }
 
@@ -84,22 +88,6 @@ func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
 	p.API.SendEphemeralPost(userID, post)
 }
 
-const userChoseMattermostPrimaryMessage = "You’ve chosen Mattermost as your primary platform: you’ll receive Microsoft Teams messages and notifications in Mattermost. Consider [disabling MS Teams notifications](https://support.microsoft.com/en-us/office/manage-notifications-in-microsoft-teams-1cc31834-5fe5-412b-8edb-43fecc78413d) to avoid duplicated notifications."
-
-func (p *Plugin) notifyUserMattermostPrimary(userID string) {
-	if err := p.botSendDirectMessage(userID, userChoseMattermostPrimaryMessage); err != nil {
-		p.GetAPI().LogWarn("Failed to notify user is Mattermost primary", "user_id", userID, "error", err)
-	}
-}
-
-const userChoseTeamsPrimaryMessage = "You’ve chosen Microsoft Teams as your primary platform: your Mattermost notifications for DMs and GMs are muted, and you’ll receive chats from Mattermost in Microsoft Teams."
-
-func (p *Plugin) notifyUserTeamsPrimary(userID string) {
-	if err := p.botSendDirectMessage(userID, userChoseTeamsPrimaryMessage); err != nil {
-		p.GetAPI().LogWarn("Failed to notify user is Teams primary", "user_id", userID, "error", err)
-	}
-}
-
 func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 	if err := p.botSendDirectPost(
 		userID,
@@ -113,8 +101,8 @@ func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 
 func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 	msg := []string{
-		"**Welcome to the MS Teams integration!**",
-		"Enable notifications to get notified about any mentions you get in direct messages or group messages in MS Teams directly within Mattermost.",
+		"**Notifications from chats and group chats**",
+		"With this feature enabled, you will get notified by the MS Teams bot whenever you receive a message from a chat or group chat in Teams.",
 		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
 	}
 
@@ -132,6 +120,14 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 							Style: "primary",
 							Type:  model.PostActionTypeButton,
 						},
+						{
+							Integration: &model.PostActionIntegration{
+								URL: fmt.Sprintf("%s/dismiss-notifications", p.GetRelativeURL()),
+							},
+							Name:  "Dismiss",
+							Style: "default",
+							Type:  model.PostActionTypeButton,
+						},
 					},
 				},
 			},
@@ -140,36 +136,40 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatSize int, chatLink string, message string, attachmentCount int) {
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) {
 	var preamble string
+
+	var chatTopicDesc string
+	if chatTopic != "" {
+		chatTopicDesc = ": " + chatTopic
+	}
 
 	if chatSize <= 1 {
 		return
 	} else if chatSize == 2 {
-		preamble = fmt.Sprintf("%s messaged you in MS Teams:", actorDisplayName)
+		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
 	} else if chatSize == 3 {
-		preamble = fmt.Sprintf("%s messaged you and 1 other user in MS Teams:", actorDisplayName)
+		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
 	} else {
-		preamble = fmt.Sprintf("%s messaged you and %d other users in MS Teams:", actorDisplayName, chatSize-2)
+		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat%s](%s):", actorDisplayName, chatSize-2, chatTopicDesc, chatLink)
 	}
 
 	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
 
-	attachments := ""
+	attachmentsNotice := ""
 	if attachmentCount > 0 {
-		attachments += "\n*"
+		attachmentsNotice += "\n*"
 		if attachmentCount == 1 {
-			attachments += "This message was originally sent with one attachment."
+			attachmentsNotice += "This message was originally sent with one attachment."
 		} else {
-			attachments += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
+			attachmentsNotice += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
 		}
-		attachments += "*\n"
+		attachmentsNotice += "*\n"
 	}
 
 	formattedMessage := fmt.Sprintf(`%s
 %s
-%s
-**[Respond in Microsoft Teams ↗️](%s)**`, preamble, message, attachments, chatLink)
+%s`, preamble, message, attachmentsNotice)
 
 	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)

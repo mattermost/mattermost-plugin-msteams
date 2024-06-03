@@ -409,351 +409,270 @@ func TestHandleCreatedActivity(t *testing.T) {
 		assert.Equal(t, metrics.DiscardedReasonOther, discardReason)
 	})
 
-	t.Run("valid chat message", func(t *testing.T) {
-		th.Reset(t)
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncDirectMessages = true
-		})
-
-		senderUser := th.SetupUser(t, team)
-		th.ConnectUser(t, senderUser.Id)
-
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
-		activityIds := clientmodels.ActivityIds{
-			ChatID:    "chat_id",
-			MessageID: "message_id",
+	t.Run("chats", func(t *testing.T) {
+		type parameters struct {
+			SyncDirectMessages bool
+			SyncGroupMessages  bool
+			SyncNotifications  bool
 		}
-		now := time.Now()
-
-		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
-			ID: activityIds.ChatID,
-			Members: []clientmodels.ChatMember{
-				{
-					UserID: "t" + user1.Id,
-				},
-				{
-					UserID: "t" + senderUser.Id,
-				},
-			},
-			Type: "D",
-		}, nil).Times(1)
-		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
-			&clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				ChatID:          activityIds.ChatID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}, nil).Times(1)
-		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
-			ID: "t" + senderUser.Id,
-		}, nil).Twice()
-		th.appClientMock.On("GetUser", "t"+user1.Id).Return(&clientmodels.User{
-			ID: "t" + user1.Id,
-		}, nil).Once()
-
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
-
-		th.assertDMFromUser(t, senderUser.Id, user1.Id, "message")
-	})
-
-	t.Run("linked channels disabled", func(t *testing.T) {
-		th.Reset(t)
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncLinkedChannels = false
-		})
-
-		senderUser := th.SetupUser(t, team)
-		th.ConnectUser(t, senderUser.Id)
-
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		user2 := th.SetupUser(t, team)
-		th.ConnectUser(t, user2.Id)
-
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
-		activityIds := clientmodels.ActivityIds{
-			TeamID:    "team_id",
-			ChannelID: "channel_id",
-			MessageID: "message_id",
-		}
-		now := time.Now()
-
-		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
-			&clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				TeamID:          activityIds.TeamID,
-				ChannelID:       activityIds.ChannelID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}, nil).Times(1)
-		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
-			ID: "t" + senderUser.Id,
-		}, nil).Once()
-
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonLinkedChannelsDisabled, discardReason)
-	})
-
-	t.Run("valid linked channel message", func(t *testing.T) {
-		th.Reset(t)
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncLinkedChannels = true
-		})
-
-		senderUser := th.SetupUser(t, team)
-		th.ConnectUser(t, senderUser.Id)
-
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		user2 := th.SetupUser(t, team)
-		th.ConnectUser(t, user2.Id)
-
-		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
-		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
-		require.Nil(t, appErr)
-
-		channelLink := storemodels.ChannelLink{
-			MattermostTeamID:    team.Id,
-			MattermostChannelID: channel.Id,
-			MSTeamsTeam:         model.NewId(),
-			MSTeamsChannel:      model.NewId(),
-			Creator:             user1.Id,
-		}
-
-		err := th.p.store.StoreChannelLink(&channelLink)
-		require.NoError(t, err)
-
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
-		activityIds := clientmodels.ActivityIds{
-			TeamID:    channelLink.MSTeamsTeam,
-			ChannelID: channelLink.MSTeamsChannel,
-			MessageID: "message_id",
-		}
-		now := time.Now()
-
-		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
-			&clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				TeamID:          activityIds.TeamID,
-				ChannelID:       activityIds.ChannelID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}, nil).Times(1)
-		th.appClientMock.On("GetUser", "t"+senderUser.Id).Return(&clientmodels.User{
-			ID: "t" + senderUser.Id,
-		}, nil).Once()
-
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
-
-		th.assertPostInChannel(t, senderUser.Id, channel.Id, "message")
-	})
-
-	t.Run("notification for chat, preference unset", func(t *testing.T) {
-		th.Reset(t)
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncNotifications = true
-		})
-
-		senderUser := th.SetupUser(t, team)
-		th.ConnectUser(t, senderUser.Id)
-
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
-		require.NoError(t, err)
-		th.ConnectUser(t, botUser.Id)
-
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
-		activityIds := clientmodels.ActivityIds{
-			ChatID:    "chat_id",
-			MessageID: "message_id",
-		}
-		now := time.Now()
-
-		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
-			ID: activityIds.ChatID,
-			Members: []clientmodels.ChatMember{
-				{
-					UserID: "t" + user1.Id,
-				},
-				{
-					UserID: "t" + senderUser.Id,
-				},
-			},
-			Type: "D",
-		}, nil).Times(1)
-		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
-			&clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				ChatID:          activityIds.ChatID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}, nil).Times(1)
-
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
-
-		th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-	})
-
-	t.Run("notification for chat", func(t *testing.T) {
-		type notificationForChatPermutations struct {
-			NotificationPref bool
-			WithAttachments  bool
-		}
-		runPermutations(t, notificationForChatPermutations{}, func(t *testing.T, params notificationForChatPermutations) {
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
 
 			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-				c.SyncNotifications = true
+				c.SyncDirectMessages = params.SyncDirectMessages
+				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncNotifications = params.SyncNotifications
 			})
 
-			senderUser := th.SetupUser(t, team)
-			th.ConnectUser(t, senderUser.Id)
+			t.Run("chat message", func(t *testing.T) {
+				th.Reset(t)
 
-			user1 := th.SetupUser(t, team)
-			th.ConnectUser(t, user1.Id)
+				senderUser := th.SetupUser(t, team)
+				th.ConnectUser(t, senderUser.Id)
 
-			err := th.p.setNotificationPreference(user1.Id, params.NotificationPref)
-			require.NoError(t, err)
+				user1 := th.SetupUser(t, team)
+				th.ConnectUser(t, user1.Id)
 
-			botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
-			require.NoError(t, err)
-			th.ConnectUser(t, botUser.Id)
-
-			msg := (*clientmodels.Message)(nil)
-
-			subscriptionID := "test"
-			activityIds := clientmodels.ActivityIds{
-				ChatID:    "chat_id",
-				MessageID: "message_id",
-			}
-			now := time.Now()
-
-			th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
-				ID: activityIds.ChatID,
-				Members: []clientmodels.ChatMember{
-					{
-						UserID: "t" + user1.Id,
-					},
-					{
-						UserID: "t" + senderUser.Id,
-					},
-				},
-				Type: "D",
-			}, nil).Times(1)
-
-			chatMsg := &clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				ChatID:          activityIds.ChatID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}
-			if params.WithAttachments {
-				chatMsg.Attachments = []clientmodels.Attachment{
-					{}, {}, {}, //should be counted
-					{ContentType: "messageReference"},                           //should not be counted
-					{ContentType: "application/vnd.microsoft.card.codesnippet"}, //should not be counted
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    "chat_id",
+					MessageID: "message_id",
 				}
-			}
-			th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(chatMsg, nil).Times(1)
 
-			discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-			assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerChat(activityIds.ChatID, []*model.User{user1, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
-			if params.NotificationPref {
-				re := "message"
-				if params.WithAttachments {
-					re += "(.*)3 attachments"
+				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncDirectMessages && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					th.assertDMFromUser(t, senderUser.Id, user1.Id, "message")
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+					}
+
+					th.assertNoDMFromUser(t, senderUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 				}
-				th.assertDMFromUserRe(t, botUser.Id, user1.Id, re)
-			} else {
-				th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-			}
+			})
+
+			t.Run("group chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				th.ConnectUser(t, senderUser.Id)
+
+				user1 := th.SetupUser(t, team)
+				th.ConnectUser(t, user1.Id)
+
+				user2 := th.SetupUser(t, team)
+				th.ConnectUser(t, user2.Id)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    "chat_id",
+					MessageID: "message_id",
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
+
+				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncGroupMessages && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					th.assertGMFromUsers(t, senderUser.Id, []string{user1.Id, user2.Id}, "message")
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+					}
+
+					th.assertNoGMFromUsers(t, senderUser.Id, []string{user1.Id, user2.Id}, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+				}
+			})
 		})
 	})
 
-	t.Run("notification for channel", func(t *testing.T) {
-		th.Reset(t)
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncNotifications = true
+	t.Run("channels", func(t *testing.T) {
+		type parameters struct {
+			SyncLinkedChannels bool
+			SyncNotifications  bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncLinkedChannels = params.SyncLinkedChannels
+				c.SyncNotifications = params.SyncNotifications
+			})
+
+			t.Run("linked channel", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				th.ConnectUser(t, senderUser.Id)
+
+				user1 := th.SetupUser(t, team)
+				th.ConnectUser(t, user1.Id)
+
+				user2 := th.SetupUser(t, team)
+				th.ConnectUser(t, user2.Id)
+
+				channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+				_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+				require.Nil(t, appErr)
+
+				channelLink := storemodels.ChannelLink{
+					MattermostTeamID:    team.Id,
+					MattermostChannelID: channel.Id,
+					MSTeamsTeam:         model.NewId(),
+					MSTeamsChannel:      model.NewId(),
+					Creator:             user1.Id,
+				}
+
+				err := th.p.store.StoreChannelLink(&channelLink)
+				require.NoError(t, err)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					TeamID:    channelLink.MSTeamsTeam,
+					ChannelID: channelLink.MSTeamsChannel,
+					MessageID: "message_id",
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, senderUser, "message")
+
+				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+
+				if params.SyncLinkedChannels {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					th.assertPostInChannel(t, senderUser.Id, channel.Id, "message")
+				} else {
+					assert.Equal(t, metrics.DiscardedReasonLinkedChannelsDisabled, discardReason)
+					th.assertNoPostInChannel(t, senderUser.Id, channel.Id)
+				}
+			})
 		})
+	})
 
-		senderUser := th.SetupUser(t, team)
-		th.ConnectUser(t, senderUser.Id)
-
-		user1 := th.SetupUser(t, team)
-		th.ConnectUser(t, user1.Id)
-
-		botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
-		require.NoError(t, err)
-		th.ConnectUser(t, botUser.Id)
-
-		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
-		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
-		require.Nil(t, appErr)
-
-		channelLink := storemodels.ChannelLink{
-			MattermostTeamID:    team.Id,
-			MattermostChannelID: channel.Id,
-			MSTeamsTeam:         model.NewId(),
-			MSTeamsChannel:      model.NewId(),
-			Creator:             user1.Id,
+	t.Run("notifications", func(t *testing.T) {
+		type parameters struct {
+			SyncDirectMessages bool
+			SyncGroupMessages  bool
+			SyncNotifications  bool
+			NotificationPref   bool
 		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
 
-		err = th.p.store.StoreChannelLink(&channelLink)
-		require.NoError(t, err)
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncDirectMessages = params.SyncDirectMessages
+				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncNotifications = params.SyncNotifications
+			})
 
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
-		activityIds := clientmodels.ActivityIds{
-			TeamID:    channelLink.MSTeamsTeam,
-			ChannelID: channelLink.MSTeamsChannel,
-			MessageID: "message_id",
-		}
-		now := time.Now()
+			t.Run("chat message", func(t *testing.T) {
+				th.Reset(t)
 
-		th.appClientMock.On("GetMessage", activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID).Return(
-			&clientmodels.Message{
-				ID:              activityIds.MessageID,
-				UserID:          "t" + senderUser.Id,
-				TeamID:          activityIds.TeamID,
-				ChannelID:       activityIds.ChannelID,
-				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
-				Text:            "message",
-				CreateAt:        now,
-				LastUpdateAt:    now,
-			}, nil).Times(1)
+				senderUser := th.SetupUser(t, team)
+				th.ConnectUser(t, senderUser.Id)
 
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonChannelNotificationsUnsupported, discardReason)
+				user1 := th.SetupUser(t, team)
+				th.ConnectUser(t, user1.Id)
+
+				err := th.p.setNotificationPreference(user1.Id, params.NotificationPref)
+				require.NoError(t, err)
+
+				botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+				require.NoError(t, err)
+				th.ConnectUser(t, botUser.Id)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    "chat_id",
+					MessageID: "message_id",
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerChat(activityIds.ChatID, []*model.User{user1, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
+
+				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+				} else {
+					if params.SyncDirectMessages {
+						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+					}
+				}
+
+				if params.SyncNotifications && params.NotificationPref {
+					th.assertDMFromUserRe(t, botUser.Id, user1.Id, "message")
+				} else {
+					th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+				}
+			})
+
+			t.Run("group chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				th.ConnectUser(t, senderUser.Id)
+
+				user1 := th.SetupUser(t, team)
+				th.ConnectUser(t, user1.Id)
+
+				err := th.p.setNotificationPreference(user1.Id, params.NotificationPref)
+				require.NoError(t, err)
+
+				user2 := th.SetupUser(t, team)
+				th.ConnectUser(t, user2.Id)
+
+				botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+				require.NoError(t, err)
+				th.ConnectUser(t, botUser.Id)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    "chat_id",
+					MessageID: "message_id",
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
+
+				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+				} else {
+					if params.SyncGroupMessages {
+						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+					}
+				}
+
+				if params.SyncNotifications && params.NotificationPref {
+					th.assertDMFromUserRe(t, botUser.Id, user1.Id, "message")
+				} else {
+					th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
+				}
+			})
+		})
 	})
 }
 

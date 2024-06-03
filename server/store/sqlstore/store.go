@@ -26,6 +26,7 @@ const (
 	oAuth2StateTimeToLive           = 300 // seconds
 	oAuth2KeyPrefix                 = "oauth2_"
 	backgroundJobPrefix             = "background_job"
+	systemSettingsTableName         = "msteamssync_system_settings"
 	usersTableName                  = "msteamssync_users"
 	linksTableName                  = "msteamssync_links"
 	postsTableName                  = "msteamssync_posts"
@@ -56,108 +57,37 @@ func New(db, replica *sql.DB, api plugin.API, enabledTeams func() []string, encr
 }
 
 func (s *SQLStore) Init(remoteID string) error {
-	if err := s.createTable(subscriptionsTableName, "subscriptionID VARCHAR(255) PRIMARY KEY, type VARCHAR(255), msTeamsTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsUserID VARCHAR(255), secret VARCHAR(255), expiresOn BIGINT"); err != nil {
-		return err
+	if err := s.Migrate(remoteID); err != nil {
+		return fmt.Errorf("error running database migrations: %w", err)
 	}
 
-	if err := s.createTable(linksTableName, "mmChannelID VARCHAR(255) PRIMARY KEY, mmTeamID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsTeamID VARCHAR(255), creator VARCHAR(255)"); err != nil {
-		return err
+	return nil
+}
+
+func (s *SQLStore) getSystemSetting(db sq.BaseRunner, key string) (string, error) {
+	scanner := s.getQueryBuilder(db).
+		Select("value").
+		From(systemSettingsTableName).
+		Where(sq.Eq{"id": key}).
+		QueryRow()
+
+	var result string
+	err := scanner.Scan(&result)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
 	}
 
-	if err := s.addColumn(linksTableName, "creator", "VARCHAR(255)"); err != nil {
-		return err
-	}
+	return result, nil
+}
 
-	if err := s.createTable(usersTableName, "mmUserID VARCHAR(255) PRIMARY KEY, msTeamsUserID VARCHAR(255), token TEXT"); err != nil {
-		return err
-	}
-
-	if err := s.addPrimaryKey(usersTableName, "mmUserID, msTeamsUserID"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(postsTableName, "mmPostID VARCHAR(255) PRIMARY KEY, msTeamsPostID VARCHAR(255), msTeamsChannelID VARCHAR(255), msTeamsLastUpdateAt BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(linksTableName, "idx_msteamssync_links_msteamsteamid_msteamschannelid", "msTeamsTeamID, msTeamsChannelID"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(usersTableName, "idx_msteamssync_users_msteamsuserid", "msTeamsUserID"); err != nil {
-		return err
-	}
-
-	if err := s.createIndex(postsTableName, "idx_msteamssync_posts_msteamschannelid_msteamspostid", "msTeamsChannelID, msTeamsPostID"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(subscriptionsTableName, "certificate", "TEXT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(subscriptionsTableName, "lastActivityAt", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(invitedUsersTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(invitedUsersTableName, "invitePendingSince", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(invitedUsersTableName, "inviteLastSentAt", "BIGINT"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "lastConnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "lastDisconnectAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.createTable(whitelistTableName, "mmUserID VARCHAR(255) PRIMARY KEY"); err != nil {
-		return err
-	}
-
-	if remoteID != "" {
-		if err := s.runMigrationRemoteID(remoteID); err != nil {
-			return err
-		}
-
-		if err := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); err != nil {
-			return err
-		}
-	}
-
-	exist, err := s.indexExist(usersTableName, "idx_msteamssync_users_msteamsuserid_unq")
+func (s *SQLStore) setSystemSetting(db sq.BaseRunner, id, value string) error {
+	_, err := s.getQueryBuilder(db).
+		Insert(systemSettingsTableName).
+		Columns("id", "value").
+		Values(id, value).
+		Suffix("ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value").
+		Exec()
 	if err != nil {
-		return err
-	}
-	if !exist {
-		// dedup entries with multiples ms teams id
-		if err := s.runMSTeamUserIDDedup(); err != nil {
-			return err
-		}
-
-		if err := s.createMSTeamsUserIDUniqueIndex(); err != nil {
-			return err
-		}
-	}
-
-	if err := s.ensureMigrationWhitelistedUsers(); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "LastChatSentAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	if err := s.addColumn(usersTableName, "LastChatReceivedAt", "BIGINT NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
 
@@ -287,7 +217,7 @@ func (s *SQLStore) mattermostToTeamsUserID(db sq.BaseRunner, userID string) (str
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("mmPostID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"msTeamsPostID": postID, "msTeamsChannelID": chatID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -304,7 +234,7 @@ func (s *SQLStore) getPostInfoByMSTeamsID(db sq.BaseRunner, chatID string, postI
 
 //db:withReplica
 func (s *SQLStore) getPostInfoByMattermostID(db sq.BaseRunner, postID string) (*storemodels.PostInfo, error) {
-	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID}).Suffix("FOR UPDATE")
+	query := s.getQueryBuilder(db).Select("msTeamsPostID, msTeamsChannelID, msTeamsLastUpdateAt").From(postsTableName).Where(sq.Eq{"mmPostID": postID})
 	row := query.QueryRow()
 	var lastUpdateAt int64
 	postInfo := storemodels.PostInfo{
@@ -775,7 +705,7 @@ func (s *SQLStore) deleteSubscription(db sq.BaseRunner, subscriptionID string) e
 
 //db:withReplica
 func (s *SQLStore) getChannelSubscription(db sq.BaseRunner, subscriptionID string) (*storemodels.ChannelSubscription, error) {
-	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).Suffix("FOR UPDATE").QueryRow()
+	row := s.getQueryBuilder(db).Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").From(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID, "type": subscriptionTypeChannel}).QueryRow()
 	var subscription storemodels.ChannelSubscription
 	var expiresOn int64
 	var certificate *string
@@ -941,42 +871,6 @@ func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (sy
 		Scan(&syntheticUsers)
 
 	return syntheticUsers, err
-}
-
-//db:withReplica
-func (s *SQLStore) getUsersByPrimaryPlatformsCount(db sq.BaseRunner, preferenceCategory string) (msTeamsPrimary, mmPrimary int64, err error) {
-	query := s.getQueryBuilder(db).
-		Select("p.value", "count(*)").
-		From("preferences p").
-		LeftJoin(fmt.Sprintf("%s u ON p.userid = u.mmuserid", usersTableName)).
-		Where(sq.And{
-			sq.Eq{"p.category": preferenceCategory},
-			sq.Eq{"p.name": storemodels.PreferenceNamePlatform},
-			sq.And{sq.NotEq{"u.token": nil}, sq.NotEq{"u.token": ""}},
-		}).
-		GroupBy("p.value")
-	rows, err := query.Query()
-	if err != nil {
-		return msTeamsPrimary, mmPrimary, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var platform string
-		var count int64
-		if err := rows.Scan(&platform, &count); err != nil {
-			return msTeamsPrimary, mmPrimary, err
-		}
-
-		switch platform {
-		case storemodels.PreferenceValuePlatformMM:
-			mmPrimary = count
-		case storemodels.PreferenceValuePlatformMSTeams:
-			msTeamsPrimary = count
-		}
-	}
-
-	return msTeamsPrimary, mmPrimary, nil
 }
 
 //db:withReplica

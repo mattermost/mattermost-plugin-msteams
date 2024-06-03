@@ -247,7 +247,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonGeneratedFromMattermost
 	}
 
-	if ah.plugin.GetSyncNotifications() {
+	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
 		return ah.handleCreatedActivityNotification(msg, chat)
 	}
 
@@ -396,7 +396,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
-	if ah.plugin.GetSyncNotifications() {
+	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
 		return metrics.DiscardedReasonNotificationsOnly
 	}
 
@@ -593,7 +593,7 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-	if ah.plugin.GetSyncNotifications() {
+	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
 		return metrics.DiscardedReasonNotificationsOnly
 	}
 

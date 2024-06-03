@@ -590,34 +590,6 @@ func (_m *Store) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnect
 	return r0, r1
 }
 
-// GetUsersByPrimaryPlatformsCount provides a mock function with given fields: preferenceCategory
-func (_m *Store) GetUsersByPrimaryPlatformsCount(preferenceCategory string) (int64, int64, error) {
-	ret := _m.Called(preferenceCategory)
-
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(string) int64); ok {
-		r0 = rf(preferenceCategory)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	var r1 int64
-	if rf, ok := ret.Get(1).(func(string) int64); ok {
-		r1 = rf(preferenceCategory)
-	} else {
-		r1 = ret.Get(1).(int64)
-	}
-
-	var r2 error
-	if rf, ok := ret.Get(2).(func(string) error); ok {
-		r2 = rf(preferenceCategory)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
-}
-
 // GetWhitelistCount provides a mock function with given fields:
 func (_m *Store) GetWhitelistCount() (int, error) {
 	ret := _m.Called()

@@ -12,6 +12,8 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils/mmcontainer"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
+	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mockserver"
@@ -144,7 +146,18 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	}
 	require.NoError(t, err)
 
-	store := sqlstore.New(conn, conn, nil, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	api := &plugintest.API{}
+	api.On("LogDebug", mock.AnythingOfType("string")).Return()
+	api.On("LogDebug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogDebug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	api.On("LogInfo", mock.AnythingOfType("string")).Return()
+	api.On("LogInfo", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogInfo", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.AnythingOfType("string")).Return()
+	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+	store := sqlstore.New(conn, conn, api, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	if err2 := store.Init(""); err2 != nil {
 		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)

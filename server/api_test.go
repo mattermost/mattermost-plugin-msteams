@@ -958,10 +958,6 @@ func TestNotifyConnect(t *testing.T) {
 	})
 }
 
-func TestChoosePrimaryPlatform(t *testing.T) {
-	t.Skip()
-}
-
 func TestGetSiteStats(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "/stats/site")
@@ -1004,7 +1000,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -1021,7 +1017,24 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+	})
+
+	t.Run("1 invited user, 2 whitelisted users", func(t *testing.T) {
+		th.Reset(t)
+		sysadmin := th.SetupSysadmin(t, team)
+
+		user1 := th.SetupUser(t, team)
+		user2 := th.SetupUser(t, team)
+		user3 := th.SetupUser(t, team)
+
+		th.MarkUserWhitelisted(t, user1.Id)
+		th.MarkUserWhitelisted(t, user2.Id)
+		th.MarkUserInvited(t, user3.Id)
+
+		response, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -1050,12 +1063,8 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
-}
-
-func TestPrimaryPlatform(t *testing.T) {
-	t.Skip()
 }
 
 func TestIFrameMattermostTab(t *testing.T) {
@@ -1172,13 +1181,8 @@ func TestEnableNotifications(t *testing.T) {
 		var resp model.PostActionIntegrationResponse
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
-
-		require.Len(t, resp.Update.Attachments(), 1)
-		require.Len(t, resp.Update.Attachments()[0].Actions, 1)
-
-		// the button's text should have changed and be disabled
-		assert.Equal(t, "Notifications enabled!", resp.Update.Attachments()[0].Actions[0].Name)
-		assert.True(t, resp.Update.Attachments()[0].Actions[0].Disabled)
+		assert.Len(t, resp.Update.Attachments(), 0)
+		assert.Equal(t, "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
 
 		// Assert: 2. the notification preference is updated
 		pref, appErr := th.p.API.GetPreferenceForUser(

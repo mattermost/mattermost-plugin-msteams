@@ -2,10 +2,15 @@
 <html>
   <head>
     <script>
-      function closeInfoPage() {
-        document.getElementById("close-window").classList.remove("msteams-sync-hidden");
-        document.getElementById("info-window").classList.add("msteams-sync-hidden");
+      setTimeout(() => {
         window.close();
+      }, 1);
+
+      function closeInfoPage() {
+        window.close();
+        document.getElementById("close-window-failed").classList.remove("msteams-sync-hidden");
+        document.getElementById("close-window").classList.add("msteams-sync-hidden");
+        document.getElementById("close-window-icon").classList.add("msteams-sync-hidden");
       }
     </script>
     <style>
@@ -176,31 +181,32 @@
       }
 
       .msteams-sync-hidden {
-        display: none;
+        display: none !important;
       }
     </style>
     <title>Microsoft Teams Connection Information</title>
   </head>
   <body class="msteams-sync">
-    <div class="msteams-sync-hidden msteams-sync-info-page" id="close-window">
-      <div class="msteams-sync-body">
-        An error while trying to close this window. Please close it manually.
-      </div>
-    </div>
-    <div class="msteams-sync-info-page" id="info-window">
+    <div class="msteams-sync-info-page">
       <img
         src="static/close-icon.svg"
         alt="close-icon"
         class="msteams-sync-close-icon"
+        id="close-window-icon"
         onclick="closeInfoPage()"
       />
       <div class="msteams-sync-body">
         <div class="heading-body">
           <div class="heading">{{.Message}}</div>
         </div>
-        <div class="button__container">
+        <div class="button__container" id="close-window">
           <div class="selection-button" onclick="closeInfoPage()">
             <a class="button__text close-button__text">Close</a>
+          </div>
+        </div>
+        <div class="msteams-sync-hidden" id="close-window-failed">
+          <div class="msteams-sync-body">
+            An error while trying to close this window. Please close it manually.
           </div>
         </div>
       </div>

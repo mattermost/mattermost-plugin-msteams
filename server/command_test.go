@@ -451,7 +451,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 
 		err := th.p.store.SetUserInfo(user1.Id, "team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
 		require.NoError(t, err)
-		err = th.p.setPrimaryPlatform(user1.Id, storemodels.PreferenceValuePlatformMSTeams)
+		err = th.p.setNotificationPreference(user1.Id, true)
 		require.NoError(t, err)
 
 		commandResponse, appErr := th.p.executeDisconnectCommand(args)
@@ -460,7 +460,7 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 		assertWebsocketEvent(th, t, user1.Id, makePluginWebsocketEventName(WSEventUserDisconnected))
 		assertEphemeralResponse(th, t, args, "Your account has been disconnected.")
 
-		require.Equal(t, storemodels.PreferenceValuePlatformMM, th.p.getPrimaryPlatform(user1.Id))
+		require.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 }
 
@@ -1060,11 +1060,11 @@ func TestGetAutocompleteData(t *testing.T) {
 										},
 										{
 											Item:     "on",
-											HelpText: "Enable notifications.",
+											HelpText: "Enable notifications from chats and group chats.",
 										},
 										{
 											Item:     "off",
-											HelpText: "Disable notifications.",
+											HelpText: "Disable notifications from chats and group chats.",
 										},
 									},
 								},
@@ -1163,11 +1163,11 @@ func TestGetAutocompleteData(t *testing.T) {
 										},
 										{
 											Item:     "on",
-											HelpText: "Enable notifications.",
+											HelpText: "Enable notifications from chats and group chats.",
 										},
 										{
 											Item:     "off",
-											HelpText: "Disable notifications.",
+											HelpText: "Disable notifications from chats and group chats.",
 										},
 									},
 								},
@@ -1470,17 +1470,17 @@ func TestNotificationCommand(t *testing.T) {
 				{
 					name:     "enabled",
 					enabled:  model.NewBool(true),
-					expected: "Notifications from MSTeams are currently enabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently enabled.",
 				},
 				{
 					name:     "disabled",
 					enabled:  model.NewBool(false),
-					expected: "Notifications from MSTeams are currently disabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
 				},
 				{
 					name:     "not set",
 					enabled:  nil,
-					expected: "Notifications from MSTeams are currently disabled.",
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
 				},
 			}
 			for _, tc := range cases {
@@ -1521,7 +1521,7 @@ func TestNotificationCommand(t *testing.T) {
 				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"on"})
 				require.Nil(t, appErr)
 				assertNoCommandResponse(t, commandResponse)
-				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now enabled.")
+				assertEphemeralResponse(th, t, args, "Notifications from chats and group chats in MS Teams are now enabled.")
 
 				require.True(t, th.p.getNotificationPreference(user1.Id))
 			})
@@ -1549,7 +1549,7 @@ func TestNotificationCommand(t *testing.T) {
 				commandResponse, appErr := th.p.executeNotificationsCommand(args, []string{"off"})
 				require.Nil(t, appErr)
 				assertNoCommandResponse(t, commandResponse)
-				assertEphemeralResponse(th, t, args, "Notifications from MSTeams are now disabled.")
+				assertEphemeralResponse(th, t, args, "Notifications from chats and group chats in MS Teams are now disabled.")
 
 				require.False(t, th.p.getNotificationPreference(user1.Id))
 			})

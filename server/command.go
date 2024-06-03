@@ -109,8 +109,8 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
 	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
 		{Item: "status", HelpText: "Show current notification status."},
-		{Item: "on", HelpText: "Enable notifications."},
-		{Item: "off", HelpText: "Disable notifications."},
+		{Item: "on", HelpText: "Enable notifications from chats and group chats."},
+		{Item: "off", HelpText: "Disable notifications from chats and group chats."},
 	})
 	cmd.AddCommand(notifications)
 
@@ -275,10 +275,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		}
 	}
 
-	if err := p.updateAutomutingOnChannelLinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to automute members when channel becomes linked", "error", err.Error())
-	}
-
 	return p.cmdSuccess(args, "The MS Teams channel is now linked to this Mattermost channel.")
 }
 
@@ -327,10 +323,6 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 		if err = p.GetClientForApp().DeleteSubscription(subscription.SubscriptionID); err != nil {
 			p.API.LogWarn("Unable to delete the subscription on MS Teams", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		}
-	}
-
-	if err := p.updateAutomutingOnChannelUnlinked(args.ChannelId); err != nil {
-		p.API.LogWarn("Unable to unmute automuted members when channel becomes unlinked", "error", err.Error())
 	}
 
 	return p.cmdSuccess(args, "The MS Teams channel is no longer linked to this Mattermost channel.")
@@ -538,16 +530,15 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	if err != nil {
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
-	err = p.setPrimaryPlatform(args.UserId, storemodels.PreferenceValuePlatformMM)
-	if err != nil {
-		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to reset your primary platform, %s", err.Error()))
-	}
 
 	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: args.UserId,
 	})
 
-	_, _ = p.updateAutomutingOnUserDisconnect(args.UserId)
+	err = p.setNotificationPreference(args.UserId, false)
+	if err != nil {
+		p.API.LogWarn("unable to disable notifications preference", "error", err.Error())
+	}
 
 	return p.cmdSuccess(args, "Your account has been disconnected.")
 }
@@ -642,7 +633,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		if notificationPreferenceEnabled {
 			status = "enabled"
 		}
-		return p.cmdSuccess(args, fmt.Sprintf("Notifications from MSTeams are currently %s.", status))
+		return p.cmdSuccess(args, fmt.Sprintf("Notifications from chats and group chats in MS Teams are currently %s.", status))
 	case "on":
 		if !notificationPreferenceEnabled {
 			err = p.setNotificationPreference(args.UserId, true)
@@ -651,7 +642,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 				return p.cmdError(args, "Error: Unable to enable notifications.")
 			}
 		}
-		return p.cmdSuccess(args, "Notifications from MSTeams are now enabled.")
+		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now enabled.")
 	case "off":
 		if notificationPreferenceEnabled {
 			err = p.setNotificationPreference(args.UserId, false)
@@ -660,7 +651,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 				return p.cmdError(args, "Error: Unable to disable notifications.")
 			}
 		}
-		return p.cmdSuccess(args, "Notifications from MSTeams are now disabled.")
+		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now disabled.")
 	}
 
 	return p.cmdSuccess(args, parameters[0]+" is not a valid argument.")

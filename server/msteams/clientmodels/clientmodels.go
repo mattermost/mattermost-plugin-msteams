@@ -9,6 +9,7 @@ type Chat struct {
 	ID      string
 	Members []ChatMember
 	Type    string
+	Topic   string
 }
 
 type ChatMember struct {

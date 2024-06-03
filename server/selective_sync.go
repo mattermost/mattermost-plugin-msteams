@@ -3,7 +3,6 @@ package main
 import (
 	"math"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
@@ -51,9 +50,6 @@ func (p *Plugin) ChatMembersSpanPlatforms(members []*model.ChannelMember) (bool,
 
 		if p.IsRemoteUser(user) {
 			// Synthetic users are always remote.
-			atLeastOneRemoteUser = true
-		} else if p.getPrimaryPlatform(user.Id) == storemodels.PreferenceValuePlatformMSTeams {
-			// Treat Teams primary users as remote
 			atLeastOneRemoteUser = true
 		} else {
 			// Otherwise the user is considered local.

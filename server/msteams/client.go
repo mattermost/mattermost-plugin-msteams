@@ -1127,7 +1127,12 @@ func (tc *ClientImpl) GetChat(chatID string) (*clientmodels.Chat, error) {
 		chatType = "D"
 	}
 
-	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType}, nil
+	var topic string
+	if res.GetTopic() != nil {
+		topic = *res.GetTopic()
+	}
+
+	return &clientmodels.Chat{ID: chatID, Members: members, Type: chatType, Topic: topic}, nil
 }
 
 func convertToMessage(msg models.ChatMessageable, teamID, channelID, chatID string) *clientmodels.Message {
