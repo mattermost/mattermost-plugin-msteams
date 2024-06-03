@@ -24,7 +24,7 @@ const (
 	defaultPassword        = "admin"
 	defaultTeamName        = "test"
 	defaultTeamDisplayName = "Test"
-	defaultMattermostImage = "mattermost/mattermost-enterprise-edition:release-9.6"
+	defaultMattermostImage = "mattermost/mattermost-enterprise-edition:release-9.8"
 	dbconn                 = "postgres://user:pass@db:5432/mattermost_test?sslmode=disable"
 )
 
