@@ -605,7 +605,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		var userID string
 		userID, err = a.p.GetStore().TeamsToMattermostUserID(msteamsUser.ID)
 		if err == nil && userID != "" && userID != mmUserID {
-			if err := a.p.GetStore().DeleteUserInfo(userID); err != nil {
+			if err = a.p.GetStore().DeleteUserInfo(userID); err != nil {
 				a.p.GetAPI().LogWarn("Unable to delete user info to connect the bot", "user_id", userID, "error", err.Error())
 			}
 			if user, appErr := a.p.GetAPI().GetUser(userID); appErr == nil {
