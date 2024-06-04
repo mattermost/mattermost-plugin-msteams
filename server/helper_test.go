@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"testing"
 	"time"
 
@@ -24,11 +25,12 @@ import (
 )
 
 type testHelper struct {
-	p                *Plugin
-	appClientMock    *mocks.Client
-	clientMock       *mocks.Client
-	websocketClients map[string]*model.WebSocketClient
-	metricsSnapshot  []*dto.MetricFamily
+	p                        *Plugin
+	appClientMock            *mocks.Client
+	clientMock               *mocks.Client
+	websocketClients         map[string]*model.WebSocketClient
+	websocketEventsWhitelist map[string][]model.WebsocketEventType
+	metricsSnapshot          []*dto.MetricFamily
 }
 
 func setupTestHelper(t *testing.T) *testHelper {
@@ -178,13 +180,11 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 			for {
 				select {
 				case event := <-websocketClient.EventChannel:
-					switch event.EventType() {
-					case model.WebsocketEventHello, model.WebsocketEventStatusChange:
-						// Ignore these common events by default.
+					if slices.Contains(th.websocketEventsWhitelist[userID], event.EventType()) {
+						// Ignore whitelisted events.
 						continue
-					default:
-						unmatchedEvents[userID] = append(unmatchedEvents[userID], event)
 					}
+					unmatchedEvents[userID] = append(unmatchedEvents[userID], event)
 				default:
 					continue nextWebsocketClient
 				}
@@ -446,7 +446,7 @@ func (th *testHelper) setupWebsocketClient(t *testing.T, client *model.Client4) 
 // SetupWebsocketClientForUser sets up a websocket client for a user.
 //
 // Call this before you emit the event in order to ensure the client is ready to receive it.
-func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string) {
+func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string, whitelistedEvents ...model.WebsocketEventType) {
 	t.Helper()
 
 	if th.websocketClients == nil {
@@ -464,6 +464,16 @@ func (th *testHelper) SetupWebsocketClientForUser(t *testing.T, userID string) {
 
 		th.websocketClients[userID] = websocketClient
 	}
+
+	if th.websocketEventsWhitelist == nil {
+		th.websocketEventsWhitelist = make(map[string][]model.WebsocketEventType)
+	}
+
+	// Ignore these common events by default.
+	th.websocketEventsWhitelist[userID] = append(th.websocketEventsWhitelist[userID], model.WebsocketEventHello)
+	th.websocketEventsWhitelist[userID] = append(th.websocketEventsWhitelist[userID], model.WebsocketEventStatusChange)
+
+	th.websocketEventsWhitelist[userID] = append(th.websocketEventsWhitelist[userID], whitelistedEvents...)
 }
 
 // GetWebsocketClientForUser returns a websocket client previously setup for a user.
