@@ -29,7 +29,7 @@ type configuration struct {
 	EnabledTeams                       string `json:"enabledteams"`
 	SyncNotifications                  bool   `json:"syncnotifications"`
 	SyncChats                          bool   `json:"experimentalSyncChats"`
-	SelectiveSync                      bool   `json:"selectiveSync"`
+	SelectiveSync                      bool   `json:"experimentalSelectiveSync"`
 	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`

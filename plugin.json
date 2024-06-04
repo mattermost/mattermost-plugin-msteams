@@ -93,13 +93,6 @@
                 "default": false
             },
             {
-                "key": "selectiveSync",
-                "display_name": "Selective sync",
-                "type": "bool",
-                "help_text": "Only sync chats and group chats to remote users. This avoids dual notifications when two connected Mattermost users are part of a conversation.",
-                "default": false
-            },
-            {
                 "key": "syncLinkedChannels",
                 "display_name": "Sync linked channels",
                 "type": "bool",
