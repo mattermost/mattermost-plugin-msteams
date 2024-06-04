@@ -156,13 +156,6 @@
                 "default": false
             },
             {
-                "key": "disableSyncMsg",
-                "display_name": "Disable using the sync msg infrastructure for tracking message changes",
-                "type": "bool",
-                "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
-                "default": false
-            },
-            {
                 "key": "disableCheckCredentials",
                 "display_name": "Disable periodically checking the validity of the application credentials",
                 "type": "bool",

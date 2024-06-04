@@ -45,7 +45,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	th.SetupWebsocketClientForUser(t, user1.Id)
 
 	t.Run("invalid channel", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 
 		args := &model.CommandArgs{
 			UserId:    user1.Id,
@@ -58,7 +58,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("channel is a dm", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 		channel, err := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, err)
 
@@ -73,7 +73,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("channel is a gm", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 		channel, err := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, err)
 
@@ -88,7 +88,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("not a channel admin", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team)
 
 		args := &model.CommandArgs{
@@ -102,7 +102,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("not a linked channel", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
@@ -118,7 +118,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("successfully unlinked", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = true
+		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
@@ -145,7 +145,7 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("successfully unlinked, sync msg enabled", func(t *testing.T) {
-		th.p.configuration.DisableSyncMsg = false
+		th.p.configuration.UseSharedChannels = true
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)

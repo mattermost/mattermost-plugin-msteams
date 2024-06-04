@@ -520,7 +520,7 @@ func (p *Plugin) onActivate() error {
 	}
 	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
-	if p.getConfiguration().DisableSyncMsg {
+	if !p.getConfiguration().UseSharedChannels {
 		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
 		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
@@ -556,7 +556,7 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	if !p.getConfiguration().DisableSyncMsg {
+	if p.getConfiguration().UseSharedChannels {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
