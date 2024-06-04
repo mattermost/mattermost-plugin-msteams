@@ -89,7 +89,7 @@
                 "key": "syncNotifications",
                 "display_name": "Sync notifications",
                 "type": "bool",
-                "help_text": "Sync notifications for any connected user. Enabling this setting disables syncing of direct messages and group messages.",
+                "help_text": "Sync notifications of chat messages for any connected user that enables the feature.",
                 "default": false
             },
             {
