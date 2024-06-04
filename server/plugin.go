@@ -133,10 +133,6 @@ func (p *Plugin) GetSyncLinkedChannels() bool {
 	return p.getConfiguration().SyncLinkedChannels
 }
 
-func (p *Plugin) GetSyncReactions() bool {
-	return p.getConfiguration().SyncReactions
-}
-
 func (p *Plugin) GetSyncFileAttachments() bool {
 	return p.getConfiguration().SyncFileAttachments
 }

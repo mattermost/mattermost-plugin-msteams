@@ -121,13 +121,6 @@
                 "default": false
             },
             {
-                "key": "syncReactions",
-                "display_name": "Sync reactions",
-                "type": "bool",
-                "help_text": "Sync reactions on messages",
-                "default": false
-            },
-            {
                 "key": "syncFileAttachments",
                 "display_name": "Sync file attachments",
                 "type": "bool",

@@ -521,10 +521,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrGroupMessage bool, reactions []clientmodels.Reaction) {
-	if !ah.plugin.GetSyncReactions() {
-		return
-	}
-
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
 		return

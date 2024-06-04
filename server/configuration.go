@@ -32,7 +32,6 @@ type configuration struct {
 	SyncGroupMessages                  bool   `json:"syncgroupmessages"`
 	SelectiveSync                      bool   `json:"selectiveSync"`
 	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
-	SyncReactions                      bool   `json:"syncreactions"`
 	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`

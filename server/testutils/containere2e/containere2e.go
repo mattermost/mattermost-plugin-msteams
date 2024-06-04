@@ -119,7 +119,6 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"syncdirectmessages":         true,
 		"syncgroupmessages":          true,
 		"synclinkedchannels":         true,
-		"syncreactions":              true,
 	}
 
 	options := []mmcontainer.MattermostCustomizeRequestOption{

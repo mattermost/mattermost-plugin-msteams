@@ -92,39 +92,12 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		return channel, post, chatID, teamsMessageID
 	}
 
-	t.Run("sync reactions disabled", func(t *testing.T) {
-		th.Reset(t)
-		channel, post, _, _ := setupForChat(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = false
-		})
-
-		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
-			UserId:    user1.Id,
-			PostId:    post.Id,
-			EmojiName: "+1",
-			ChannelId: channel.Id,
-		})
-		require.Nil(t, err)
-
-		assert.Never(t, func() bool {
-			return th.getRelativeCounter(t,
-				"msteams_connect_events_reactions_total",
-				withLabel("action", metrics.ReactionSetAction),
-				withLabel("source", metrics.ActionSourceMattermost),
-				withLabel("is_direct", "true"),
-			) > 0
-		}, 1*time.Second, 250*time.Millisecond)
-	})
-
 	t.Run("no corresponding Teams post", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
 			c.SyncDirectMessages = true
-			c.SyncReactions = true
 		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
@@ -275,10 +248,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, false)
 
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
-
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
 			PostId:    post.Id,
@@ -300,10 +269,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	t.Run("channel message, no longer linked", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
 
 		// Unlink before setting reaction, but after sending the post.
 		err := th.p.store.DeleteLinkByChannelID(channel.Id)
@@ -331,10 +296,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
-
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(nil, fmt.Errorf("mock failure")).Times(1)
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
@@ -358,10 +319,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	t.Run("channel message", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
 
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
 			ID:           teamsMessageID,
@@ -398,7 +355,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	setupForChat := func(t *testing.T, sync bool) (*model.Channel, *model.Post, string, string) {
 		t.Helper()
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = sync
 			c.SyncDirectMessages = sync
 		})
 
@@ -489,39 +445,12 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		return channel, post, chatID, teamsMessageID
 	}
 
-	t.Run("sync reactions disabled", func(t *testing.T) {
-		th.Reset(t)
-		channel, post, _, _ := setupForChat(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = false
-		})
-
-		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
-			UserId:    user1.Id,
-			PostId:    post.Id,
-			EmojiName: "+1",
-			ChannelId: channel.Id,
-		})
-		require.Nil(t, err)
-
-		assert.Never(t, func() bool {
-			return th.getRelativeCounter(t,
-				"msteams_connect_events_reactions_total",
-				withLabel("action", metrics.ReactionUnsetAction),
-				withLabel("source", metrics.ActionSourceMattermost),
-				withLabel("is_direct", "true"),
-			) > 0
-		}, 1*time.Second, 250*time.Millisecond)
-	})
-
 	t.Run("no corresponding Teams post", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
 			c.SyncDirectMessages = true
-			c.SyncReactions = true
 		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
@@ -701,7 +630,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 
 		th.setPluginConfiguration(t, func(c *configuration) {
 			c.SyncLinkedChannels = false
-			c.SyncReactions = true
 		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
@@ -727,7 +655,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, _, _ := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 
@@ -757,7 +684,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 
@@ -786,7 +712,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 

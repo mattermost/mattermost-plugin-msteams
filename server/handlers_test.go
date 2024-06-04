@@ -1130,14 +1130,6 @@ func TestHandleReactions(t *testing.T) {
 		setupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			description: "Disabled by configuration",
-			reactions:   []clientmodels.Reaction{},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore:   func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
 			description: "Reactions list is empty",
 			reactions:   []clientmodels.Reaction{},
 			setupAPI: func(mockAPI *plugintest.API) {
