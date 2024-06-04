@@ -116,8 +116,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 		"maxsizeforcompletedownload": 20,
 		"tenantid":                   "tenant-id",
 		"webhooksecret":              "webhook-secret",
-		"syncdirectmessages":         true,
-		"syncgroupmessages":          true,
+		"experimentalsyncchats":      true,
 		"synclinkedchannels":         true,
 	}
 

@@ -20,36 +20,34 @@ const monitoringSystemJobName = "monitoring_system"
 // While the job is started on all plugin instances in a cluster, only one instance will actually
 // do the required effort, falling over seamlessly as needed.
 type Monitor struct {
-	client             msteams.Client
-	store              store.Store
-	api                plugin.API
-	metrics            metrics.Metrics
-	job                *cluster.Job
-	baseURL            string
-	webhookSecret      string
-	certificate        string
-	useEvaluationAPI   bool
-	syncNotifications  bool
-	syncDirectMessages bool
-	syncGroupMessages  bool
-	startupTime        time.Time
+	client            msteams.Client
+	store             store.Store
+	api               plugin.API
+	metrics           metrics.Metrics
+	job               *cluster.Job
+	baseURL           string
+	webhookSecret     string
+	certificate       string
+	useEvaluationAPI  bool
+	syncNotifications bool
+	syncChats         bool
+	startupTime       time.Time
 }
 
 // New creates a new instance of the Monitor job.
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncNotifications, syncDirectMessages, syncGroupMessages bool) *Monitor {
+func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool, certificate string, syncNotifications, syncChats bool) *Monitor {
 	return &Monitor{
-		client:             client,
-		store:              store,
-		api:                api,
-		metrics:            metrics,
-		baseURL:            baseURL,
-		webhookSecret:      webhookSecret,
-		useEvaluationAPI:   useEvaluationAPI,
-		certificate:        certificate,
-		syncNotifications:  syncNotifications,
-		syncDirectMessages: syncDirectMessages,
-		syncGroupMessages:  syncGroupMessages,
-		startupTime:        time.Now(),
+		client:            client,
+		store:             store,
+		api:               api,
+		metrics:           metrics,
+		baseURL:           baseURL,
+		webhookSecret:     webhookSecret,
+		useEvaluationAPI:  useEvaluationAPI,
+		certificate:       certificate,
+		syncNotifications: syncNotifications,
+		syncChats:         syncChats,
+		startupTime:       time.Now(),
 	}
 }
 

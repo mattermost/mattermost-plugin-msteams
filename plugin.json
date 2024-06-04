@@ -93,20 +93,6 @@
                 "default": false
             },
             {
-                "key": "syncDirectMessages",
-                "display_name": "Sync direct messages",
-                "type": "bool",
-                "help_text": "Sync direct messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
-                "default": false
-            },
-            {
-                "key": "syncGroupMessages",
-                "display_name": "Sync group messages",
-                "type": "bool",
-                "help_text": "Sync group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
-                "default": false
-            },
-            {
                 "key": "selectiveSync",
                 "display_name": "Selective sync",
                 "type": "bool",

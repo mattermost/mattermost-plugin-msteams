@@ -12,13 +12,12 @@ func TestChatShouldSync(t *testing.T) {
 	th := setupTestHelper(t)
 	th.setPluginConfiguration(t, func(c *configuration) {
 		c.SelectiveSync = true
-		c.SyncDirectMessages = true
-		c.SyncGroupMessages = true
+		c.SyncChats = true
 	})
 
-	t.Run("sync direct messages disabled", func(t *testing.T) {
+	t.Run("direct message, sync chats disabled", func(t *testing.T) {
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 		})
 
 		team := th.SetupTeam(t)
@@ -32,12 +31,12 @@ func TestChatShouldSync(t *testing.T) {
 		assert.False(t, chatShouldSync)
 		assert.False(t, containsRemoteUser) // False because chatShouldSync is false
 		assert.Len(t, members, 0)
-		assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 	})
 
-	t.Run("sync group messages disabled", func(t *testing.T) {
+	t.Run("group message, sync chats disabled", func(t *testing.T) {
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncGroupMessages = false
+			c.SyncChats = false
 		})
 
 		team := th.SetupTeam(t)
@@ -52,7 +51,7 @@ func TestChatShouldSync(t *testing.T) {
 		assert.False(t, chatShouldSync)
 		assert.False(t, containsRemoteUser) // False because chatShouldSync is false
 		assert.Len(t, members, 0)
-		assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 	})
 
 	t.Run("selective sync disabled", func(t *testing.T) {

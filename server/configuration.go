@@ -28,8 +28,7 @@ type configuration struct {
 	WebhookSecret                      string `json:"webhooksecret"`
 	EnabledTeams                       string `json:"enabledteams"`
 	SyncNotifications                  bool   `json:"syncnotifications"`
-	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
-	SyncGroupMessages                  bool   `json:"syncgroupmessages"`
+	SyncChats                          bool   `json:"experimentalSyncChats"`
 	SelectiveSync                      bool   `json:"selectiveSync"`
 	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
 	SyncUsers                          int    `json:"syncusers"`

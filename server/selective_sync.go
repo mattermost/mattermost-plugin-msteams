@@ -18,9 +18,12 @@ import (
 // TODO: This method does too much, but it's reflective of the underlying complexity of the
 // business logic. Thankfully, it's well tested!
 func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, bool, []*model.ChannelMember, string, error) {
-	// Check for a DM or GM, and whether or not either has been disabled.
-	if shouldSync, discardReason := p.ShouldSyncDMGMChannel(channel); !shouldSync {
-		return false, false, nil, discardReason, nil
+	if !channel.IsGroupOrDirect() {
+		return false, false, nil, metrics.DiscardedReasonOther, nil
+	}
+
+	if !p.GetSyncChats() {
+		return false, false, nil, metrics.DiscardedReasonChatsDisabled, nil
 	}
 
 	// We use the members to count the number of remote users, but also to return to the client

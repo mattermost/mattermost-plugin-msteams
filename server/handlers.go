@@ -286,8 +286,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	var userIDs []string
 
 	if chat != nil {
-		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
-			return reason
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
 		}
 
 		var channel *model.Channel
@@ -447,8 +447,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		}
 		channelID = channelLink.MattermostChannelID
 	} else {
-		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
-			return reason
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
 		}
 
 		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
@@ -641,15 +641,4 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 
 func IsDirectOrGroupMessage(chatID string) bool {
 	return chatID != ""
-}
-
-func (ah *ActivityHandler) ShouldSyncDMGMChannel(chat *clientmodels.Chat) (bool, string) {
-	nb := len(chat.Members)
-	if nb <= 2 && !ah.plugin.GetSyncDirectMessages() {
-		return false, metrics.DiscardedReasonDirectMessagesDisabled
-	} else if nb > 2 && !ah.plugin.GetSyncGroupMessages() {
-		return false, metrics.DiscardedReasonGroupMessagesDisabled
-	}
-
-	return true, ""
 }

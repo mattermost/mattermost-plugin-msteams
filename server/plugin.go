@@ -121,12 +121,8 @@ func (p *Plugin) GetSyncNotifications() bool {
 	return p.getConfiguration().SyncNotifications
 }
 
-func (p *Plugin) GetSyncDirectMessages() bool {
-	return p.getConfiguration().SyncDirectMessages && !p.getConfiguration().SyncNotifications
-}
-
-func (p *Plugin) GetSyncGroupMessages() bool {
-	return p.getConfiguration().SyncGroupMessages && !p.getConfiguration().SyncNotifications
+func (p *Plugin) GetSyncChats() bool {
+	return p.getConfiguration().SyncChats && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncLinkedChannels() bool {
@@ -297,7 +293,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncChats())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
