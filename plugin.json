@@ -121,13 +121,6 @@
                 "default": false
             },
             {
-                "key": "syncFileAttachments",
-                "display_name": "Sync file attachments",
-                "type": "bool",
-                "help_text": "Sync file attachments on messages",
-                "default": false
-            },
-            {
                 "key": "enabledTeams",
                 "display_name": "Enabled Teams",
                 "type": "text",
