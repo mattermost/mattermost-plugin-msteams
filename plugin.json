@@ -115,7 +115,7 @@
                 "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite direct messages will be sent to users as they become active, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. Once invited, users may connect at any time. (Set to 0 or leave empty to disable connection invites.)",
                 "default": 0
             },
-			{
+            {
                 "key": "connectedUsersRestricted",
                 "display_name": "New User Connections: Restricted",
                 "type": "bool",
