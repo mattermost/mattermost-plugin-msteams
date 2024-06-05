@@ -33,8 +33,8 @@ type configuration struct {
 	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	CertificatePublic                  string `json:"certificatepublic"`
-	CertificateKey                     string `json:"certificatekey"`
+	CertificatePublic                  string `json:"experimentalcertificatepublic"`
+	CertificateKey                     string `json:"experimentalcertificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`

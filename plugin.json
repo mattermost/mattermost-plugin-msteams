@@ -53,18 +53,6 @@
                 "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
             },
             {
-                "key": "certificatePublic",
-                "display_name": "Certificate Public",
-                "type": "longtext",
-                "help_text": "Certificate public part"
-            },
-            {
-                "key": "certificateKey",
-                "display_name": "Certificate Key",
-                "type": "longtext",
-                "help_text": "Certificate private key"
-            },
-            {
                 "key": "evaluationAPI",
                 "display_name": "Use the evaluation API pay model",
                 "type": "bool",
