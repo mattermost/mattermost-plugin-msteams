@@ -156,9 +156,8 @@ func TestProcessActivity(t *testing.T) {
 	t.Run("encrypted message on encrypted subscription", func(t *testing.T) {
 		th.Reset(t)
 
-		th.p.configuration.CertificateKey = "test"
-		t.Cleanup(func() {
-			th.p.configuration.CertificateKey = ""
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.CertificateKey = "test"
 		})
 
 		activities := []msteams.Activity{
@@ -179,9 +178,8 @@ func TestProcessActivity(t *testing.T) {
 	t.Run("non-encrypted message on encrypted subscription", func(t *testing.T) {
 		th.Reset(t)
 
-		th.p.configuration.CertificateKey = "test"
-		t.Cleanup(func() {
-			th.p.configuration.CertificateKey = ""
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.CertificateKey = "test"
 		})
 
 		activities := []msteams.Activity{

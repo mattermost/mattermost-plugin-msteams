@@ -45,8 +45,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	th.SetupWebsocketClientForUser(t, user1.Id)
 
 	t.Run("invalid channel", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
-
 		args := &model.CommandArgs{
 			UserId:    user1.Id,
 			ChannelId: model.NewId(),
@@ -58,7 +56,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("channel is a dm", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
 		channel, err := th.p.API.GetDirectChannel(user1.Id, user2.Id)
 		require.Nil(t, err)
 
@@ -73,7 +70,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("channel is a gm", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
 		channel, err := th.p.API.GetGroupChannel([]string{user1.Id, user2.Id, user3.Id})
 		require.Nil(t, err)
 
@@ -88,7 +84,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("not a channel admin", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team)
 
 		args := &model.CommandArgs{
@@ -102,7 +97,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("not a linked channel", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
@@ -118,7 +112,6 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 	})
 
 	t.Run("successfully unlinked", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = false
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
@@ -144,8 +137,11 @@ func TestExecuteUnlinkCommand(t *testing.T) {
 		assertEphemeralResponse(th, t, args, "The MS Teams channel is no longer linked to this Mattermost channel.")
 	})
 
-	t.Run("successfully unlinked, sync msg enabled", func(t *testing.T) {
-		th.p.configuration.UseSharedChannels = true
+	t.Run("successfully unlinked, use shared channels enabled", func(t *testing.T) {
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.UseSharedChannels = true
+		})
+
 		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
 		_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
 		require.Nil(t, appErr)
@@ -824,14 +820,9 @@ func TestExecuteConnectCommand(t *testing.T) {
 			ChannelId: model.NewId(),
 		}
 
-		configuration := th.p.configuration.Clone()
-		configuration.ConnectedUsersAllowed = 0
-		th.p.setConfiguration(configuration)
-		defer func() {
-			configuration := th.p.configuration.Clone()
-			configuration.ConnectedUsersAllowed = 1000
-			th.p.setConfiguration(configuration)
-		}()
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.ConnectedUsersAllowed = 0
+		})
 
 		commandResponse, appErr := th.p.executeConnectCommand(args)
 		require.Nil(t, appErr)
