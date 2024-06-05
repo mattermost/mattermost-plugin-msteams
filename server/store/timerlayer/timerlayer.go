@@ -21,20 +21,6 @@ type TimerLayer struct {
 	metrics metrics.Metrics
 }
 
-func (s *TimerLayer) CheckEnabledTeamByTeamID(teamID string) bool {
-	start := time.Now()
-
-	result := s.Store.CheckEnabledTeamByTeamID(teamID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if true {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.CheckEnabledTeamByTeamID", success, elapsed)
-	return result
-}
-
 func (s *TimerLayer) DeleteLinkByChannelID(channelID string) error {
 	start := time.Now()
 

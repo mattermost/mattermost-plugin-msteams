@@ -546,7 +546,6 @@ func (p *Plugin) onActivate() error {
 			db,
 			replica,
 			p.API,
-			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())

@@ -155,7 +155,7 @@ func NewE2ETestPlugin(t *testing.T, extraOptions ...mmcontainer.MattermostCustom
 	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return()
 	api.On("LogError", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
-	store := sqlstore.New(conn, conn, api, func() []string { return []string{""} }, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
+	store := sqlstore.New(conn, conn, api, func() []byte { return []byte("eyPBz0mBhwfGGwce9hp4TWaYzgY7MdIB") })
 	if err2 := store.Init(""); err2 != nil {
 		_ = mockserverContainer.Terminate(ctx)
 		_ = mattermost.Terminate(ctx)

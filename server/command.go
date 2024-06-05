@@ -204,10 +204,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return p.cmdError(args, "This team is not enabled for MS Teams sync.")
-	}
-
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
 		return p.cmdError(args, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")

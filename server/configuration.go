@@ -26,7 +26,6 @@ type configuration struct {
 	EncryptionKey                      string `json:"encryptionkey"`
 	EvaluationAPI                      bool   `json:"evaluationapi"`
 	WebhookSecret                      string `json:"webhooksecret"`
-	EnabledTeams                       string `json:"enabledteams"`
 	SyncNotifications                  bool   `json:"syncnotifications"`
 	SyncChats                          bool   `json:"experimentalSyncChats"`
 	SelectiveSync                      bool   `json:"experimentalSelectiveSync"`
@@ -53,7 +52,6 @@ func (c *configuration) ProcessConfiguration() {
 	c.ClientSecret = strings.TrimSpace(c.ClientSecret)
 	c.EncryptionKey = strings.TrimSpace(c.EncryptionKey)
 	c.WebhookSecret = strings.TrimSpace(c.WebhookSecret)
-	c.EnabledTeams = strings.TrimSpace(c.EnabledTeams)
 }
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {

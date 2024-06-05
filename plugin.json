@@ -88,13 +88,6 @@
                 "default": false
             },
             {
-                "key": "enabledTeams",
-                "display_name": "Enabled Teams",
-                "type": "text",
-                "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
-                "default": ""
-            },
-            {
                 "key": "maxSizeForCompleteDownload",
                 "display_name": "Maximum size of attachments to support complete one time download (in MB)",
                 "type": "number",
