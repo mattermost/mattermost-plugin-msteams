@@ -555,13 +555,19 @@ func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client mst
 	return client.GetMessage(teamID, channelID, msteamsID)
 }
 
-func (p *Plugin) ShouldSyncDMGMChannel(channel *model.Channel) bool {
+func (p *Plugin) ShouldSyncDMGMChannel(channel *model.Channel) (bool, string) {
 	switch channel.Type {
 	case model.ChannelTypeDirect:
-		return p.GetSyncDirectMessages()
+		if !p.GetSyncDirectMessages() {
+			return false, metrics.DiscardedReasonDirectMessagesDisabled
+		}
 	case model.ChannelTypeGroup:
-		return p.GetSyncGroupMessages()
+		if !p.GetSyncGroupMessages() {
+			return false, metrics.DiscardedReasonGroupMessagesDisabled
+		}
 	default:
-		return false
+		return false, metrics.DiscardedReasonOther
 	}
+
+	return true, metrics.DiscardedReasonNone
 }

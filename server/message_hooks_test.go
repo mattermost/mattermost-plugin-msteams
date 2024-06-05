@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"testing"
 	"time"
 
@@ -14,15 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
-	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 )
 
 func TestReactionHasBeenAdded(t *testing.T) {
@@ -891,211 +884,213 @@ func TestMessageHasBeenPosted(t *testing.T) {
 		t.Skip("Not yet implemented")
 	})
 
-	type parameters struct {
-		SenderConnected    bool
-		SelectiveSync      bool
-		SyncDirectMessages bool
-		SyncGroupMessages  bool
-		SyncLinkedChannels bool
-	}
-	runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
-		th.Reset(t)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SelectiveSync = params.SelectiveSync
-			c.SyncDirectMessages = params.SyncDirectMessages
-			c.SyncGroupMessages = params.SyncGroupMessages
-			c.SyncLinkedChannels = params.SyncLinkedChannels
-		})
-
-		t.Run("dm with self", func(t *testing.T) {
+	t.Run("chat", func(t *testing.T) {
+		type parameters struct {
+			SenderConnected    bool
+			SelectiveSync      bool
+			SyncDirectMessages bool
+			SyncGroupMessages  bool
+			SyncLinkedChannels bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
 
-			user1 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user1.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChat(th, t, user1, user1)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
+			th.setPluginConfiguration(t, func(c *configuration) {
+				c.SelectiveSync = params.SelectiveSync
+				c.SyncDirectMessages = params.SyncDirectMessages
+				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncLinkedChannels = params.SyncLinkedChannels
 			})
-			require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChatSync(t)
-			} else {
+			t.Run("dm with self", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user1.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+					expectChat(th, t, user1, user1)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("dm with remote user", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupRemoteUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncDirectMessages {
+					expectChat(th, t, user1, user2)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncDirectMessages {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("dm with local user", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
 				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("dm with remote user", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupRemoteUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChat(th, t, user1, user2)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
 			})
-			require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncDirectMessages {
-				expectChatSync(t)
-			} else {
+			t.Run("gm with only remote users", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupRemoteUser(t, team)
+				user3 := th.SetupRemoteUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				if params.SenderConnected && params.SyncGroupMessages {
+					expectChat(th, t, user1, user2, user3)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncGroupMessages {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
+			})
+
+			t.Run("gm with only local users", func(t *testing.T) {
+				th.Reset(t)
+
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+				user3 := th.SetupUser(t, team)
+
+				client1 := th.SetupClient(t, user1.Id)
+
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
+
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
+
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
 				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("dm with local user", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateDirectChannel(context.TODO(), user1.Id, user2.Id)
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
 			})
-			require.NoError(t, err)
 
-			expectNoChatSync(t)
-		})
+			t.Run("gm with local and remote users", func(t *testing.T) {
+				th.Reset(t)
 
-		t.Run("gm with only remote users", func(t *testing.T) {
-			th.Reset(t)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+				user3 := th.SetupRemoteUser(t, team)
 
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupRemoteUser(t, team)
-			user3 := th.SetupRemoteUser(t, team)
+				client1 := th.SetupClient(t, user1.Id)
 
-			client1 := th.SetupClient(t, user1.Id)
+				channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
+				require.NoError(t, err)
 
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
+				if params.SenderConnected {
+					th.ConnectUser(t, user1.Id)
+				}
 
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
+				// Unconditionally link user2 with their Teams account. This is actually
+				// a current shortcoming with GMs in that we can't even start a conversation
+				// until we know the mapping for all users involved.
+				err = th.p.store.SetUserInfo(user2.Id, "t"+user2.Id, nil)
+				require.NoError(t, err)
 
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChat(th, t, user1, user2, user3)
-			}
+				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+					expectChat(th, t, user1, user2, user3)
+				}
 
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
+				_, _, err = client1.CreatePost(context.TODO(), &model.Post{
+					ChannelId: channel.Id,
+					UserId:    user1.Id,
+					Message:   "Test message",
+				})
+				require.NoError(t, err)
+
+				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+					expectChatSync(t)
+				} else {
+					expectNoChatSync(t)
+				}
 			})
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChatSync(t)
-			} else {
-				expectNoChatSync(t)
-			}
-		})
-
-		t.Run("gm with only local users", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-			user3 := th.SetupUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
-			})
-			require.NoError(t, err)
-
-			expectNoChatSync(t)
-		})
-
-		t.Run("gm with local and remote users", func(t *testing.T) {
-			th.Reset(t)
-
-			user1 := th.SetupUser(t, team)
-			user2 := th.SetupUser(t, team)
-			user3 := th.SetupRemoteUser(t, team)
-
-			client1 := th.SetupClient(t, user1.Id)
-
-			channel, _, err := client1.CreateGroupChannel(context.TODO(), []string{user1.Id, user2.Id, user3.Id})
-			require.NoError(t, err)
-
-			if params.SenderConnected {
-				th.ConnectUser(t, user1.Id)
-			}
-
-			// Unconditionally link user2 with their Teams account. This is actually
-			// a current shortcoming with GMs in that we can't even start a conversation
-			// until we know the mapping for all users involved.
-			err = th.p.store.SetUserInfo(user2.Id, "t"+user2.Id, nil)
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChat(th, t, user1, user2, user3)
-			}
-
-			_, _, err = client1.CreatePost(context.TODO(), &model.Post{
-				ChannelId: channel.Id,
-				UserId:    user1.Id,
-				Message:   "Test message",
-			})
-			require.NoError(t, err)
-
-			if params.SenderConnected && params.SyncGroupMessages {
-				expectChatSync(t)
-			} else {
-				expectNoChatSync(t)
-			}
 		})
 	})
 
@@ -1106,299 +1101,464 @@ func TestMessageHasBeenPosted(t *testing.T) {
 }
 
 func TestMessageHasBeenUpdated(t *testing.T) {
-	t.Skip("Not yet implemented")
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+	user1 := th.SetupUser(t, team)
+	user2 := th.SetupUser(t, team)
+	user3 := th.SetupUser(t, team)
+
+	client1 := th.SetupClient(t, user1.Id)
+	th.SetupWebsocketClientForUser(t, user1.Id,
+		model.WebsocketEventPosted,
+		model.WebsocketEventMultipleChannelsViewed,
+		model.WebsocketEventPostEdited,
+		model.WebsocketEventDirectAdded,
+		model.WebsocketEventGroupAdded,
+	)
+
+	makeChatMembers := func(users ...*model.User) []clientmodels.ChatMember {
+		var chatMembers []clientmodels.ChatMember
+		for _, user := range users {
+			chatMembers = append(chatMembers, clientmodels.ChatMember{
+				UserID:      "t" + user.Id,
+				Email:       user.Email,
+				DisplayName: user1.GetDisplayName(""),
+			})
+		}
+
+		return chatMembers
+	}
+
+	setupChat := func(th *testHelper, t *testing.T, users ...*model.User) (*model.Post, string, string) {
+		var channel *model.Channel
+		var err error
+		if len(users) == 0 {
+			t.Fatalf("cannot setup chat for %d users", len(users))
+		} else if len(users) == 1 {
+			channel, _, err = client1.CreateDirectChannel(context.TODO(), users[0].Id, users[0].Id)
+			require.Nil(t, err)
+		} else if len(users) == 2 {
+			channel, _, err = client1.CreateDirectChannel(context.TODO(), users[0].Id, users[1].Id)
+			require.Nil(t, err)
+		} else if len(users) <= 8 {
+			var userIDs []string
+			for _, user := range users {
+				userIDs = append(userIDs, user.Id)
+			}
+
+			channel, _, err = client1.CreateGroupChannel(context.TODO(), userIDs)
+			require.Nil(t, err)
+		} else if len(users) > 8 {
+			t.Fatalf("cannot setup chat for %d users", len(users))
+		}
+
+		senderUser := users[0]
+
+		var chatID, teamsMessageID string
+		if th.p.getConfiguration().SyncDirectMessages {
+			chatID = model.NewId()
+			th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(&clientmodels.Chat{
+				ID:      chatID,
+				Members: makeChatMembers(users...),
+			}, nil).Maybe()
+
+			teamsMessageID = model.NewId()
+			th.clientMock.On(
+				"SendChat",
+				chatID,
+				mock.AnythingOfType("string"),
+				(*clientmodels.Message)(nil),
+				[]*clientmodels.Attachment(nil),
+				[]models.ChatMessageMentionable{},
+			).Return(&clientmodels.Message{
+				ID:       teamsMessageID,
+				CreateAt: time.Now(),
+			}, nil).Times(1)
+		}
+
+		post, _, err := client1.CreatePost(context.TODO(), &model.Post{
+			ChannelId: channel.Id,
+			UserId:    senderUser.Id,
+			Message:   "Test reaction",
+		})
+		require.NoError(t, err)
+
+		if th.p.getConfiguration().SyncDirectMessages {
+			assert.Eventually(t, func() bool {
+				return th.getRelativeCounter(t,
+					"msteams_connect_events_messages_total",
+					withLabel("action", metrics.ActionCreated),
+					withLabel("source", metrics.ActionSourceMattermost),
+					withLabel("is_direct", "true"),
+				) == 1
+			}, 1*time.Second, 250*time.Millisecond)
+		}
+
+		return post, chatID, teamsMessageID
+	}
+
+	t.Run("direct message updated, no corresponding chat", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+		})
+
+		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(nil, errors.New("not found")).Once()
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message updated, no corresponding post", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+		})
+
+		chatID := model.NewId()
+		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(&clientmodels.Chat{
+			ID:      chatID,
+			Members: makeChatMembers(user1, user2),
+		}, nil).Maybe()
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message updated, direct message sync disabled when update occurs", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false
+			c.SelectiveSync = false
+		})
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message updated, disconnected when update occurs", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.DisconnectUser(t, user1.Id)
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("direct message updated successfully", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, chatID, teamsMessageID := setupChat(th, t, user1, user2)
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		th.clientMock.On(
+			"UpdateChatMessage",
+			chatID,
+			teamsMessageID,
+			"<p>Test updated</p>\n",
+			[]models.ChatMessageMentionable{},
+		).Return(&clientmodels.Message{
+			ID:           teamsMessageID,
+			CreateAt:     time.Now(),
+			LastUpdateAt: time.Now(),
+		}, nil).Times(1)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("group message updated, no corresponding chat", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false // used to signal setupChat for now
+			c.SyncGroupMessages = false
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+		th.ConnectUser(t, user3.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2, user3)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncGroupMessages = true
+		})
+
+		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(nil, errors.New("not found")).Once()
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("group message updated, no corresponding post", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false // used to signal setupChat for now
+			c.SyncGroupMessages = false
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+		th.ConnectUser(t, user3.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2, user3)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncGroupMessages = true
+		})
+
+		chatID := model.NewId()
+		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(&clientmodels.Chat{
+			ID:      chatID,
+			Members: makeChatMembers(user1, user2, user3),
+		}, nil).Maybe()
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("group message updated, group message sync disabled when update occurs", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true // used to signal setupChat for now
+			c.SyncGroupMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = false // used to signal setupChat for now
+			c.SyncGroupMessages = false
+			c.SelectiveSync = false
+		})
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("group message updated, disconnected when update occurs", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true // used to signal setupChat for now
+			c.SyncGroupMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+
+		post, _, _ := setupChat(th, t, user1, user2)
+
+		th.DisconnectUser(t, user1.Id)
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) > 0
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("group message updated successfully", func(t *testing.T) {
+		th.Reset(t)
+
+		th.setPluginConfiguration(t, func(c *configuration) {
+			c.SyncDirectMessages = true // used to signal setupChat for now
+			c.SyncGroupMessages = true
+			c.SelectiveSync = false
+		})
+
+		th.ConnectUser(t, user1.Id)
+		th.ConnectUser(t, user2.Id)
+		th.ConnectUser(t, user3.Id)
+
+		post, chatID, teamsMessageID := setupChat(th, t, user1, user2, user3)
+
+		post.Message = "Test updated"
+		_, _, err := client1.UpdatePost(context.TODO(), post.Id, post)
+		require.NoError(t, err)
+
+		th.clientMock.On(
+			"UpdateChatMessage",
+			chatID,
+			teamsMessageID,
+			"<p>Test updated</p>\n",
+			[]models.ChatMessageMentionable{},
+		).Return(&clientmodels.Message{
+			ID:           teamsMessageID,
+			CreateAt:     time.Now(),
+			LastUpdateAt: time.Now(),
+		}, nil).Times(1)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_messages_total",
+				withLabel("action", metrics.ActionUpdated),
+				withLabel("source", metrics.ActionSourceMattermost),
+				withLabel("is_direct", "true"),
+			) == 1
+		}, 1*time.Second, 250*time.Millisecond)
+	})
+
+	t.Run("channel message updated, channel unlinked", func(t *testing.T) {
+		t.Skip("Not yet implemented")
+	})
+
+	t.Run("channel message updated, no corresponding post", func(t *testing.T) {
+		t.Skip("Not yet implemented")
+	})
+
+	t.Run("channel message updated successfully", func(t *testing.T) {
+		t.Skip("Not yet implemented")
+	})
 }
 
 func TestMessageHasBeenDeleted(t *testing.T) {
 	t.Skip("Not yet implemented")
-}
-
-func TestMockMessageHasBeenUpdated(t *testing.T) {
-	mockChat := &clientmodels.Chat{
-		ID: testutils.GetChatID(),
-		Members: []clientmodels.ChatMember{
-			{
-				DisplayName: "mockDisplayName",
-				UserID:      testutils.GetTeamsUserID(),
-				Email:       testutils.GetTestEmail(),
-			},
-		},
-	}
-	mockChannelMessage := &clientmodels.Message{
-		ID:        "mockMessageID",
-		TeamID:    "mockTeamsTeamID",
-		ChannelID: "mockTeamsChannelID",
-	}
-	mockChatMessage := &clientmodels.Message{
-		ID:     "ms-teams-id",
-		ChatID: testutils.GetChatID(),
-	}
-	for _, test := range []struct {
-		Name         string
-		SetupPlugin  func(*Plugin)
-		SetupAPI     func(*plugintest.API)
-		SetupStore   func(*storemocks.Store)
-		SetupClient  func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("mockChatID", nil).Times(2)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-					MSTeamsID:    "mockMsgID",
-				}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMsgID",
-					MSTeamsChannel: testutils.GetChatID(),
-				}).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("UpdateChatMessage", testutils.GetChatID(), "mockMsgID", "", []models.ChatMessageMentionable{}).Return(mockChatMessage, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, true).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", "2XX", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(nil, testutils.GetInternalServerAppError("unable to get the channel")).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and channel type is Open",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeOpen), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to get channel members",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(nil, testutils.GetInternalServerAppError("unable to get channel members")).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to update the chat",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(2)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get post info")).Times(2)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Unable to get the link by channel ID and unable to create or get chat for users",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetChannel", testutils.GetChannelID()).Return(testutils.GetChannel(model.ChannelTypeDirect), nil).Times(1)
-				api.On("GetChannelMembers", testutils.GetChannelID(), 0, math.MaxInt32).Return(testutils.GetChannelMembers(2), nil).Times(1)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(nil, nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(2)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{}, nil).Times(2)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(nil, errors.New("unable to create or get chat for users")).Times(1)
-			},
-			SetupMetrics: func(metrics *metricsmocks.Metrics) {
-				metrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "false", "0", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Able to get the link by channel ID",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeamID:    "mockMattermostTeam",
-					MattermostChannelID: "mockMattermostChannel",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
-				}, nil).Times(1)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-					MSTeamsID:    "mockMessageID",
-				}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: "mockTeamsChannelID",
-				}).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "mockMessageID", "", []models.ChatMessageMentionable{}).Return(mockChannelMessage, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Able to get the link by channel ID but unable to update post",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = true
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeamID:    "mockMattermostTeamID",
-					MattermostChannelID: "mockMattermostChannelID",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
-				}, nil).Times(1)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-				}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockTeamsTeamID",
-					MSTeamsChannel: "mockTeamsChannelID",
-				}).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", "0", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			Name: "MessageHasBeenUpdated: Sync linked channels disabled",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncDirectMessages = true
-				p.configuration.SyncLinkedChannels = false
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.SystemAdminRoleId, "test@test.com"), nil).Times(1)
-				api.On("GetConfig").Return(&model.Config{ServiceSettings: model.ServiceSettings{SiteURL: model.NewString("/")}}, nil).Times(2)
-				api.On("KVSetWithOptions", "mutex_post_mutex_"+testutils.GetID(), mock.Anything, mock.Anything).Return(true, nil).Times(2)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(2)
-				store.On("GetLinkByChannelID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					MattermostTeamID:    "mockMattermostTeamID",
-					MattermostChannelID: "mockMattermostChannelID",
-					MSTeamsTeam:         "mockTeamsTeamID",
-					MSTeamsChannel:      "mockTeamsChannelID",
-				}, nil).Times(1)
-				store.On("GetPostInfoByMattermostID", testutils.GetID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetID(),
-				}, nil).Times(2)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockTeamsTeamID",
-					MSTeamsChannel: "mockTeamsChannelID",
-				}).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("UpdateMessage", "mockTeamsTeamID", "mockTeamsChannelID", "", "", "", []models.ChatMessageMentionable{}).Return(nil, errors.New("unable to update the post")).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.UpdateMessage", "false", "0", mock.AnythingOfType("float64")).Once()
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin(t)
-			test.SetupPlugin(p)
-			test.SetupAPI(p.API.(*plugintest.API))
-			test.SetupStore(p.store.(*storemocks.Store))
-			test.SetupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			test.SetupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			p.MessageHasBeenUpdated(&plugin.Context{}, testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()))
-		})
-	}
 }

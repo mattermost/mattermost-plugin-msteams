@@ -290,20 +290,22 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			return reason
 		}
 
-		channelID, userIDs, err = ah.getChatChannelIDAndUsersID(chat)
+		var channel *model.Channel
+		channel, userIDs, err = ah.getChatChannelAndUsersID(chat)
 		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to get original channel id", "error", err.Error())
+			ah.plugin.GetAPI().LogWarn("Unable to resolve chat to channel", "error", err.Error())
 			return metrics.DiscardedReasonOther
 		}
+		channelID = channel.Id
 
-		senderID, _ = ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-		if ah.plugin.GetSelectiveSync() {
-			if shouldSync, errSync := ah.plugin.ChannelShouldSyncCreated(channelID, senderID); errSync != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to determine if channel should sync", "error", errSync.Error())
-				return metrics.DiscardedReasonOther
-			} else if !shouldSync {
-				return metrics.DiscardedReasonSelectiveSync
-			}
+		var chatShouldSync bool
+		var discardReason string
+		chatShouldSync, _, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
+		if err != nil {
+			ah.plugin.API.LogWarn("Failed to determine if created activity should sync", "channel_id", channel.Id, "error", err.Error())
+			return discardReason
+		} else if !chatShouldSync {
+			return discardReason
 		}
 	} else {
 		if !ah.plugin.GetSyncLinkedChannels() {
@@ -340,7 +342,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
 	if appErr != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to create post", "error", appErr)
-		return metrics.DiscardedReasonOther
+		return metrics.DiscardedReasonInternalError
 	}
 
 	if skippedFileAttachments {

@@ -3,119 +3,58 @@ package main
 import (
 	"math"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pkg/errors"
 )
 
-func (p *Plugin) ChannelShouldSyncCreated(channelID, senderID string) (bool, error) {
-	if senderID == "" {
-		return false, errors.New("Invalid function call, requires RemoteOnly and a senderID")
+// ChatShouldSync implements the check for selective sync to determine if we sync a direct message
+// or group message. We avoid syncing messages between local users, otherwise we generate dual
+// unreads and notifications. Thus, this method reduces to a check that there is at most one local
+// user in the given channel, and at least one remote user.
+//
+// The return value of the second boolean parameter, containsRemoteUser, is only guaranteed to be
+// set correctly if the value of the first boolean parameter, chatShouldSync, is true.
+//
+// TODO: This method does too much, but it's reflective of the underlying complexity of the
+// business logic. Thankfully, it's well tested!
+func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, bool, []*model.ChannelMember, string, error) {
+	// Check for a DM or GM, and whether or not either has been disabled.
+	if shouldSync, discardReason := p.ShouldSyncDMGMChannel(channel); !shouldSync {
+		return false, false, nil, discardReason, nil
 	}
 
-	if p.GetSyncRemoteOnly() {
-		return p.ChannelConnectedOrRemote(channelID, senderID)
-	}
-	return p.ChannelShouldSync(channelID)
-}
-
-func (p *Plugin) ChannelShouldSync(channelID string) (bool, error) {
-	members, err := p.apiClient.Channel.ListMembers(channelID, 0, math.MaxInt32)
+	// We use the members to count the number of remote users, but also to return to the client
+	// for subsequent use.
+	members, err := p.apiClient.Channel.ListMembers(channel.Id, 0, math.MaxInt32)
 	if err != nil {
-		return false, err
+		return false, false, nil, metrics.DiscardedReasonInternalError, err
 	}
 
-	if len(members) == 1 {
-		return true, nil
-	}
-
-	if p.GetSyncRemoteOnly() {
-		return p.MembersContainsRemote(members)
-	}
-	return p.ChatMembersSpanPlatforms(members)
-}
-
-// ChatMembersSpanPlatforms determines if the given channel members span both Mattermost and
-// MS Teams. Chats between users on the same platform are skipped if selective sync is enabled.
-func (p *Plugin) ChatMembersSpanPlatforms(members []*model.ChannelMember) (bool, error) {
-	if len(members) == 1 {
-		return false, errors.New("Invalid function call, requires multiple members")
-	}
-	atLeastOneLocalUser := false
-	atLeastOneRemoteUser := false
+	numLocalUsers := 0
+	numRemoteUsers := 0
 	for _, m := range members {
 		user, err := p.apiClient.User.Get(m.UserId)
 		if err != nil {
-			return false, err
+			return false, false, nil, metrics.DiscardedReasonInternalError, err
 		}
 
 		if p.IsRemoteUser(user) {
-			// Synthetic users are always remote.
-			atLeastOneRemoteUser = true
+			numRemoteUsers++
 		} else {
-			// Otherwise the user is considered local.
-			atLeastOneLocalUser = true
-		}
-
-		if atLeastOneLocalUser && atLeastOneRemoteUser {
-			return true, nil
+			numLocalUsers++
 		}
 	}
-	return false, nil
-}
+	containsRemoteUser := numRemoteUsers > 0
 
-func (p *Plugin) ChannelConnectedOrRemote(channelID, senderID string) (bool, error) {
-	senderConnected, err := p.IsUserConnected(senderID)
-	if err != nil {
-		return false, err
-	}
-	members, err := p.apiClient.Channel.ListMembers(channelID, 0, math.MaxInt32)
-	if err != nil {
-		return false, err
-	}
-	if len(members) == 1 {
-		return true, nil
-	}
-
-	if senderConnected {
-		containsRemote, memberErr := p.MembersContainsRemote(members)
-		if memberErr != nil {
-			return false, memberErr
-		}
-		return containsRemote, nil
-	}
-
-	senderMember := &model.ChannelMember{
-		UserId: senderID,
-	}
-	senderRemote, err := p.MembersContainsRemote([]*model.ChannelMember{senderMember})
-	if err != nil {
-		return false, err
-	}
-	if !senderRemote {
-		return false, nil
-	}
-	for _, m := range members {
-		isConnected, err := p.IsUserConnected(m.UserId)
-		if err != nil {
-			return false, err
-		} else if isConnected {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// MembersContainsRemote determines if any of the given channel members are remote.
-func (p *Plugin) MembersContainsRemote(members []*model.ChannelMember) (bool, error) {
-	for _, m := range members {
-		user, err := p.apiClient.User.Get(m.UserId)
-		if err != nil {
-			return false, err
+	// If selective sync is disabled, there are no restrictions on syncing chats.
+	if p.getConfiguration().SelectiveSync {
+		// Only sync if there's at most one local user and at least one remote user.
+		if numLocalUsers == 1 && containsRemoteUser {
+			return true, containsRemoteUser, members, metrics.DiscardedReasonNone, nil
 		}
 
-		if p.IsRemoteUser(user) {
-			return true, nil
-		}
+		return false, containsRemoteUser, members, metrics.DiscardedReasonSelectiveSync, nil
 	}
-	return false, nil
+
+	return true, containsRemoteUser, members, metrics.DiscardedReasonNone, nil
 }

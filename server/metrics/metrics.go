@@ -42,6 +42,7 @@ const (
 	DiscardedReasonUnableToGetTeamsData            = "unable_to_get_teams_data" // #nosec  false positive
 	DiscardedReasonNotUserEvent                    = "no_user_event"
 	DiscardedReasonOther                           = "other"
+	DiscardedReasonInternalError                   = "internal_error"
 	DiscardedReasonDirectMessagesDisabled          = "direct_messages_disabled"
 	DiscardedReasonGroupMessagesDisabled           = "group_messages_disabled"
 	DiscardedReasonLinkedChannelsDisabled          = "linked_channels_disabled"

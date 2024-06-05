@@ -13,22 +13,27 @@ import (
 func runPermutations[T any](t *testing.T, params T, f func(t *testing.T, params T)) {
 	t.Helper()
 
-	v := reflect.ValueOf(params)
-	if v.Kind() == reflect.Ptr {
-		if v.Elem().Kind() != reflect.Struct {
+	paramsV := reflect.ValueOf(params)
+	paramsT := reflect.TypeOf(params)
+	if paramsV.Kind() == reflect.Ptr {
+		if paramsV.Elem().Kind() != reflect.Struct {
 			t.Fatal("params should be a struct or a pointer to a struct")
 		}
-		v = v.Elem()
-	} else if v.Kind() != reflect.Struct {
+		paramsV = paramsV.Elem()
+	} else if paramsV.Kind() != reflect.Struct {
 		t.Fatal("params should be a struct or a pointer to a struct")
 	}
 
 	numberOfPermutations := 1
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).Kind() != reflect.Bool {
-			t.Fatal("unsupported permutation parameter type: " + v.Field(i).Kind().String())
+	for i := 0; i < paramsV.NumField(); i++ {
+		if paramsV.Field(i).Kind() != reflect.Bool {
+			t.Fatal("unsupported permutation parameter type: " + paramsV.Field(i).Kind().String())
 		}
-		numberOfPermutations *= 2
+
+		// If there's a non-empty value tag, we don't permute this field.
+		if paramsT.Field(i).Tag.Get("value") == "" {
+			numberOfPermutations *= 2
+		}
 	}
 
 	type run struct {
@@ -42,12 +47,34 @@ func runPermutations[T any](t *testing.T, params T, f func(t *testing.T, params 
 		var params T
 		paramsValue := reflect.ValueOf(&params).Elem()
 
-		for j := 0; j < v.NumField(); j++ {
-			enabled := (i & (1 << j)) > 0
+		// Track which bit of i we're using to decide the value of the field. We don't use
+		// the iterator j directly, since we sometimes skip fields if they have a value tag
+		// defining a fixed value.
+		fieldBit := 0
+		for j := 0; j < paramsV.NumField(); j++ {
+			var enabled, fixed bool
+			switch paramsT.Field(j).Tag.Get("value") {
+			case "":
+				enabled = (i & (1 << fieldBit)) > 0
+				fieldBit++
+			case "true":
+				enabled = true
+				fixed = true
+			case "false":
+				enabled = false
+				fixed = true
+			default:
+				t.Fatalf("unknown value tag: %s", paramsT.Field(j).Tag.Get("value"))
+			}
+
 			if len(description) > 0 {
 				description += ","
 			}
-			description += fmt.Sprintf("%s=%v", v.Type().Field(j).Name, enabled)
+			if fixed {
+				description += fmt.Sprintf("%s=%v!", paramsV.Type().Field(j).Name, enabled)
+			} else {
+				description += fmt.Sprintf("%s=%v", paramsV.Type().Field(j).Name, enabled)
+			}
 
 			paramsValue.Field(j).SetBool(enabled)
 		}

@@ -34,18 +34,18 @@ func TestSendChat(t *testing.T) {
 		},
 	}
 	for _, test := range []struct {
-		Name                     string
-		SetupPlugin              func(*Plugin)
-		SetupAPI                 func(*plugintest.API)
-		SetupStore               func(*storemocks.Store)
-		SetupClient              func(*clientmocks.Client, *clientmocks.Client)
-		SetupMetrics             func(mockmetrics *metricsmocks.Metrics)
-		ChatMembersSpanPlatforms bool
-		ExpectedMessage          string
-		ExpectedError            string
+		Name               string
+		SetupPlugin        func(*Plugin)
+		SetupAPI           func(*plugintest.API)
+		SetupStore         func(*storemocks.Store)
+		SetupClient        func(*clientmocks.Client, *clientmocks.Client)
+		SetupMetrics       func(mockmetrics *metricsmocks.Metrics)
+		ContainsRemoteUser bool
+		ExpectedMessage    string
+		ExpectedError      string
 	}{
 		{
-			Name: "SendChat: Unable to get the source user ID, chat members don't span platforms",
+			Name: "SendChat: Unable to get the source user ID, no remote user",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
@@ -55,13 +55,13 @@ func TestSendChat(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get the source user ID")).Times(1)
 			},
-			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
-			ChatMembersSpanPlatforms: false,
-			ExpectedError:            "unable to get the source user ID",
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ContainsRemoteUser: false,
+			ExpectedError:      "unable to get the source user ID",
 		},
 		{
-			Name: "SendChat: Unable to get the source user ID, chat members span platforms",
+			Name: "SendChat: Unable to get the source user ID, remote user",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
@@ -72,13 +72,13 @@ func TestSendChat(t *testing.T) {
 				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get the source user ID")).Times(1)
 			},
-			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
-			ChatMembersSpanPlatforms: true,
-			ExpectedError:            "unable to get the source user ID",
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ContainsRemoteUser: true,
+			ExpectedError:      "unable to get the source user ID",
 		},
 		{
-			Name: "SendChat: Unable to get the client, chat members don't span platforms",
+			Name: "SendChat: Unable to get the client, no remote user",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
@@ -89,13 +89,13 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
-			ChatMembersSpanPlatforms: false,
-			ExpectedError:            "not connected user",
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ContainsRemoteUser: false,
+			ExpectedError:      "not connected user",
 		},
 		{
-			Name: "SendChat: Unable to get the client, chat members span platforms",
+			Name: "SendChat: Unable to get the client, remote user",
 			SetupPlugin: func(p *Plugin) {
 				p.configuration.SyncFileAttachments = true
 			},
@@ -107,10 +107,10 @@ func TestSendChat(t *testing.T) {
 				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
 				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
 			},
-			SetupClient:              func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:             func(mockmetrics *metricsmocks.Metrics) {},
-			ChatMembersSpanPlatforms: true,
-			ExpectedError:            "not connected user",
+			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
+			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
+			ContainsRemoteUser: true,
+			ExpectedError:      "not connected user",
 		},
 		{
 			Name: "SendChat: Unable to create or get the chat",
@@ -473,7 +473,7 @@ func TestSendChat(t *testing.T) {
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
 			mockPost.RootId = "mockRootID"
-			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost, test.ChatMembersSpanPlatforms)
+			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost, test.ContainsRemoteUser)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {
@@ -1680,51 +1680,52 @@ func TestUserWillLogin(t *testing.T) {
 
 func TestShouldSyncDMGMChannel(t *testing.T) {
 	testCases := []struct {
-		Name        string
-		EnableDM    bool
-		EnableGM    bool
-		ChannelType model.ChannelType
-		ShouldSync  bool
+		Name          string
+		EnableDM      bool
+		EnableGM      bool
+		ChannelType   model.ChannelType
+		ShouldSync    bool
+		DiscardReason string
 	}{
 		{
 			Name:     "DM allowed, and channel type is direct => sync",
-			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true,
+			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
 		},
 		{
 			Name:     "DM allowed, and channel type is group => no sync",
-			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "DM not allowed, and channel type is direct => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:     "DM not allowed, and channel type is group => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "GM allowed, and channel type is group => sync",
-			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true,
+			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
 		},
 		{
 			Name:     "GM allowed, and channel type is direct => no sync",
-			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:     "GM not allowed, and channel type is group => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false,
+			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
 		},
 		{
 			Name:     "GM not allowed, and channel type is direct => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false,
+			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
 		},
 		{
 			Name:        "channel type is public => no sync",
-			ChannelType: model.ChannelTypeOpen, ShouldSync: false,
+			ChannelType: model.ChannelTypeOpen, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
 		},
 		{
 			Name:        "channel type is private => no sync",
-			ChannelType: model.ChannelTypePrivate, ShouldSync: false,
+			ChannelType: model.ChannelTypePrivate, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
 		},
 	}
 
@@ -1739,7 +1740,9 @@ func TestShouldSyncDMGMChannel(t *testing.T) {
 				Type: tc.ChannelType,
 			}
 
-			assert.Equal(tc.ShouldSync, p.ShouldSyncDMGMChannel(channel))
+			shouldSync, discardReason := p.ShouldSyncDMGMChannel(channel)
+			assert.Equal(tc.ShouldSync, shouldSync)
+			assert.Equal(tc.DiscardReason, discardReason)
 		})
 	}
 }
