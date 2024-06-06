@@ -52,22 +52,43 @@ func (ah *ActivityHandler) msgToPost(channelID, senderID string, msg *clientmode
 }
 
 func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
-	userIDVsNames := make(map[string]string)
-	if msg.ChatID != "" {
-		for _, mention := range msg.Mentions {
-			if userIDVsNames[mention.UserID] == "" {
-				userIDVsNames[mention.UserID] = mention.MentionedText
-			} else if userIDVsNames[mention.UserID] != mention.MentionedText {
-				userIDVsNames[mention.UserID] += " " + mention.MentionedText
+	// Teams sometimes translates an at-mention for a user like `Miguel De La Cruz` into four
+	// discrete mentions. This seems broken, but at least easy to distinguish from genuinely
+	// adjacent notifications as a result of injected &nbsp; between each mention. Find
+	// anything that looks like that and collapse it back into a single mention.
+	for i := 0; i < len(msg.Mentions); i++ {
+		mention := msg.Mentions[i]
+
+		// Scan for subsequent mentions, collapsing a pair at a time.
+		for j := i + 1; j < len(msg.Mentions); j++ {
+			nextMention := msg.Mentions[j]
+			if nextMention.UserID != mention.UserID {
+				break
 			}
+
+			multiWordMention := fmt.Sprintf(`<at id="%d">%s</at>`, mention.ID, mention.MentionedText)
+			multiWordMention += fmt.Sprintf(`&nbsp;<at id="%d">%s</at>`, nextMention.ID, nextMention.MentionedText)
+
+			// If the current mention + the next mention isn't actually found in the
+			// prescribed format, then we might have genuinely adjacnent mentions for
+			// the same user, so start over from that point.
+			if !strings.Contains(msg.Text, multiWordMention) {
+				i = j - 1
+				break
+			}
+
+			// Replace the mention in place
+			mention.MentionedText += fmt.Sprintf(" %s", nextMention.MentionedText)
+			msg.Mentions[i] = mention
+
+			// Then replace the text with the multi-word mentions back to just a single
+			// mention.
+			msg.Text = strings.Replace(msg.Text, multiWordMention, fmt.Sprintf(`<at id="%d">%s</at>`, mention.ID, mention.MentionedText), 1)
 		}
 	}
 
-	idx := 0
-	for idx < len(msg.Mentions) {
+	for _, mention := range msg.Mentions {
 		mmMention := ""
-		mention := msg.Mentions[idx]
-		idx++
 		switch {
 		case mention.UserID != "":
 			mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(mention.UserID)
@@ -82,7 +103,7 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 				continue
 			}
 
-			mmMention = fmt.Sprintf("@%s ", mmUser.Username)
+			mmMention = fmt.Sprintf("@%s", mmUser.Username)
 		case mention.MentionedText == "Everyone" && mention.ConversationID == msg.ChatID:
 			mmMention = "@all"
 		case mention.ConversationID == msg.ChannelID:
@@ -93,12 +114,6 @@ func (ah *ActivityHandler) handleMentions(msg *clientmodels.Message) string {
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mention.MentionedText, 1)
 		} else {
 			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), mmMention, 1)
-		}
-
-		if idx < len(msg.Mentions) && len(strings.Fields(userIDVsNames[mention.UserID])) >= 2 {
-			mention = msg.Mentions[idx]
-			msg.Text = strings.Replace(msg.Text, fmt.Sprintf("&nbsp;<at id=\"%s\">%s</at>", fmt.Sprint(mention.ID), mention.MentionedText), "", 1)
-			idx++
 		}
 	}
 
