@@ -1075,6 +1075,8 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
 	var actionHandler model.PostActionIntegrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
 		a.p.API.LogWarn("Unable to decode the action handler", "error", err.Error())
