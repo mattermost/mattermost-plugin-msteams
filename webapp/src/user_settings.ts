@@ -26,12 +26,12 @@ function makeNotificationsSetting(disabled: boolean) {
                 {
                     text: 'Notifications from chats and group chats',
                     value: 'on',
-                    helpText: 'You will get notified by the MS Teams bot whenever you receive a message from a chat or group chat in Teams.',
+                    helpText: 'The MS Teams bot will notify you here in Mattermost whenever you receive a message from a chat or group chat from Microsoft Teams.',
                 },
                 {
                     text: 'Disabled',
                     value: 'off',
-                    helpText: 'You will not get notified.',
+                    helpText: 'You won’t be notified in Mattermost.',
                 },
             ],
             type: 'radio' as const,

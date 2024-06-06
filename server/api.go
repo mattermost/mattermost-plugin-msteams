@@ -1120,7 +1120,7 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 	// At this point, it might be /another/ post by the bot in the DM with that user, but we
 	// allow this for now.
 
-	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
+	post.Message = "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command."
 	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
@@ -1172,7 +1172,7 @@ func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
 	// At this point, it might be /another/ post by the bot in the DM with that user, but we
 	// allow this for now.
 
-	post.Message = "To change your notification settings, open your user settings or run `/msteams notifications`"
+	post.Message = "To change your notification settings, select **Settings > MS Teams**, or run the **/msteams notifications** slash command."
 	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
