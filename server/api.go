@@ -1096,6 +1096,28 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify the post was authored by the bot itself.
+	if post.UserId != a.p.botUserID {
+		a.p.API.LogWarn("Attempt to update post not authored by the bot", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Verify the post is in the direct message channel between the bot and the user.
+	botDMChannel, err := a.p.apiClient.Channel.GetDirect(a.p.botUserID, userID)
+	if err != nil {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
+		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
+		return
+	} else if botDMChannel.Id != post.ChannelId {
+		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// At this point, it might be /another/ post by the bot in the DM with that user, but we
+	// allow this for now.
+
 	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
 	post.DelProp("attachments")
 
