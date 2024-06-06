@@ -1150,7 +1150,7 @@ func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
 
 	// Verify the post was authored by the bot itself.
 	if post.UserId != a.p.botUserID {
-		a.p.API.LogWarn("Attempt to delete post not authored by the bot", "user_id", userID)
+		a.p.API.LogWarn("Attempt to update post not authored by the bot", "user_id", userID)
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -1169,9 +1169,15 @@ func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
 
 	// At this point, it might be /another/ post by the bot in the DM with that user, but we
 	// allow this for now.
-	err = a.p.apiClient.Post.DeletePost(actionHandler.PostId)
+
+	post.Message = "To change your notification settings, open your user settings or run `/msteams notifications`"
+	post.DelProp("attachments")
+
+	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
+		Update: post,
+	})
 	if err != nil {
-		a.p.API.LogWarn("Unable to delete the post", "post_id", actionHandler.PostId, "user_id", userID, "error", err.Error())
-		http.Error(w, "unable to delete the post", http.StatusInternalServerError)
+		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
+		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
 	}
 }
