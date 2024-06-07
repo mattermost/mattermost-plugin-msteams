@@ -619,7 +619,7 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
-		a.p.API.LogWarn("Unable to store the token", "error", err.Error(), "mmuserID", mmUserID, "teamsUserID", msteamsUser.ID)
+		a.p.API.LogWarn("Unable to store the token", "error", err.Error(), "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
