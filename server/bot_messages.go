@@ -26,6 +26,7 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	// Force posts from the bot to render the user profile icon each time instead of collapsing
 	// adjacent posts. This helps draw attention to each individual post.
 	post.AddProp("from_webhook", "true")
+	post.AddProp("use_user_icon", "true")
 
 	return p.apiClient.Post.CreatePost(post)
 }
