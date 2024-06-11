@@ -8,7 +8,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,53 +18,36 @@ func (FakeHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestMsgToPost(t *testing.T) {
-	msteamsCreateAtTime := time.Now()
-	mmCreateAtTime := msteamsCreateAtTime.UnixNano() / int64(time.Millisecond)
-	for _, testCase := range []struct {
-		description string
-		channelID   string
-		userID      string
-		senderID    string
-		message     *clientmodels.Message
-		post        *model.Post
-		setupAPI    func(*plugintest.API)
-	}{
-		{
-			description: "Successfully add message to post",
-			channelID:   testutils.GetChannelID(),
-			userID:      testutils.GetUserID(),
-			senderID:    testutils.GetSenderID(),
-			message: &clientmodels.Message{
-				Subject:         "Subject of the messsage",
-				UserDisplayName: "mock-UserDisplayName",
-				UserID:          testutils.GetUserID(),
-				CreateAt:        msteamsCreateAtTime,
-			},
-			setupAPI: func(api *plugintest.API) {
-			},
-			post: &model.Post{
-				UserId:    testutils.GetSenderID(),
-				ChannelId: testutils.GetChannelID(),
-				Message:   "## Subject of the messsage\n",
-				Props: model.StringInterface{
-					"msteams_sync_bot-user-id": true,
-				},
-				FileIds:  model.StringArray{},
-				CreateAt: mmCreateAtTime,
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			ah := ActivityHandler{}
-			testCase.setupAPI(p.API.(*plugintest.API))
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-			ah.plugin = p
+	t.Run("successfully add message to post", func(t *testing.T) {
+		th.Reset(t)
 
-			post, _, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, []string{})
-			assert.Equal(t, testCase.post, post)
-		})
-	}
+		sender := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team)
+
+		message := &clientmodels.Message{
+			Subject:         "Subject of the messsage",
+			UserDisplayName: "mock-UserDisplayName",
+			UserID:          "t" + sender.Id,
+			CreateAt:        time.Now(),
+		}
+
+		expectedPost := &model.Post{
+			UserId:    sender.Id,
+			ChannelId: channel.Id,
+			Message:   "## Subject of the messsage\n",
+			Props: model.StringInterface{
+				"msteams_sync_" + th.p.botUserID: true,
+			},
+			FileIds:  model.StringArray{},
+			CreateAt: message.CreateAt.UnixNano() / int64(time.Millisecond),
+		}
+
+		actualPost, _, _ := th.p.activityHandler.msgToPost(channel.Id, sender.Id, message, nil, []string{})
+		assert.Equal(t, expectedPost, actualPost)
+	})
 }
 
 func TestHandleMentions(t *testing.T) {
