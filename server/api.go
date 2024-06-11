@@ -87,7 +87,7 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
-	router.HandleFunc("/dismiss-notifications", api.dismissNotifications).Methods("POST")
+	router.HandleFunc("/disable-notifications", api.disableNotifications).Methods("POST")
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
@@ -1074,35 +1074,28 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
+func (a *API) preHandleNotifications(w http.ResponseWriter, r *http.Request) *model.Post {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	var actionHandler model.PostActionIntegrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
 		a.p.API.LogWarn("Unable to decode the action handler", "error", err.Error())
 		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
-		return
-	}
-
-	err := a.p.setNotificationPreference(actionHandler.UserId, true)
-	if err != nil {
-		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
-		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
-		return
+		return nil
 	}
 
 	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the post", "error", err.Error())
 		http.Error(w, "unable to get the post", http.StatusBadRequest)
-		return
+		return nil
 	}
 
 	// Verify the post was authored by the bot itself.
 	if post.UserId != a.p.botUserID {
 		a.p.API.LogWarn("Attempt to update post not authored by the bot", "user_id", userID)
 		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
+		return nil
 	}
 
 	// Verify the post is in the direct message channel between the bot and the user.
@@ -1110,15 +1103,33 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
 		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
-		return
+		return nil
 	} else if botDMChannel.Id != post.ChannelId {
 		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
 		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
+		return nil
 	}
 
 	// At this point, it might be /another/ post by the bot in the DM with that user, but we
 	// allow this for now.
+
+	return post
+}
+
+func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+
+	post := a.preHandleNotifications(w, r)
+	if post == nil {
+		return
+	}
+
+	err := a.p.setNotificationPreference(userID, true)
+	if err != nil {
+		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
+		return
+	}
 
 	post.Message = "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
 	post.DelProp("attachments")
@@ -1133,46 +1144,22 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) dismissNotifications(w http.ResponseWriter, r *http.Request) {
+func (a *API) disableNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	var actionHandler model.PostActionIntegrationRequest
-	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
-		a.p.API.LogWarn("Unable to decode the action handler", "user_id", userID, "error", err.Error())
-		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
+	post := a.preHandleNotifications(w, r)
+	if post == nil {
 		return
 	}
 
-	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
+	err := a.p.setNotificationPreference(userID, false)
 	if err != nil {
-		a.p.API.LogWarn("Unable to get the post", "user_id", userID, "error", err.Error())
-		http.Error(w, "unable to get the post", http.StatusBadRequest)
+		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
 		return
 	}
 
-	// Verify the post was authored by the bot itself.
-	if post.UserId != a.p.botUserID {
-		a.p.API.LogWarn("Attempt to update post not authored by the bot", "user_id", userID)
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	// Verify the post is in the direct message channel between the bot and the user.
-	botDMChannel, err := a.p.apiClient.Channel.GetDirect(a.p.botUserID, userID)
-	if err != nil {
-		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
-		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
-		return
-	} else if botDMChannel.Id != post.ChannelId {
-		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	// At this point, it might be /another/ post by the bot in the DM with that user, but we
-	// allow this for now.
-
-	post.Message = "To change your notification settings, open your user settings or run `/msteams notifications`"
+	post.Message = "You will not receive notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`"
 	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{

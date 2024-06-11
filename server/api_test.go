@@ -1196,7 +1196,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		assert.True(t, th.p.getNotificationPreference(user1.Id))
 	})
 
-	t.Run("dismiss, notifications previously disabled", func(t *testing.T) {
+	t.Run("disable, notifications previously disabled", func(t *testing.T) {
 		th.Reset(t)
 		user1 := th.SetupUser(t, team)
 
@@ -1207,7 +1207,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		post := triggerWelcomeMessage(th, t, user1)
 
 		// Act: make the request pretending the user clicked the button
-		response := sendRequest(t, user1, th.pluginURL(t, "/dismiss-notifications"), model.PostActionIntegrationRequest{
+		response := sendRequest(t, user1, th.pluginURL(t, "/disable-notifications"), model.PostActionIntegrationRequest{
 			UserId: user1.Id,
 			PostId: post.Id,
 		})
@@ -1218,13 +1218,13 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "To change your notification settings, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You will not receive notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
 
-		// Assert: 2. the notification preference is unchanged
+		// Assert: 2. the notification preference is disabled
 		assert.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 
-	t.Run("dismiss, notifications previously enabled", func(t *testing.T) {
+	t.Run("disable, notifications previously enabled", func(t *testing.T) {
 		th.Reset(t)
 		user1 := th.SetupUser(t, team)
 
@@ -1235,7 +1235,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		post := triggerWelcomeMessage(th, t, user1)
 
 		// Act: make the request pretending the user clicked the button
-		response := sendRequest(t, user1, th.pluginURL(t, "/dismiss-notifications"), model.PostActionIntegrationRequest{
+		response := sendRequest(t, user1, th.pluginURL(t, "/disable-notifications"), model.PostActionIntegrationRequest{
 			UserId: user1.Id,
 			PostId: post.Id,
 		})
@@ -1246,9 +1246,9 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "To change your notification settings, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You will not receive notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
 
-		// Assert: 2. the notification preference is unchanged
-		assert.True(t, th.p.getNotificationPreference(user1.Id))
+		// Assert: 2. the notification preference is disabled
+		assert.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 }
