@@ -118,6 +118,17 @@ func (mth *mockTeamsHelper) registerMessage(teamID string, channelID string, mes
 			CreateAt:        now,
 			LastUpdateAt:    now,
 		}, nil).Maybe()
+	mth.th.clientMock.On("GetMessage", teamID, channelID, messageID).Return(
+		&clientmodels.Message{
+			ID:              messageID,
+			UserID:          "t" + senderUser.Id,
+			TeamID:          teamID,
+			ChannelID:       channelID,
+			UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+			Text:            message,
+			CreateAt:        now,
+			LastUpdateAt:    now,
+		}, nil).Maybe()
 }
 
 func (mth *mockTeamsHelper) registerUser(user *model.User) {
