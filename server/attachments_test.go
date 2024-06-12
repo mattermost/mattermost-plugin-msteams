@@ -20,94 +20,83 @@ import (
 )
 
 func TestHandleCodeSnippet(t *testing.T) {
-	for _, testCase := range []struct {
-		description    string
-		userID         string
-		attach         clientmodels.Attachment
-		text           string
-		expectedOutput string
-		setupClient    func(client *clientmocks.Client)
-		setupAPI       func(api *plugintest.API)
-	}{
-		{
-			description: "Successfully handled code snippet for channel",
-			userID:      testutils.GetUserID(),
-			attach: clientmodels.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data\n```go\nsnippet content\n```\n",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
-			},
-			setupAPI: func(api *plugintest.API) {},
-		},
-		{
-			description: "Successfully handled code snippet for chat",
-			userID:      testutils.GetUserID(),
-			attach: clientmodels.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data\n```go\nsnippet content\n```\n",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
-			},
-			setupAPI: func(api *plugintest.API) {},
-		},
-		{
-			description: "Unable to unmarshal codesnippet",
-			userID:      testutils.GetUserID(),
-			attach: clientmodels.Attachment{
-				Content: "Invalid JSON",
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data",
-			setupClient:    func(client *clientmocks.Client) {},
-			setupAPI: func(api *plugintest.API) {
-			},
-		},
-		{
-			description: "CodesnippetUrl has unexpected size",
-			userID:      testutils.GetUserID(),
-			attach: clientmodels.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data",
-			setupClient:    func(client *clientmocks.Client) {},
-			setupAPI: func(api *plugintest.API) {
-			},
-		},
-		{
-			description: "Unable to retrieve code snippet",
-			userID:      testutils.GetUserID(),
-			attach: clientmodels.Attachment{
-				Content: `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
-			},
-			text:           "mock-data",
-			expectedOutput: "mock-data",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("", errors.New("Error while retrieving code snippet"))
-			},
-			setupAPI: func(api *plugintest.API) {
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			client := p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client)
-			testCase.setupClient(client)
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testutils.MockLogs(p.API.(*plugintest.API))
+	th := setupTestHelper(t)
 
-			ah := ActivityHandler{}
-			ah.plugin = p
+	t.Run("failed to marshal codesnippet", func(t *testing.T) {
+		th.Reset(t)
 
-			resp := ah.handleCodeSnippet(client, testCase.attach, testCase.text)
-			assert.Equal(t, resp, testCase.expectedOutput)
-		})
-	}
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.codesnippet",
+			Content:     "Invalid JSON",
+		}
+		message := "message"
+
+		expectedOutput := "message"
+		actualOutput := th.p.activityHandler.handleCodeSnippet(th.appClientMock, attachment, message)
+		assert.Equal(t, actualOutput, expectedOutput)
+	})
+
+	t.Run("url is unexpected", func(t *testing.T) {
+		th.Reset(t)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.codesnippet",
+			Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/go/snippet"}`,
+		}
+		message := "message"
+
+		expectedOutput := "message"
+		actualOutput := th.p.activityHandler.handleCodeSnippet(th.appClientMock, attachment, message)
+		assert.Equal(t, actualOutput, expectedOutput)
+	})
+
+	t.Run("failure retrieving code snippet", func(t *testing.T) {
+		th.Reset(t)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.codesnippet",
+			Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
+		}
+		message := "message"
+
+		th.appClientMock.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("", errors.New("Error while retrieving code snippet"))
+
+		expectedOutput := "message"
+		actualOutput := th.p.activityHandler.handleCodeSnippet(th.appClientMock, attachment, message)
+		assert.Equal(t, actualOutput, expectedOutput)
+	})
+
+	t.Run("code snippet for channel", func(t *testing.T) {
+		th.Reset(t)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.codesnippet",
+			Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
+		}
+		message := "message"
+
+		th.appClientMock.On("GetCodeSnippet", "https://example.com/version/teams/mock-team-id/channels/mock-channel-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
+
+		expectedOutput := "message\n```go\nsnippet content\n```\n"
+		actualOutput := th.p.activityHandler.handleCodeSnippet(th.appClientMock, attachment, message)
+		assert.Equal(t, actualOutput, expectedOutput)
+	})
+
+	t.Run("code snippet for chat", func(t *testing.T) {
+		th.Reset(t)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.codesnippet",
+			Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
+		}
+		message := "message"
+
+		th.appClientMock.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
+
+		expectedOutput := "message\n```go\nsnippet content\n```\n"
+		actualOutput := th.p.activityHandler.handleCodeSnippet(th.appClientMock, attachment, message)
+		assert.Equal(t, actualOutput, expectedOutput)
+	})
 }
 
 func TestHandleMessageReference(t *testing.T) {
