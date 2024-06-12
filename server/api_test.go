@@ -1190,7 +1190,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err := json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
 
 		// Assert: 2. the notification preference is updated
 		assert.True(t, th.p.getNotificationPreference(user1.Id))
@@ -1218,7 +1218,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "You will not receive notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You'll stop receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
 
 		// Assert: 2. the notification preference is disabled
 		assert.False(t, th.p.getNotificationPreference(user1.Id))
@@ -1246,7 +1246,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "You will not receive notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You'll stop receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
 
 		// Assert: 2. the notification preference is disabled
 		assert.False(t, th.p.getNotificationPreference(user1.Id))

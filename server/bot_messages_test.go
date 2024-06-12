@@ -44,7 +44,7 @@ func TestSendWelcomeMessageWithNotificationAction(t *testing.T) {
 	require.Len(t, post.Attachments(), 1)
 	require.Len(t, post.Attachments()[0].Actions, 2)
 	require.EqualValues(t, model.PostActionTypeButton, post.Attachments()[0].Actions[0].Type)
-	require.EqualValues(t, "Enable Notifications", post.Attachments()[0].Actions[0].Name)
+	require.EqualValues(t, "Enable notifications", post.Attachments()[0].Actions[0].Name)
 	require.False(t, post.Attachments()[0].Actions[0].Disabled)
 	require.EqualValues(t, model.PostActionTypeButton, post.Attachments()[0].Actions[1].Type)
 	require.EqualValues(t, "Disable", post.Attachments()[0].Actions[1].Name)
