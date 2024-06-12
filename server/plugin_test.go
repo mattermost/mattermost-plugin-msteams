@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -122,41 +123,41 @@ func getPluginPathForTest() string {
 }
 
 func TestGetURL(t *testing.T) {
-	mockSiteURLWithSuffix := "mockSiteURL/"
-	mockSiteURLWithoutSuffix := "mockSiteURL"
-	for _, test := range []struct {
+	testCases := []struct {
 		Name     string
-		SetupAPI func(*plugintest.API)
+		URL      string
+		Expected string
 	}{
 		{
-			Name: "GetURL: With suffix '/'",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: &mockSiteURLWithSuffix,
-					},
-				}).Times(1)
-			},
+			Name:     "no subpath, ending with /",
+			URL:      "https://example.com/",
+			Expected: "https://example.com/plugins/" + pluginID,
 		},
 		{
-			Name: "GetURL: Without suffix '/'",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetConfig").Return(&model.Config{
-					ServiceSettings: model.ServiceSettings{
-						SiteURL: &mockSiteURLWithoutSuffix,
-					},
-				}).Times(1)
-			},
+			Name:     "no subpath, not ending with /",
+			URL:      "https://example.com",
+			Expected: "https://example.com/plugins/" + pluginID,
 		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			p := newTestPlugin(t)
-			apiMock := &plugintest.API{}
-			test.SetupAPI(apiMock)
-			p.SetAPI(apiMock)
-			resp := p.GetURL()
-			assert.Equal("mockSiteURL/plugins/com.mattermost.msteams-sync", resp)
+		{
+			Name:     "with subpath, ending with /",
+			URL:      "https://example.com/subpath/",
+			Expected: "https://example.com/subpath/plugins/" + pluginID,
+		},
+		{
+			Name:     "with subpath, not ending with /",
+			URL:      "https://example.com/subpath",
+			Expected: "https://example.com/subpath/plugins/" + pluginID,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			config := &model.Config{}
+			config.SetDefaults()
+			config.ServiceSettings.SiteURL = model.NewString(testCase.URL)
+
+			actual := getURL(config)
+			assert.Equal(t, testCase.Expected, actual)
 		})
 	}
 }
@@ -193,20 +194,15 @@ func TestGetRelativeURL(t *testing.T) {
 			Expected: "/subpath/plugins/" + pluginID,
 		},
 	}
+
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			p := newTestPlugin(t)
-			apiMock := &plugintest.API{}
-			apiMock.On("GetConfig").Return(&model.Config{
-				ServiceSettings: model.ServiceSettings{
-					SiteURL: model.NewString(testCase.URL),
-				},
-			}).Times(1)
-			p.SetAPI(apiMock)
+			config := &model.Config{}
+			config.SetDefaults()
+			config.ServiceSettings.SiteURL = model.NewString(testCase.URL)
 
-			resp := p.GetRelativeURL()
-
-			assert.Equal(t, testCase.Expected, resp)
+			actual := getRelativeURL(config)
+			assert.Equal(t, testCase.Expected, actual)
 		})
 	}
 }
