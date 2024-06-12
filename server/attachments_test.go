@@ -17,6 +17,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleCodeSnippet(t *testing.T) {
@@ -100,71 +101,130 @@ func TestHandleCodeSnippet(t *testing.T) {
 }
 
 func TestHandleMessageReference(t *testing.T) {
-	for _, testCase := range []struct {
-		description      string
-		attach           clientmodels.Attachment
-		chatOrChannelID  string
-		text             string
-		expectedText     string
-		expectedParentID string
-		setupStore       func(store *storemocks.Store)
-		setupAPI         func(api *plugintest.API)
-	}{
-		{
-			description: "Successfully got postID and text",
-			attach: clientmodels.Attachment{
-				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
-			},
-			chatOrChannelID:  testutils.GetChannelID(),
-			text:             "mock-data",
-			expectedText:     "mock-data",
-			expectedParentID: testutils.GetID(),
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetMattermostID(),
-				}, nil)
-			},
-			setupAPI: func(api *plugintest.API) {
-				api.On("GetPost", testutils.GetMattermostID()).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro()), nil)
-			},
-		},
-		{
-			description: "Unable to unmarshal content",
-			attach: clientmodels.Attachment{
-				Content: "Invalid JSON",
-			},
-			text:         "mock-data",
-			expectedText: "mock-data",
-			setupStore:   func(store *storemocks.Store) {},
-			setupAPI:     func(api *plugintest.API) {},
-		},
-		{
-			description: "Unable to get post info by msteam ID",
-			attach: clientmodels.Attachment{
-				Content: `{"messageId": "dsdfonreoapwer4onebfdr"}`,
-			},
-			chatOrChannelID: "mock-chatOrChannelID",
-			text:            "mock-data",
-			expectedText:    "mock-data",
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", "mock-chatOrChannelID", testutils.GetMessageID()).Return(nil, errors.New("Error while getting post info by msteam ID"))
-			},
-			setupAPI: func(api *plugintest.API) {},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			testCase.setupStore(p.store.(*storemocks.Store))
-			ah := ActivityHandler{}
-			ah.plugin = p
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-			parentID, text := ah.handleMessageReference(testCase.attach, testCase.chatOrChannelID, testCase.text)
-			assert.Equal(t, text, testCase.expectedText)
-			assert.Equal(t, parentID, testCase.expectedParentID)
+	t.Run("unable to marshal content", func(t *testing.T) {
+		chatOrChannelID := model.NewId()
+
+		attachment := clientmodels.Attachment{
+			ContentType: "messageReference",
+			Content:     "Invalid JSON",
+		}
+		text := "message"
+
+		expectedText := "message"
+		expectedParentID := ""
+
+		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		assert.Equal(t, expectedParentID, actualParentID)
+		assert.Equal(t, expectedText, actualText)
+	})
+
+	t.Run("unknown message", func(t *testing.T) {
+		messageID := model.NewId()
+		chatOrChannelID := model.NewId()
+
+		attachment := clientmodels.Attachment{
+			ContentType: "messageReference",
+			Content:     `{"messageId": "` + messageID + `"}`,
+		}
+		text := "message"
+
+		expectedText := "message"
+		expectedParentID := ""
+
+		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		assert.Equal(t, expectedParentID, actualParentID)
+		assert.Equal(t, expectedText, actualText)
+	})
+
+	t.Run("successful lookup, no parent", func(t *testing.T) {
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team)
+
+		messageID := model.NewId()
+		chatOrChannelID := model.NewId()
+
+		post := &model.Post{
+			UserId:    user.Id,
+			ChannelId: channel.Id,
+			Message:   "post message",
+		}
+		err := th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		err = th.p.GetStore().LinkPosts(storemodels.PostInfo{
+			MattermostID:        post.Id,
+			MSTeamsID:           messageID,
+			MSTeamsChannel:      chatOrChannelID,
+			MSTeamsLastUpdateAt: time.Now(),
 		})
-	}
+		require.NoError(t, err)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "messageReference",
+			Content:     `{"messageId": "` + messageID + `"}`,
+		}
+		text := "message"
+
+		expectedText := "message"
+		expectedParentID := post.Id
+
+		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		assert.Equal(t, expectedParentID, actualParentID)
+		assert.Equal(t, expectedText, actualText)
+	})
+
+	t.Run("successful lookup, with parent", func(t *testing.T) {
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team)
+
+		messageID := model.NewId()
+		chatOrChannelID := model.NewId()
+
+		rootPost := &model.Post{
+			UserId:    user.Id,
+			ChannelId: channel.Id,
+			Message:   "post message",
+		}
+		err := th.p.apiClient.Post.CreatePost(rootPost)
+		require.NoError(t, err)
+
+		post := &model.Post{
+			UserId:    user.Id,
+			ChannelId: channel.Id,
+			Message:   "post message",
+			RootId:    rootPost.Id,
+		}
+		err = th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		err = th.p.GetStore().LinkPosts(storemodels.PostInfo{
+			MattermostID:        post.Id,
+			MSTeamsID:           messageID,
+			MSTeamsChannel:      chatOrChannelID,
+			MSTeamsLastUpdateAt: time.Now(),
+		})
+		require.NoError(t, err)
+
+		attachment := clientmodels.Attachment{
+			ContentType: "messageReference",
+			Content:     `{"messageId": "` + messageID + `"}`,
+		}
+		text := "message"
+
+		expectedText := "message"
+		expectedParentID := rootPost.Id
+
+		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		assert.Equal(t, expectedParentID, actualParentID)
+		assert.Equal(t, expectedText, actualText)
+	})
 }
 
 func TestHandleAttachments(t *testing.T) {
