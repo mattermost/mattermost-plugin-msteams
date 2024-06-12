@@ -254,41 +254,49 @@ func TestGetClientForUser(t *testing.T) {
 }
 
 func TestGetClientForTeamsUser(t *testing.T) {
-	for _, test := range []struct {
-		Name          string
-		SetupStore    func(*storemocks.Store)
-		ExpectedError string
-	}{
-		{
-			Name: "GetClientForTeamsUser: Unable to get the token",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(nil, nil).Times(1)
-			},
-			ExpectedError: "not connected user",
-		},
-		{
-			Name: "GetClientForTeamsUser: Valid",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil).Times(1)
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			p := newTestPlugin(t)
-			test.SetupStore(p.store.(*storemocks.Store))
-			resp, err := p.GetClientForTeamsUser(testutils.GetTeamsUserID())
-			if test.ExpectedError != "" {
-				assert.Nil(resp)
-				assert.EqualError(err, test.ExpectedError)
-			} else {
-				assert.Nil(err)
-				assert.NotNil(resp)
-			}
-		})
-	}
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+
+	t.Run("no such user", func(t *testing.T) {
+		th.Reset(t)
+
+		client, err := th.p.GetClientForTeamsUser("unknown")
+		require.Error(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("user never connected", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+
+		client, err := th.p.GetClientForTeamsUser("t" + user.Id)
+		require.Error(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("user disconnected", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+		th.DisconnectUser(t, user.Id)
+
+		client, err := th.p.GetClientForTeamsUser("t" + user.Id)
+		require.Error(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("user connected", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		th.ConnectUser(t, user.Id)
+
+		client, err := th.p.GetClientForTeamsUser("t" + user.Id)
+		require.NoError(t, err)
+		assert.NotNil(t, client)
+	})
 }
 
 func TestSyncUsers(t *testing.T) {
