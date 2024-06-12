@@ -1128,19 +1128,34 @@ func TestConnectionStatus(t *testing.T) {
 	})
 }
 
-func TestEnableNotifications(t *testing.T) {
+func TestNotificationsWelcomeMessage(t *testing.T) {
 	th := setupTestHelper(t)
-	apiURL := th.pluginURL(t, "/enable-notifications")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User, req model.PostActionIntegrationRequest) *http.Response {
+	triggerWelcomeMessage := func(th *testHelper, t *testing.T, user1 *model.User) *model.Post {
+		// Arrange: Send the welcome message and retrieve it
+		err := th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
+		require.NoError(t, err)
+
+		dc, err := th.p.apiClient.Channel.GetDirect(user1.Id, th.p.botUserID)
+		require.NoError(t, err)
+
+		posts, err := th.p.apiClient.Post.GetPostsSince(dc.Id, time.Now().Add(-1*time.Minute).UnixMilli())
+		require.NoError(t, err)
+		require.Len(t, posts.Order, 1)
+		post := posts.Posts[posts.Order[0]]
+
+		return post
+	}
+
+	sendRequest := func(t *testing.T, user *model.User, url string, req model.PostActionIntegrationRequest) *http.Response {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
 		body, err := json.Marshal(req)
 		require.NoError(t, err)
 
-		request, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(body))
+		request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 		require.NoError(t, err)
 
 		request.Header.Set(model.HeaderAuth, client1.AuthType+" "+client1.AuthToken)
@@ -1154,22 +1169,43 @@ func TestEnableNotifications(t *testing.T) {
 		return response
 	}
 
-	t.Run("enable notifications", func(t *testing.T) {
+	t.Run("enable", func(t *testing.T) {
 		th.Reset(t)
 		user1 := th.SetupUser(t, team)
 
 		// Arrange: Send the welcome message and retrieve it
-		err := th.p.SendWelcomeMessageWithNotificationAction(user1.Id)
-		require.NoError(t, err)
-		dc, err := th.p.apiClient.Channel.GetDirect(user1.Id, th.p.botUserID)
-		require.NoError(t, err)
-		posts, err := th.p.apiClient.Post.GetPostsSince(dc.Id, time.Now().Add(-1*time.Minute).UnixMilli())
-		require.NoError(t, err)
-		require.Len(t, posts.Order, 1)
-		post := posts.Posts[posts.Order[0]]
+		post := triggerWelcomeMessage(th, t, user1)
 
 		// Act: make the request pretending the user clicked the button
-		response := sendRequest(t, user1, model.PostActionIntegrationRequest{
+		response := sendRequest(t, user1, th.pluginURL(t, "/enable-notifications"), model.PostActionIntegrationRequest{
+			UserId: user1.Id,
+			PostId: post.Id,
+		})
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+
+		// Assert: 1. we return an update for the post
+		var resp model.PostActionIntegrationResponse
+		err := json.NewDecoder(response.Body).Decode(&resp)
+		require.NoError(t, err)
+		assert.Len(t, resp.Update.Attachments(), 0)
+		assert.Equal(t, "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
+
+		// Assert: 2. the notification preference is updated
+		assert.True(t, th.p.getNotificationPreference(user1.Id))
+	})
+
+	t.Run("disable, notifications previously disabled", func(t *testing.T) {
+		th.Reset(t)
+		user1 := th.SetupUser(t, team)
+
+		err := th.p.setNotificationPreference(user1.Id, false)
+		require.NoError(t, err)
+
+		// Arrange: Send the welcome message and retrieve it
+		post := triggerWelcomeMessage(th, t, user1)
+
+		// Act: make the request pretending the user clicked the button
+		response := sendRequest(t, user1, th.pluginURL(t, "/disable-notifications"), model.PostActionIntegrationRequest{
 			UserId: user1.Id,
 			PostId: post.Id,
 		})
@@ -1180,15 +1216,37 @@ func TestEnableNotifications(t *testing.T) {
 		err = json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "You will now start receiving notifications from chats or group chats in Teams. To change this setting, open your user settings or run `/msteams notifications`", resp.Update.Message)
+		assert.Equal(t, "You'll stop receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
 
-		// Assert: 2. the notification preference is updated
-		pref, appErr := th.p.API.GetPreferenceForUser(
-			user1.Id,
-			PreferenceCategoryPlugin,
-			storemodels.PreferenceNameNotification,
-		)
-		require.Nil(t, appErr)
-		assert.EqualValues(t, storemodels.PreferenceValueNotificationOn, pref.Value)
+		// Assert: 2. the notification preference is disabled
+		assert.False(t, th.p.getNotificationPreference(user1.Id))
+	})
+
+	t.Run("disable, notifications previously enabled", func(t *testing.T) {
+		th.Reset(t)
+		user1 := th.SetupUser(t, team)
+
+		err := th.p.setNotificationPreference(user1.Id, true)
+		require.NoError(t, err)
+
+		// Arrange: Send the welcome message and retrieve it
+		post := triggerWelcomeMessage(th, t, user1)
+
+		// Act: make the request pretending the user clicked the button
+		response := sendRequest(t, user1, th.pluginURL(t, "/disable-notifications"), model.PostActionIntegrationRequest{
+			UserId: user1.Id,
+			PostId: post.Id,
+		})
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+
+		// Assert: 1. we return an update for the post
+		var resp model.PostActionIntegrationResponse
+		err = json.NewDecoder(response.Body).Decode(&resp)
+		require.NoError(t, err)
+		assert.Len(t, resp.Update.Attachments(), 0)
+		assert.Equal(t, "You'll stop receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
+
+		// Assert: 2. the notification preference is disabled
+		assert.False(t, th.p.getNotificationPreference(user1.Id))
 	})
 }

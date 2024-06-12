@@ -37,10 +37,17 @@ func (p *Plugin) setNotificationPreference(userID string, enable bool) error {
 }
 
 func (p *Plugin) updatePreferenceForUser(userID string, name string, value string) *model.AppError {
-	return p.API.UpdatePreferencesForUser(userID, []model.Preference{{
+	appErr := p.API.UpdatePreferencesForUser(userID, []model.Preference{{
 		UserId:   userID,
 		Category: PreferenceCategoryPlugin,
 		Name:     name,
 		Value:    value,
 	}})
+	if appErr != nil {
+		return appErr
+	}
+
+	p.apiClient.Log.Info("User changed preference", "user_id", userID, "category", PreferenceCategoryPlugin, "name", name, "value", value)
+
+	return nil
 }

@@ -42,7 +42,7 @@ endif
 
 # ====================================================================================
 # Used for semver bumping
-PROTECTED_BRANCH := master
+PROTECTED_BRANCH := main
 APP_NAME    := $(shell basename -s .git `git config --get remote.origin.url`)
 CURRENT_VERSION := $(shell git describe --abbrev=0 --tags)
 VERSION_PARTS := $(subst ., ,$(subst v,,$(subst -rc, ,$(CURRENT_VERSION))))
@@ -53,8 +53,8 @@ RC := $(shell echo $(CURRENT_VERSION) | grep -oE 'rc[0-9]+' | sed 's/rc//')
 # Check if current branch is protected
 define check_protected_branch
 	@current_branch=$$(git rev-parse --abbrev-ref HEAD); \
-	if ! echo "$(PROTECTED_BRANCH)" | grep -wq "$$current_branch"; then \
-		echo "Error: Tagging is only allowed from $(PROTECTED_BRANCH) branch. You are on $$current_branch branch."; \
+	if ! echo "$(PROTECTED_BRANCH)" | grep -wq "$$current_branch" && ! echo "$$current_branch" | grep -q "^release"; then \
+		echo "Error: Tagging is only allowed from $(PROTECTED_BRANCH) or release branches. You are on $$current_branch branch."; \
 		exit 1; \
 	fi
 endef

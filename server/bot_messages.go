@@ -26,6 +26,7 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	// Force posts from the bot to render the user profile icon each time instead of collapsing
 	// adjacent posts. This helps draw attention to each individual post.
 	post.AddProp("from_webhook", "true")
+	post.AddProp("use_user_icon", "true")
 
 	return p.apiClient.Post.CreatePost(post)
 }
@@ -102,7 +103,7 @@ func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 	msg := []string{
 		"**Notifications from chats and group chats**",
-		"With this feature enabled, you will get notified by the MS Teams bot whenever you receive a message from a chat or group chat in Teams.",
+		"When you enable this feature, you'll be notified here in Mattermost by the MS Teams bot whenever you receive a message from a chat or group chat from Microsoft Teams!",
 		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
 	}
 
@@ -116,15 +117,15 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 							Integration: &model.PostActionIntegration{
 								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
 							},
-							Name:  "Enable Notifications",
+							Name:  "Enable notifications",
 							Style: "primary",
 							Type:  model.PostActionTypeButton,
 						},
 						{
 							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/dismiss-notifications", p.GetRelativeURL()),
+								URL: fmt.Sprintf("%s/disable-notifications", p.GetRelativeURL()),
 							},
-							Name:  "Dismiss",
+							Name:  "Disable",
 							Style: "default",
 							Type:  model.PostActionTypeButton,
 						},
@@ -135,8 +136,13 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 	}
 }
 
-// notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) {
+// formatNotificationMessage formats the message about a notification of a chat received on Teams.
+func formatNotificationMessage(actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) string {
+	message = strings.TrimSpace(message)
+	if message == "" && attachmentCount == 0 {
+		return ""
+	}
+
 	var preamble string
 
 	var chatTopicDesc string
@@ -145,7 +151,7 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 	}
 
 	if chatSize <= 1 {
-		return
+		return ""
 	} else if chatSize == 2 {
 		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
 	} else if chatSize == 3 {
@@ -153,23 +159,38 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 	} else {
 		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat%s](%s):", actorDisplayName, chatSize-2, chatTopicDesc, chatLink)
 	}
+	preamble += "\n"
 
-	message = "> " + strings.ReplaceAll(message, "\n", "\n>")
+	if message != "" {
+		message = "> " + strings.ReplaceAll(message, "\n", "\n> ")
+	}
 
 	attachmentsNotice := ""
 	if attachmentCount > 0 {
+		if len(message) > 0 {
+			attachmentsNotice += "\n"
+		}
 		attachmentsNotice += "\n*"
 		if attachmentCount == 1 {
 			attachmentsNotice += "This message was originally sent with one attachment."
 		} else {
 			attachmentsNotice += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
 		}
-		attachmentsNotice += "*\n"
+		attachmentsNotice += "*"
 	}
 
-	formattedMessage := fmt.Sprintf(`%s
-%s
-%s`, preamble, message, attachmentsNotice)
+	formattedMessage := fmt.Sprintf(`%s%s%s`, preamble, message, attachmentsNotice)
+
+	return formattedMessage
+}
+
+// notifyMessage sends the given receipient a notification of a chat received on Teams.
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) {
+	formattedMessage := formatNotificationMessage(actorDisplayName, chatTopic, chatSize, chatLink, message, attachmentCount)
+
+	if formattedMessage == "" {
+		return
+	}
 
 	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
