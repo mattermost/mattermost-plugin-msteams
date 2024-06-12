@@ -96,6 +96,17 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	return api
 }
 
+// returnJSON writes the given data as json with the provided httpStatus
+func (a *API) returnJSON(w http.ResponseWriter, data any) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		a.p.API.LogWarn("Failed to write to http.ResponseWriter", "error", err.Error())
+		return
+	}
+}
+
 func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
 	if err != nil {
@@ -265,16 +276,14 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the client for user", "user_id", userID, "error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
+		a.returnJSON(w, out)
 		return
 	}
 
 	teams, err := client.ListTeams()
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the MS Teams teams", "error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
+		a.returnJSON(w, out)
 		return
 	}
 
@@ -288,8 +297,7 @@ func (a *API) autocompleteTeams(w http.ResponseWriter, r *http.Request) {
 		out = append(out, s)
 	}
 
-	data, _ := json.Marshal(out)
-	_, _ = w.Write(data)
+	a.returnJSON(w, out)
 }
 
 func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
@@ -297,16 +305,14 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	args := strings.Fields(r.URL.Query().Get("parsed"))
 	if len(args) < 3 {
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
+		a.returnJSON(w, out)
 		return
 	}
 
 	client, err := a.p.GetClientForUser(userID)
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the client for user", "user_id", userID, "error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
+		a.returnJSON(w, out)
 		return
 	}
 
@@ -314,8 +320,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 	channels, err := client.ListChannels(teamID)
 	if err != nil {
 		a.p.API.LogWarn("Unable to get the channels for MS Teams team", "team_id", teamID, "error", err.Error())
-		data, _ := json.Marshal(out)
-		_, _ = w.Write(data)
+		a.returnJSON(w, out)
 		return
 	}
 
@@ -328,8 +333,7 @@ func (a *API) autocompleteChannels(w http.ResponseWriter, r *http.Request) {
 
 		out = append(out, s)
 	}
-	data, _ := json.Marshal(out)
-	_, _ = w.Write(data)
+	a.returnJSON(w, out)
 }
 
 func (a *API) connect(w http.ResponseWriter, r *http.Request) {
@@ -726,22 +730,7 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	b, err := json.Marshal(connectedUsersList)
-	if err != nil {
-		a.p.API.LogWarn("Failed to marshal JSON response", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("[]"))
-		return
-	}
-
-	if _, err = w.Write(b); err != nil {
-		a.p.API.LogWarn("Error while writing response", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	a.returnJSON(w, connectedUsersList)
 }
 
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
@@ -1064,14 +1053,7 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		UserSendingMessages:   sending,
 	}
 
-	data, err := json.Marshal(siteStats)
-	if err != nil {
-		a.p.API.LogWarn("Failed to marshal site stats", "error", err.Error())
-		http.Error(w, "unable to get site stats", http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(data)
+	a.returnJSON(w, siteStats)
 }
 
 func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
