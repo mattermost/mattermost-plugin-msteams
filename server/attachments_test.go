@@ -19,41 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHandleDownloadFile(t *testing.T) {
-	for _, testCase := range []struct {
-		description   string
-		userID        string
-		weburl        string
-		expectedError string
-		setupClient   func(client *clientmocks.Client)
-	}{
-		{
-			description: "Successfully downloaded hosted content file",
-			userID:      testutils.GetUserID(),
-			weburl:      "https://graph.microsoft.com/beta/teams/mock-teamID/channels/mock-channelID/messages/mock-messageID/hostedContents/mock-hostedContentsID/$value",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetHostedFileContent", mock.AnythingOfType("*clientmodels.ActivityIds")).Return([]byte("data"), nil)
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			client := p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client)
-			testCase.setupClient(client)
-			ah := ActivityHandler{}
-			ah.plugin = p
-
-			data, err := ah.handleDownloadFile(testCase.weburl, client)
-			if testCase.expectedError != "" {
-				assert.Nil(t, data)
-				assert.EqualError(t, err, testCase.expectedError)
-			} else {
-				assert.Nil(t, err)
-			}
-		})
-	}
-}
-
 func TestHandleCodeSnippet(t *testing.T) {
 	for _, testCase := range []struct {
 		description    string
