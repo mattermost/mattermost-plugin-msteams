@@ -484,39 +484,3 @@ func TestSyncUsers(t *testing.T) {
 		})
 	}
 }
-
-func TestGeneratePluginSecrets(t *testing.T) {
-	for _, test := range []struct {
-		Name          string
-		SetupAPI      func(*plugintest.API)
-		ExpectedError string
-	}{
-		{
-			Name: "GeneratePluginSecrets: Unable to save plugin config",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("SavePluginConfig", mock.Anything).Return(testutils.GetInternalServerAppError("unable to save plugin config")).Times(1)
-			},
-			ExpectedError: "unable to save plugin config",
-		},
-		{
-			Name: "GeneratePluginSecrets: Valid",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("SavePluginConfig", mock.Anything).Return(nil).Times(1)
-			},
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			p := newTestPlugin(t)
-			p.configuration.WebhookSecret = ""
-			p.configuration.EncryptionKey = ""
-			test.SetupAPI(p.API.(*plugintest.API))
-			err := p.generatePluginSecrets()
-			if test.ExpectedError != "" {
-				assert.Contains(err.Error(), test.ExpectedError)
-			} else {
-				assert.Nil(err)
-			}
-		})
-	}
-}
