@@ -111,14 +111,9 @@ func TestHandleMessageReference(t *testing.T) {
 			ContentType: "messageReference",
 			Content:     "Invalid JSON",
 		}
-		text := "message"
 
-		expectedText := "message"
-		expectedParentID := ""
-
-		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
-		assert.Equal(t, expectedParentID, actualParentID)
-		assert.Equal(t, expectedText, actualText)
+		actualParentID := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID)
+		assert.Empty(t, actualParentID)
 	})
 
 	t.Run("unknown message", func(t *testing.T) {
@@ -129,14 +124,9 @@ func TestHandleMessageReference(t *testing.T) {
 			ContentType: "messageReference",
 			Content:     `{"messageId": "` + messageID + `"}`,
 		}
-		text := "message"
 
-		expectedText := "message"
-		expectedParentID := ""
-
-		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
-		assert.Equal(t, expectedParentID, actualParentID)
-		assert.Equal(t, expectedText, actualText)
+		actualParentID := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID)
+		assert.Empty(t, actualParentID)
 	})
 
 	t.Run("successful lookup, no parent", func(t *testing.T) {
@@ -168,14 +158,11 @@ func TestHandleMessageReference(t *testing.T) {
 			ContentType: "messageReference",
 			Content:     `{"messageId": "` + messageID + `"}`,
 		}
-		text := "message"
 
-		expectedText := "message"
 		expectedParentID := post.Id
 
-		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		actualParentID := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID)
 		assert.Equal(t, expectedParentID, actualParentID)
-		assert.Equal(t, expectedText, actualText)
 	})
 
 	t.Run("successful lookup, with parent", func(t *testing.T) {
@@ -216,14 +203,11 @@ func TestHandleMessageReference(t *testing.T) {
 			ContentType: "messageReference",
 			Content:     `{"messageId": "` + messageID + `"}`,
 		}
-		text := "message"
 
-		expectedText := "message"
 		expectedParentID := rootPost.Id
 
-		actualParentID, actualText := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID, text)
+		actualParentID := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID)
 		assert.Equal(t, expectedParentID, actualParentID)
-		assert.Equal(t, expectedText, actualText)
 	})
 }
 
