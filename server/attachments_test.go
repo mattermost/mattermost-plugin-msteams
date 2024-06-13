@@ -1,21 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	mocksMetrics "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
-	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -212,210 +207,415 @@ func TestHandleMessageReference(t *testing.T) {
 }
 
 func TestHandleAttachments(t *testing.T) {
-	for _, testCase := range []struct {
-		description                    string
-		setupAPI                       func(mockAPI *plugintest.API)
-		setupClient                    func(*clientmocks.Client)
-		setupMetrics                   func(*mocksMetrics.Metrics)
-		setupStore                     func(store *storemocks.Store)
-		attachments                    []clientmodels.Attachment
-		expectedText                   string
-		expectedAttachmentIDsCount     int
-		expectedParentID               string
-		expectedSkippedFileAttachments int
-		expectedError                  bool
-		fileIDs                        []string
-	}{
-		{
-			description: "Successfully handled attachments",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{
-					Id: testutils.GetID(),
-				}, nil)
-			},
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
-				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
+
+	assertFile := func(th *testHelper, t *testing.T, expectedName string, expectedBytes []byte, fileID string) {
+		t.Helper()
+
+		fileInfo, err := th.p.apiClient.File.GetInfo(fileID)
+		require.NoError(t, err)
+		assert.Equal(t, expectedName, fileInfo.Name)
+
+		fileReader, err := th.p.apiClient.File.Get(fileID)
+		require.NoError(t, err)
+		fileBytes, err := io.ReadAll(fileReader)
+		require.NoError(t, err)
+		assert.Equal(t, expectedBytes, fileBytes)
+	}
+
+	t.Run("single file attachment, no existing file id", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
 			},
-			expectedText:               "mock-text",
-			expectedAttachmentIDsCount: 1,
-		},
-		{
-			description: "Error uploading the file",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(nil, &model.AppError{Message: "error uploading the file"})
-			},
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
-				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonEmptyFileID, false).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
+
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
+		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Once()
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 1) {
+			assertFile(th, t, "mock-name", []byte("abcde"), attachmentIDs[0])
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("single file attachment, existing file id", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		existingFileInfo, err := th.p.apiClient.File.Upload(bytes.NewReader([]byte("12345")), "mock-name", channel.Id)
+		require.NoError(t, err)
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
 				{
 					Name: "mock-name",
 				},
 			},
-			expectedText:                   "mock-text",
-			expectedSkippedFileAttachments: 1,
-		},
-		{
-			description: "Number of attachments are greater than 10",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), mock.AnythingOfType("string")).Return(&model.FileInfo{Id: testutils.GetID()}, nil).Times(10)
-			},
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(10)
-				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Times(10)
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(10)
-				mockmetrics.On("ObserveFiles", metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, false, int64(2)).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
-				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-			},
-			expectedText:                   "mock-text",
-			expectedAttachmentIDsCount:     10,
-			expectedSkippedFileAttachments: 2,
-		},
-		{
-			description: "Attachment with existing fileID",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
-			},
-			setupClient:  func(client *clientmocks.Client) {},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
-			setupStore:   func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{
+			existingFileInfo.Id,
+		}
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 1) {
+			assertFile(th, t, "mock-name", []byte("12345"), attachmentIDs[0])
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("multiple file attachments, no existing file id", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mockFile.Name.txt",
-				},
-			},
-			expectedAttachmentIDsCount: 1,
-			expectedText:               "mock-text",
-			fileIDs:                    []string{"testFileId"},
-		},
-		{
-			description: "No attachment with existing fileID",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
-			},
-			setupClient:                func(client *clientmocks.Client) {},
-			setupMetrics:               func(mockmetrics *mocksMetrics.Metrics) {},
-			setupStore:                 func(store *storemocks.Store) {},
-			attachments:                []clientmodels.Attachment{},
-			expectedAttachmentIDsCount: 0,
-			expectedText:               "mock-text",
-			fileIDs:                    []string{"testFileId"},
-		},
-		{
-			description: "Attachment with new and existing fileID",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{
-					Id: testutils.GetID(),
-				}, nil).Once()
-			},
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
-				client.On("GetFileContent", "mockDownloadURL").Return([]byte{}, nil).Once()
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-				mockmetrics.On("ObserveFile", metrics.ActionCreated, metrics.ActionSourceMSTeams, "", false).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
-				{
-					Name: "mock-name",
+					Name: "mock-name-1",
 				},
 				{
-					Name: "mockFile.Name.txt",
+					Name: "mock-name-2",
+				},
+				{
+					Name: "mock-name-3",
 				},
 			},
-			expectedText:               "mock-text",
-			expectedAttachmentIDsCount: 2,
-			fileIDs:                    []string{"testFileId"},
-		},
-		{
-			description: "Attachment type code snippet",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{}, nil)
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
+
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(3)
+		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(3)
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 3) {
+			assertFile(th, t, "mock-name-1", []byte("abcde"), attachmentIDs[0])
+			assertFile(th, t, "mock-name-2", []byte("abcde"), attachmentIDs[1])
+			assertFile(th, t, "mock-name-3", []byte("abcde"), attachmentIDs[2])
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("multiple file attachments, some existing file ids", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		existingFileInfo1, err := th.p.apiClient.File.Upload(bytes.NewReader([]byte("12345")), "mock-name-1", channel.Id)
+		require.NoError(t, err)
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
+				{
+					Name: "mock-name-1",
+				},
+				{
+					Name: "mock-name-2",
+				},
+				{
+					Name: "mock-name-3",
+				},
 			},
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{
+			existingFileInfo1.Id,
+		}
+
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(2)
+		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(2)
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 3) {
+			assertFile(th, t, "mock-name-1", []byte("12345"), attachmentIDs[0])
+			assertFile(th, t, "mock-name-2", []byte("abcde"), attachmentIDs[1])
+			assertFile(th, t, "mock-name-3", []byte("abcde"), attachmentIDs[2])
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("multiple file attachments, all existing file ids", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		existingFileInfo1, err := th.p.apiClient.File.Upload(bytes.NewReader([]byte("12345")), "mock-name-1", channel.Id)
+		require.NoError(t, err)
+
+		existingFileInfo2, err := th.p.apiClient.File.Upload(bytes.NewReader([]byte("12345")), "mock-name-2", channel.Id)
+		require.NoError(t, err)
+
+		existingFileInfo3, err := th.p.apiClient.File.Upload(bytes.NewReader([]byte("12345")), "mock-name-3", channel.Id)
+		require.NoError(t, err)
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
+				{
+					Name: "mock-name-1",
+				},
+				{
+					Name: "mock-name-2",
+				},
+				{
+					Name: "mock-name-3",
+				},
 			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
-			setupStore:   func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{
+			existingFileInfo1.Id,
+			existingFileInfo2.Id,
+			existingFileInfo3.Id,
+		}
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 3) {
+			assertFile(th, t, "mock-name-1", []byte("12345"), attachmentIDs[0])
+			assertFile(th, t, "mock-name-2", []byte("12345"), attachmentIDs[1])
+			assertFile(th, t, "mock-name-3", []byte("12345"), attachmentIDs[2])
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("more than 10 attachments", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
+				{Name: "mock-name-1"},
+				{Name: "mock-name-2"},
+				{Name: "mock-name-3"},
+				{Name: "mock-name-4"},
+				{Name: "mock-name-5"},
+				{Name: "mock-name-6"},
+				{Name: "mock-name-7"},
+				{Name: "mock-name-8"},
+				{Name: "mock-name-9"},
+				{Name: "mock-name-10"},
+				{Name: "mock-name-11"},
+				{Name: "mock-name-12"},
+			},
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
+
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(10)
+		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(10)
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+		assert.Equal(t, "message", newText)
+		if assert.Len(t, attachmentIDs, 10) {
+			for i := 0; i < 10; i++ {
+				assertFile(th, t, fmt.Sprintf("mock-name-%d", i+1), []byte("abcde"), attachmentIDs[i])
+			}
+		}
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 2, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("code snippet", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team, WithMembers(user))
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
 				{
 					Name:        "mock-name",
 					ContentType: "application/vnd.microsoft.card.codesnippet",
 					Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 				},
 			},
-			expectedText: "mock-text\n```go\nsnippet content\n```\n",
-		},
-		{
-			description: "Attachment type message reference",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{}, nil)
-				mockAPI.On("GetPost", testutils.GetUserID()).Return(&model.Post{
-					Id: testutils.GetID(),
-				}, nil)
-			},
-			setupClient:  func(client *clientmocks.Client) {},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", fmt.Sprintf("%s%s", testutils.GetChatID(), testutils.GetChannelID()), "mock-ID").Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetUserID(),
-				}, nil)
-			},
-			attachments: []clientmodels.Attachment{{
-				Name:        "mock-name",
-				ContentType: "messageReference",
-				Content:     `{"messageId":"mock-ID"}`,
-			}},
-			expectedText:     "mock-text",
-			expectedParentID: testutils.GetID(),
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
+			ChatID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
 
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			testCase.setupStore(p.store.(*storemocks.Store))
-			testCase.setupClient(p.msteamsAppClient.(*clientmocks.Client))
-			testCase.setupMetrics(p.metricsService.(*mocksMetrics.Metrics))
+		th.appClientMock.On("GetCodeSnippet", "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value").Return("snippet content", nil)
 
-			ah := ActivityHandler{}
-			ah.plugin = p
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
 
-			attachments := &clientmodels.Message{
-				Attachments: testCase.attachments,
-				ChatID:      testutils.GetChatID(),
-				ChannelID:   testutils.GetChannelID(),
-			}
+		assert.Equal(t, `message
+`+"```"+`go
+snippet content
+`+"```"+`
+`, newText)
+		assert.Len(t, attachmentIDs, 0)
+		assert.Equal(t, "", parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
 
-			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
-			assert.Equal(t, testCase.expectedParentID, parentID)
-			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
-			assert.Equal(t, testCase.expectedText, newText)
-			assert.Equal(t, testCase.expectedSkippedFileAttachments, skippedFileAttachments)
-			assert.Equal(t, testCase.expectedError, errorsFound)
+	t.Run("message reference", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team)
+
+		messageID := model.NewId()
+		chatOrChannelID := model.NewId()
+
+		rootPost := &model.Post{
+			UserId:    user.Id,
+			ChannelId: channel.Id,
+			Message:   "post message",
+		}
+		err := th.p.apiClient.Post.CreatePost(rootPost)
+		require.NoError(t, err)
+
+		post := &model.Post{
+			UserId:    user.Id,
+			ChannelId: channel.Id,
+			Message:   "post message",
+			RootId:    rootPost.Id,
+		}
+		err = th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		err = th.p.GetStore().LinkPosts(storemodels.PostInfo{
+			MattermostID:        post.Id,
+			MSTeamsID:           messageID,
+			MSTeamsChannel:      chatOrChannelID,
+			MSTeamsLastUpdateAt: time.Now(),
 		})
-	}
+		require.NoError(t, err)
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
+				{
+					ContentType: "messageReference",
+					Content:     `{"messageId": "` + messageID + `"}`,
+				},
+			},
+			ChatID:    "",
+			ChannelID: chatOrChannelID,
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+
+		assert.Equal(t, "message", newText)
+		assert.Len(t, attachmentIDs, 0)
+		assert.Equal(t, rootPost.Id, parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
 }
