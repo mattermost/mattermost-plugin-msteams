@@ -601,8 +601,25 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if mmUserID == a.p.GetBotUserID() {
+		var userID string
+		userID, err = a.p.GetStore().TeamsToMattermostUserID(msteamsUser.ID)
+		if err == nil && userID != "" && userID != mmUserID {
+			if err = a.p.GetStore().DeleteUserInfo(userID); err != nil {
+				a.p.GetAPI().LogWarn("Unable to delete user info to connect the bot", "user_id", userID, "error", err.Error())
+			}
+			if user, appErr := a.p.GetAPI().GetUser(userID); appErr == nil {
+				if a.p.IsRemoteUser(user) {
+					if appErr := a.p.GetAPI().UpdateUserActive(userID, false); appErr != nil {
+						a.p.GetAPI().LogWarn("Unable to deactivate synthetic user", "user_id", userID, "error", appErr.Error())
+					}
+				}
+			}
+		}
+	}
+
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
-		a.p.API.LogWarn("Unable to store the token", "error", err.Error())
+		a.p.API.LogWarn("Unable to store the token", "error", err.Error(), "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
