@@ -29,7 +29,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	setupForChat := func(t *testing.T, sync bool) (*model.Channel, *model.Post, string, string) {
 		t.Helper()
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = sync
+			c.SyncChats = sync
 		})
 
 		th.ConnectUser(t, user1.Id)
@@ -92,39 +92,12 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		return channel, post, chatID, teamsMessageID
 	}
 
-	t.Run("sync reactions disabled", func(t *testing.T) {
-		th.Reset(t)
-		channel, post, _, _ := setupForChat(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = false
-		})
-
-		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
-			UserId:    user1.Id,
-			PostId:    post.Id,
-			EmojiName: "+1",
-			ChannelId: channel.Id,
-		})
-		require.Nil(t, err)
-
-		assert.Never(t, func() bool {
-			return th.getRelativeCounter(t,
-				"msteams_connect_events_reactions_total",
-				withLabel("action", metrics.ReactionSetAction),
-				withLabel("source", metrics.ActionSourceMattermost),
-				withLabel("is_direct", "true"),
-			) > 0
-		}, 1*time.Second, 250*time.Millisecond)
-	})
-
 	t.Run("no corresponding Teams post", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
-			c.SyncReactions = true
+			c.SyncChats = true
 		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
@@ -150,7 +123,7 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		channel, post, _, _ := setupForChat(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 		})
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
@@ -275,10 +248,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, false)
 
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
-
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
 			UserId:    user1.Id,
 			PostId:    post.Id,
@@ -300,10 +269,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	t.Run("channel message, no longer linked", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChannel(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
 
 		// Unlink before setting reaction, but after sending the post.
 		err := th.p.store.DeleteLinkByChannelID(channel.Id)
@@ -331,10 +296,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
-
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(nil, fmt.Errorf("mock failure")).Times(1)
 
 		_, _, err := client1.SaveReaction(context.TODO(), &model.Reaction{
@@ -358,10 +319,6 @@ func TestReactionHasBeenAdded(t *testing.T) {
 	t.Run("channel message", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
-		})
 
 		th.clientMock.On("SetReaction", channelLink.MSTeamsTeam, channelLink.MSTeamsChannel, "", teamsMessageID, "t"+user1.Id, "👍").Return(&clientmodels.Message{
 			ID:           teamsMessageID,
@@ -398,8 +355,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 	setupForChat := func(t *testing.T, sync bool) (*model.Channel, *model.Post, string, string) {
 		t.Helper()
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = sync
-			c.SyncDirectMessages = sync
+			c.SyncChats = sync
 		})
 
 		th.ConnectUser(t, user1.Id)
@@ -489,39 +445,12 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		return channel, post, chatID, teamsMessageID
 	}
 
-	t.Run("sync reactions disabled", func(t *testing.T) {
-		th.Reset(t)
-		channel, post, _, _ := setupForChat(t, true)
-
-		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = false
-		})
-
-		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
-			UserId:    user1.Id,
-			PostId:    post.Id,
-			EmojiName: "+1",
-			ChannelId: channel.Id,
-		})
-		require.Nil(t, err)
-
-		assert.Never(t, func() bool {
-			return th.getRelativeCounter(t,
-				"msteams_connect_events_reactions_total",
-				withLabel("action", metrics.ReactionUnsetAction),
-				withLabel("source", metrics.ActionSourceMattermost),
-				withLabel("is_direct", "true"),
-			) > 0
-		}, 1*time.Second, 250*time.Millisecond)
-	})
-
 	t.Run("no corresponding Teams post", func(t *testing.T) {
 		th.Reset(t)
 		channel, post, _, _ := setupForChat(t, false)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
-			c.SyncReactions = true
+			c.SyncChats = true
 		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
@@ -547,7 +476,7 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, _, _ := setupForChat(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
@@ -701,7 +630,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 
 		th.setPluginConfiguration(t, func(c *configuration) {
 			c.SyncLinkedChannels = false
-			c.SyncReactions = true
 		})
 
 		_, err := client1.DeleteReaction(context.TODO(), &model.Reaction{
@@ -727,7 +655,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, _, _ := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 
@@ -757,7 +684,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 
@@ -786,7 +712,6 @@ func TestReactionHasBeenRemoved(t *testing.T) {
 		channel, post, channelLink, teamsMessageID := setupForChannel(t, true)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncReactions = true
 			c.SyncLinkedChannels = true
 		})
 
@@ -888,8 +813,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 		type parameters struct {
 			SenderConnected    bool
 			SelectiveSync      bool
-			SyncDirectMessages bool
-			SyncGroupMessages  bool
+			SyncChats          bool
 			SyncLinkedChannels bool
 		}
 		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
@@ -897,8 +821,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 
 			th.setPluginConfiguration(t, func(c *configuration) {
 				c.SelectiveSync = params.SelectiveSync
-				c.SyncDirectMessages = params.SyncDirectMessages
-				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncChats = params.SyncChats
 				c.SyncLinkedChannels = params.SyncLinkedChannels
 			})
 
@@ -916,7 +839,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 					th.ConnectUser(t, user1.Id)
 				}
 
-				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+				if params.SenderConnected && params.SyncChats && !params.SelectiveSync {
 					expectChat(th, t, user1, user1)
 				}
 
@@ -927,7 +850,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				if params.SenderConnected && params.SyncDirectMessages && !params.SelectiveSync {
+				if params.SenderConnected && params.SyncChats && !params.SelectiveSync {
 					expectChatSync(t)
 				} else {
 					expectNoChatSync(t)
@@ -949,7 +872,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 					th.ConnectUser(t, user1.Id)
 				}
 
-				if params.SenderConnected && params.SyncDirectMessages {
+				if params.SenderConnected && params.SyncChats {
 					expectChat(th, t, user1, user2)
 				}
 
@@ -960,7 +883,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				if params.SenderConnected && params.SyncDirectMessages {
+				if params.SenderConnected && params.SyncChats {
 					expectChatSync(t)
 				} else {
 					expectNoChatSync(t)
@@ -1008,7 +931,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 					th.ConnectUser(t, user1.Id)
 				}
 
-				if params.SenderConnected && params.SyncGroupMessages {
+				if params.SenderConnected && params.SyncChats {
 					expectChat(th, t, user1, user2, user3)
 				}
 
@@ -1019,7 +942,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				if params.SenderConnected && params.SyncGroupMessages {
+				if params.SenderConnected && params.SyncChats {
 					expectChatSync(t)
 				} else {
 					expectNoChatSync(t)
@@ -1074,7 +997,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 				err = th.p.store.SetUserInfo(user2.Id, "t"+user2.Id, nil)
 				require.NoError(t, err)
 
-				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+				if params.SenderConnected && params.SyncChats && !params.SelectiveSync {
 					expectChat(th, t, user1, user2, user3)
 				}
 
@@ -1085,7 +1008,7 @@ func TestMessageHasBeenPosted(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				if params.SenderConnected && params.SyncGroupMessages && !params.SelectiveSync {
+				if params.SenderConnected && params.SyncChats && !params.SelectiveSync {
 					expectChatSync(t)
 				} else {
 					expectNoChatSync(t)
@@ -1155,7 +1078,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		senderUser := users[0]
 
 		var chatID, teamsMessageID string
-		if th.p.getConfiguration().SyncDirectMessages {
+		if th.p.getConfiguration().SyncChats {
 			chatID = model.NewId()
 			th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(&clientmodels.Chat{
 				ID:      chatID,
@@ -1183,7 +1106,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		if th.p.getConfiguration().SyncDirectMessages {
+		if th.p.getConfiguration().SyncChats {
 			assert.Eventually(t, func() bool {
 				return th.getRelativeCounter(t,
 					"msteams_connect_events_messages_total",
@@ -1201,7 +1124,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1211,7 +1134,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 		})
 
 		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(nil, errors.New("not found")).Once()
@@ -1234,7 +1157,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1244,7 +1167,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 		})
 
 		chatID := model.NewId()
@@ -1271,7 +1194,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 
@@ -1281,7 +1204,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1303,7 +1226,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 
@@ -1332,7 +1255,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 
@@ -1371,8 +1294,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false // used to signal setupChat for now
-			c.SyncGroupMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1383,7 +1305,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2, user3)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncGroupMessages = true
+			c.SyncChats = true
 		})
 
 		th.clientMock.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(nil, errors.New("not found")).Once()
@@ -1406,8 +1328,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false // used to signal setupChat for now
-			c.SyncGroupMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1418,7 +1339,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2, user3)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncGroupMessages = true
+			c.SyncChats = true
 		})
 
 		chatID := model.NewId()
@@ -1445,8 +1366,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true // used to signal setupChat for now
-			c.SyncGroupMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 
@@ -1456,8 +1376,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		post, _, _ := setupChat(th, t, user1, user2)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = false // used to signal setupChat for now
-			c.SyncGroupMessages = false
+			c.SyncChats = false
 			c.SelectiveSync = false
 		})
 
@@ -1479,8 +1398,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true // used to signal setupChat for now
-			c.SyncGroupMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 
@@ -1509,8 +1427,7 @@ func TestMessageHasBeenUpdated(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfiguration(t, func(c *configuration) {
-			c.SyncDirectMessages = true // used to signal setupChat for now
-			c.SyncGroupMessages = true
+			c.SyncChats = true
 			c.SelectiveSync = false
 		})
 

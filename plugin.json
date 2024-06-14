@@ -53,18 +53,6 @@
                 "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
             },
             {
-                "key": "certificatePublic",
-                "display_name": "Certificate Public",
-                "type": "longtext",
-                "help_text": "Certificate public part"
-            },
-            {
-                "key": "certificateKey",
-                "display_name": "Certificate Key",
-                "type": "longtext",
-                "help_text": "Certificate private key"
-            },
-            {
                 "key": "evaluationAPI",
                 "display_name": "Use the evaluation API pay model",
                 "type": "bool",
@@ -89,28 +77,7 @@
                 "key": "syncNotifications",
                 "display_name": "Sync notifications",
                 "type": "bool",
-                "help_text": "Sync notifications for any connected user. Enabling this setting disables syncing of direct messages and group messages.",
-                "default": false
-            },
-            {
-                "key": "syncDirectMessages",
-                "display_name": "Sync direct messages",
-                "type": "bool",
-                "help_text": "Sync direct messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
-                "default": false
-            },
-            {
-                "key": "syncGroupMessages",
-                "display_name": "Sync group messages",
-                "type": "bool",
-                "help_text": "Sync group messages where any of the user in the conversation is a real Mattermost user connected to MS Teams account",
-                "default": false
-            },
-            {
-                "key": "selectiveSync",
-                "display_name": "Selective sync",
-                "type": "bool",
-                "help_text": "Only sync chats and group chats to remote users. This avoids dual notifications when two connected Mattermost users are part of a conversation.",
+                "help_text": "Sync notifications of chat messages for any connected user that enables the feature.",
                 "default": false
             },
             {
@@ -119,27 +86,6 @@
                 "type": "bool",
                 "help_text": "Sync messages from channels linked between Mattermost and MS Teams",
                 "default": false
-            },
-            {
-                "key": "syncReactions",
-                "display_name": "Sync reactions",
-                "type": "bool",
-                "help_text": "Sync reactions on messages",
-                "default": false
-            },
-            {
-                "key": "syncFileAttachments",
-                "display_name": "Sync file attachments",
-                "type": "bool",
-                "help_text": "Sync file attachments on messages",
-                "default": false
-            },
-            {
-                "key": "enabledTeams",
-                "display_name": "Enabled Teams",
-                "type": "text",
-                "help_text": "Mattermost teams where sync is enabled (comma separated Mattermost team names, empty means all enabled)",
-                "default": ""
             },
             {
                 "key": "maxSizeForCompleteDownload",
@@ -169,7 +115,7 @@
                 "help_text": "Invite pool size: the maximum number of connection invites that may be pending at a given time. When specified, connection invite direct messages will be sent to users as they become active, up to the maximum specified here. As invited users connect, spaces in the invite pool will open up and more invites will be sent out. Once invited, users may connect at any time. (Set to 0 or leave empty to disable connection invites.)",
                 "default": 0
             },
-			{
+            {
                 "key": "connectedUsersRestricted",
                 "display_name": "New User Connections: Restricted",
                 "type": "bool",
@@ -188,20 +134,6 @@
                 "display_name": "Automatically Promote Synthetic Users",
                 "type": "bool",
                 "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
-                "default": false
-            },
-            {
-                "key": "disableSyncMsg",
-                "display_name": "Disable using the sync msg infrastructure for tracking message changes",
-                "type": "bool",
-                "help_text": "When true, the plugin will not enable any sync msg infrastructure.",
-                "default": false
-            },
-            {
-                "key": "disableCheckCredentials",
-                "display_name": "Disable periodically checking the validity of the application credentials",
-                "type": "bool",
-                "help_text": "When true, the plugin will not periodically check the validity of the application credentials.",
                 "default": false
             },
             {

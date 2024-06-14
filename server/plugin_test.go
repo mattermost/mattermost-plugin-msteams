@@ -38,7 +38,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 			EncryptionKey:              "encryptionkey",
 			CertificatePublic:          "",
 			CertificateKey:             "",
-			DisableSyncMsg:             true,
+			UseSharedChannels:          false,
 			MaxSizeForCompleteDownload: 1,
 		},
 		msteamsAppClient: &mocks.Client{},

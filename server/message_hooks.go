@@ -126,10 +126,6 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 }
 
 func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reaction) {
-	if !p.getConfiguration().SyncReactions {
-		return
-	}
-
 	updateRequired := true
 	if c.RequestId == "" {
 		_, ignoreHookForReaction := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("%s_%s_%s", reaction.PostId, reaction.UserId, reaction.EmojiName))
@@ -146,11 +142,7 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 
 	link, err := p.store.GetLinkByChannelID(reaction.ChannelId)
 	if err != nil || link == nil {
-		channel, appErr := p.API.GetChannel(reaction.ChannelId)
-		if appErr != nil {
-			return
-		}
-		if shouldSync, _ := p.ShouldSyncDMGMChannel(channel); shouldSync {
+		if p.GetSyncChats() {
 			err = p.SetChatReaction(postInfo.MSTeamsID, reaction.UserId, reaction.ChannelId, reaction.EmojiName, updateRequired)
 			if err != nil {
 				p.API.LogWarn("Unable to handle message reaction set", "error", err.Error())
@@ -175,10 +167,6 @@ func (p *Plugin) ReactionHasBeenAdded(c *plugin.Context, reaction *model.Reactio
 }
 
 func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.Reaction) {
-	if !p.getConfiguration().SyncReactions {
-		return
-	}
-
 	if reaction.ChannelId == "removedfromplugin" {
 		return
 	}
@@ -198,11 +186,7 @@ func (p *Plugin) ReactionHasBeenRemoved(_ *plugin.Context, reaction *model.React
 
 	link, err := p.store.GetLinkByChannelID(post.ChannelId)
 	if err != nil || link == nil {
-		channel, appErr := p.API.GetChannel(post.ChannelId)
-		if appErr != nil {
-			return
-		}
-		if shouldSync, _ := p.ShouldSyncDMGMChannel(channel); shouldSync {
+		if p.GetSyncChats() {
 			err = p.UnsetChatReaction(postInfo.MSTeamsID, reaction.UserId, post.ChannelId, reaction.EmojiName)
 			if err != nil {
 				p.API.LogWarn("Unable to handle chat message reaction unset", "error", err.Error())

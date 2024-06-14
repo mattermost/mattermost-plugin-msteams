@@ -147,7 +147,7 @@ func (m *Monitor) checkGlobalChatsSubscription(msteamsSubscriptionsMap map[strin
 	}
 
 	// Clean up if we're not syncing chats or notifications.
-	if !m.syncDirectMessages && !m.syncGroupMessages && !m.syncNotifications {
+	if !m.syncChats && !m.syncNotifications {
 		// Delete any MS Teams subscription for the global chats, if present.
 		if allChatsSubscription != nil {
 			if err := m.client.DeleteSubscription(allChatsSubscription.ID); err != nil {

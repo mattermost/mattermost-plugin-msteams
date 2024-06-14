@@ -286,8 +286,8 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 	var userIDs []string
 
 	if chat != nil {
-		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
-			return reason
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
 		}
 
 		var channel *model.Channel
@@ -332,7 +332,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonOther
 	}
 
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), []string{})
+	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, true, []string{})
 
 	// Last second check to avoid possible duplication
 	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
@@ -447,8 +447,8 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		}
 		channelID = channelLink.MattermostChannelID
 	} else {
-		if shouldSync, reason := ah.ShouldSyncDMGMChannel(chat); !shouldSync {
-			return reason
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
 		}
 
 		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
@@ -481,7 +481,7 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonInactiveUser
 	}
 
-	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, ah.plugin.GetSyncFileAttachments(), fileIDs)
+	post, _, _ := ah.msgToPost(channelID, senderID, msg, chat, true, fileIDs)
 	post.Id = postInfo.MattermostID
 
 	// For now, don't display this message on update
@@ -521,10 +521,6 @@ func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subs
 }
 
 func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrGroupMessage bool, reactions []clientmodels.Reaction) {
-	if !ah.plugin.GetSyncReactions() {
-		return
-	}
-
 	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
 	if appErr != nil {
 		return
@@ -645,15 +641,4 @@ func (ah *ActivityHandler) isRemoteUser(userID string) bool {
 
 func IsDirectOrGroupMessage(chatID string) bool {
 	return chatID != ""
-}
-
-func (ah *ActivityHandler) ShouldSyncDMGMChannel(chat *clientmodels.Chat) (bool, string) {
-	nb := len(chat.Members)
-	if nb <= 2 && !ah.plugin.GetSyncDirectMessages() {
-		return false, metrics.DiscardedReasonDirectMessagesDisabled
-	} else if nb > 2 && !ah.plugin.GetSyncGroupMessages() {
-		return false, metrics.DiscardedReasonGroupMessagesDisabled
-	}
-
-	return true, ""
 }

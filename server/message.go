@@ -66,42 +66,30 @@ func (p *Plugin) SendChat(srcUser string, usersIDs []string, post *model.Post, c
 	}
 
 	var attachments []*clientmodels.Attachment
-	if p.GetSyncFileAttachments() {
-		for _, fileID := range post.FileIds {
-			fileInfo, appErr := p.API.GetFileInfo(fileID)
-			if appErr != nil {
-				p.API.LogWarn("Unable to get file info", "error", appErr)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true)
-				continue
-			}
-			fileData, appErr := p.API.GetFile(fileInfo.Id)
-			if appErr != nil {
-				p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true)
-				continue
-			}
-
-			fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-			var attachment *clientmodels.Attachment
-			attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
-			if err != nil {
-				p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, true)
-				continue
-			}
-			attachments = append(attachments, attachment)
-			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
-		}
-	} else if len(post.FileIds) > 0 {
-		_, appErr := p.API.CreatePost(&model.Post{
-			ChannelId: post.ChannelId,
-			RootId:    post.RootId,
-			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-		})
+	for _, fileID := range post.FileIds {
+		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
-			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", post.ChannelId, "post_id", post.Id, "error", appErr)
+			p.API.LogWarn("Unable to get file info", "error", appErr)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true)
+			continue
 		}
+		fileData, appErr := p.API.GetFile(fileInfo.Id)
+		if appErr != nil {
+			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, true)
+			continue
+		}
+
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
+		var attachment *clientmodels.Attachment
+		attachment, err = client.UploadFile("", "", fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), chat)
+		if err != nil {
+			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, true)
+			continue
+		}
+		attachments = append(attachments, attachment)
+		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", true)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -162,42 +150,30 @@ func (p *Plugin) Send(teamID, channelID string, user *model.User, post *model.Po
 
 	var attachments []*clientmodels.Attachment
 
-	if p.GetSyncFileAttachments() {
-		for _, fileID := range post.FileIds {
-			fileInfo, appErr := p.API.GetFileInfo(fileID)
-			if appErr != nil {
-				p.API.LogWarn("Unable to get file info", "error", appErr)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false)
-				continue
-			}
-			fileData, appErr := p.API.GetFile(fileInfo.Id)
-			if appErr != nil {
-				p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false)
-				continue
-			}
-
-			fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
-			var attachment *clientmodels.Attachment
-			attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
-			if err != nil {
-				p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
-				p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, false)
-				continue
-			}
-			attachments = append(attachments, attachment)
-			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
-		}
-	} else if len(post.FileIds) > 0 {
-		_, appErr := p.API.CreatePost(&model.Post{
-			ChannelId: post.ChannelId,
-			RootId:    post.RootId,
-			UserId:    p.GetBotUserID(),
-			Message:   "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams.",
-		})
+	for _, fileID := range post.FileIds {
+		fileInfo, appErr := p.API.GetFileInfo(fileID)
 		if appErr != nil {
-			p.API.LogWarn("Failed to notify channel of skipped attachment", "channel_id", channelID, "post_id", post.Id, "error", appErr)
+			p.API.LogWarn("Unable to get file info", "error", appErr)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false)
+			continue
 		}
+		fileData, appErr := p.API.GetFile(fileInfo.Id)
+		if appErr != nil {
+			p.API.LogWarn("Error in getting file attachment from Mattermost", "error", appErr)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToGetMMData, false)
+			continue
+		}
+
+		fileName, fileExtension := getFileNameAndExtension(fileInfo.Name)
+		var attachment *clientmodels.Attachment
+		attachment, err = client.UploadFile(teamID, channelID, fileName+"_"+fileInfo.Id+fileExtension, int(fileInfo.Size), fileInfo.MimeType, bytes.NewReader(fileData), nil)
+		if err != nil {
+			p.API.LogWarn("Error in uploading file attachment to MS Teams", "error", err)
+			p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, metrics.DiscardedReasonUnableToUploadFileOnTeams, false)
+			continue
+		}
+		attachments = append(attachments, attachment)
+		p.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMattermost, "", false)
 	}
 
 	md := markdown.New(markdown.XHTMLOutput(true), markdown.Typographer(false))
@@ -553,21 +529,4 @@ func getUpdatedMessage(teamID, channelID, parentID, msteamsID string, client mst
 	}
 
 	return client.GetMessage(teamID, channelID, msteamsID)
-}
-
-func (p *Plugin) ShouldSyncDMGMChannel(channel *model.Channel) (bool, string) {
-	switch channel.Type {
-	case model.ChannelTypeDirect:
-		if !p.GetSyncDirectMessages() {
-			return false, metrics.DiscardedReasonDirectMessagesDisabled
-		}
-	case model.ChannelTypeGroup:
-		if !p.GetSyncGroupMessages() {
-			return false, metrics.DiscardedReasonGroupMessagesDisabled
-		}
-	default:
-		return false, metrics.DiscardedReasonOther
-	}
-
-	return true, metrics.DiscardedReasonNone
 }

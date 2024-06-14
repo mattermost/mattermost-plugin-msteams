@@ -16,20 +16,6 @@ type Store struct {
 	mock.Mock
 }
 
-// CheckEnabledTeamByTeamID provides a mock function with given fields: teamID
-func (_m *Store) CheckEnabledTeamByTeamID(teamID string) bool {
-	ret := _m.Called(teamID)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = rf(teamID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
 // DeleteLinkByChannelID provides a mock function with given fields: channelID
 func (_m *Store) DeleteLinkByChannelID(channelID string) error {
 	ret := _m.Called(channelID)

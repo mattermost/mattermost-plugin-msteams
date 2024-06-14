@@ -87,11 +87,10 @@ func buildTimerLayer() error {
 
 func buildTransactionalStore() error {
 	topLevelFunctionsToSkip := map[string]bool{
-		"Init":                     true,
-		"UserHasConnected":         true,
-		"CheckEnabledTeamByTeamID": true,
-		"VerifyOAuth2State":        true,
-		"StoreOAuth2State":         true,
+		"Init":              true,
+		"UserHasConnected":  true,
+		"VerifyOAuth2State": true,
+		"StoreOAuth2State":  true,
 	}
 
 	code, err := generateTransactionalStoreLayer(topLevelFunctionsToSkip)

@@ -39,19 +39,17 @@ const (
 
 type SQLStore struct {
 	api           plugin.API
-	enabledTeams  func() []string
 	encryptionKey func() []byte
 	db            *sql.DB
 	replica       *sql.DB
 }
 
-func New(db, replica *sql.DB, api plugin.API, enabledTeams func() []string, encryptionKey func() []byte) *SQLStore {
+func New(db, replica *sql.DB, api plugin.API, encryptionKey func() []byte) *SQLStore {
 	return &SQLStore{
 		db:      db,
 		replica: replica,
 		api:     api,
 
-		enabledTeams:  enabledTeams,
 		encryptionKey: encryptionKey,
 	}
 }
@@ -127,9 +125,6 @@ func (s *SQLStore) getLinkByChannelID(db sq.BaseRunner, channelID string) (*stor
 		return nil, err
 	}
 
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
-		return nil, errors.New("link not enabled for this team")
-	}
 	return &link, nil
 }
 
@@ -163,9 +158,7 @@ func (s *SQLStore) getLinkByMSTeamsChannelID(db sq.BaseRunner, teamID, channelID
 	if err != nil {
 		return nil, err
 	}
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
-		return nil, errors.New("link not enabled for this team")
-	}
+
 	return &link, nil
 }
 
@@ -185,9 +178,7 @@ func (s *SQLStore) storeChannelLink(db sq.BaseRunner, link *storemodels.ChannelL
 	if err != nil {
 		return err
 	}
-	if !s.CheckEnabledTeamByTeamID(link.MattermostTeamID) {
-		return errors.New("link not enabled for this team")
-	}
+
 	return nil
 }
 
@@ -778,24 +769,6 @@ func (s *SQLStore) recoverPost(db sq.BaseRunner, postID string) error {
 	}
 
 	return nil
-}
-
-func (s *SQLStore) CheckEnabledTeamByTeamID(teamID string) bool {
-	if len(s.enabledTeams()) == 1 && s.enabledTeams()[0] == "" {
-		return true
-	}
-	team, appErr := s.api.GetTeam(teamID)
-	if appErr != nil {
-		return false
-	}
-	isTeamEnabled := false
-	for _, enabledTeam := range s.enabledTeams() {
-		if team.Name == enabledTeam {
-			isTeamEnabled = true
-			break
-		}
-	}
-	return isTeamEnabled
 }
 
 func (s *SQLStore) getQueryBuilder(db sq.BaseRunner) sq.StatementBuilderType {

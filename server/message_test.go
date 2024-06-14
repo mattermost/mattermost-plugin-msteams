@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSendChat(t *testing.T) {
@@ -47,7 +46,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the source user ID, no remote user",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 			},
@@ -63,7 +61,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the source user ID, remote user",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
@@ -80,7 +77,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the client, no remote user",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 			},
@@ -97,7 +93,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the client, remote user",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
@@ -115,7 +110,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to create or get the chat",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 			},
@@ -135,7 +129,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to send the chat",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -168,7 +161,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Able to send the chat and not able to store the post",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -211,7 +203,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the parent message",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -256,46 +247,8 @@ func TestSendChat(t *testing.T) {
 			ExpectedMessage: "mockMessageID",
 		},
 		{
-			Name: "SendChat: File attachments disabled",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = false
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
-					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
-				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsChannel: testutils.GetChatID(),
-					MSTeamsID:      "mockMessageID",
-				}).Return(nil).Times(1)
-				store.On("SetUserLastChatSentAt", testutils.GetID(), mock.AnythingOfType("int64")).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("CreateOrGetChatForUsers", mock.AnythingOfType("[]string")).Return(mockChat, nil).Times(1)
-				uclient.On("GetChat", testutils.GetChatID()).Return(mockChat, nil).Times(1)
-				uclient.On("SendChat", testutils.GetChatID(), "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", (*clientmodels.Message)(nil), ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
-					ID: "mockMessageID",
-				}, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, true).Times(1)
-				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, true, mock.AnythingOfType("time.Duration")).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.CreateOrGetChatForUsers", "true", "2XX", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChat", "true", "2XX", mock.AnythingOfType("float64")).Once()
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendChat", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedMessage: "mockMessageID",
-		},
-		{
 			Name: "SendChat: Unable to get the file info",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
@@ -331,7 +284,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to get the file attachment from Mattermost",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -368,7 +320,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Unable to upload the attachments",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -421,7 +372,6 @@ func TestSendChat(t *testing.T) {
 		{
 			Name: "SendChat: Valid",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -499,7 +449,6 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to get the client",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("SendEphemeralPost", testutils.GetUserID(), &model.Post{
@@ -517,39 +466,8 @@ func TestSend(t *testing.T) {
 			ExpectedError: "not connected user",
 		},
 		{
-			Name: "Send: File attachments disabled",
-			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = false
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
-					return post.Message == "Attachments sent from Mattermost aren't yet delivered to Microsoft Teams."
-				})).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), 0), nil).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(&fakeToken, nil).Times(1)
-				store.On("LinkPosts", storemodels.PostInfo{
-					MattermostID:   testutils.GetID(),
-					MSTeamsID:      "mockMessageID",
-					MSTeamsChannel: testutils.GetChannelID(),
-				}).Return(nil).Times(1)
-			},
-			SetupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				uclient.On("SendMessageWithAttachments", testutils.GetID(), testutils.GetChannelID(), "", "<p>mockMessage??????????</p>\n<abbr title=\"generated-from-mattermost\"></abbr>", ([]*clientmodels.Attachment)(nil), []models.ChatMessageMentionable{}).Return(&clientmodels.Message{
-					ID: "mockMessageID",
-				}, nil).Times(1)
-			},
-			SetupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionCreated, metrics.ActionSourceMattermost, false).Times(1)
-				mockmetrics.On("ObserveMessageDelay", metrics.ActionCreated, metrics.ActionSourceMattermost, false, mock.AnythingOfType("time.Duration")).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.SendMessageWithAttachments", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-			ExpectedMessage: "mockMessageID",
-		},
-		{
 			Name: "Send: Unable to get the file info",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(nil, testutils.GetInternalServerAppError("unable to get file attachment")).Times(1)
@@ -578,7 +496,6 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to get file attachment from Mattermost",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -608,7 +525,6 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Unable to send message with attachments",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -639,7 +555,6 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Able to send message with attachments but unable to store posts",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -677,7 +592,6 @@ func TestSend(t *testing.T) {
 		{
 			Name: "Send: Able to send message with attachments with no error",
 			SetupPlugin: func(p *Plugin) {
-				p.configuration.SyncFileAttachments = true
 			},
 			SetupAPI: func(api *plugintest.API) {
 				api.On("GetFileInfo", testutils.GetID()).Return(testutils.GetFileInfo(), nil).Times(1)
@@ -1674,75 +1588,6 @@ func TestUserWillLogin(t *testing.T) {
 			res := p.UserWillLogIn(nil, user)
 
 			assert.Equal(test.Result, res)
-		})
-	}
-}
-
-func TestShouldSyncDMGMChannel(t *testing.T) {
-	testCases := []struct {
-		Name          string
-		EnableDM      bool
-		EnableGM      bool
-		ChannelType   model.ChannelType
-		ShouldSync    bool
-		DiscardReason string
-	}{
-		{
-			Name:     "DM allowed, and channel type is direct => sync",
-			EnableDM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
-		},
-		{
-			Name:     "DM allowed, and channel type is group => no sync",
-			EnableDM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
-		},
-		{
-			Name:     "DM not allowed, and channel type is direct => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
-		},
-		{
-			Name:     "DM not allowed, and channel type is group => no sync",
-			EnableDM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
-		},
-		{
-			Name:     "GM allowed, and channel type is group => sync",
-			EnableGM: true, ChannelType: model.ChannelTypeGroup, ShouldSync: true, DiscardReason: metrics.DiscardedReasonNone,
-		},
-		{
-			Name:     "GM allowed, and channel type is direct => no sync",
-			EnableGM: true, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
-		},
-		{
-			Name:     "GM not allowed, and channel type is group => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeGroup, ShouldSync: false, DiscardReason: metrics.DiscardedReasonGroupMessagesDisabled,
-		},
-		{
-			Name:     "GM not allowed, and channel type is direct => no sync",
-			EnableGM: false, ChannelType: model.ChannelTypeDirect, ShouldSync: false, DiscardReason: metrics.DiscardedReasonDirectMessagesDisabled,
-		},
-		{
-			Name:        "channel type is public => no sync",
-			ChannelType: model.ChannelTypeOpen, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
-		},
-		{
-			Name:        "channel type is private => no sync",
-			ChannelType: model.ChannelTypePrivate, ShouldSync: false, DiscardReason: metrics.DiscardedReasonOther,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			assert := require.New(t)
-			p := newTestPlugin(t)
-			p.configuration.SyncDirectMessages = tc.EnableDM
-			p.configuration.SyncGroupMessages = tc.EnableGM
-
-			channel := &model.Channel{
-				Type: tc.ChannelType,
-			}
-
-			shouldSync, discardReason := p.ShouldSyncDMGMChannel(channel)
-			assert.Equal(tc.ShouldSync, shouldSync)
-			assert.Equal(tc.DiscardReason, discardReason)
 		})
 	}
 }

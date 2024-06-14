@@ -204,10 +204,6 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args, "Invalid link command, please pass the MS Teams team id and channel id as parameters.")
 	}
 
-	if !p.store.CheckEnabledTeamByTeamID(args.TeamId) {
-		return p.cmdError(args, "This team is not enabled for MS Teams sync.")
-	}
-
 	link, err := p.store.GetLinkByChannelID(args.ChannelId)
 	if err == nil && link != nil {
 		return p.cmdError(args, "A link for this channel already exists. Please unlink the channel before you link again with another channel.")
@@ -259,7 +255,7 @@ func (p *Plugin) executeLinkCommand(args *model.CommandArgs, parameters []string
 		return p.cmdError(args, "Error occurred while saving the subscription")
 	}
 
-	if !p.getConfiguration().DisableSyncMsg {
+	if p.getConfiguration().UseSharedChannels {
 		if _, err = p.API.ShareChannel(&model.SharedChannel{
 			ChannelId: channelLink.MattermostChannelID,
 			TeamId:    channelLink.MattermostTeamID,
@@ -312,7 +308,7 @@ func (p *Plugin) executeUnlinkCommand(args *model.CommandArgs) (*model.CommandRe
 			p.API.LogWarn("Unable to delete the subscription from the DB", "subscription_id", subscription.SubscriptionID, "error", err.Error())
 		}
 
-		if !p.getConfiguration().DisableSyncMsg {
+		if p.getConfiguration().UseSharedChannels {
 			if _, err = p.API.UnshareChannel(link.MattermostChannelID); err != nil {
 				p.API.LogWarn("Failed to unshare channel", "channel_id", link.MattermostChannelID, "subscription_id", subscription.SubscriptionID, "error", err.Error())
 			} else {

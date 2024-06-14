@@ -10,79 +10,14 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
-func TestCheckEnabledTeamByTeamID(t *testing.T) {
-	for _, test := range []struct {
-		Name           string
-		SetupAPI       func(*plugintest.API)
-		EnabledTeams   func() []string
-		ExpectedResult bool
-	}{
-		{
-			Name:     "CheckEnabledTeamByTeamID: Emmpty enabled team",
-			SetupAPI: func(api *plugintest.API) {},
-			EnabledTeams: func() []string {
-				return []string{""}
-			},
-			ExpectedResult: true,
-		},
-		{
-			Name: "CheckEnabledTeamByTeamID: Unable to get the team",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetTeam", "mockTeamID").Return(nil, testutils.GetInternalServerAppError("unable to get the team"))
-			},
-			EnabledTeams: func() []string {
-				return []string{"mockTeamsTeam"}
-			},
-			ExpectedResult: false,
-		},
-		{
-			Name: "CheckEnabledTeamByTeamID: Enabled team does not matches",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetTeam", "mockTeamID").Return(&model.Team{
-					Name: "differentTeam",
-				}, nil)
-			},
-			EnabledTeams: func() []string {
-				return []string{"mockTeamsTeam"}
-			},
-			ExpectedResult: false,
-		},
-		{
-			Name: "CheckEnabledTeamByTeamID: Valid",
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetTeam", "mockTeamID").Return(&model.Team{
-					Name: "mockTeamsTeam",
-				}, nil)
-			},
-			EnabledTeams: func() []string {
-				return []string{"mockTeamsTeam"}
-			},
-			ExpectedResult: true,
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			store, api := setupTestStore(t)
-
-			test.SetupAPI(api)
-			store.enabledTeams = test.EnabledTeams
-			resp := store.CheckEnabledTeamByTeamID("mockTeamID")
-
-			assert.Equal(test.ExpectedResult, resp)
-		})
-	}
-}
-
 func TestStoreChannelLinkAndGetLinkByChannelID(t *testing.T) {
 	store, api := setupTestStore(t)
 	assert := assert.New(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
 		Name: "mockMattermostTeamID-1",
@@ -119,7 +54,6 @@ func TestGetLinkByChannelIDForInvalidID(t *testing.T) {
 func TestStoreChannelLinkdAndGetLinkByMSTeamsChannelID(t *testing.T) {
 	store, api := setupTestStore(t)
 	assert := assert.New(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-2"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-2").Return(&model.Team{
 		Name: "mockMattermostTeamID-2",
@@ -156,7 +90,6 @@ func TestGetLinkByMSTeamsChannelIDForInvalidID(t *testing.T) {
 func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 	store, api := setupTestStore(t)
 	assert := assert.New(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-3"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-3").Return(&model.Team{
 		Name: "mockMattermostTeamID-3",
@@ -199,7 +132,6 @@ func TestStoreChannelLinkdAndDeleteLinkByChannelID(t *testing.T) {
 func TestListChannelLinksWithNames(t *testing.T) {
 	store, api := setupTestStore(t)
 	assert := assert.New(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-4"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-4").Return(&model.Team{
 		Name: "mockMattermostTeamID-4",
@@ -237,7 +169,6 @@ func TestListChannelLinksWithNames(t *testing.T) {
 
 func TestListChannelLinks(t *testing.T) {
 	store, api := setupTestStore(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1", "mockMattermostTeamID-2"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
 		Name: "mockMattermostTeamID-1",
@@ -913,7 +844,6 @@ func TestListGlobalSubscriptions(t *testing.T) {
 func TestStoreAndVerifyOAuthState(t *testing.T) {
 	store, api := setupTestStore(t)
 	assert := assert.New(t)
-	store.enabledTeams = func() []string { return []string{"mockMattermostTeamID-1"} }
 
 	api.On("GetTeam", "mockMattermostTeamID-1").Return(&model.Team{
 		Name: "mockMattermostTeamID-1",
@@ -1216,9 +1146,6 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
 	}
-	store.enabledTeams = func() []string {
-		return []string{""}
-	}
 
 	cleanup := func() {
 		t.Helper()
@@ -1259,9 +1186,6 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 
 func TestGetSyntheticUsersCount(t *testing.T) {
 	store, _ := setupTestStore(t)
-	store.enabledTeams = func() []string {
-		return []string{""}
-	}
 
 	cleanup := func() {
 		t.Helper()

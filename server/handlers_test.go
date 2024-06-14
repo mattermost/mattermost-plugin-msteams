@@ -163,7 +163,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 	t.Run("discovered duplicate post", func(t *testing.T) {
 		th.Reset(t)
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 		})
 
 		user1 := th.SetupUser(t, team)
@@ -252,10 +252,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 		assert.Equal(t, metrics.DiscardedReasonIsBotUser, discardReason)
 	})
 
-	t.Run("direct messages disabled", func(t *testing.T) {
+	t.Run("chats disabled", func(t *testing.T) {
 		th.Reset(t)
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncDirectMessages = false
+			c.SyncChats = false
 		})
 
 		senderUser := th.SetupUser(t, team)
@@ -299,13 +299,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 		}, nil).Once()
 
 		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 	})
 
-	t.Run("group messages disabled", func(t *testing.T) {
+	t.Run("group chats disabled", func(t *testing.T) {
 		th.Reset(t)
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncGroupMessages = false
+			c.SyncChats = false
 		})
 
 		senderUser := th.SetupUser(t, team)
@@ -355,13 +355,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 		}, nil).Once()
 
 		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-		assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 	})
 
 	t.Run("unable to get user", func(t *testing.T) {
 		th.Reset(t)
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.SyncDirectMessages = true
+			c.SyncChats = true
 		})
 
 		senderUser := th.SetupUser(t, team)
@@ -411,16 +411,14 @@ func TestHandleCreatedActivity(t *testing.T) {
 
 	t.Run("chats", func(t *testing.T) {
 		type parameters struct {
-			SyncDirectMessages bool
-			SyncGroupMessages  bool
-			SyncNotifications  bool
+			SyncChats         bool
+			SyncNotifications bool
 		}
 		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
 
 			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-				c.SyncDirectMessages = params.SyncDirectMessages
-				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncChats = params.SyncChats
 				c.SyncNotifications = params.SyncNotifications
 			})
 
@@ -445,14 +443,14 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
 				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-				if params.SyncDirectMessages && !params.SyncNotifications {
+				if params.SyncChats && !params.SyncNotifications {
 					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					th.assertDMFromUser(t, senderUser.Id, user1.Id, "message")
 				} else {
 					if params.SyncNotifications {
 						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					} else {
-						assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 					}
 
 					th.assertNoDMFromUser(t, senderUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
@@ -483,14 +481,14 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
 				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
-				if params.SyncGroupMessages && !params.SyncNotifications {
+				if params.SyncChats && !params.SyncNotifications {
 					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					th.assertGMFromUsers(t, senderUser.Id, []string{user1.Id, user2.Id}, "message")
 				} else {
 					if params.SyncNotifications {
 						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					} else {
-						assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 					}
 
 					th.assertNoGMFromUsers(t, senderUser.Id, []string{user1.Id, user2.Id}, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
@@ -566,17 +564,15 @@ func TestHandleCreatedActivity(t *testing.T) {
 
 	t.Run("notifications", func(t *testing.T) {
 		type parameters struct {
-			SyncDirectMessages bool
-			SyncGroupMessages  bool
-			SyncNotifications  bool
-			NotificationPref   bool
+			SyncChats         bool
+			SyncNotifications bool
+			NotificationPref  bool
 		}
 		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
 
 			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-				c.SyncDirectMessages = params.SyncDirectMessages
-				c.SyncGroupMessages = params.SyncGroupMessages
+				c.SyncChats = params.SyncChats
 				c.SyncNotifications = params.SyncNotifications
 			})
 
@@ -611,10 +607,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				if params.SyncNotifications {
 					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 				} else {
-					if params.SyncDirectMessages {
+					if params.SyncChats {
 						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					} else {
-						assert.Equal(t, metrics.DiscardedReasonDirectMessagesDisabled, discardReason)
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 					}
 				}
 
@@ -659,10 +655,10 @@ func TestHandleCreatedActivity(t *testing.T) {
 				if params.SyncNotifications {
 					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 				} else {
-					if params.SyncGroupMessages {
+					if params.SyncChats {
 						assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 					} else {
-						assert.Equal(t, metrics.DiscardedReasonGroupMessagesDisabled, discardReason)
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
 					}
 				}
 
@@ -1130,14 +1126,6 @@ func TestHandleReactions(t *testing.T) {
 		setupMetrics func(*metricsmocks.Metrics)
 	}{
 		{
-			description: "Disabled by configuration",
-			reactions:   []clientmodels.Reaction{},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore:   func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
 			description: "Reactions list is empty",
 			reactions:   []clientmodels.Reaction{},
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -1235,84 +1223,6 @@ func TestHandleReactions(t *testing.T) {
 			ah.plugin = p
 
 			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), false, testCase.reactions)
-		})
-	}
-}
-
-func TestShouldSyncChat(t *testing.T) {
-	testCases := []struct {
-		Name             string
-		ChatMembersCount int
-
-		EnableDM bool
-		EnableGM bool
-
-		ShouldSync          bool
-		ReasonForNotSyncing string
-	}{
-		{
-			Name:             "should sync self messages if DM are enabled",
-			ChatMembersCount: 1,
-			EnableDM:         true,
-			ShouldSync:       true,
-		},
-		{
-			Name:                "should not sync self messages if DM are disabled",
-			ChatMembersCount:    1,
-			EnableDM:            false,
-			ShouldSync:          false,
-			ReasonForNotSyncing: metrics.DiscardedReasonDirectMessagesDisabled,
-		},
-		{
-			Name:             "should sync DMs if DM are enabled",
-			ChatMembersCount: 2,
-			EnableDM:         true,
-			ShouldSync:       true,
-		},
-		{
-			Name:                "should not sync DMs if DM are disabled",
-			ChatMembersCount:    2,
-			EnableDM:            false,
-			ShouldSync:          false,
-			ReasonForNotSyncing: metrics.DiscardedReasonDirectMessagesDisabled,
-		},
-		{
-			Name:             "should sync GMs if GM are enabled",
-			ChatMembersCount: 3,
-			EnableGM:         true,
-			ShouldSync:       true,
-		},
-		{
-			Name:                "should not sync GMs if GM are disabled",
-			ChatMembersCount:    3,
-			EnableGM:            false,
-			ShouldSync:          false,
-			ReasonForNotSyncing: metrics.DiscardedReasonGroupMessagesDisabled,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			assert := require.New(t)
-			p := newTestPlugin(t)
-			configuration := p.getConfiguration().Clone()
-			configuration.SyncDirectMessages = tc.EnableDM
-			configuration.SyncGroupMessages = tc.EnableGM
-			p.setConfiguration(configuration)
-
-			ah := ActivityHandler{
-				plugin: p,
-			}
-
-			chat := &clientmodels.Chat{
-				Members: make([]clientmodels.ChatMember, tc.ChatMembersCount),
-			}
-
-			shouldSync, reason := ah.ShouldSyncDMGMChannel(chat)
-			assert.Equal(tc.ShouldSync, shouldSync)
-			if !tc.ShouldSync {
-				assert.Equal(tc.ReasonForNotSyncing, reason)
-			}
 		})
 	}
 }

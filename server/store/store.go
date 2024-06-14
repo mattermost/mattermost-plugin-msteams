@@ -12,9 +12,6 @@ import (
 type Store interface {
 	Init(remoteID string) error
 
-	// teams
-	CheckEnabledTeamByTeamID(teamID string) bool
-
 	// users
 	TeamsToMattermostUserID(userID string) (string, error)
 	MattermostToTeamsUserID(userID string) (string, error)

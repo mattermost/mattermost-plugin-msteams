@@ -26,18 +26,14 @@ type configuration struct {
 	EncryptionKey                      string `json:"encryptionkey"`
 	EvaluationAPI                      bool   `json:"evaluationapi"`
 	WebhookSecret                      string `json:"webhooksecret"`
-	EnabledTeams                       string `json:"enabledteams"`
 	SyncNotifications                  bool   `json:"syncnotifications"`
-	SyncDirectMessages                 bool   `json:"syncdirectmessages"`
-	SyncGroupMessages                  bool   `json:"syncgroupmessages"`
-	SelectiveSync                      bool   `json:"selectiveSync"`
+	SyncChats                          bool   `json:"experimentalSyncChats"`
+	SelectiveSync                      bool   `json:"experimentalSelectiveSync"`
 	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
-	SyncReactions                      bool   `json:"syncreactions"`
-	SyncFileAttachments                bool   `json:"syncfileattachments"`
 	SyncUsers                          int    `json:"syncusers"`
 	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	CertificatePublic                  string `json:"certificatepublic"`
-	CertificateKey                     string `json:"certificatekey"`
+	CertificatePublic                  string `json:"experimentalcertificatepublic"`
+	CertificateKey                     string `json:"experimentalcertificatekey"`
 	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
@@ -46,8 +42,8 @@ type configuration struct {
 	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
 	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
 	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
-	DisableSyncMsg                     bool   `json:"disableSyncMsg"`
-	DisableCheckCredentials            bool   `json:"disableCheckCredentials"`
+	UseSharedChannels                  bool   `json:"experimentalUseSharedChannels"`
+	DisableCheckCredentials            bool   `json:"internalDisableCheckCredentials"`
 }
 
 func (c *configuration) ProcessConfiguration() {
@@ -56,7 +52,6 @@ func (c *configuration) ProcessConfiguration() {
 	c.ClientSecret = strings.TrimSpace(c.ClientSecret)
 	c.EncryptionKey = strings.TrimSpace(c.EncryptionKey)
 	c.WebhookSecret = strings.TrimSpace(c.WebhookSecret)
-	c.EnabledTeams = strings.TrimSpace(c.EnabledTeams)
 }
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {

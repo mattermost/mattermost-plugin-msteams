@@ -121,24 +121,12 @@ func (p *Plugin) GetSyncNotifications() bool {
 	return p.getConfiguration().SyncNotifications
 }
 
-func (p *Plugin) GetSyncDirectMessages() bool {
-	return p.getConfiguration().SyncDirectMessages && !p.getConfiguration().SyncNotifications
-}
-
-func (p *Plugin) GetSyncGroupMessages() bool {
-	return p.getConfiguration().SyncGroupMessages && !p.getConfiguration().SyncNotifications
+func (p *Plugin) GetSyncChats() bool {
+	return p.getConfiguration().SyncChats && !p.getConfiguration().SyncNotifications
 }
 
 func (p *Plugin) GetSyncLinkedChannels() bool {
 	return p.getConfiguration().SyncLinkedChannels
-}
-
-func (p *Plugin) GetSyncReactions() bool {
-	return p.getConfiguration().SyncReactions
-}
-
-func (p *Plugin) GetSyncFileAttachments() bool {
-	return p.getConfiguration().SyncFileAttachments
 }
 
 func (p *Plugin) GetSyncGuestUsers() bool {
@@ -305,7 +293,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncDirectMessages(), p.GetSyncGroupMessages())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncChats())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -532,7 +520,7 @@ func (p *Plugin) onActivate() error {
 	}
 	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
 
-	if p.getConfiguration().DisableSyncMsg {
+	if !p.getConfiguration().UseSharedChannels {
 		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
 		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
 			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
@@ -558,7 +546,6 @@ func (p *Plugin) onActivate() error {
 			db,
 			replica,
 			p.API,
-			func() []string { return strings.Split(p.configuration.EnabledTeams, ",") },
 			func() []byte { return []byte(p.configuration.EncryptionKey) },
 		)
 		p.store = timerlayer.New(store, p.GetMetrics())
@@ -568,7 +555,7 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	if !p.getConfiguration().DisableSyncMsg {
+	if p.getConfiguration().UseSharedChannels {
 		linkedChannels, err := p.store.ListChannelLinks()
 		if err != nil {
 			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
