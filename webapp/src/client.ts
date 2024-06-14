@@ -60,7 +60,12 @@ class ClientClass {
         const response = await fetch(url, Client4.getOptions(options));
 
         if (response.ok) {
-            return response.json();
+            // Not all endpoints return a JSON payload.
+            if (response.headers.get('content-type') === 'application/json') {
+                return response.json();
+            }
+
+            return response.text();
         }
 
         const text = await response.text();
