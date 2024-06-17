@@ -9,13 +9,11 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -672,448 +670,789 @@ func TestHandleCreatedActivity(t *testing.T) {
 }
 
 func TestHandleUpdatedActivity(t *testing.T) {
-	msTeamsLastUpdateAtTime := time.Now()
-	for _, testCase := range []struct {
-		description  string
-		activityIds  clientmodels.ActivityIds
-		setupClient  func(*clientmocks.Client, *clientmocks.Client)
-		setupAPI     func(*plugintest.API)
-		setupStore   func(*storemocks.Store)
-		setupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			description: "Unable to get original message",
-			activityIds: clientmodels.ActivityIds{
-				ChatID: "invalid-ChatID",
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", "invalid-ChatID").Return(nil, errors.New("error while getting original chat")).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore:   func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
-			description: "Message is nil",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Skipping not user event",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{}, nil)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Skipping messages from bot user",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetTeamsUserID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to get the post info",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(nil, nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to get the post",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(nil, testutils.GetInternalServerAppError("unable to get the post")).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MattermostID:        "mockMattermostID",
-					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
-					MSTeamsLastUpdateAt: time.Now(),
-				}, nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Unable to get and recover the post",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				getPostError := testutils.GetInternalServerAppError("Unable to get the post.")
-				getPostError.Id = "app.post.get.app_error"
-				mockAPI.On("GetPost", "mockMattermostID").Return(nil, getPostError).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MattermostID:        "mockMattermostID",
-					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
-					MSTeamsLastUpdateAt: time.Now(),
-				}, nil).Times(1)
-				store.On("RecoverPost", "mockMattermostID").Return(errors.New("unable to recover"))
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Valid: chat message",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetChat", testutils.GetChatID()).Return(&clientmodels.Chat{
-					ID: testutils.GetChatID(),
-					Members: []clientmodels.ChatMember{
-						{
-							UserID: testutils.GetTeamsUserID(),
-						},
-					},
-				}, nil).Times(1)
-				uclient.On("GetChatMessage", testutils.GetChatID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					ChatID:          testutils.GetChatID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					LastUpdateAt:    msTeamsLastUpdateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
-				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
-				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetTeamsUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-				mockAPI.On("GetFileInfo", mock.Anything).Return(testutils.GetFileInfo(), nil).Once()
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChatID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MattermostID:        "mockMattermostID",
-					MSTeamsID:           "mockMSTeamsID",
-					MSTeamsChannel:      "mockMSTeamsChannel",
-					MSTeamsLastUpdateAt: time.Now(),
-				}, nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetTokenForMattermostUser", testutils.GetUserID()).Return(&fakeToken, nil)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMSTeams, true).Times(1)
-				mockmetrics.On("ObserveMSGraphClientMethodDuration", "Client.GetChatMessage", "true", "2XX", mock.AnythingOfType("float64")).Once()
-			},
-		},
-		{
-			description: "Valid: sync linked channels disabled",
-			activityIds: clientmodels.ActivityIds{
-				TeamID:    "mockTeamID",
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					TeamID:          "mockTeamID",
-					ChannelID:       testutils.GetChannelID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					LastUpdateAt:    msTeamsLastUpdateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
-				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MSTeamsLastUpdateAt: time.Now(),
-					MattermostID:        "mockMattermostID",
-				}, nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-			},
-		},
-		{
-			description: "Valid: channel message",
-			activityIds: clientmodels.ActivityIds{
-				TeamID:    "mockTeamID",
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupClient: func(client *clientmocks.Client, uclient *clientmocks.Client) {
-				client.On("GetMessage", "mockTeamID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{
-					ID:              testutils.GetMessageID(),
-					UserID:          testutils.GetSenderID(),
-					TeamID:          "mockTeamID",
-					ChannelID:       testutils.GetChannelID(),
-					UserDisplayName: "mockUserDisplayName",
-					Text:            "mockText",
-					LastUpdateAt:    msTeamsLastUpdateAtTime,
-				}, nil).Times(1)
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetPost", "mockMattermostID").Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetSenderID(), time.Now().UnixMicro()), nil).Times(1)
-				mockAPI.On("UpdatePost", mock.Anything).Return(nil, nil).Times(1)
-				mockAPI.On("GetReactions", "mockMattermostID").Return([]*model.Reaction{}, nil).Times(1)
-				mockAPI.On("GetUser", testutils.GetUserID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("MattermostToTeamsUserID", "bot-user-id").Return(testutils.GetTeamsUserID(), nil).Times(1)
-				store.On("TeamsToMattermostUserID", testutils.GetSenderID()).Return(testutils.GetUserID(), nil).Times(1)
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MSTeamsLastUpdateAt: time.Now(),
-					MattermostID:        "mockMattermostID",
-				}, nil).Times(1)
-				store.On("GetLinkByMSTeamsChannelID", "mockTeamID", testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator:             "mockCreator",
-					MattermostChannelID: testutils.GetChannelID(),
-				}, nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionUpdated, metrics.ActionSourceMSTeams, false).Times(1)
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-			testCase.setupClient(p.msteamsAppClient.(*clientmocks.Client), p.clientBuilderWithToken("", "", "", "", nil, nil).(*clientmocks.Client))
-			testCase.setupStore(p.store.(*storemocks.Store))
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testCase.setupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			subscriptionID := "test"
+	t.Run("unable to get original message", func(t *testing.T) {
+		th.Reset(t)
 
-			ah := ActivityHandler{}
-			ah.plugin = p
-			discardedReason := ah.handleUpdatedActivity(nil, subscriptionID, testCase.activityIds)
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID: "invalid_chat_id",
+		}
 
-			lastSubscriptionActivity, ok := ah.lastUpdateAtMap.Load(subscriptionID)
-			if discardedReason == "" {
-				assert.True(t, ok)
-				assert.Equal(t, lastSubscriptionActivity, msTeamsLastUpdateAtTime)
-			} else {
-				assert.False(t, ok)
-			}
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(nil, errors.New("Error while getting original chat")).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
+	})
+
+	t.Run("nil message", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(nil, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
+	})
+
+	t.Run("skipping not user event", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(&clientmodels.Message{}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNotUserEvent, discardReason)
+	})
+
+	t.Run("unknown post", func(t *testing.T) {
+		t.Skip("not yet implemented")
+	})
+
+	t.Run("known duplicate post", func(t *testing.T) {
+		t.Skip("not yet implemented")
+	})
+
+	t.Run("skipping messages from bot user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		senderBotUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+		require.NoError(t, err)
+		th.ConnectUser(t, senderBotUser.Id)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderBotUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderBotUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderBotUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonIsBotUser, discardReason)
+	})
+
+	t.Run("chats disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncChats = false
 		})
-	}
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		channel, err := th.p.apiClient.Channel.GetDirect(senderUser.Id, user1.Id)
+		require.NoError(t, err)
+
+		post := &model.Post{
+			UserId:    senderUser.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err = th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		messageID := model.NewId()
+		chatID := model.NewId()
+		postInfo := storemodels.PostInfo{
+			MattermostID:        post.Id,
+			MSTeamsID:           messageID,
+			MSTeamsChannel:      chatID,
+			MSTeamsLastUpdateAt: time.Now(),
+		}
+		err = th.p.GetStore().LinkPosts(postInfo)
+		require.NoError(t, err)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    chatID,
+			MessageID: messageID,
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+			},
+			Type: "D",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+	})
+
+	t.Run("group chats disabled", func(t *testing.T) {
+		th.Reset(t)
+		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+			c.SyncChats = false
+		})
+
+		senderUser := th.SetupUser(t, team)
+		th.ConnectUser(t, senderUser.Id)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		user2 := th.SetupUser(t, team)
+		th.ConnectUser(t, user2.Id)
+
+		channel, err := th.p.apiClient.Channel.GetDirect(senderUser.Id, user1.Id)
+		require.NoError(t, err)
+
+		post := &model.Post{
+			UserId:    senderUser.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err = th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		// Simulate the post having originated from Mattermost. Later, we'll let the code
+		// do this itself once.
+		messageID := model.NewId()
+		chatID := model.NewId()
+		postInfo := storemodels.PostInfo{
+			MattermostID:        post.Id,
+			MSTeamsID:           messageID,
+			MSTeamsChannel:      chatID,
+			MSTeamsLastUpdateAt: time.Now(),
+		}
+		err = th.p.GetStore().LinkPosts(postInfo)
+		require.NoError(t, err)
+
+		msg := (*clientmodels.Message)(nil)
+		subscriptionID := "test"
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    chatID,
+			MessageID: messageID,
+		}
+		now := time.Now()
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + user1.Id,
+				},
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user2.Id,
+				},
+			},
+			Type: "G",
+		}, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(
+			&clientmodels.Message{
+				ID:              activityIds.MessageID,
+				UserID:          "t" + senderUser.Id,
+				ChatID:          activityIds.ChatID,
+				UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+				Text:            "message",
+				CreateAt:        now,
+				LastUpdateAt:    now,
+			}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+		assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+	})
+
+	t.Run("chats", func(t *testing.T) {
+		type parameters struct {
+			SyncChats         bool
+			SyncNotifications bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncChats = params.SyncChats
+				c.SyncNotifications = params.SyncNotifications
+			})
+
+			t.Run("chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+
+				channel, err := th.p.apiClient.Channel.GetDirect(senderUser.Id, user1.Id)
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				// We connect after sending the post, since we're only simulating
+				// the update for now.
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, senderUser.Id)
+
+				// Simulate the post having originated from Mattermost. Later, we'll let the code
+				// do this itself once.
+				messageID := model.NewId()
+				chatID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      chatID,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    chatID,
+					MessageID: messageID,
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerChat(activityIds.ChatID, []*model.User{user1, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message updated")
+
+				discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncChats && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message updated", updatedPost.Message)
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNotificationsOnly, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+					}
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message", updatedPost.Message)
+				}
+			})
+
+			t.Run("group chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				channel, err := th.p.apiClient.Channel.GetGroup([]string{senderUser.Id, user1.Id, user2.Id})
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				// We connect after sending the post, since we're only simulating
+				// the update for now.
+				th.ConnectUser(t, senderUser.Id)
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, user2.Id)
+
+				// Simulate the post having originated from Mattermost. Later, we'll let the code
+				// do this itself once.
+				messageID := model.NewId()
+				chatID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      chatID,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    chatID,
+					MessageID: messageID,
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message updated")
+
+				discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+				if params.SyncChats && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message updated", updatedPost.Message)
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNotificationsOnly, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+					}
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message", updatedPost.Message)
+				}
+			})
+		})
+	})
+
+	t.Run("channels", func(t *testing.T) {
+		type parameters struct {
+			SyncLinkedChannels bool
+			SyncNotifications  bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncLinkedChannels = params.SyncLinkedChannels
+				c.SyncNotifications = params.SyncNotifications
+			})
+
+			t.Run("linked channel", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+				_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+				require.Nil(t, appErr)
+
+				channelLink := storemodels.ChannelLink{
+					MattermostTeamID:    team.Id,
+					MattermostChannelID: channel.Id,
+					MSTeamsTeam:         model.NewId(),
+					MSTeamsChannel:      model.NewId(),
+					Creator:             user1.Id,
+				}
+
+				err := th.p.store.StoreChannelLink(&channelLink)
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				messageID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      channelLink.MSTeamsChannel,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				th.ConnectUser(t, senderUser.Id)
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, user2.Id)
+
+				msg := (*clientmodels.Message)(nil)
+				subscriptionID := "test"
+				activityIds := clientmodels.ActivityIds{
+					TeamID:    channelLink.MSTeamsTeam,
+					ChannelID: channelLink.MSTeamsChannel,
+					MessageID: messageID,
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, senderUser, "message updated")
+
+				discardReason := th.p.activityHandler.handleUpdatedActivity(msg, subscriptionID, activityIds)
+
+				if params.SyncLinkedChannels {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message updated", updatedPost.Message)
+				} else {
+					assert.Equal(t, metrics.DiscardedReasonLinkedChannelsDisabled, discardReason)
+
+					updatedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, "message", updatedPost.Message)
+				}
+			})
+		})
+	})
 }
 
 func TestHandleDeletedActivity(t *testing.T) {
-	for _, testCase := range []struct {
-		description  string
-		activityIds  clientmodels.ActivityIds
-		setupAPI     func(*plugintest.API)
-		setupStore   func(*storemocks.Store)
-		setupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			description: "Successfully deleted post",
-			activityIds: clientmodels.ActivityIds{
-				ChatID:    testutils.GetChatID(),
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("DeletePost", testutils.GetMattermostID()).Return(nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", fmt.Sprintf("%s%s", testutils.GetChatID(), testutils.GetChannelID()), testutils.GetMessageID()).Return(&storemodels.PostInfo{
-					MattermostID: testutils.GetMattermostID(),
-				}, nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveMessage", metrics.ActionDeleted, metrics.ActionSourceMSTeams, true).Times(1)
-			},
-		},
-		{
-			description: "Unable to get post info by MS teams ID",
-			activityIds: clientmodels.ActivityIds{
-				ChannelID: testutils.GetChannelID(),
-			},
-			setupAPI: func(mockAPI *plugintest.API) {},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), "").Return(nil, errors.New("Error while getting post info by MS teams ID")).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
-			description: "Unable to to delete post",
-			activityIds: clientmodels.ActivityIds{
-				ChannelID: testutils.GetChannelID(),
-				MessageID: testutils.GetMessageID(),
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("DeletePost", "").Return(&model.AppError{
-					Message: "Error while deleting a post",
-				}).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMSTeamsID", testutils.GetChannelID(), testutils.GetMessageID()).Return(&storemodels.PostInfo{}, nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupStore(p.store.(*storemocks.Store))
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testCase.setupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			ah := ActivityHandler{}
-			ah.plugin = p
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-			ah.handleDeletedActivity(testCase.activityIds)
+	t.Run("chats", func(t *testing.T) {
+		t.Run("unknown post", func(t *testing.T) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncChats = true
+			})
+
+			messageID := model.NewId()
+			chatID := model.NewId()
+
+			activityIds := clientmodels.ActivityIds{
+				ChatID:    chatID,
+				MessageID: messageID,
+			}
+
+			discardReason := th.p.activityHandler.handleDeletedActivity(activityIds)
+			assert.Equal(t, metrics.DiscardedReasonOther, discardReason)
 		})
-	}
+
+		type parameters struct {
+			SyncChats         bool
+			SyncNotifications bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncChats = params.SyncChats
+				c.SyncNotifications = params.SyncNotifications
+			})
+
+			t.Run("chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+
+				channel, err := th.p.apiClient.Channel.GetDirect(senderUser.Id, user1.Id)
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				// We connect after sending the post, since we're only simulating
+				// the update for now.
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, senderUser.Id)
+
+				// Simulate the post having originated from Mattermost. Later, we'll let the code
+				// do this itself once.
+				messageID := model.NewId()
+				chatID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      chatID,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    chatID,
+					MessageID: messageID,
+				}
+
+				discardReason := th.p.activityHandler.handleDeletedActivity(activityIds)
+				if params.SyncChats && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					_, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.ErrorContains(t, err, "not found")
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNotificationsOnly, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+					}
+
+					unchangedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, post, unchangedPost)
+				}
+			})
+
+			t.Run("group chat message", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				channel, err := th.p.apiClient.Channel.GetGroup([]string{senderUser.Id, user1.Id, user2.Id})
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				// We connect after sending the post, since we're only simulating
+				// the update for now.
+				th.ConnectUser(t, senderUser.Id)
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, user2.Id)
+
+				// Simulate the post having originated from Mattermost. Later, we'll let the code
+				// do this itself once.
+				messageID := model.NewId()
+				chatID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      chatID,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				activityIds := clientmodels.ActivityIds{
+					ChatID:    chatID,
+					MessageID: messageID,
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message updated")
+
+				discardReason := th.p.activityHandler.handleDeletedActivity(activityIds)
+				if params.SyncChats && !params.SyncNotifications {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					_, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.ErrorContains(t, err, "not found")
+				} else {
+					if params.SyncNotifications {
+						assert.Equal(t, metrics.DiscardedReasonNotificationsOnly, discardReason)
+					} else {
+						assert.Equal(t, metrics.DiscardedReasonChatsDisabled, discardReason)
+					}
+
+					unchangedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, post, unchangedPost)
+				}
+			})
+		})
+	})
+
+	t.Run("channels", func(t *testing.T) {
+		t.Run("unknown post", func(t *testing.T) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncLinkedChannels = true
+			})
+
+			messageID := model.NewId()
+
+			activityIds := clientmodels.ActivityIds{
+				MessageID: messageID,
+			}
+
+			discardReason := th.p.activityHandler.handleDeletedActivity(activityIds)
+			assert.Equal(t, metrics.DiscardedReasonOther, discardReason)
+		})
+
+		type parameters struct {
+			SyncLinkedChannels bool
+			SyncNotifications  bool
+		}
+		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
+			th.Reset(t)
+
+			th.setPluginConfigurationTemporarily(t, func(c *configuration) {
+				c.SyncLinkedChannels = params.SyncLinkedChannels
+				c.SyncNotifications = params.SyncNotifications
+			})
+
+			t.Run("linked channel", func(t *testing.T) {
+				th.Reset(t)
+
+				senderUser := th.SetupUser(t, team)
+				user1 := th.SetupUser(t, team)
+				user2 := th.SetupUser(t, team)
+
+				channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+				_, appErr := th.p.API.UpdateChannelMemberRoles(channel.Id, user1.Id, model.ChannelAdminRoleId)
+				require.Nil(t, appErr)
+
+				channelLink := storemodels.ChannelLink{
+					MattermostTeamID:    team.Id,
+					MattermostChannelID: channel.Id,
+					MSTeamsTeam:         model.NewId(),
+					MSTeamsChannel:      model.NewId(),
+					Creator:             user1.Id,
+				}
+
+				err := th.p.store.StoreChannelLink(&channelLink)
+				require.NoError(t, err)
+
+				post := &model.Post{
+					UserId:    senderUser.Id,
+					ChannelId: channel.Id,
+					Message:   "message",
+				}
+				err = th.p.apiClient.Post.CreatePost(post)
+				require.NoError(t, err)
+
+				messageID := model.NewId()
+				postInfo := storemodels.PostInfo{
+					MattermostID:        post.Id,
+					MSTeamsID:           messageID,
+					MSTeamsChannel:      channelLink.MSTeamsChannel,
+					MSTeamsLastUpdateAt: time.Now(),
+				}
+				err = th.p.GetStore().LinkPosts(postInfo)
+				require.NoError(t, err)
+
+				th.ConnectUser(t, senderUser.Id)
+				th.ConnectUser(t, user1.Id)
+				th.ConnectUser(t, user2.Id)
+
+				activityIds := clientmodels.ActivityIds{
+					TeamID:    channelLink.MSTeamsTeam,
+					ChannelID: channelLink.MSTeamsChannel,
+					MessageID: messageID,
+				}
+
+				mockTeams := newMockTeamsHelper(th)
+				mockTeams.registerMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, senderUser, "message updated")
+
+				discardReason := th.p.activityHandler.handleDeletedActivity(activityIds)
+				if params.SyncLinkedChannels {
+					assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
+
+					_, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.ErrorContains(t, err, "not found")
+				} else {
+					assert.Equal(t, metrics.DiscardedReasonLinkedChannelsDisabled, discardReason)
+
+					unchangedPost, err := th.p.apiClient.Post.GetPost(post.Id)
+					require.NoError(t, err)
+					assert.Equal(t, post, unchangedPost)
+				}
+			})
+		})
+	})
 }
 
 func TestHandleReactions(t *testing.T) {
