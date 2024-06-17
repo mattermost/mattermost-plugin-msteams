@@ -23,6 +23,11 @@ func (p *Plugin) UserWillLogIn(_ *plugin.Context, user *model.User) string {
 }
 
 func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
+	_, ignoreHook := p.activityHandler.IgnorePluginHooksMap.LoadAndDelete(fmt.Sprintf("delete_post_%s", post.Id))
+	if ignoreHook {
+		return
+	}
+
 	if post.Props != nil {
 		if _, ok := post.Props["msteams_sync_"+p.botUserID].(bool); ok {
 			return

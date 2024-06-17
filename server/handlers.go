@@ -595,8 +595,10 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 		return metrics.DiscardedReasonOther
 	}
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("delete_post_%s", postInfo.MattermostID), true)
 	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
 	if appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("delete_post_%s", postInfo.MattermostID))
 		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "post_id", postInfo.MattermostID, "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
