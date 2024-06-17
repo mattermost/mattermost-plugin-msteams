@@ -546,7 +546,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}
 
 				mockTeams := newMockTeamsHelper(th)
-				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
 				mockTeams.registerMessage(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, senderUser, "message")
 
 				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
