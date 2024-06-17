@@ -173,7 +173,141 @@ func TestHandleMentions(t *testing.T) {
 					},
 				},
 			},
-			expectedMessage: "hello @mockMMUsername-1  from @mockMMUsername-2 ",
+			expectedMessage: "hello @mockMMUsername-1 from @mockMMUsername-2",
+		},
+		{
+			description: "multi-word user mentions",
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
+					Id:       "mockMMUserID-1",
+					Username: "miguel",
+				}, nil).Maybe()
+			},
+			setupStore: func(store *storemocks.Store) {
+				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("mockMMUserID-1", nil).Maybe()
+			},
+			message: &clientmodels.Message{
+				Text: `hello <at id="0">Miguel</at>&nbsp;<at id="1">de</at>&nbsp;<at id="2">la</at>&nbsp;<at id="3">Cruz</at>`,
+				Mentions: []clientmodels.Mention{
+					{
+						ID:            0,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Miguel",
+					},
+					{
+						ID:            1,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "de",
+					},
+					{
+						ID:            2,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "la",
+					},
+					{
+						ID:            3,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Cruz",
+					},
+				},
+			},
+			expectedMessage: "hello @miguel",
+		},
+		{
+			description: "multi-word user mentions, unknown user",
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
+					Id:       "mockMMUserID-1",
+					Username: "miguel",
+				}, nil).Maybe()
+			},
+			setupStore: func(store *storemocks.Store) {
+				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("", errors.New("unable to get mm user ID"))
+			},
+			message: &clientmodels.Message{
+				Text: `hello <at id="0">Miguel</at>&nbsp;<at id="1">de</at>&nbsp;<at id="2">la</at>&nbsp;<at id="3">Cruz</at>`,
+				Mentions: []clientmodels.Mention{
+					{
+						ID:            0,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Miguel",
+					},
+					{
+						ID:            1,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "de",
+					},
+					{
+						ID:            2,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "la",
+					},
+					{
+						ID:            3,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Cruz",
+					},
+				},
+			},
+			expectedMessage: `hello <at id="0">Miguel de la Cruz</at>`,
+		},
+		{
+			description: "multi-word user mentions, repeated",
+			setupAPI: func(api *plugintest.API) {
+				api.On("GetUser", "mockMMUserID-1").Return(&model.User{
+					Id:       "mockMMUserID-1",
+					Username: "miguel",
+				}, nil).Maybe()
+			},
+			setupStore: func(store *storemocks.Store) {
+				store.On("TeamsToMattermostUserID", "mockMSUserID-1").Return("mockMMUserID-1", nil).Maybe()
+			},
+			message: &clientmodels.Message{
+				Text: `hello <at id="0">Miguel</at>&nbsp;<at id="1">de</at>&nbsp;<at id="2">la</at>&nbsp;<at id="3">Cruz</at><at id="4">Miguel</at>&nbsp;<at id="5">de</at>&nbsp;<at id="6">la</at>&nbsp;<at id="7">Cruz</at>`,
+				Mentions: []clientmodels.Mention{
+					{
+						ID:            0,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Miguel",
+					},
+					{
+						ID:            1,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "de",
+					},
+					{
+						ID:            2,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "la",
+					},
+					{
+						ID:            3,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Cruz",
+					},
+					{
+						ID:            4,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Miguel",
+					},
+					{
+						ID:            5,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "de",
+					},
+					{
+						ID:            6,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "la",
+					},
+					{
+						ID:            7,
+						UserID:        "mockMSUserID-1",
+						MentionedText: "Cruz",
+					},
+				},
+			},
+			expectedMessage: "hello @miguel@miguel",
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
