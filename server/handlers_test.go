@@ -7,13 +7,9 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1456,111 +1452,183 @@ func TestHandleDeletedActivity(t *testing.T) {
 }
 
 func TestHandleReactions(t *testing.T) {
-	for _, testCase := range []struct {
-		description  string
-		reactions    []clientmodels.Reaction
-		setupAPI     func(*plugintest.API)
-		setupStore   func(*storemocks.Store)
-		setupMetrics func(*metricsmocks.Metrics)
-	}{
-		{
-			description: "Reactions list is empty",
-			reactions:   []clientmodels.Reaction{},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{}, nil).Times(1)
-			},
-			setupStore:   func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
-			description: "Unable to get the reactions",
-			reactions: []clientmodels.Reaction{
-				{
-					UserID:   testutils.GetTeamsUserID(),
-					Reaction: "+1",
-				},
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetReactions", testutils.GetPostID()).Return(nil, testutils.GetInternalServerAppError("unable to get the reaction")).Times(1)
-			},
-			setupStore:   func(store *storemocks.Store) {},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {},
-		},
-		{
-			description: "Unable to find the user for the reaction",
-			reactions: []clientmodels.Reaction{
-				{
-					UserID:   testutils.GetTeamsUserID(),
-					Reaction: "+1",
-				},
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{
-					{
-						UserId:    testutils.GetTeamsUserID(),
-						EmojiName: "+1",
-						PostId:    testutils.GetPostID(),
-					},
-				}, nil).Times(1)
+	th := setupTestHelper(t)
+	team := th.SetupTeam(t)
 
-				mockAPI.On("RemoveReaction", &model.Reaction{
-					UserId:    testutils.GetTeamsUserID(),
-					EmojiName: "+1",
-					PostId:    testutils.GetPostID(),
-					ChannelId: "removedfromplugin",
-				}).Return(nil).Times(1)
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", errors.New("unable to find the user for the reaction")).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
-			},
-		},
-		{
-			description: "Unable to remove the reaction",
-			reactions: []clientmodels.Reaction{
-				{
-					UserID:   testutils.GetTeamsUserID(),
-					Reaction: "+1",
-				},
-			},
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("GetReactions", testutils.GetPostID()).Return([]*model.Reaction{
-					{
-						UserId:    testutils.GetTeamsUserID(),
-						EmojiName: "+1",
-						PostId:    testutils.GetPostID(),
-					},
-				}, nil).Times(1)
+	assertReactions := func(t *testing.T, expected []*model.Reaction, actual []*model.Reaction) {
+		t.Helper()
 
-				mockAPI.On("RemoveReaction", &model.Reaction{
-					UserId:    testutils.GetTeamsUserID(),
-					EmojiName: "+1",
-					PostId:    testutils.GetPostID(),
-					ChannelId: "removedfromplugin",
-				}).Return(testutils.GetInternalServerAppError("unable to remove reaction")).Times(1)
+		// Ignore timestamps
+		for i := range expected {
+			expected[i].CreateAt = 0
+			expected[i].UpdateAt = 0
+		}
 
-				mockAPI.On("GetUser", testutils.GetID()).Return(testutils.GetUser(model.ChannelAdminRoleId, "test@test.com"), nil).Once()
-			},
-			setupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return(testutils.GetID(), nil).Times(1)
-			},
-			setupMetrics: func(mockmetrics *metricsmocks.Metrics) {
-				mockmetrics.On("ObserveReaction", metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, false).Times(1)
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupStore(p.store.(*storemocks.Store))
-			testCase.setupAPI(p.API.(*plugintest.API))
-			testCase.setupMetrics(p.metricsService.(*metricsmocks.Metrics))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			ah := ActivityHandler{}
-			ah.plugin = p
+		// Ignore timestamps
+		for i := range actual {
+			actual[i].CreateAt = 0
+			actual[i].UpdateAt = 0
+		}
 
-			ah.handleReactions(testutils.GetPostID(), testutils.GetChannelID(), false, testCase.reactions)
-		})
+		assert.ElementsMatch(t, expected, actual)
 	}
+
+	t.Run("no existing or new reactions", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+
+		post := &model.Post{
+			UserId:    user1.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err := th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		isDirectOrGroupMessage := false
+		reactions := []clientmodels.Reaction{}
+
+		th.p.activityHandler.handleReactions(post.Id, channel.Id, isDirectOrGroupMessage, reactions)
+
+		actualReactions, err := th.p.apiClient.Post.GetReactions(post.Id)
+		require.NoError(t, err)
+		assert.Empty(t, actualReactions)
+	})
+
+	t.Run("no change from existing user", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+
+		post := &model.Post{
+			UserId:    user1.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err := th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		err = th.p.apiClient.Post.AddReaction(&model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+		})
+		require.NoError(t, err)
+
+		isDirectOrGroupMessage := false
+		reactions := []clientmodels.Reaction{
+			{
+				UserID:   "t" + user1.Id,
+				Reaction: "like",
+			},
+		}
+
+		th.p.activityHandler.handleReactions(post.Id, channel.Id, isDirectOrGroupMessage, reactions)
+
+		actualReactions, err := th.p.apiClient.Post.GetReactions(post.Id)
+		require.NoError(t, err)
+
+		expectedReactions := []*model.Reaction{
+			{
+				UserId:    user1.Id,
+				PostId:    post.Id,
+				ChannelId: channel.Id,
+				EmojiName: "+1",
+			},
+		}
+		assertReactions(t, expectedReactions, actualReactions)
+	})
+
+	t.Run("user removed reaction", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+
+		post := &model.Post{
+			UserId:    user1.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err := th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		err = th.p.apiClient.Post.AddReaction(&model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+		})
+		require.NoError(t, err)
+
+		isDirectOrGroupMessage := false
+		reactions := []clientmodels.Reaction{
+			{
+				UserID:   "t" + model.NewId(),
+				Reaction: "+1",
+			},
+		}
+
+		th.p.activityHandler.handleReactions(post.Id, channel.Id, isDirectOrGroupMessage, reactions)
+
+		actualReactions, err := th.p.apiClient.Post.GetReactions(post.Id)
+		require.NoError(t, err)
+
+		expectedReactions := []*model.Reaction{}
+		assertReactions(t, expectedReactions, actualReactions)
+	})
+
+	t.Run("user changed reaction", func(t *testing.T) {
+		th.Reset(t)
+
+		user1 := th.SetupUser(t, team)
+		th.ConnectUser(t, user1.Id)
+
+		channel := th.SetupPublicChannel(t, team, WithMembers(user1))
+
+		post := &model.Post{
+			UserId:    user1.Id,
+			ChannelId: channel.Id,
+			Message:   "message",
+		}
+		err := th.p.apiClient.Post.CreatePost(post)
+		require.NoError(t, err)
+
+		err = th.p.apiClient.Post.AddReaction(&model.Reaction{
+			UserId:    user1.Id,
+			PostId:    post.Id,
+			EmojiName: "+1",
+		})
+		require.NoError(t, err)
+
+		isDirectOrGroupMessage := false
+		reactions := []clientmodels.Reaction{
+			{
+				UserID:   "t" + user1.Id,
+				Reaction: "sad",
+			},
+		}
+
+		th.p.activityHandler.handleReactions(post.Id, channel.Id, isDirectOrGroupMessage, reactions)
+
+		actualReactions, err := th.p.apiClient.Post.GetReactions(post.Id)
+		require.NoError(t, err)
+
+		expectedReactions := []*model.Reaction{
+			{
+				UserId:    user1.Id,
+				PostId:    post.Id,
+				ChannelId: channel.Id,
+				EmojiName: "cry",
+			},
+		}
+		assertReactions(t, expectedReactions, actualReactions)
+	})
 }
