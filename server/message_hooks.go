@@ -214,7 +214,10 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 
 	client, err := p.GetClientForUser(newPost.UserId)
 	if err != nil {
-		return
+		client, err = p.GetClientForUser(p.botUserID)
+		if err != nil {
+			return
+		}
 	}
 
 	user, _ := p.API.GetUser(newPost.UserId)
