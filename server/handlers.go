@@ -572,8 +572,18 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
-		return metrics.DiscardedReasonNotificationsOnly
+	if IsDirectOrGroupMessage(activityIds.ChatID) {
+		if ah.plugin.GetSyncNotifications() {
+			return metrics.DiscardedReasonNotificationsOnly
+		}
+
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
+		}
+	} else {
+		if !ah.plugin.GetSyncLinkedChannels() {
+			return metrics.DiscardedReasonLinkedChannelsDisabled
+		}
 	}
 
 	messageID := activityIds.MessageID
