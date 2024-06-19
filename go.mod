@@ -1,8 +1,6 @@
 module github.com/mattermost/mattermost-plugin-msteams
 
-go 1.21
-
-toolchain go1.21.6
+go 1.21.6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1
@@ -16,9 +14,10 @@ require (
 	github.com/hashicorp/go-plugin v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.1.3
+	github.com/mattermost/mattermost/server/public v0.1.4
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
 	github.com/mattermost/morph v1.1.0
+	github.com/mattermost/testcontainers-mattermost-go v0.0.0-20240619123633-76696dfc3bf5
 	github.com/microsoft/kiota-abstractions-go v1.6.0
 	github.com/microsoft/kiota-http-go v1.4.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.43.0
