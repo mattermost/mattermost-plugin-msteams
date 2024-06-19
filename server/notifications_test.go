@@ -10,13 +10,14 @@ func TestFormatNotificationMessage(t *testing.T) {
 	testCases := []struct {
 		Description string
 
-		ActorDisplayName string
-		ChatTopic        string
-		ChatSize         int
-		ChatLink         string
-		Message          string
-		AttachmentCount  int
-		ExpectedMessage  string
+		ActorDisplayName       string
+		ChatTopic              string
+		ChatSize               int
+		ChatLink               string
+		Message                string
+		AttachmentCount        int
+		SkippedFileAttachments int
+		ExpectedMessage        string
 	}{
 		{
 			Description: "empty message, no attachments",
@@ -26,7 +27,6 @@ func TestFormatNotificationMessage(t *testing.T) {
 			ChatSize:         2,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "",
-			AttachmentCount:  0,
 
 			ExpectedMessage: ``,
 		},
@@ -40,9 +40,7 @@ func TestFormatNotificationMessage(t *testing.T) {
 			Message:          "",
 			AttachmentCount:  1,
 
-			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
-
-*This message was originally sent with one attachment.*`,
+			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):`,
 		},
 		{
 			Description: "empty message, more than one attachment",
@@ -54,25 +52,22 @@ func TestFormatNotificationMessage(t *testing.T) {
 			Message:          "",
 			AttachmentCount:  2,
 
-			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
-
-*This message was originally sent with 2 attachments.*`,
+			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):`,
 		},
 		{
-			Description: "chat message, no attachments, no topic",
+			Description: "chat message",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
 			ChatSize:         2,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  0,
 
 			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
 > Hello!`,
 		},
 		{
-			Description: "chat message, one attachment, no topic",
+			Description: "chat message with attachments",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
@@ -82,83 +77,50 @@ func TestFormatNotificationMessage(t *testing.T) {
 			AttachmentCount:  1,
 
 			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
+> Hello!`,
 		},
 		{
-			Description: "chat message, more than one attachment, no topic",
+			Description: "chat message with topic",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
 			ChatSize:         2,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  2,
+			AttachmentCount:  1,
+
+			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
+> Hello!`,
+		},
+		{
+			Description: "chat message with skipped attachments",
+
+			ActorDisplayName:       "Sender",
+			ChatTopic:              "",
+			ChatSize:               2,
+			ChatLink:               "http://teams.microsoft.com/chat/1",
+			Message:                "Hello!",
+			SkippedFileAttachments: 1,
 
 			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat](http://teams.microsoft.com/chat/1):
 > Hello!
 
-*This message was originally sent with 2 attachments.*`,
+*Some file attachments from this message could not be delivered.*`,
 		},
 		{
-			Description: "chat message, no attachments, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         2,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  0,
-
-			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!`,
-		},
-		{
-			Description: "chat message, one attachment, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         2,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  1,
-
-			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
-		},
-		{
-			Description: "chat message, more than one attachment, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         2,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  2,
-
-			ExpectedMessage: `**Sender** messaged you in an [MS Teams chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with 2 attachments.*`,
-		},
-		{
-			Description: "group chat message, no attachments, no topic",
+			Description: "group chat message",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
 			ChatSize:         3,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  0,
 
 			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
 > Hello!`,
 		},
 		{
-			Description: "group chat message, one attachment, no topic",
+			Description: "group chat message with attachments",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
@@ -168,153 +130,58 @@ func TestFormatNotificationMessage(t *testing.T) {
 			AttachmentCount:  1,
 
 			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
+> Hello!`,
 		},
 		{
-			Description: "group chat message, more than one attachment, no topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "",
-			ChatSize:         3,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  2,
-
-			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with 2 attachments.*`,
-		},
-		{
-			Description: "group chat message, no attachments, has topic",
+			Description: "group chat message with topic",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "Topic",
 			ChatSize:         3,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  0,
 
 			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
 > Hello!`,
 		},
 		{
-			Description: "group chat message, one attachment, has topic",
+			Description: "group chat message with skipped attachments",
 
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         3,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  1,
-
-			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
-		},
-		{
-			Description: "group chat message, more than one attachment, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         3,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  2,
+			ActorDisplayName:       "Sender",
+			ChatTopic:              "Topic",
+			ChatSize:               3,
+			ChatLink:               "http://teams.microsoft.com/chat/1",
+			Message:                "Hello!",
+			SkippedFileAttachments: 1,
 
 			ExpectedMessage: `**Sender** messaged you and 1 other user in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
 > Hello!
 
-*This message was originally sent with 2 attachments.*`,
+*Some file attachments from this message could not be delivered.*`,
 		},
 		{
-			Description: "group chat message with 5 users, no attachments, no topic",
+			Description: "group chat message with 5 users",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "",
 			ChatSize:         5,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  0,
 
 			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
 > Hello!`,
 		},
 		{
-			Description: "group chat message with 5 users, one attachment, no topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "",
-			ChatSize:         5,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  1,
-
-			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
-		},
-		{
-			Description: "group chat message with 5 users, more than one attachment, no topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "",
-			ChatSize:         5,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  2,
-
-			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with 2 attachments.*`,
-		},
-		{
-			Description: "group chat message with 5 users, no attachments, has topic",
+			Description: "group chat message with 5 users and topic",
 
 			ActorDisplayName: "Sender",
 			ChatTopic:        "Topic",
 			ChatSize:         5,
 			ChatLink:         "http://teams.microsoft.com/chat/1",
 			Message:          "Hello!",
-			AttachmentCount:  0,
 
 			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
 > Hello!`,
-		},
-		{
-			Description: "group chat message with 5 users, one attachment, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         5,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  1,
-
-			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with one attachment.*`,
-		},
-		{
-			Description: "group chat message with 5 users, more than one attachment, has topic",
-
-			ActorDisplayName: "Sender",
-			ChatTopic:        "Topic",
-			ChatSize:         5,
-			ChatLink:         "http://teams.microsoft.com/chat/1",
-			Message:          "Hello!",
-			AttachmentCount:  2,
-
-			ExpectedMessage: `**Sender** messaged you and 3 other users in an [MS Teams group chat: Topic](http://teams.microsoft.com/chat/1):
-> Hello!
-
-*This message was originally sent with 2 attachments.*`,
 		},
 		{
 			Description: "multiline, complex chat message",
@@ -348,9 +215,7 @@ SELECT * FROM Users
 >` + " " + `
 > ` + "```" + `sql
 > SELECT * FROM Users
-> ` + "```" + `
-
-*This message was originally sent with 2 attachments.*`,
+> ` + "```",
 		},
 	}
 
@@ -363,6 +228,7 @@ SELECT * FROM Users
 				tc.ChatLink,
 				tc.Message,
 				tc.AttachmentCount,
+				tc.SkippedFileAttachments,
 			)
 			assert.Equal(t, tc.ExpectedMessage, actualMessage)
 		})

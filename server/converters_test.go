@@ -64,7 +64,7 @@ func TestMsgToPost(t *testing.T) {
 
 			ah.plugin = p
 
-			post, _, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, true, []string{})
+			post, _, _ := ah.msgToPost(testCase.channelID, testCase.senderID, testCase.message, nil, []string{})
 			assert.Equal(t, testCase.post, post)
 		})
 	}

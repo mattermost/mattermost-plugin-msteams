@@ -94,7 +94,7 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 	return fileInfo.Id, false
 }
 
-func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, handleFileAttachments bool, existingFileIDs []string) (string, model.StringArray, string, bool, bool) {
+func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, int, bool) {
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -115,7 +115,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 	errorFound := false
 	if client == nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get the client")
-		return "", nil, "", false, errorFound
+		return "", nil, "", 0, errorFound
 	}
 
 	isDirectOrGroupMessage := false
@@ -133,7 +133,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		}
 	}
 
-	skippedFileAttachments := false
+	skippedFileAttachments := 0
 	for _, a := range msg.Attachments {
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
@@ -149,11 +149,6 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		if a.ContentType == "messageReference" {
 			parentID, newText = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
 			countNonFileAttachments++
-			continue
-		}
-
-		if !handleFileAttachments {
-			skippedFileAttachments = true
 			continue
 		}
 
@@ -173,6 +168,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if err != nil {
 				ah.plugin.GetAPI().LogWarn("failed to download the file", "filename", a.Name, "error", err.Error())
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
+				skippedFileAttachments++
 				continue
 			}
 		} else {
@@ -180,6 +176,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if err != nil {
 				ah.plugin.GetAPI().LogWarn("failed to get file size and download URL", "error", err.Error())
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
+				skippedFileAttachments++
 				continue
 			}
 
@@ -188,6 +185,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				ah.plugin.GetAPI().LogWarn("skipping file download from MS Teams because the file size is greater than the allowed size")
 				errorFound = true
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonMaxFileSizeExceeded, isDirectOrGroupMessage)
+				skippedFileAttachments++
 				continue
 			}
 
@@ -197,6 +195,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 				if err != nil {
 					ah.plugin.GetAPI().LogWarn("failed to get file content", "error", err.Error())
 					ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
+					skippedFileAttachments++
 					continue
 				}
 			}
@@ -217,6 +216,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 
 		if fileInfoID == "" {
 			ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonEmptyFileID, isDirectOrGroupMessage)
+			skippedFileAttachments++
 			continue
 		}
 		attachments = append(attachments, fileInfoID)
@@ -226,6 +226,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			// Calculate the count of file attachments discarded by subtracting handled file attachments and other attachments from total message attachments.
 			fileAttachmentsDiscarded := len(msg.Attachments) - countNonFileAttachments - countFileAttachments
 			ah.plugin.GetMetrics().ObserveFiles(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonFileLimitReached, isDirectOrGroupMessage, int64(fileAttachmentsDiscarded))
+			skippedFileAttachments += fileAttachmentsDiscarded
 			break
 		}
 	}

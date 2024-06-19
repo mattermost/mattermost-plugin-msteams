@@ -221,36 +221,13 @@ func TestHandleAttachments(t *testing.T) {
 		setupMetrics                   func(*mocksMetrics.Metrics)
 		setupStore                     func(store *storemocks.Store)
 		attachments                    []clientmodels.Attachment
-		handleFileAttachments          bool
 		expectedText                   string
 		expectedAttachmentIDsCount     int
 		expectedParentID               string
-		expectedSkippedFileAttachments bool
+		expectedSkippedFileAttachments int
 		expectedError                  bool
 		fileIDs                        []string
 	}{
-		{
-			description: "File attachments disabled by configuration",
-			setupAPI: func(mockAPI *plugintest.API) {
-				mockAPI.On("UploadFile", []byte{}, testutils.GetChannelID(), "mock-name").Return(&model.FileInfo{
-					Id: testutils.GetID(),
-				}, nil)
-			},
-			setupClient: func(client *clientmocks.Client) {
-			},
-			setupMetrics: func(mockmetrics *mocksMetrics.Metrics) {
-			},
-			setupStore: func(store *storemocks.Store) {},
-			attachments: []clientmodels.Attachment{
-				{
-					Name: "mock-name",
-				},
-			},
-			handleFileAttachments:          false,
-			expectedText:                   "mock-text",
-			expectedSkippedFileAttachments: true,
-			expectedAttachmentIDsCount:     0,
-		},
 		{
 			description: "Successfully handled attachments",
 			setupAPI: func(mockAPI *plugintest.API) {
@@ -271,7 +248,6 @@ func TestHandleAttachments(t *testing.T) {
 					Name: "mock-name",
 				},
 			},
-			handleFileAttachments:      true,
 			expectedText:               "mock-text",
 			expectedAttachmentIDsCount: 1,
 		},
@@ -293,8 +269,8 @@ func TestHandleAttachments(t *testing.T) {
 					Name: "mock-name",
 				},
 			},
-			handleFileAttachments: true,
-			expectedText:          "mock-text",
+			expectedText:                   "mock-text",
+			expectedSkippedFileAttachments: 1,
 		},
 		{
 			description: "Number of attachments are greater than 10",
@@ -313,9 +289,9 @@ func TestHandleAttachments(t *testing.T) {
 			attachments: []clientmodels.Attachment{
 				{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 			},
-			handleFileAttachments:      true,
-			expectedText:               "mock-text",
-			expectedAttachmentIDsCount: 10,
+			expectedText:                   "mock-text",
+			expectedAttachmentIDsCount:     10,
+			expectedSkippedFileAttachments: 2,
 		},
 		{
 			description: "Attachment with existing fileID",
@@ -331,7 +307,6 @@ func TestHandleAttachments(t *testing.T) {
 				},
 			},
 			expectedAttachmentIDsCount: 1,
-			handleFileAttachments:      true,
 			expectedText:               "mock-text",
 			fileIDs:                    []string{"testFileId"},
 		},
@@ -345,7 +320,6 @@ func TestHandleAttachments(t *testing.T) {
 			setupStore:                 func(store *storemocks.Store) {},
 			attachments:                []clientmodels.Attachment{},
 			expectedAttachmentIDsCount: 0,
-			handleFileAttachments:      true,
 			expectedText:               "mock-text",
 			fileIDs:                    []string{"testFileId"},
 		},
@@ -373,7 +347,6 @@ func TestHandleAttachments(t *testing.T) {
 					Name: "mockFile.Name.txt",
 				},
 			},
-			handleFileAttachments:      true,
 			expectedText:               "mock-text",
 			expectedAttachmentIDsCount: 2,
 			fileIDs:                    []string{"testFileId"},
@@ -395,8 +368,7 @@ func TestHandleAttachments(t *testing.T) {
 					Content:     `{"language": "go", "codeSnippetUrl": "https://example.com/version/chats/mock-chat-id/messages/mock-message-id/hostedContents/mock-content-id/$value"}`,
 				},
 			},
-			handleFileAttachments: true,
-			expectedText:          "mock-text\n```go\nsnippet content\n```\n",
+			expectedText: "mock-text\n```go\nsnippet content\n```\n",
 		},
 		{
 			description: "Attachment type message reference",
@@ -418,9 +390,8 @@ func TestHandleAttachments(t *testing.T) {
 				ContentType: "messageReference",
 				Content:     `{"messageId":"mock-ID"}`,
 			}},
-			handleFileAttachments: true,
-			expectedText:          "mock-text",
-			expectedParentID:      testutils.GetID(),
+			expectedText:     "mock-text",
+			expectedParentID: testutils.GetID(),
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
@@ -441,7 +412,7 @@ func TestHandleAttachments(t *testing.T) {
 				ChannelID:   testutils.GetChannelID(),
 			}
 
-			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.handleFileAttachments, testCase.fileIDs)
+			newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := ah.handleAttachments(testutils.GetChannelID(), testutils.GetUserID(), "mock-text", attachments, nil, testCase.fileIDs)
 			assert.Equal(t, testCase.expectedParentID, parentID)
 			assert.Equal(t, testCase.expectedAttachmentIDsCount, len(attachmentIDs))
 			assert.Equal(t, testCase.expectedText, newText)

@@ -10,23 +10,14 @@ import (
 )
 
 func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.Message, chat *clientmodels.Chat) string {
-	botUserID := ah.plugin.GetBotUserID()
-	post, _, _ := ah.msgToPost("", botUserID, msg, chat, false, []string{})
-
 	if chat == nil {
 		// We're only going to support notifications from chats for now.
 		return metrics.DiscardedReasonChannelNotificationsUnsupported
 	}
 
-	notifiedUsers := []string{}
+	botUserID := ah.plugin.GetBotUserID()
+
 	chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
-	attachmentCount := 0
-	for _, attachment := range msg.Attachments {
-		if attachment.ContentType == "messageReference" || attachment.ContentType == "application/vnd.microsoft.card.codesnippet" {
-			continue
-		}
-		attachmentCount++
-	}
 	for _, member := range chat.Members {
 		// Don't notify senders about their own posts.
 		if member.UserID == msg.UserID {
@@ -44,9 +35,16 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		if !ah.plugin.getNotificationPreference(mattermostUserID) {
 			continue
 		}
-		notifiedUsers = append(notifiedUsers, mattermostUserID)
 
-		ah.plugin.metricsService.ObserveNotification(len(chat.Members) >= 3, attachmentCount > 0)
+		channel, err := ah.plugin.apiClient.Channel.GetDirect(mattermostUserID, ah.plugin.botUserID)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn("Failed to get bot DM channel with user", "user_id", mattermostUserID, "teams_user_id", member.UserID, "error", err)
+			continue
+		}
+
+		post, skippedFileAttachments, _ := ah.msgToPost(channel.Id, botUserID, msg, chat, []string{})
+
+		ah.plugin.metricsService.ObserveNotification(len(chat.Members) >= 3, len(post.FileIds) > 0)
 		ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
@@ -54,12 +52,11 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 			len(chat.Members),
 			chatLink,
 			post.Message,
-			attachmentCount,
+			post.FileIds,
+			skippedFileAttachments,
 		)
-	}
 
-	if len(notifiedUsers) > 0 {
-		err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(notifiedUsers, storemodels.MilliToMicroSeconds(post.CreateAt))
+		err = ah.plugin.GetStore().SetUserLastChatReceivedAt(mattermostUserID, storemodels.MilliToMicroSeconds(post.CreateAt))
 		if err != nil {
 			ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
 		}

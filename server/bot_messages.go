@@ -137,62 +137,65 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 }
 
 // formatNotificationMessage formats the message about a notification of a chat received on Teams.
-func formatNotificationMessage(actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) string {
+func formatNotificationMessage(actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int, skippedFileAttachments int) string {
 	message = strings.TrimSpace(message)
-	if message == "" && attachmentCount == 0 {
+	if message == "" && attachmentCount == 0 && skippedFileAttachments == 0 {
 		return ""
 	}
 
-	var preamble string
+	var messageComponents []string
 
 	var chatTopicDesc string
 	if chatTopic != "" {
 		chatTopicDesc = ": " + chatTopic
 	}
 
+	// Handle the preamble
 	if chatSize <= 1 {
 		return ""
 	} else if chatSize == 2 {
-		preamble = fmt.Sprintf("**%s** messaged you in an [MS Teams chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
+		messageComponents = append(messageComponents,
+			fmt.Sprintf("**%s** messaged you in an [MS Teams chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink),
+		)
 	} else if chatSize == 3 {
-		preamble = fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink)
+		messageComponents = append(messageComponents,
+			fmt.Sprintf("**%s** messaged you and 1 other user in an [MS Teams group chat%s](%s):", actorDisplayName, chatTopicDesc, chatLink),
+		)
 	} else {
-		preamble = fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat%s](%s):", actorDisplayName, chatSize-2, chatTopicDesc, chatLink)
-	}
-	preamble += "\n"
-
-	if message != "" {
-		message = "> " + strings.ReplaceAll(message, "\n", "\n> ")
+		messageComponents = append(messageComponents,
+			fmt.Sprintf("**%s** messaged you and %d other users in an [MS Teams group chat%s](%s):", actorDisplayName, chatSize-2, chatTopicDesc, chatLink),
+		)
 	}
 
-	attachmentsNotice := ""
-	if attachmentCount > 0 {
-		if len(message) > 0 {
-			attachmentsNotice += "\n"
-		}
-		attachmentsNotice += "\n*"
-		if attachmentCount == 1 {
-			attachmentsNotice += "This message was originally sent with one attachment."
-		} else {
-			attachmentsNotice += fmt.Sprintf("This message was originally sent with %d attachments.", attachmentCount)
-		}
-		attachmentsNotice += "*"
+	// Handle the message itself
+	if len(message) > 0 {
+		messageComponents = append(messageComponents,
+			fmt.Sprintf("> %s", strings.ReplaceAll(message, "\n", "\n> ")),
+		)
 	}
 
-	formattedMessage := fmt.Sprintf(`%s%s%s`, preamble, message, attachmentsNotice)
+	if skippedFileAttachments > 0 {
+		messageComponents = append(messageComponents,
+			"\n*Some file attachments from this message could not be delivered.*",
+		)
+	}
+
+	formattedMessage := strings.Join(messageComponents, "\n")
 
 	return formattedMessage
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, attachmentCount int) {
-	formattedMessage := formatNotificationMessage(actorDisplayName, chatTopic, chatSize, chatLink, message, attachmentCount)
-
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, fileIds model.StringArray, skippedFileAttachments int) {
+	formattedMessage := formatNotificationMessage(actorDisplayName, chatTopic, chatSize, chatLink, message, len(fileIds), skippedFileAttachments)
 	if formattedMessage == "" {
 		return
 	}
 
-	if err := p.botSendDirectMessage(recipientUserID, formattedMessage); err != nil {
+	if err := p.botSendDirectPost(recipientUserID, &model.Post{
+		Message: formattedMessage,
+		FileIds: fileIds,
+	}); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
 	}
 }

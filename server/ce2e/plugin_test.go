@@ -148,6 +148,8 @@ func TestMessageHasBeenPostedNewMessageE2E(t *testing.T) {
 }
 
 func TestMessageHasBeenPostedNewMessageWithBotAccountE2E(t *testing.T) {
+	t.Skip("https://mattermost.atlassian.net/browse/MM-58801")
+
 	mattermost, store, mockClient, tearDown := containere2e.NewE2ETestPlugin(t)
 	defer tearDown()
 
