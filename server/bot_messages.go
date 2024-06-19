@@ -123,7 +123,7 @@ func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 						},
 						{
 							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/dismiss-notifications", p.GetRelativeURL()),
+								URL: fmt.Sprintf("%s/disable-notifications", p.GetRelativeURL()),
 							},
 							Name:  "Disable",
 							Style: "default",
