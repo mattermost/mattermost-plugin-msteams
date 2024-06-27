@@ -60,20 +60,6 @@
                 "default": false
             },
             {
-                "key": "syncUsers",
-                "display_name": "Sync users",
-                "type": "number",
-                "help_text": "Set the number of minutes between users sync (Leave it empty to disable users sync)",
-                "default": 0
-            },
-            {
-                "key": "syncGuestUsers",
-                "display_name": "Sync guest users",
-                "type": "bool",
-                "help_text": "Set the value to 'true' to sync MS Teams guest users",
-                "default": false
-            },
-            {
                 "key": "syncNotifications",
                 "display_name": "Sync notifications",
                 "type": "bool",
@@ -128,51 +114,6 @@
                 "type": "custom",
                 "help_text": "",
                 "default": ""
-            },
-            {
-                "key": "automaticallyPromoteSyntheticUsers",
-                "display_name": "Automatically Promote Synthetic Users",
-                "type": "bool",
-                "help_text": "When true, synthetic users will be converted to members when they login for the first time.",
-                "default": false
-            },
-            {
-                "key": "syntheticUserAuthService",
-                "display_name": "Synthetic User Auth Service",
-                "type": "dropdown",
-                "help_text": "Select the authentication service to use when creating synthetic users. This should match the service used for member user access to Mattermost. Default is 'SAML'.",
-                "default": "saml",
-                "options": [
-                    {
-                        "display_name": "SAML",
-                        "value": "saml"
-                    },
-                    {
-                        "display_name": "AD/LDAP",
-                        "value": "ldap"
-                    }
-                ]
-            },
-            {
-                "key": "syntheticUserAuthData",
-                "display_name": "Synthetic User Auth Data",
-                "type": "dropdown",
-                "help_text": "Select the MS Teams user property to use as the authentication identifier. For AD/LDAP and SAML, the identifier's value should match the value provided by the ID Attribute. ",
-                "default": "ID",
-                "options": [
-                    {
-                        "display_name": "ID",
-                        "value": "ID"
-                    },
-                    {
-                        "display_name": "Mail",
-                        "value": "Mail"
-                    },
-                    {
-                        "display_name": "User Principal Name",
-                        "value": "UserPrincipalName"
-                    }
-                ]
             },
             {
                 "key": "appManifestDownload",
