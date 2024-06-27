@@ -39,12 +39,11 @@ func TestSendChat(t *testing.T) {
 		SetupStore         func(*storemocks.Store)
 		SetupClient        func(*clientmocks.Client, *clientmocks.Client)
 		SetupMetrics       func(mockmetrics *metricsmocks.Metrics)
-		ContainsRemoteUser bool
 		ExpectedMessage    string
 		ExpectedError      string
 	}{
 		{
-			Name: "SendChat: Unable to get the source user ID, no remote user",
+			Name: "SendChat: Unable to get the source user ID",
 			SetupPlugin: func(p *Plugin) {
 			},
 			SetupAPI: func(api *plugintest.API) {
@@ -55,27 +54,10 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ContainsRemoteUser: false,
 			ExpectedError:      "unable to get the source user ID",
 		},
 		{
-			Name: "SendChat: Unable to get the source user ID, remote user",
-			SetupPlugin: func(p *Plugin) {
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return("", errors.New("unable to get the source user ID")).Times(1)
-			},
-			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ContainsRemoteUser: true,
-			ExpectedError:      "unable to get the source user ID",
-		},
-		{
-			Name: "SendChat: Unable to get the client, no remote user",
+			Name: "SendChat: Unable to get the client",
 			SetupPlugin: func(p *Plugin) {
 			},
 			SetupAPI: func(api *plugintest.API) {
@@ -87,24 +69,6 @@ func TestSendChat(t *testing.T) {
 			},
 			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
 			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ContainsRemoteUser: false,
-			ExpectedError:      "not connected user",
-		},
-		{
-			Name: "SendChat: Unable to get the client, remote user",
-			SetupPlugin: func(p *Plugin) {
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("SendEphemeralPost", testutils.GetUserID(), mock.Anything).Return(testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())).Times(1)
-			},
-			SetupStore: func(store *storemocks.Store) {
-				store.On("GetPostInfoByMattermostID", "mockRootID").Return(nil, nil).Once()
-				store.On("MattermostToTeamsUserID", testutils.GetID()).Return(testutils.GetID(), nil).Times(3)
-				store.On("GetTokenForMattermostUser", testutils.GetID()).Return(nil, nil).Times(1)
-			},
-			SetupClient:        func(client *clientmocks.Client, uclient *clientmocks.Client) {},
-			SetupMetrics:       func(mockmetrics *metricsmocks.Metrics) {},
-			ContainsRemoteUser: true,
 			ExpectedError:      "not connected user",
 		},
 		{
@@ -423,7 +387,7 @@ func TestSendChat(t *testing.T) {
 			mockPost := testutils.GetPost(testutils.GetChannelID(), testutils.GetUserID(), time.Now().UnixMicro())
 			mockPost.Message = "mockMessage??????????"
 			mockPost.RootId = "mockRootID"
-			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost, test.ContainsRemoteUser)
+			resp, err := p.SendChat(testutils.GetID(), []string{testutils.GetID(), testutils.GetID()}, mockPost)
 			if test.ExpectedError != "" {
 				assert.Contains(err.Error(), test.ExpectedError)
 			} else {

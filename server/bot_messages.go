@@ -31,13 +31,6 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	return p.apiClient.Post.CreatePost(post)
 }
 
-func (p *Plugin) handlePromptForConnection(userID, channelID string) {
-	// For now, don't display the connect message
-
-	// message := "Some users in this conversation rely on Microsoft Teams to receive your messages, but your account isn't connected. "
-	// p.SendEphemeralConnectMessage(channelID, userID, message)
-}
-
 func (p *Plugin) SendEphemeralConnectMessage(channelID string, userID string, message string) {
 	postID := model.NewId()
 	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channelID)

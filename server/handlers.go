@@ -300,7 +300,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		var chatShouldSync bool
 		var discardReason string
-		chatShouldSync, _, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
+		chatShouldSync, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
 		if err != nil {
 			ah.plugin.API.LogWarn("Failed to determine if created activity should sync", "channel_id", channel.Id, "error", err.Error())
 			return discardReason

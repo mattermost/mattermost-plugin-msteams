@@ -45,7 +45,7 @@ func (p *Plugin) MessageHasBeenDeleted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if channel.IsGroupOrDirect() {
-		chatShouldSync, _, _, _, err := p.ChatShouldSync(channel)
+		chatShouldSync, _, _, err := p.ChatShouldSync(channel)
 		if err != nil {
 			p.API.LogWarn("Failed to determine if deleted message should sync", "channel_id", channel.Id, "post_id", post.Id, "error", err.Error())
 			return
@@ -94,7 +94,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	}
 
 	if isDirectOrGroupMessage {
-		chatShouldSync, containsRemoteUser, members, _, err := p.ChatShouldSync(channel)
+		chatShouldSync, members, _, err := p.ChatShouldSync(channel)
 		if err != nil {
 			p.API.LogWarn("Failed to determine if posted message should sync", "channel_id", channel.Id, "error", err.Error())
 			return
@@ -107,7 +107,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 			dstUsers = append(dstUsers, m.UserId)
 		}
 
-		_, err = p.SendChat(post.UserId, dstUsers, post, containsRemoteUser)
+		_, err = p.SendChat(post.UserId, dstUsers, post)
 		if err != nil {
 			p.API.LogWarn("Unable to handle message sent", "error", err.Error())
 		}
@@ -239,7 +239,7 @@ func (p *Plugin) MessageHasBeenUpdated(c *plugin.Context, newPost, _ /*oldPost*/
 
 		var chatShouldSync bool
 		var members []*model.ChannelMember
-		chatShouldSync, _, members, _, err = p.ChatShouldSync(channel)
+		chatShouldSync, members, _, err = p.ChatShouldSync(channel)
 		if err != nil {
 			p.API.LogWarn("Failed to determine if updated message should sync", "channel_id", channel.Id, "post_id", newPost.Id, "error", err.Error())
 			return
