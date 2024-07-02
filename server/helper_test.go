@@ -404,7 +404,7 @@ func (th *testHelper) SetupClient(t *testing.T, userID string) *model.Client4 {
 	user, err := th.p.apiClient.User.Get(userID)
 	require.NoError(t, err)
 
-	client := model.NewAPIv4Client(os.Getenv("MM_SERVICESETTINGS_SITEURL"))
+	client := model.NewAPIv4Client(getSiteURL())
 
 	// TODO: Don't hardcode "password"
 	_, _, err = client.Login(context.TODO(), user.Username, "password")
@@ -414,7 +414,7 @@ func (th *testHelper) SetupClient(t *testing.T, userID string) *model.Client4 {
 }
 
 func (th *testHelper) pluginURL(t *testing.T, paths ...string) string {
-	baseURL, err := url.JoinPath(os.Getenv("MM_SERVICESETTINGS_SITEURL"), "plugins", pluginID)
+	baseURL, err := url.JoinPath(getSiteURL(), "plugins", pluginID)
 	require.NoError(t, err)
 
 	apiURL, err := url.JoinPath(baseURL, paths...)

@@ -147,7 +147,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 
 		// handle a message reference (reply)
 		if a.ContentType == "messageReference" {
-			parentID, newText = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID, newText)
+			parentID = ah.handleMessageReference(a, msg.ChatID+msg.ChannelID)
 			countNonFileAttachments++
 			continue
 		}
@@ -291,28 +291,28 @@ func (ah *ActivityHandler) handleCodeSnippet(client msteams.Client, attach clien
 	return newText
 }
 
-func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment, chatOrChannelID string, text string) (string, string) {
+func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment, chatOrChannelID string) string {
 	var content struct {
 		MessageID string `json:"messageId"`
 	}
 	err := json.Unmarshal([]byte(attach.Content), &content)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("failed to unmarshal attachment content", "error", err)
-		return "", text
+		return ""
 	}
 	postInfo, err := ah.plugin.GetStore().GetPostInfoByMSTeamsID(chatOrChannelID, content.MessageID)
 	if err != nil {
-		return "", text
+		return ""
 	}
 
 	post, appErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
 	if appErr != nil {
-		return "", text
+		return ""
 	}
 
 	if post.RootId != "" {
-		return post.RootId, text
+		return post.RootId
 	}
 
-	return post.Id, text
+	return post.Id
 }

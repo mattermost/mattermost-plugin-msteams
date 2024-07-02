@@ -17,20 +17,20 @@ import (
 //
 // TODO: This method does too much, but it's reflective of the underlying complexity of the
 // business logic. Thankfully, it's well tested!
-func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, bool, []*model.ChannelMember, string, error) {
+func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, []*model.ChannelMember, string, error) {
 	if !channel.IsGroupOrDirect() {
-		return false, false, nil, metrics.DiscardedReasonOther, nil
+		return false, nil, metrics.DiscardedReasonOther, nil
 	}
 
 	if !p.GetSyncChats() {
-		return false, false, nil, metrics.DiscardedReasonChatsDisabled, nil
+		return false, nil, metrics.DiscardedReasonChatsDisabled, nil
 	}
 
 	// We use the members to count the number of remote users, but also to return to the client
 	// for subsequent use.
 	members, err := p.apiClient.Channel.ListMembers(channel.Id, 0, math.MaxInt32)
 	if err != nil {
-		return false, false, nil, metrics.DiscardedReasonInternalError, err
+		return false, nil, metrics.DiscardedReasonInternalError, err
 	}
 
 	numLocalUsers := 0
@@ -38,7 +38,7 @@ func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, bool, []*model.Ch
 	for _, m := range members {
 		user, err := p.apiClient.User.Get(m.UserId)
 		if err != nil {
-			return false, false, nil, metrics.DiscardedReasonInternalError, err
+			return false, nil, metrics.DiscardedReasonInternalError, err
 		}
 
 		if p.IsRemoteUser(user) {
@@ -53,11 +53,11 @@ func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, bool, []*model.Ch
 	if p.getConfiguration().SelectiveSync {
 		// Only sync if there's at most one local user and at least one remote user.
 		if numLocalUsers == 1 && containsRemoteUser {
-			return true, containsRemoteUser, members, metrics.DiscardedReasonNone, nil
+			return true, members, metrics.DiscardedReasonNone, nil
 		}
 
-		return false, containsRemoteUser, members, metrics.DiscardedReasonSelectiveSync, nil
+		return false, members, metrics.DiscardedReasonSelectiveSync, nil
 	}
 
-	return true, containsRemoteUser, members, metrics.DiscardedReasonNone, nil
+	return true, members, metrics.DiscardedReasonNone, nil
 }

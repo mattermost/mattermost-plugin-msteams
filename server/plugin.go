@@ -160,8 +160,7 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 	return p.msteamsAppClient
 }
 
-func (p *Plugin) GetURL() string {
-	config := p.API.GetConfig()
+func getURL(config *model.Config) string {
 	siteURL := ""
 	if config.ServiceSettings.SiteURL != nil {
 		siteURL = *config.ServiceSettings.SiteURL
@@ -172,13 +171,20 @@ func (p *Plugin) GetURL() string {
 	return siteURL + "plugins/" + pluginID
 }
 
-func (p *Plugin) GetRelativeURL() string {
-	config := p.API.GetConfig()
+func (p *Plugin) GetURL() string {
+	return getURL(p.API.GetConfig())
+}
+
+func getRelativeURL(config *model.Config) string {
 	subpath, _ := utils.GetSubpathFromConfig(config)
 	if !strings.HasSuffix(subpath, "/") {
 		subpath += "/"
 	}
 	return subpath + "plugins/" + pluginID
+}
+
+func (p *Plugin) GetRelativeURL() string {
+	return getRelativeURL(p.API.GetConfig())
 }
 
 func (p *Plugin) OnDisconnectedTokenHandler(userID string) {

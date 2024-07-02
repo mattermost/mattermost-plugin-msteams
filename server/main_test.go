@@ -86,6 +86,12 @@ func setupDatabase(mt *mainT) error {
 	return nil
 }
 
+var server *app.Server
+
+func getSiteURL() string {
+	return fmt.Sprintf("http://localhost:%v", server.ListenAddr.Port)
+}
+
 // setupServer initializes a singleton Mattermost instance for use with tests.
 func setupServer(mt *mainT) error {
 	// Ignore any locally defined SiteURL as we intend to host our own.
@@ -146,7 +152,7 @@ func setupServer(mt *mainT) error {
 		app.ConfigStore(configStore),
 	}
 
-	server, err := app.NewServer(options...)
+	server, err = app.NewServer(options...)
 	if err != nil {
 		return err
 	}
@@ -179,9 +185,6 @@ func setupServer(mt *mainT) error {
 	if appErr != nil {
 		return appErr
 	}
-
-	// Export the site url for later use in tests.
-	os.Setenv("MM_SERVICESETTINGS_SITEURL", fmt.Sprintf("http://localhost:%v", server.ListenAddr.Port))
 
 	return nil
 }

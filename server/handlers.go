@@ -300,7 +300,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 		var chatShouldSync bool
 		var discardReason string
-		chatShouldSync, _, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
+		chatShouldSync, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
 		if err != nil {
 			ah.plugin.API.LogWarn("Failed to determine if created activity should sync", "channel_id", channel.Id, "error", err.Error())
 			return discardReason
@@ -572,8 +572,18 @@ func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrG
 }
 
 func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
-		return metrics.DiscardedReasonNotificationsOnly
+	if IsDirectOrGroupMessage(activityIds.ChatID) {
+		if ah.plugin.GetSyncNotifications() {
+			return metrics.DiscardedReasonNotificationsOnly
+		}
+
+		if !ah.plugin.GetSyncChats() {
+			return metrics.DiscardedReasonChatsDisabled
+		}
+	} else {
+		if !ah.plugin.GetSyncLinkedChannels() {
+			return metrics.DiscardedReasonLinkedChannelsDisabled
+		}
 	}
 
 	messageID := activityIds.MessageID
@@ -585,8 +595,10 @@ func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.Activi
 		return metrics.DiscardedReasonOther
 	}
 
+	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("delete_post_%s", postInfo.MattermostID), true)
 	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
 	if appErr != nil {
+		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("delete_post_%s", postInfo.MattermostID))
 		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "post_id", postInfo.MattermostID, "error", appErr)
 		return metrics.DiscardedReasonOther
 	}
