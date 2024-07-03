@@ -829,24 +829,6 @@ func (s *SQLStore) getConnectedUsersCount(db sq.BaseRunner) (connectedUsers int6
 }
 
 //db:withReplica
-func (s *SQLStore) getSyntheticUsersCount(db sq.BaseRunner, remoteID string) (syntheticUsers int64, err error) {
-	err = s.getQueryBuilder(db).
-		Select("count(id)").
-		From("users").
-		Where(sq.And{
-			sq.Eq{"RemoteId": remoteID},
-			sq.Or{
-				sq.Eq{"DeleteAt": 0},
-				sq.Eq{"DeleteAt": nil},
-			},
-		}).
-		QueryRow().
-		Scan(&syntheticUsers)
-
-	return syntheticUsers, err
-}
-
-//db:withReplica
 func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duration) (activeUsersSending int64, err error) {
 	now := time.Now()
 

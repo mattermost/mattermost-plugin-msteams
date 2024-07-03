@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
 
-	"github.com/gosimple/slug"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -94,66 +93,28 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(providedMsg *clientm
 	return msg, nil, nil
 }
 
-func (ah *ActivityHandler) getOrCreateSyntheticUser(user *clientmodels.User, createSyntheticUser bool) (string, error) {
+func (ah *ActivityHandler) getUser(user *clientmodels.User) (string, error) {
+	// First see if we have an existing link recorded.
 	mmUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(user.ID)
-	if err == nil && mmUserID != "" {
-		return mmUserID, err
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	} else if mmUserID != "" {
+		return mmUserID, nil
 	}
 
+	// If none found, try to preemptively resolve the link by email.
 	u, appErr := ah.plugin.GetAPI().GetUserByEmail(user.Mail)
 	if appErr != nil {
-		if !createSyntheticUser {
-			return "", appErr
-		}
-
-		userDisplayName := user.DisplayName
-		remoteID := ah.plugin.GetRemoteID()
-		username := "msteams_" + slug.Make(userDisplayName)
-
-		newMMUser := &model.User{
-			Username:      username,
-			FirstName:     userDisplayName,
-			Email:         user.Mail,
-			Password:      ah.plugin.GenerateRandomPassword(),
-			RemoteId:      &remoteID,
-			EmailVerified: true,
-		}
-		newMMUser.SetDefaultNotifications()
-		newMMUser.NotifyProps[model.EmailNotifyProp] = "false"
-
-		userSuffixID := 1
-		for {
-			u, appErr = ah.plugin.GetAPI().CreateUser(newMMUser)
-
-			if appErr != nil {
-				if appErr.Id == "app.user.save.username_exists.app_error" {
-					newMMUser.Username = fmt.Sprintf("%s-%d", username, userSuffixID)
-					userSuffixID++
-					continue
-				}
-
-				return "", appErr
-			}
-
-			break
-		}
-
-		preferences := model.Preferences{model.Preference{
-			UserId:   u.Id,
-			Category: model.PreferenceCategoryNotifications,
-			Name:     model.PreferenceNameEmailInterval,
-			Value:    "0",
-		}}
-		if prefErr := ah.plugin.GetAPI().UpdatePreferencesForUser(u.Id, preferences); prefErr != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to disable email notifications for new user", "user_id", u.Id, "error", prefErr.Error())
-		}
+		return "", appErr
 	}
 
+	// Ensure we save the link before we return it.
 	if err = ah.plugin.GetStore().SetUserInfo(u.Id, user.ID, nil); err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to link the new created mirror user", "error", err.Error())
+		ah.plugin.GetAPI().LogWarn("Failed to link users after finding email match", "user_id", u.Id, "teams_user_id", user.ID, "error", err.Error())
+		return "", err
 	}
 
-	return u.Id, err
+	return u.Id, nil
 }
 
 func (ah *ActivityHandler) getChatChannelAndUsersID(chat *clientmodels.Chat) (*model.Channel, []string, error) {
@@ -165,22 +126,17 @@ func (ah *ActivityHandler) getChatChannelAndUsersID(chat *clientmodels.Chat) (*m
 			continue
 		}
 
-		if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
-			if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
-				if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-					ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "user_id", mmUserID, "teams_user_id", msteamsUser.ID, "error", appErr.Error())
-				}
-			}
-
+		if msteamsUser.Type == msteamsUserTypeGuest {
 			continue
 		}
 
-		mmUserID, err := ah.getOrCreateSyntheticUser(msteamsUser, true)
+		mmUserID, err := ah.getUser(msteamsUser)
 		if err != nil {
 			return nil, nil, err
 		}
 		userIDs = append(userIDs, mmUserID)
 	}
+
 	if len(userIDs) < 2 {
 		return nil, nil, errors.New("not enough users for creating a channel")
 	}

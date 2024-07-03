@@ -1129,7 +1129,7 @@ func TestGetConnectedUsersCount(t *testing.T) {
 			assert.Nil(err)
 		}
 
-		// Also create synthetic ones to check that they are not counted
+		// Also create disconnected ones to check that they are not counted
 		for i := 0; i < 3; i++ {
 			err := store.SetUserInfo(model.NewId(), model.NewId(), nil)
 			assert.Nil(err)
@@ -1181,48 +1181,6 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 		nb, err := store.GetLinkedChannelsCount()
 		assert.Nil(err)
 		assert.EqualValues(4, nb)
-	})
-}
-
-func TestGetSyntheticUsersCount(t *testing.T) {
-	store, _ := setupTestStore(t)
-
-	cleanup := func() {
-		t.Helper()
-		_, err := store.getQueryBuilder(store.db).Delete("Users").Where("1=1").Exec()
-		require.Nil(t, err)
-	}
-	cleanup()
-	defer cleanup()
-
-	const remoteID = "remote-id"
-
-	t.Run("zero", func(t *testing.T) {
-		assert := require.New(t)
-		nb, err := store.GetSyntheticUsersCount(remoteID)
-		assert.Nil(err)
-		assert.EqualValues(0, nb)
-	})
-
-	t.Run("all values set", func(t *testing.T) {
-		assert := require.New(t)
-
-		// create 3 synthetic users and 3 non synthetic ones
-		for i := 0; i < 3; i++ {
-			_, err := store.getQueryBuilder(store.db).Insert("Users").
-				Columns("Id, remoteid").
-				Values(model.NewId(), remoteID).Exec()
-			assert.Nil(err)
-
-			_, err = store.getQueryBuilder(store.db).Insert("Users").
-				Columns("Id, remoteid").
-				Values(model.NewId(), nil).Exec()
-			assert.Nil(err)
-		}
-
-		nb, err := store.GetSyntheticUsersCount(remoteID)
-		assert.Nil(err)
-		assert.EqualValues(3, nb)
 	})
 }
 

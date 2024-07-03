@@ -114,10 +114,6 @@ func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error
 	return s.getSubscriptionsLastActivityAt(s.replica)
 }
 
-func (s *SQLStore) GetSyntheticUsersCount(remoteID string) (int64, error) {
-	return s.getSyntheticUsersCount(s.replica, remoteID)
-}
-
 func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	return s.getTokenForMSTeamsUser(s.replica, userID)
 }

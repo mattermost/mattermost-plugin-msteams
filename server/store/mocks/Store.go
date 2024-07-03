@@ -486,27 +486,6 @@ func (_m *Store) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) 
 	return r0, r1
 }
 
-// GetSyntheticUsersCount provides a mock function with given fields: remoteID
-func (_m *Store) GetSyntheticUsersCount(remoteID string) (int64, error) {
-	ret := _m.Called(remoteID)
-
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(string) int64); ok {
-		r0 = rf(remoteID)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(remoteID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetTokenForMSTeamsUser provides a mock function with given fields: userID
 func (_m *Store) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	ret := _m.Called(userID)

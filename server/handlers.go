@@ -270,13 +270,7 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
-	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
-		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
-			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "user_id", mmUserID, "error", appErr.Error())
-			}
-		}
-
+	if msteamsUser.Type == msteamsUserTypeGuest {
 		return metrics.DiscardedReasonOther
 	}
 
@@ -313,7 +307,9 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 			return metrics.DiscardedReasonLinkedChannelsDisabled
 		}
 
-		senderID, _ = ah.getOrCreateSyntheticUser(msteamsUser, true)
+		// We ignore the error here and fallback to the bot below instead.
+		senderID, _ = ah.getUser(msteamsUser)
+
 		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
 		if channelLink != nil {
 			channelID = channelLink.MattermostChannelID
@@ -620,16 +616,6 @@ func (ah *ActivityHandler) isActiveUser(userID string) bool {
 	}
 
 	return true
-}
-
-func (ah *ActivityHandler) isRemoteUser(userID string) bool {
-	user, userErr := ah.plugin.GetAPI().GetUser(userID)
-	if userErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get MM user", "user_id", userID, "error", userErr.Error())
-		return false
-	}
-
-	return ah.plugin.IsRemoteUser(user)
 }
 
 func IsDirectOrGroupMessage(chatID string) bool {

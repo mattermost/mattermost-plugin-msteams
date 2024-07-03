@@ -62,7 +62,6 @@ const (
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"
 
 	WorkerMonitor          = "monitor"
-	WorkerSyncUsers        = "sync_users"
 	WorkerActivityHandler  = "activity_handler"
 	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 )
@@ -90,9 +89,7 @@ type Metrics interface {
 	ObservePendingInvitesLimit(count int64)
 	ObserveWhitelistedUsers(count int64)
 
-	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
-	ObserveUpstreamUsers(count int64)
 	ObserveActiveUsersSending(count int64)
 	ObserveActiveUsersReceiving(count int64)
 
@@ -156,9 +153,7 @@ type metrics struct {
 	pendingInvitesLimit prometheus.Gauge
 	whitelistedUsers    prometheus.Gauge
 
-	syntheticUsers prometheus.Gauge
 	linkedChannels prometheus.Gauge
-	upstreamUsers  prometheus.Gauge
 
 	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
@@ -397,15 +392,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.whitelistedUsers)
 
-	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "synthetic_users",
-		Help:        "The total number of synthetic users.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.syntheticUsers)
-
 	m.linkedChannels = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -414,15 +400,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.linkedChannels)
-
-	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users",
-		Help:        "The total number of upstream users.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.upstreamUsers)
 
 	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -627,21 +604,9 @@ func (m *metrics) ObserveSubscription(action string) {
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsers(count int64) {
-	if m != nil {
-		m.syntheticUsers.Set(float64(count))
-	}
-}
-
 func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveUpstreamUsers(count int64) {
-	if m != nil {
-		m.upstreamUsers.Set(float64(count))
 	}
 }
 

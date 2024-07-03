@@ -100,12 +100,6 @@ func getAutocompleteData(syncLinkedChannels bool) *model.AutocompleteData {
 	disconnectBot.RoleID = model.SystemAdminRoleId
 	cmd.AddCommand(disconnectBot)
 
-	promoteUser := model.NewAutocompleteData("promote", "", "Promote a user from synthetic user account to regular mattermost account")
-	promoteUser.AddTextArgument("Username of the existing mattermost user", "username", `^[a-z0-9\.\-_:]+$`)
-	promoteUser.AddTextArgument("The new username after the user is promoted", "new username", `^[a-z0-9\.\-_:]+$`)
-	promoteUser.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(promoteUser)
-
 	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
 	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
 		{Item: "status", HelpText: "Show current notification status."},
@@ -165,10 +159,6 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 
 	if action == "disconnect-bot" {
 		return p.executeDisconnectBotCommand(args)
-	}
-
-	if action == "promote" {
-		return p.executePromoteUserCommand(args, parameters)
 	}
 
 	if action == "status" {
@@ -553,48 +543,6 @@ func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.Co
 	}
 
 	return p.cmdSuccess(args, "The bot account has been disconnected.")
-}
-
-func (p *Plugin) executePromoteUserCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if len(parameters) != 2 {
-		return p.cmdSuccess(args, "Invalid promote command, please pass the current username and promoted username as parameters.")
-	}
-
-	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdSuccess(args, "Unable to execute the command, only system admins have access to execute this command.")
-	}
-
-	username := strings.TrimPrefix(parameters[0], "@")
-	newUsername := strings.TrimPrefix(parameters[1], "@")
-
-	user, appErr := p.API.GetUserByUsername(username)
-	if appErr != nil {
-		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", user not found")
-	}
-
-	userID, err := p.store.MattermostToTeamsUserID(user.Id)
-	if err != nil || userID == "" {
-		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", it is not a known msteams user account")
-	}
-
-	if user.RemoteId == nil {
-		return p.cmdSuccess(args, "Error: Unable to promote account "+username+", it is already a regular account")
-	}
-
-	newUser, appErr := p.API.GetUserByUsername(newUsername)
-	if appErr == nil && newUser != nil && newUser.Id != user.Id {
-		return p.cmdSuccess(args, "Error: the promoted username already exists, please use a different username.")
-	}
-
-	user.RemoteId = nil
-	user.Username = newUsername
-	_, appErr = p.API.UpdateUser(user)
-	if appErr != nil {
-		p.API.LogWarn("Unable to update the user during promotion", "user_id", user.Id, "error", appErr.Error())
-		return p.cmdSuccess(args, "Error: Unable to promote account "+username)
-	}
-
-	return p.cmdSuccess(args, "Account "+username+" has been promoted and updated the username to "+newUsername)
 }
 
 func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {

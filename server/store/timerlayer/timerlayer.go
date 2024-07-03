@@ -343,20 +343,6 @@ func (s *TimerLayer) GetSubscriptionsLastActivityAt() (map[string]time.Time, err
 	return result, err
 }
 
-func (s *TimerLayer) GetSyntheticUsersCount(remoteID string) (int64, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetSyntheticUsersCount(remoteID)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetSyntheticUsersCount", success, elapsed)
-	return result, err
-}
-
 func (s *TimerLayer) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	start := time.Now()
 

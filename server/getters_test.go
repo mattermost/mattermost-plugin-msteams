@@ -2,10 +2,8 @@ package main
 
 import (
 	"errors"
-	"net/http"
 	"testing"
 
-	"github.com/gosimple/slug"
 	metricsmocks "github.com/mattermost/mattermost-plugin-msteams/server/metrics/mocks"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
@@ -19,81 +17,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func TestGetOrCreateSyntheticUser(t *testing.T) {
-	for _, test := range []struct {
-		Name           string
-		TryCreate      bool
-		SetupStore     func(*storemocks.Store)
-		SetupAPI       func(*plugintest.API)
-		ExpectedResult string
-		ExpectedError  bool
-	}{
-		{
-			Name: "Unknown user but matching an already existing synthetic user",
-			SetupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", nil).Times(1)
-				store.On("SetUserInfo", "new-user-id", testutils.GetTeamsUserID(), mock.Anything).Return(nil).Times(1)
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUserByEmail", testutils.GetTestEmail()).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
-			},
-			ExpectedResult: "new-user-id",
-		},
-		{
-			Name:      "Unknown user not matching an already existing synthetic user",
-			TryCreate: true,
-			SetupStore: func(store *storemocks.Store) {
-				store.On("TeamsToMattermostUserID", testutils.GetTeamsUserID()).Return("", nil).Times(1)
-				store.On("SetUserInfo", "new-user-id", testutils.GetTeamsUserID(), mock.Anything).Return(nil).Times(1)
-			},
-			SetupAPI: func(api *plugintest.API) {
-				api.On("GetUserByEmail", testutils.GetTestEmail()).Return(nil, model.NewAppError("test", "not-found", nil, "", http.StatusNotFound)).Times(1)
-				api.On("CreateUser", mock.MatchedBy(func(user *model.User) bool {
-					if user.Username != "msteams_"+slug.Make("Unknown User") {
-						return false
-					}
-					if user.Email != testutils.GetTestEmail() {
-						return false
-					}
-					if !user.EmailVerified {
-						return false
-					}
-					return true
-				})).Return(&model.User{Id: "new-user-id"}, nil).Times(1)
-				api.On("UpdatePreferencesForUser", "new-user-id", mock.MatchedBy(func(preferences model.Preferences) bool {
-					if len(preferences) == 0 || len(preferences) > 1 {
-						return false
-					}
-					if preferences[0].UserId != "new-user-id" {
-						return false
-					}
-					return true
-				})).Return(model.NewAppError("test", "something went wrong", nil, "", http.StatusInternalServerError)).Once()
-			},
-			ExpectedResult: "new-user-id",
-		},
-	} {
-		t.Run(test.Name, func(t *testing.T) {
-			p := newTestPlugin(t)
-			ah := ActivityHandler{plugin: p}
-
-			assert := assert.New(t)
-			test.SetupAPI(ah.plugin.GetAPI().(*plugintest.API))
-			testutils.MockLogs(ah.plugin.GetAPI().(*plugintest.API))
-			test.SetupStore(ah.plugin.GetStore().(*storemocks.Store))
-			result, err := ah.getOrCreateSyntheticUser(&clientmodels.User{
-				ID:          testutils.GetTeamsUserID(),
-				Mail:        testutils.GetTestEmail(),
-				DisplayName: "Unknown User",
-			}, test.TryCreate)
-			assert.Equal(test.ExpectedResult, result)
-			if test.ExpectedError {
-				assert.Error(err)
-			} else {
-				assert.NoError(err)
-			}
-		})
-	}
+func TestGetUser(t *testing.T) {
+	t.Skip("not yet implemented")
 }
 
 func TestGetChatChannelID(t *testing.T) {

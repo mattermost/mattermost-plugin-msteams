@@ -33,29 +33,8 @@ func (p *Plugin) ChatShouldSync(channel *model.Channel) (bool, []*model.ChannelM
 		return false, nil, metrics.DiscardedReasonInternalError, err
 	}
 
-	numLocalUsers := 0
-	numRemoteUsers := 0
-	for _, m := range members {
-		user, err := p.apiClient.User.Get(m.UserId)
-		if err != nil {
-			return false, nil, metrics.DiscardedReasonInternalError, err
-		}
-
-		if p.IsRemoteUser(user) {
-			numRemoteUsers++
-		} else {
-			numLocalUsers++
-		}
-	}
-	containsRemoteUser := numRemoteUsers > 0
-
 	// If selective sync is disabled, there are no restrictions on syncing chats.
 	if p.getConfiguration().SelectiveSync {
-		// Only sync if there's at most one local user and at least one remote user.
-		if numLocalUsers == 1 && containsRemoteUser {
-			return true, members, metrics.DiscardedReasonNone, nil
-		}
-
 		return false, members, metrics.DiscardedReasonSelectiveSync, nil
 	}
 
