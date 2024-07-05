@@ -1009,32 +1009,6 @@ func TestGetAutocompleteData(t *testing.T) {
 						SubCommands: []*model.AutocompleteData{},
 					},
 					{
-						Trigger:  "promote",
-						HelpText: "Promote a user from synthetic user account to regular mattermost account",
-						RoleID:   model.SystemAdminRoleId,
-						Arguments: []*model.AutocompleteArg{
-							{
-								HelpText: "Username of the existing mattermost user",
-								Type:     "TextInput",
-								Required: true,
-								Data: &model.AutocompleteTextArg{
-									Hint:    "username",
-									Pattern: `^[a-z0-9\.\-_:]+$`,
-								},
-							},
-							{
-								HelpText: "The new username after the user is promoted",
-								Type:     "TextInput",
-								Required: true,
-								Data: &model.AutocompleteTextArg{
-									Hint:    "new username",
-									Pattern: `^[a-z0-9\.\-_:]+$`,
-								},
-							},
-						},
-						SubCommands: []*model.AutocompleteData{},
-					},
-					{
 						Trigger:  "notifications",
 						HelpText: "Enable or disable notifications from MSTeams. You must be connected to perform this action.",
 						RoleID:   model.SystemUserRoleId,
@@ -1109,32 +1083,6 @@ func TestGetAutocompleteData(t *testing.T) {
 						HelpText:    "Disconnect the bot account (only system admins can do this)",
 						RoleID:      model.SystemAdminRoleId,
 						Arguments:   []*model.AutocompleteArg{},
-						SubCommands: []*model.AutocompleteData{},
-					},
-					{
-						Trigger:  "promote",
-						HelpText: "Promote a user from synthetic user account to regular mattermost account",
-						RoleID:   model.SystemAdminRoleId,
-						Arguments: []*model.AutocompleteArg{
-							{
-								HelpText: "Username of the existing mattermost user",
-								Type:     "TextInput",
-								Required: true,
-								Data: &model.AutocompleteTextArg{
-									Hint:    "username",
-									Pattern: `^[a-z0-9\.\-_:]+$`,
-								},
-							},
-							{
-								HelpText: "The new username after the user is promoted",
-								Type:     "TextInput",
-								Required: true,
-								Data: &model.AutocompleteTextArg{
-									Hint:    "new username",
-									Pattern: `^[a-z0-9\.\-_:]+$`,
-								},
-							},
-						},
 						SubCommands: []*model.AutocompleteData{},
 					},
 					{
