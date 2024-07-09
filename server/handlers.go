@@ -233,7 +233,3 @@ func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subs
 
 	return ah.handleCreatedActivityNotification(msg, chat)
 }
-
-func IsDirectOrGroupMessage(chatID string) bool {
-	return chatID != ""
-}

@@ -252,39 +252,6 @@ func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team, opts ..
 	return channel
 }
 
-func (th *testHelper) SetupPrivateChannel(t *testing.T, team *model.Team, opts ...ChannelOption) *model.Channel {
-	t.Helper()
-
-	channelName := model.NewId()
-	channel, appErr := th.p.API.CreateChannel(&model.Channel{
-		Name:        channelName,
-		DisplayName: channelName,
-		Type:        model.ChannelTypePrivate,
-		TeamId:      team.Id,
-	})
-	require.Nil(t, appErr)
-
-	for _, opt := range opts {
-		opt(t, th, channel)
-	}
-
-	return channel
-}
-
-func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) *storemodels.ChannelLink {
-	channelLink := storemodels.ChannelLink{
-		MattermostTeamID:    team.Id,
-		MattermostChannelID: channel.Id,
-		MSTeamsTeam:         model.NewId(),
-		MSTeamsChannel:      model.NewId(),
-		Creator:             user.Id,
-	}
-	err := th.p.store.StoreChannelLink(&channelLink)
-	require.NoError(t, err)
-
-	return &channelLink
-}
-
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
 	t.Helper()
 
@@ -302,32 +269,6 @@ func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
 
 	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
 	require.Nil(t, appErr)
-
-	return user
-}
-
-func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.User {
-	t.Helper()
-
-	username := fmt.Sprintf("msteams_%s", model.NewId())
-	remoteID := &th.p.remoteID
-
-	user := &model.User{
-		Email:         fmt.Sprintf("%s@example.com", username),
-		Username:      username,
-		Password:      "password",
-		EmailVerified: true,
-		RemoteId:      remoteID,
-	}
-
-	user, appErr := th.p.API.CreateUser(user)
-	require.Nil(t, appErr)
-
-	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
-	require.Nil(t, appErr)
-
-	err := th.p.store.SetUserInfo(user.Id, "t"+user.Id, nil)
-	require.NoError(t, err)
 
 	return user
 }

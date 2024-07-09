@@ -43,14 +43,6 @@ func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID st
 	return msg, nil
 }
 
-func (ah *ActivityHandler) getUserIDForChannelLink(teamID string, channelID string) string {
-	channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(teamID, channelID)
-	if channelLink != nil {
-		return channelLink.Creator
-	}
-	return ah.plugin.GetBotUserID()
-}
-
 func (ah *ActivityHandler) getMessageAndChatFromActivityIds(providedMsg *clientmodels.Message, activityIds clientmodels.ActivityIds) (*clientmodels.Message, *clientmodels.Chat, error) {
 	if activityIds.ChatID != "" {
 		chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)

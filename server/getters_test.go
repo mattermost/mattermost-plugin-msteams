@@ -8,7 +8,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	clientmocks "github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
 	storemocks "github.com/mattermost/mattermost-plugin-msteams/server/store/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
@@ -114,47 +113,6 @@ func TestGetReplyFromChannel(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
-		})
-	}
-}
-
-func TestGetUserIDForChannelLink(t *testing.T) {
-	for _, testCase := range []struct {
-		description      string
-		channelID        string
-		teamID           string
-		expectedResponse string
-		setupStore       func(store *storemocks.Store)
-	}{
-		{
-			description:      "Get bot user ID",
-			teamID:           testutils.GetTeamsUserID(),
-			expectedResponse: "bot-user-id",
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), "").Return(nil, errors.New("Error while getting channel link"))
-			},
-		},
-		{
-			description:      "Get creator of channel link",
-			teamID:           testutils.GetTeamsUserID(),
-			channelID:        testutils.GetChannelID(),
-			expectedResponse: "mock-creator",
-			setupStore: func(store *storemocks.Store) {
-				store.On("GetLinkByMSTeamsChannelID", testutils.GetTeamsUserID(), testutils.GetChannelID()).Return(&storemodels.ChannelLink{
-					Creator: "mock-creator",
-				}, nil)
-			},
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupStore(p.store.(*storemocks.Store))
-			ah := ActivityHandler{}
-
-			ah.plugin = p
-
-			resp := ah.getUserIDForChannelLink(testCase.teamID, testCase.channelID)
-			assert.Equal(t, resp, testCase.expectedResponse)
 		})
 	}
 }
