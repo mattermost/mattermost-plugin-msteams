@@ -89,10 +89,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
 	router.HandleFunc("/disable-notifications", api.disableNotifications).Methods("POST")
 
-	// iFrame support
-	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
-
 	return api
 }
 

@@ -1065,14 +1065,6 @@ func TestGetSiteStats(t *testing.T) {
 	})
 }
 
-func TestIFrameMattermostTab(t *testing.T) {
-	t.Skip()
-}
-
-func TestIFrameManifest(t *testing.T) {
-	t.Skip()
-}
-
 func TestConnectionStatus(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "/connection-status")
