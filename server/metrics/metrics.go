@@ -10,15 +10,14 @@ import (
 )
 
 const (
-	MetricsNamespace               = "msteams_connect"
-	MetricsSubsystemSystem         = "system"
-	MetricsSubsystemApp            = "app"
-	MetricsSubsystemHTTP           = "http"
-	MetricsSubsystemAPI            = "api"
-	MetricsSubsystemEvents         = "events"
-	MetricsSubsystemDB             = "db"
-	MetricsSubsystemMSGraph        = "msgraph"
-	MetricsSubsystemSharedChannels = "shared_channels"
+	MetricsNamespace        = "msteams_connect"
+	MetricsSubsystemSystem  = "system"
+	MetricsSubsystemApp     = "app"
+	MetricsSubsystemHTTP    = "http"
+	MetricsSubsystemAPI     = "api"
+	MetricsSubsystemEvents  = "events"
+	MetricsSubsystemDB      = "db"
+	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
 	MetricsVersionLabel           = "version"
@@ -305,33 +304,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
-
-	m.syncMsgPostDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_post_delay_seconds",
-		Help:        "The delay between a post event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgPostDelayTime)
-
-	m.syncMsgReactionDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_reaction_delay_seconds",
-		Help:        "The delay between a reaction event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgReactionDelayTime)
-
-	m.syncMsgFileDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_file_delay_seconds",
-		Help:        "The delay between a file event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgFileDelayTime)
 
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,

@@ -465,25 +465,6 @@ func (p *Plugin) onActivate() error {
 		return err
 	}
 
-	p.remoteID, err = p.API.RegisterPluginForSharedChannels(model.RegisterPluginOpts{
-		Displayname:  pluginID,
-		PluginID:     pluginID,
-		CreatorID:    p.botUserID,
-		AutoShareDMs: false,
-		AutoInvited:  true,
-	})
-	if err != nil {
-		return err
-	}
-	p.API.LogInfo("Registered plugin for shared channels", "remote_id", p.remoteID)
-
-	if !p.getConfiguration().UseSharedChannels {
-		p.API.LogInfo("Unregistering plugin for shared channels since sync msg disabled")
-		if err = p.API.UnregisterPluginForSharedChannels(pluginID); err != nil {
-			p.API.LogWarn("Unable to unregister plugin for shared channels", "error", err)
-		}
-	}
-
 	if p.store == nil {
 		if p.apiClient.Store.DriverName() != model.DatabaseDriverPostgres {
 			return fmt.Errorf("unsupported database driver: %s", p.apiClient.Store.DriverName())
@@ -509,30 +490,6 @@ func (p *Plugin) onActivate() error {
 
 		if err = p.store.Init(p.remoteID); err != nil {
 			return err
-		}
-	}
-
-	if p.getConfiguration().UseSharedChannels {
-		linkedChannels, err := p.store.ListChannelLinks()
-		if err != nil {
-			p.API.LogError("Failed to list channel links for shared channels", "error", err.Error())
-			return err
-		}
-		for _, linkedChannel := range linkedChannels {
-			_, err = p.API.ShareChannel(&model.SharedChannel{
-				ChannelId: linkedChannel.MattermostChannelID,
-				TeamId:    linkedChannel.MattermostTeamID,
-				Home:      true,
-				ReadOnly:  false,
-				CreatorId: p.botUserID,
-				RemoteId:  p.remoteID,
-				ShareName: linkedChannel.MattermostChannelID,
-			})
-			if err != nil {
-				p.API.LogWarn("Unable to share channel", "error", err, "channelID", linkedChannel.MattermostChannelID, "teamID", linkedChannel.MattermostTeamID, "remoteID", p.remoteID)
-			}
-
-			p.API.LogInfo("Shared previously linked channel", "channel_id", linkedChannel.MattermostChannelID)
 		}
 	}
 
@@ -675,68 +632,4 @@ func (p *Plugin) updateMetrics() {
 
 		stat.observeData(data)
 	}
-}
-
-func (p *Plugin) OnSharedChannelsPing(_ *model.RemoteCluster) bool {
-	return true
-}
-
-func (p *Plugin) OnSharedChannelsAttachmentSyncMsg(fi *model.FileInfo, _ *model.Post, _ *model.RemoteCluster) error {
-	now := model.GetMillis()
-
-	isUpdate := fi.CreateAt != fi.UpdateAt
-	isDelete := fi.DeleteAt != 0
-	switch {
-	case !isUpdate && !isDelete:
-		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionCreated, now-fi.CreateAt)
-	case isUpdate && !isDelete:
-		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionUpdated, now-fi.UpdateAt)
-	default:
-		p.GetMetrics().ObserveSyncMsgFileDelay(metrics.ActionDeleted, now-fi.DeleteAt)
-	}
-
-	return nil
-}
-
-func (p *Plugin) OnSharedChannelsSyncMsg(msg *model.SyncMsg, _ *model.RemoteCluster) (model.SyncResponse, error) {
-	now := model.GetMillis()
-
-	var resp model.SyncResponse
-	for _, post := range msg.Posts {
-		isUpdate := post.CreateAt != post.UpdateAt
-		isDelete := post.DeleteAt != 0
-
-		switch {
-		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionCreated, now-post.CreateAt)
-		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionUpdated, now-post.UpdateAt)
-		default:
-			p.GetMetrics().ObserveSyncMsgPostDelay(metrics.ActionDeleted, now-post.DeleteAt)
-		}
-
-		if resp.PostsLastUpdateAt < post.UpdateAt {
-			resp.PostsLastUpdateAt = post.UpdateAt
-		}
-	}
-
-	for _, reaction := range msg.Reactions {
-		isUpdate := reaction.CreateAt != reaction.UpdateAt
-		isDelete := reaction.DeleteAt != 0
-
-		switch {
-		case !isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionCreated, now-reaction.CreateAt)
-		case isUpdate && !isDelete:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionUpdated, now-reaction.UpdateAt)
-		default:
-			p.GetMetrics().ObserveSyncMsgReactionDelay(metrics.ActionDeleted, now-reaction.DeleteAt)
-		}
-
-		if resp.ReactionsLastUpdateAt < reaction.UpdateAt {
-			resp.ReactionsLastUpdateAt = reaction.UpdateAt
-		}
-	}
-
-	return resp, nil
 }

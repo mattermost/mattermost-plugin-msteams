@@ -33,7 +33,6 @@ type configuration struct {
 	ConnectedUsersAllowed           int    `json:"connectedUsersAllowed"`
 	ConnectedUsersRestricted        bool   `json:"connectedUsersRestricted"`
 	ConnectedUsersMaxPendingInvites int    `json:"connectedUsersMaxPendingInvites"`
-	UseSharedChannels               bool   `json:"experimentalUseSharedChannels"`
 	DisableCheckCredentials         bool   `json:"internalDisableCheckCredentials"`
 }
 

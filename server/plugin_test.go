@@ -37,7 +37,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 			EncryptionKey:              "encryptionkey",
 			CertificatePublic:          "",
 			CertificateKey:             "",
-			UseSharedChannels:          false,
 			MaxSizeForCompleteDownload: 1,
 		},
 		msteamsAppClient: &mocks.Client{},
@@ -70,8 +69,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 	plugin.API.(*plugintest.API).On("GetUnsanitizedConfig").Return(&config)
 	plugin.API.(*plugintest.API).On("EnsureBotUser", bot).Return("bot-user-id", nil).Times(1)
 	plugin.API.(*plugintest.API).On("SetProfileImage", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).Return(nil).Times(1)
-	plugin.API.(*plugintest.API).On("RegisterPluginForSharedChannels", mock.Anything).Return("remote-id", nil).Times(1)
-	plugin.API.(*plugintest.API).On("UnregisterPluginForSharedChannels", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("RegisterCommand", mock.Anything).Return(nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVList", 0, 1000000000).Return([]string{}, nil).Times(1)
 	plugin.API.(*plugintest.API).On("KVSetWithOptions", "mutex_cron_monitoring_system", []byte{0x1}, mock.Anything).Return(true, nil).Maybe()
