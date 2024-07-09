@@ -25,15 +25,6 @@ func (ah *ActivityHandler) getMessageFromChat(chat *clientmodels.Chat, messageID
 	return msg, nil
 }
 
-func (ah *ActivityHandler) getReplyFromChannel(teamID, channelID, messageID, replyID string) (*clientmodels.Message, error) {
-	msg, err := ah.plugin.GetClientForApp().GetReply(teamID, channelID, messageID, replyID)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get reply from channel", "reply_id", replyID, "error", err)
-		return nil, err
-	}
-	return msg, nil
-}
-
 func (ah *ActivityHandler) getMessageFromChannel(teamID, channelID, messageID string) (*clientmodels.Message, error) {
 	msg, err := ah.plugin.GetClientForApp().GetMessage(teamID, channelID, messageID)
 	if err != nil {
@@ -65,8 +56,16 @@ func (ah *ActivityHandler) getMessageAndChatFromActivityIds(providedMsg *clientm
 	}
 
 	if activityIds.ReplyID != "" {
-		msg, err := ah.getReplyFromChannel(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
+		msg, err := ah.plugin.GetClientForApp().GetReply(activityIds.TeamID, activityIds.ChannelID, activityIds.MessageID, activityIds.ReplyID)
 		if err != nil {
+			ah.plugin.GetAPI().LogWarn(
+				"Failed to get reply from channel",
+				"teams_team_id", activityIds.TeamID,
+				"teams_channel_id", activityIds.ChannelID,
+				"teams_message_id", activityIds.MessageID,
+				"teams_reply_id", activityIds.ReplyID,
+				"error", err,
+			)
 			return nil, nil, err
 		}
 

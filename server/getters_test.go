@@ -64,59 +64,6 @@ func TestGetMessageFromChannel(t *testing.T) {
 	}
 }
 
-func TestGetReplyFromChannel(t *testing.T) {
-	for _, testCase := range []struct {
-		description   string
-		userID        string
-		teamID        string
-		channelID     string
-		messageID     string
-		replyID       string
-		expectedError string
-		setupClient   func(client *clientmocks.Client)
-	}{
-		{
-			description: "Successfully got reply from channel",
-			userID:      testutils.GetUserID(),
-			teamID:      testutils.GetTeamsUserID(),
-			channelID:   testutils.GetChannelID(),
-			messageID:   testutils.GetMessageID(),
-			replyID:     testutils.GetReplyID(),
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetReply", testutils.GetTeamsUserID(), testutils.GetChannelID(), testutils.GetMessageID(), testutils.GetReplyID()).Return(&clientmodels.Message{}, nil)
-			},
-		},
-		{
-			description: "Unable to get original post",
-			userID:      testutils.GetUserID(),
-			teamID:      testutils.GetTeamsUserID(),
-			channelID:   testutils.GetChannelID(),
-			messageID:   testutils.GetMessageID(),
-			replyID:     "mock-replyID",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetReply", testutils.GetTeamsUserID(), testutils.GetChannelID(), testutils.GetMessageID(), "mock-replyID").Return(nil, errors.New("Error while getting the original post"))
-			},
-			expectedError: "Error while getting the original post",
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupClient(p.msteamsAppClient.(*clientmocks.Client))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			ah := ActivityHandler{}
-			ah.plugin = p
-
-			resp, err := ah.getReplyFromChannel(testCase.teamID, testCase.channelID, testCase.messageID, testCase.replyID)
-			if testCase.expectedError != "" {
-				assert.Nil(t, resp)
-				assert.EqualError(t, err, testCase.expectedError)
-			} else {
-				assert.Nil(t, err)
-			}
-		})
-	}
-}
-
 func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 	for _, testCase := range []struct {
 		description   string
