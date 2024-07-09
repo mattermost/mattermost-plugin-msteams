@@ -67,13 +67,6 @@
         "default": false
       },
       {
-        "key": "syncLinkedChannels",
-        "display_name": "Sync linked channels",
-        "type": "bool",
-        "help_text": "Sync messages from channels linked between Mattermost and MS Teams",
-        "default": false
-      },
-      {
         "key": "maxSizeForCompleteDownload",
         "display_name": "Maximum size of attachments to support complete one time download (in MB)",
         "type": "number",

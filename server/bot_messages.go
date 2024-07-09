@@ -8,12 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) botSendDirectMessage(userID, message string) error {
-	return p.botSendDirectPost(userID, &model.Post{
-		Message: message,
-	})
-}
-
 func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.botUserID)
 	if err != nil {

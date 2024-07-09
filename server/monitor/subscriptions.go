@@ -146,25 +146,6 @@ func (m *Monitor) checkGlobalChatsSubscription(msteamsSubscriptionsMap map[strin
 		return
 	}
 
-	// Clean up if we're not syncing chats or notifications.
-	if !m.syncChats && !m.syncNotifications {
-		// Delete any MS Teams subscription for the global chats, if present.
-		if allChatsSubscription != nil {
-			if err := m.client.DeleteSubscription(allChatsSubscription.ID); err != nil {
-				m.api.LogWarn("Failed to delete old global chats subscriptions", "error", err.Error())
-			}
-		}
-
-		// Delete any global subscriptions (assume at most one here).
-		if len(subscriptions) > 0 {
-			if err := m.store.DeleteSubscription(subscriptions[0].SubscriptionID); err != nil {
-				m.api.LogWarn("Unable to delete the old all chats subscription", "error", err.Error())
-			}
-		}
-
-		return
-	}
-
 	// Create or save a global subscription if we have none.
 	if len(subscriptions) == 0 {
 		if allChatsSubscription == nil {

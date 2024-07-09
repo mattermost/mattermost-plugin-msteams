@@ -635,43 +635,9 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch {
-	case a.p.getConfiguration().SyncNotifications:
-		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
-	default:
-		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
-	}
+	a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
 
 	http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
-}
-
-func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
-	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	switch originInfo {
-	case "fromBotMessage":
-		post := &model.Post{
-			Id:        postID,
-			Message:   userConnectedMessage,
-			ChannelId: channelID,
-			UserId:    a.p.GetBotUserID(),
-			CreateAt:  model.GetMillis(),
-		}
-
-		_, appErr := a.p.GetAPI().GetPost(post.Id)
-		if appErr == nil {
-			_, appErr = a.p.GetAPI().UpdatePost(post)
-			if appErr != nil {
-				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", appErr.Error())
-			}
-		} else {
-			_ = a.p.GetAPI().UpdateEphemeralPost(mmUserID, post)
-		}
-	case "fromPreferences":
-		err := a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
-		if err != nil {
-			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
-		}
-	}
 }
 
 func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {

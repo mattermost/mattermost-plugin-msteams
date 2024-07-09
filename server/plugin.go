@@ -113,18 +113,6 @@ func (p *Plugin) GetTenantID() string {
 	return p.getConfiguration().TenantID
 }
 
-func (p *Plugin) GetSyncNotifications() bool {
-	return p.getConfiguration().SyncNotifications
-}
-
-func (p *Plugin) GetSyncChats() bool {
-	return p.getConfiguration().SyncChats && !p.getConfiguration().SyncNotifications
-}
-
-func (p *Plugin) GetSyncLinkedChannels() bool {
-	return p.getConfiguration().SyncLinkedChannels
-}
-
 func (p *Plugin) GetMaxSizeForCompleteDownload() int {
 	return p.getConfiguration().MaxSizeForCompleteDownload
 }
@@ -135,10 +123,6 @@ func (p *Plugin) GetBufferSizeForStreaming() int {
 
 func (p *Plugin) GetBotUserID() string {
 	return p.botUserID
-}
-
-func (p *Plugin) GetSelectiveSync() bool {
-	return p.getConfiguration().SelectiveSync
 }
 
 func (p *Plugin) MessageFingerprint() string {
@@ -291,7 +275,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate(), p.GetSyncNotifications(), p.GetSyncChats())
+	p.monitor = monitor.New(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI, p.getBase64Certificate())
 	if err = p.monitor.Start(); err != nil {
 		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
@@ -321,7 +305,7 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.UnregisterCommand("", "msteams"); err != nil {
 		p.API.LogWarn("Failed to unregister command", "error", err)
 	}
-	if err = p.API.RegisterCommand(p.createCommand(p.getConfiguration().SyncLinkedChannels)); err != nil {
+	if err = p.API.RegisterCommand(p.createCommand()); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
 	p.API.LogDebug("plugin started")
