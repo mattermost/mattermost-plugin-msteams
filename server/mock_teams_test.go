@@ -1,10 +1,12 @@
 package main
 
 import (
+	"slices"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/stretchr/testify/mock"
 )
 
 // mockTeams is an abstraction over directly mocking the client calls made by the plugin to instead
@@ -33,6 +35,23 @@ func (mth *mockTeamsHelper) registerChat(chatID string, users []*model.User) {
 		Members: members,
 		Type:    "D",
 	}, nil).Maybe()
+
+	var userIDs []string
+	for _, user := range users {
+		userIDs = append(userIDs, "t"+user.Id)
+	}
+	slices.Sort(userIDs)
+
+	userIDsMatcher := mock.MatchedBy(func(actualUserIDs []string) bool {
+		slices.Sort(actualUserIDs)
+		return slices.Compare(userIDs, actualUserIDs) == 0
+	})
+
+	mth.th.clientMock.On("CreateOrGetChatForUsers", userIDsMatcher).Return(&clientmodels.Chat{
+		ID:      chatID,
+		Members: members,
+		Type:    "D",
+	}, nil).Maybe()
 }
 
 func (mth *mockTeamsHelper) registerGroupChat(chatID string, users []*model.User) {
@@ -45,6 +64,23 @@ func (mth *mockTeamsHelper) registerGroupChat(chatID string, users []*model.User
 	}
 
 	mth.th.appClientMock.On("GetChat", chatID).Return(&clientmodels.Chat{
+		ID:      chatID,
+		Members: members,
+		Type:    "G",
+	}, nil).Maybe()
+
+	var userIDs []string
+	for _, user := range users {
+		userIDs = append(userIDs, "t"+user.Id)
+	}
+	slices.Sort(userIDs)
+
+	userIDsMatcher := mock.MatchedBy(func(actualUserIDs []string) bool {
+		slices.Sort(actualUserIDs)
+		return slices.Compare(userIDs, actualUserIDs) == 0
+	})
+
+	mth.th.clientMock.On("CreateOrGetChatForUsers", userIDsMatcher).Return(&clientmodels.Chat{
 		ID:      chatID,
 		Members: members,
 		Type:    "G",
@@ -72,6 +108,17 @@ func (mth *mockTeamsHelper) registerMessage(teamID string, channelID string, mes
 
 	mth.registerUser(senderUser)
 	mth.th.appClientMock.On("GetMessage", teamID, channelID, messageID).Return(
+		&clientmodels.Message{
+			ID:              messageID,
+			UserID:          "t" + senderUser.Id,
+			TeamID:          teamID,
+			ChannelID:       channelID,
+			UserDisplayName: senderUser.GetDisplayName(model.ShowFullName),
+			Text:            message,
+			CreateAt:        now,
+			LastUpdateAt:    now,
+		}, nil).Maybe()
+	mth.th.clientMock.On("GetMessage", teamID, channelID, messageID).Return(
 		&clientmodels.Message{
 			ID:              messageID,
 			UserID:          "t" + senderUser.Id,
