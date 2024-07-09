@@ -14,56 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestGetMessageFromChannel(t *testing.T) {
-	for _, testCase := range []struct {
-		description   string
-		userID        string
-		teamID        string
-		channelID     string
-		messageID     string
-		expectedError string
-		setupClient   func(client *clientmocks.Client)
-	}{
-		{
-			description: "Successfully got message from channel",
-			userID:      testutils.GetUserID(),
-			teamID:      testutils.GetTeamsUserID(),
-			channelID:   testutils.GetChannelID(),
-			messageID:   testutils.GetMessageID(),
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetMessage", testutils.GetTeamsUserID(), testutils.GetChannelID(), testutils.GetMessageID()).Return(&clientmodels.Message{}, nil)
-			},
-		},
-		{
-			description: "Unable to get original post",
-			userID:      testutils.GetUserID(),
-			teamID:      testutils.GetTeamsUserID(),
-			channelID:   testutils.GetChannelID(),
-			messageID:   "mock-messageID",
-			setupClient: func(client *clientmocks.Client) {
-				client.On("GetMessage", testutils.GetTeamsUserID(), testutils.GetChannelID(), "mock-messageID").Return(nil, errors.New("Error while getting the original post"))
-			},
-			expectedError: "Error while getting the original post",
-		},
-	} {
-		t.Run(testCase.description, func(t *testing.T) {
-			p := newTestPlugin(t)
-			testCase.setupClient(p.msteamsAppClient.(*clientmocks.Client))
-			testutils.MockLogs(p.API.(*plugintest.API))
-			ah := ActivityHandler{}
-			ah.plugin = p
-
-			resp, err := ah.getMessageFromChannel(testCase.teamID, testCase.channelID, testCase.messageID)
-			if testCase.expectedError != "" {
-				assert.Nil(t, resp)
-				assert.EqualError(t, err, testCase.expectedError)
-			} else {
-				assert.Nil(t, err)
-			}
-		})
-	}
-}
-
 func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 	for _, testCase := range []struct {
 		description   string
