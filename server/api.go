@@ -338,15 +338,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	query := r.URL.Query()
 	userID := r.Header.Get("Mattermost-User-ID")
-	connectBot := query.Has("isBot")
-	if connectBot {
-		if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-			a.p.API.LogWarn("Attempt to connect the bot account, by non system admin.", "user_id", userID)
-			http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
-			return
-		}
-		userID = a.p.GetBotUserID()
-	}
 
 	stateSuffix := ""
 	fromPreferences := query.Get(QueryParamFromPreferences)
@@ -404,10 +395,6 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 	message := "Your account is now connected to MS Teams."
-	query := r.URL.Query()
-	if query.Has("isBot") {
-		message = "The bot account is now connected."
-	}
 
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
@@ -601,16 +588,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if mmUserID == a.p.GetBotUserID() {
-		var userID string
-		userID, err = a.p.GetStore().TeamsToMattermostUserID(msteamsUser.ID)
-		if err == nil && userID != "" && userID != mmUserID {
-			if err = a.p.GetStore().DeleteUserInfo(userID); err != nil {
-				a.p.GetAPI().LogWarn("Unable to delete user info to connect the bot", "user_id", userID, "error", err.Error())
-			}
-		}
-	}
-
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
 		a.p.API.LogWarn("Unable to store the token", "error", err.Error(), "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
@@ -630,10 +607,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	if mmUser.Id == a.p.GetBotUserID() {
-		http.Redirect(w, r, a.p.GetURL()+"/account-connected?isBot", http.StatusSeeOther)
-		return
-	}
 
 	a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
 

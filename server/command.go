@@ -28,7 +28,7 @@ func (p *Plugin) createCommand() *model.Command {
 	return &model.Command{
 		Trigger:              msteamsCommand,
 		AutoComplete:         true,
-		AutoCompleteDesc:     "Manage synced channels between MS Teams and Mattermost",
+		AutoCompleteDesc:     "Manage the MS Teams Integration with Mattermost",
 		AutoCompleteHint:     "[command]",
 		Username:             botUsername,
 		DisplayName:          botDisplayName,
@@ -71,14 +71,6 @@ func getAutocompleteData() *model.AutocompleteData {
 	status := model.NewAutocompleteData("status", "", "Show your connection status")
 	cmd.AddCommand(status)
 
-	connectBot := model.NewAutocompleteData("connect-bot", "", "Connect the bot account (only system admins can do this)")
-	connectBot.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(connectBot)
-
-	disconnectBot := model.NewAutocompleteData("disconnect-bot", "", "Disconnect the bot account (only system admins can do this)")
-	disconnectBot.RoleID = model.SystemAdminRoleId
-	cmd.AddCommand(disconnectBot)
-
 	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
 	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
 		{Item: "status", HelpText: "Show current notification status."},
@@ -110,16 +102,8 @@ func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeConnectCommand(args)
 	}
 
-	if action == "connect-bot" {
-		return p.executeConnectBotCommand(args)
-	}
-
 	if action == "disconnect" {
 		return p.executeDisconnectCommand(args)
-	}
-
-	if action == "disconnect-bot" {
-		return p.executeDisconnectBotCommand(args)
 	}
 
 	if action == "status" {
@@ -169,19 +153,6 @@ func (p *Plugin) executeConnectCommand(args *model.CommandArgs) (*model.CommandR
 	return &model.CommandResponse{}, nil
 }
 
-func (p *Plugin) executeConnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError(args, "Unable to connect the bot account, only system admins can connect the bot account.")
-	}
-
-	if storedToken, _ := p.store.GetTokenForMattermostUser(p.botUserID); storedToken != nil {
-		return p.cmdError(args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
-	}
-
-	p.SendConnectBotMessage(args.ChannelId, args.UserId)
-	return &model.CommandResponse{}, nil
-}
-
 func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	teamsUserID, err := p.store.MattermostToTeamsUserID(args.UserId)
 	if err != nil {
@@ -207,22 +178,6 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 	}
 
 	return p.cmdSuccess(args, "Your account has been disconnected.")
-}
-
-func (p *Plugin) executeDisconnectBotCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if !p.API.HasPermissionTo(args.UserId, model.PermissionManageSystem) {
-		return p.cmdError(args, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
-	}
-
-	if _, err := p.store.MattermostToTeamsUserID(p.botUserID); err != nil {
-		return p.cmdSuccess(args, "Error: unable to find the connected bot account")
-	}
-
-	if err := p.store.DeleteUserInfo(p.botUserID); err != nil {
-		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect the bot account, %s", err.Error()))
-	}
-
-	return p.cmdSuccess(args, "The bot account has been disconnected.")
 }
 
 func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {

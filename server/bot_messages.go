@@ -63,19 +63,6 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	}
 }
 
-func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
-	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?isBot&post_id=%s&channel_id=%s", postID, channelID)
-	connectMessage := fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL)
-	post := &model.Post{
-		Id:        postID,
-		ChannelId: channelID,
-		UserId:    p.GetBotUserID(),
-		Message:   connectMessage,
-	}
-	p.API.SendEphemeralPost(userID, post)
-}
-
 func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 	if err := p.botSendDirectPost(
 		userID,

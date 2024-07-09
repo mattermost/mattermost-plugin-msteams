@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
@@ -93,63 +92,6 @@ func TestExecuteDisconnectCommand(t *testing.T) {
 	})
 }
 
-func TestExecuteDisconnectBotCommand(t *testing.T) {
-	th := setupTestHelper(t)
-
-	team := th.SetupTeam(t)
-	user1 := th.SetupUser(t, team)
-	sysadmin1 := th.SetupSysadmin(t, team)
-
-	th.SetupWebsocketClientForUser(t, user1.Id)
-	th.SetupWebsocketClientForUser(t, sysadmin1.Id)
-
-	t.Run("not a system admin", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    user1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		commandResponse, appErr := th.p.executeDisconnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Unable to disconnect the bot account, only system admins can disconnect the bot account.")
-	})
-
-	t.Run("bot user is not connected", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    sysadmin1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		commandResponse, appErr := th.p.executeDisconnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Error: unable to find the connected bot account")
-	})
-
-	t.Run("successfully disconnected", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    sysadmin1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		err := th.p.store.SetUserInfo(th.p.botUserID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
-
-		require.NoError(t, err)
-
-		commandResponse, appErr := th.p.executeDisconnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "The bot account has been disconnected.")
-	})
-}
-
 func TestExecuteConnectCommand(t *testing.T) {
 	th := setupTestHelper(t)
 
@@ -213,66 +155,6 @@ func TestExecuteConnectCommand(t *testing.T) {
 	})
 }
 
-func TestExecuteConnectBotCommand(t *testing.T) {
-	th := setupTestHelper(t)
-
-	team := th.SetupTeam(t)
-	user1 := th.SetupUser(t, team)
-	sysadmin1 := th.SetupSysadmin(t, team)
-
-	th.SetupWebsocketClientForUser(t, user1.Id)
-	th.SetupWebsocketClientForUser(t, sysadmin1.Id)
-
-	t.Run("not a system admin", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    user1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		commandResponse, appErr := th.p.executeConnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "Unable to connect the bot account, only system admins can connect the bot account.")
-	})
-
-	t.Run("bot user already connected", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    sysadmin1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		err := th.p.store.SetUserInfo(th.p.botUserID, "bot_team_user_id", &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(10 * time.Minute)})
-		require.NoError(t, err)
-
-		commandResponse, appErr := th.p.executeConnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		assertEphemeralResponse(th, t, args, "The bot account is already connected to MS Teams. Please disconnect the bot account first before connecting again.")
-	})
-
-	t.Run("successfully started connection", func(t *testing.T) {
-		th.Reset(t)
-
-		args := &model.CommandArgs{
-			UserId:    sysadmin1.Id,
-			ChannelId: model.NewId(),
-		}
-
-		commandResponse, appErr := th.p.executeConnectBotCommand(args)
-		require.Nil(t, appErr)
-		assertNoCommandResponse(t, commandResponse)
-		ephemeralPost := th.retrieveEphemeralPost(t, args.UserId, args.ChannelId)
-
-		expectedMessage := fmt.Sprintf(`\[Click here to connect the bot account\]\(%s/connect\?isBot&post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
-		result, _ := regexp.MatchString(expectedMessage, ephemeralPost.Message)
-		assert.True(t, result)
-	})
-}
-
 func TestGetAutocompleteData(t *testing.T) {
 	for _, testCase := range []struct {
 		description      string
@@ -305,20 +187,6 @@ func TestGetAutocompleteData(t *testing.T) {
 						Trigger:     "status",
 						HelpText:    "Show your connection status",
 						RoleID:      model.SystemUserRoleId,
-						Arguments:   []*model.AutocompleteArg{},
-						SubCommands: []*model.AutocompleteData{},
-					},
-					{
-						Trigger:     "connect-bot",
-						HelpText:    "Connect the bot account (only system admins can do this)",
-						RoleID:      model.SystemAdminRoleId,
-						Arguments:   []*model.AutocompleteArg{},
-						SubCommands: []*model.AutocompleteData{},
-					},
-					{
-						Trigger:     "disconnect-bot",
-						HelpText:    "Disconnect the bot account (only system admins can do this)",
-						RoleID:      model.SystemAdminRoleId,
 						Arguments:   []*model.AutocompleteArg{},
 						SubCommands: []*model.AutocompleteData{},
 					},

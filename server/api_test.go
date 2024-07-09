@@ -617,11 +617,6 @@ func TestConnect(t *testing.T) {
 
 		u := apiURL
 
-		// 		endPoint := "/connect?"
-		// 		if test.isBot {
-		// 			endPoint += "isBot&"
-		// 		}
-
 		values := make(url.Values)
 		if channelID != "" {
 			values["channel_id"] = []string{channelID}
@@ -704,18 +699,6 @@ func TestConnect(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "login.microsoftonline.com", actualURL.Host)
 		assert.Regexp(t, "oauth2/v2.0/authorize$", actualURL.Path)
-	})
-
-	t.Run("not system admin when connecting bot", func(t *testing.T) {
-		t.Skip()
-	})
-
-	t.Run("bot already connected", func(t *testing.T) {
-		t.Skip()
-	})
-
-	t.Run("bot connected", func(t *testing.T) {
-		t.Skip()
 	})
 }
 
