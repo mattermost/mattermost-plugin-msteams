@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -103,15 +102,5 @@ func (m *Monitor) runMonitoringSystemJob() {
 		return
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	}()
-
 	m.checkGlobalChatsSubscription(msteamsSubscriptionsMap, allChatsSubscription)
-
-	wg.Wait()
 }
