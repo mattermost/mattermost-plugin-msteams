@@ -420,7 +420,7 @@ func TestGetTokenForMSTeamsUserForInvalidID(t *testing.T) {
 func TestListGlobalSubscriptionsToCheck(t *testing.T) {
 	store, _ := setupTestStore(t)
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -430,7 +430,7 @@ func TestListGlobalSubscriptionsToCheck(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -440,7 +440,7 @@ func TestListGlobalSubscriptionsToCheck(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "test1", subscriptions[0].SubscriptionID)
@@ -451,7 +451,7 @@ func TestListGlobalSubscriptionsToCheck(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test1") }()
 
-		subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
+		subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 1)
 		assert.Equal(t, subscriptions[0].SubscriptionID, "test1")
@@ -515,7 +515,7 @@ func TestListChatSubscriptionsToCheck(t *testing.T) {
 func TestListChannelSubscriptionsToRefresh(t *testing.T) {
 	store, _ := setupTestStore(t)
 	t.Run("no-subscriptions", func(t *testing.T) {
-		subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -533,7 +533,7 @@ func TestListChannelSubscriptionsToRefresh(t *testing.T) {
 
 		defer func() { _ = store.DeleteSubscription("test") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Empty(t, subscriptions)
 	})
@@ -558,7 +558,7 @@ func TestListChannelSubscriptionsToRefresh(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = store.DeleteSubscription("test6") }()
 
-		subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
+		subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 		require.NoError(t, err)
 		assert.Len(t, subscriptions, 3)
 		ids := []string{}
@@ -583,7 +583,7 @@ func TestSaveGlobalSubscription(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test2") }()
 
-	subscriptions, err := store.ListGlobalSubscriptionsToRefresh("")
+	subscriptions, err := store.ListGlobalSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 	assert.Equal(t, subscriptions[0].SubscriptionID, "test2")
@@ -628,7 +628,7 @@ func TestSaveChannelSubscription(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test4") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	assert.Len(t, subscriptions, 2)
 	assert.Contains(t, []string{subscriptions[0].SubscriptionID, subscriptions[1].SubscriptionID}, "test2")
@@ -641,21 +641,21 @@ func TestUpdateSubscriptionExpiresOn(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = store.DeleteSubscription("test1") }()
 
-	subscriptions, err := store.ListChannelSubscriptionsToRefresh("")
+	subscriptions, err := store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(100*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToRefresh("")
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 0)
 
 	err = store.UpdateSubscriptionExpiresOn("test1", time.Now().Add(2*time.Minute))
 	require.NoError(t, err)
 
-	subscriptions, err = store.ListChannelSubscriptionsToRefresh("")
+	subscriptions, err = store.ListChannelSubscriptionsToRefresh()
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 }

@@ -65,10 +65,10 @@ type Store interface {
 
 	// subscriptions
 	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
-	ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error)
+	ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
-	ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error)
+	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
 	SaveChannelSubscription(subscription storemodels.ChannelSubscription) error

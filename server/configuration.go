@@ -26,8 +26,6 @@ type configuration struct {
 	EncryptionKey                   string `json:"encryptionkey"`
 	EvaluationAPI                   bool   `json:"evaluationapi"`
 	WebhookSecret                   string `json:"webhooksecret"`
-	CertificatePublic               string `json:"experimentalcertificatepublic"`
-	CertificateKey                  string `json:"experimentalcertificatekey"`
 	MaxSizeForCompleteDownload      int    `json:"maxSizeForCompleteDownload"`
 	BufferSizeForFileStreaming      int    `json:"bufferSizeForFileStreaming"`
 	ConnectedUsersAllowed           int    `json:"connectedUsersAllowed"`

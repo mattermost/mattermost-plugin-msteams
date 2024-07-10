@@ -511,13 +511,13 @@ func (s *SQLStore) listChannelSubscriptions(db sq.BaseRunner) ([]*storemodels.Ch
 }
 
 //db:withReplica
-func (s *SQLStore) listChannelSubscriptionsToRefresh(db sq.BaseRunner, certificate string) ([]*storemodels.ChannelSubscription, error) {
+func (s *SQLStore) listChannelSubscriptionsToRefresh(db sq.BaseRunner) ([]*storemodels.ChannelSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder(db).
 		Select("subscriptionID, msTeamsChannelID, msTeamsTeamID, secret, expiresOn, certificate").
 		From(subscriptionsTableName).
 		Where(sq.Eq{"type": subscriptionTypeChannel}).
-		Where(sq.Or{sq.NotEq{"certificate": certificate}, sq.Lt{"expiresOn": expireTime}})
+		Where(sq.Or{sq.Lt{"expiresOn": expireTime}})
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
@@ -569,13 +569,13 @@ func (s *SQLStore) listGlobalSubscriptions(db sq.BaseRunner) ([]*storemodels.Glo
 }
 
 //db:withReplica
-func (s *SQLStore) listGlobalSubscriptionsToRefresh(db sq.BaseRunner, certificate string) ([]*storemodels.GlobalSubscription, error) {
+func (s *SQLStore) listGlobalSubscriptionsToRefresh(db sq.BaseRunner) ([]*storemodels.GlobalSubscription, error) {
 	expireTime := time.Now().Add(subscriptionRefreshTimeLimit).UnixMicro()
 	query := s.getQueryBuilder(db).
 		Select("subscriptionID, type, secret, expiresOn, certificate").
 		From(subscriptionsTableName).
 		Where(sq.Eq{"type": subscriptionTypeAllChats}).
-		Where(sq.Or{sq.NotEq{"certificate": certificate}, sq.Lt{"expiresOn": expireTime}})
+		Where(sq.Or{sq.Lt{"expiresOn": expireTime}})
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err

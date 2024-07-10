@@ -35,8 +35,6 @@ func newTestPlugin(t *testing.T) *Plugin {
 			ClientSecret:               "",
 			WebhookSecret:              "webhooksecret",
 			EncryptionKey:              "encryptionkey",
-			CertificatePublic:          "",
-			CertificateKey:             "",
 			MaxSizeForCompleteDownload: 1,
 		},
 		msteamsAppClient: &mocks.Client{},

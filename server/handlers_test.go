@@ -19,15 +19,13 @@ func TestHandleCreatedActivity(t *testing.T) {
 	t.Run("unable to get original message", func(t *testing.T) {
 		th.Reset(t)
 
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
 		activityIds := clientmodels.ActivityIds{
 			ChatID: "invalid_chat_id",
 		}
 
 		th.appClientMock.On("GetChat", activityIds.ChatID).Return(nil, errors.New("Error while getting original chat")).Times(1)
 
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
 	})
 
@@ -40,8 +38,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
 		activityIds := clientmodels.ActivityIds{
 			ChatID:    "chat_id",
 			MessageID: "message_id",
@@ -60,7 +56,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 		}, nil).Times(1)
 		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(nil, nil).Times(1)
 
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
 	})
 
@@ -73,8 +69,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		msg := (*clientmodels.Message)(nil)
-		subscriptionID := "test"
 		activityIds := clientmodels.ActivityIds{
 			ChatID:    "chat_id",
 			MessageID: "message_id",
@@ -93,7 +87,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 		}, nil).Times(1)
 		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(&clientmodels.Message{}, nil).Times(1)
 
-		discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 		assert.Equal(t, metrics.DiscardedReasonNotUserEvent, discardReason)
 	})
 
@@ -120,8 +114,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				require.NoError(t, err)
 				th.ConnectUser(t, botUser.Id)
 
-				msg := (*clientmodels.Message)(nil)
-				subscriptionID := "test"
 				activityIds := clientmodels.ActivityIds{
 					ChatID:    "chat_id",
 					MessageID: "message_id",
@@ -131,7 +123,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockTeams.registerChat(activityIds.ChatID, []*model.User{user1, senderUser})
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
-				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 				assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 
 				if params.NotificationPref {
@@ -160,8 +152,6 @@ func TestHandleCreatedActivity(t *testing.T) {
 				require.NoError(t, err)
 				th.ConnectUser(t, botUser.Id)
 
-				msg := (*clientmodels.Message)(nil)
-				subscriptionID := "test"
 				activityIds := clientmodels.ActivityIds{
 					ChatID:    "chat_id",
 					MessageID: "message_id",
@@ -171,7 +161,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
-				discardReason := th.p.activityHandler.handleCreatedActivity(msg, subscriptionID, activityIds)
+				discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 				assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 
 				if params.NotificationPref {

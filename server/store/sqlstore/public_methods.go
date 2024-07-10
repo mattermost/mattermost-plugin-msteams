@@ -154,8 +154,8 @@ func (s *SQLStore) ListChannelSubscriptions() ([]*storemodels.ChannelSubscriptio
 	return s.listChannelSubscriptions(s.replica)
 }
 
-func (s *SQLStore) ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error) {
-	return s.listChannelSubscriptionsToRefresh(s.replica, certificate)
+func (s *SQLStore) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
+	return s.listChannelSubscriptionsToRefresh(s.replica)
 }
 
 func (s *SQLStore) ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error) {
@@ -166,8 +166,8 @@ func (s *SQLStore) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription,
 	return s.listGlobalSubscriptions(s.replica)
 }
 
-func (s *SQLStore) ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error) {
-	return s.listGlobalSubscriptionsToRefresh(s.replica, certificate)
+func (s *SQLStore) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
+	return s.listGlobalSubscriptionsToRefresh(s.replica)
 }
 
 func (s *SQLStore) MattermostToTeamsUserID(userID string) (string, error) {

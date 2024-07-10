@@ -2,15 +2,8 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/hmac"
-	"crypto/rsa"
-	"crypto/sha1" //nolint:gosec
-	"crypto/sha256"
+	"context" //nolint:gosec
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -29,7 +22,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
@@ -103,77 +95,6 @@ func (a *API) returnJSON(w http.ResponseWriter, data any) {
 	}
 }
 
-func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode encrypted data")
-	}
-	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode data signature")
-	}
-
-	mac := hmac.New(sha256.New, key)
-	mac.Write(ciphertext)
-	expectedMac := mac.Sum(nil)
-	if !hmac.Equal(expectedMac, msDataSignature) {
-		return nil, errors.New("The key signature doesn't match")
-	}
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ciphertext) < aes.BlockSize {
-		return nil, errors.New("ciphertext too short")
-	}
-	iv := key[:16]
-
-	if len(ciphertext)%block.BlockSize() != 0 {
-		return nil, errors.New("ciphertext is not a multiple of the block size")
-	}
-
-	mode := cipher.NewCBCDecrypter(block, iv)
-	result := make([]byte, len(ciphertext))
-	mode.CryptBlocks(result, ciphertext)
-	resultPadding := int(result[len(result)-1])
-	result = result[:len(result)-resultPadding]
-	return result, nil
-}
-
-func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode key")
-	}
-
-	key, err := a.p.getPrivateKey()
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to get private key")
-	}
-	hash := sha1.New() //nolint:gosec
-	plaintext, err := rsa.DecryptOAEP(hash, nil, key, ciphertext, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decrypt data")
-	}
-	return plaintext, nil
-}
-
-func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	msKey, err := a.decryptEncryptedContentDataKey(encryptedContent)
-	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt key", "error", err.Error())
-		return nil, err
-	}
-
-	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
-	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error())
-		return nil, err
-	}
-	return data, nil
-}
-
 // processActivity handles the activity received from teams subscriptions
 func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	validationToken := req.URL.Query().Get("validationToken")
@@ -192,21 +113,8 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	requireEncryptedContent := a.p.getConfiguration().CertificateKey != ""
 	errors := ""
 	for _, activity := range activities.Value {
-		if activity.EncryptedContent != nil {
-			content, err := a.processEncryptedContent(*activity.EncryptedContent)
-			if err != nil {
-				errors += err.Error() + "\n"
-				continue
-			}
-			activity.Content = content
-		} else if requireEncryptedContent {
-			errors += "Not encrypted content for encrypted subscription"
-			continue
-		}
-
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue

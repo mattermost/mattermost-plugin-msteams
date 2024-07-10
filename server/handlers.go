@@ -196,15 +196,7 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		var msg *clientmodels.Message
-		if len(activity.Content) > 0 {
-			var err error
-			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
-			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
-			}
-		}
-		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
+		discardedReason = ah.handleCreatedActivity(activityIds)
 	case "updated":
 		discardedReason = metrics.DiscardedReasonNotificationsOnly
 	case "deleted":
@@ -217,8 +209,8 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
+func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
+	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
 		return metrics.DiscardedReasonUnableToGetTeamsData

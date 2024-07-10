@@ -497,10 +497,10 @@ func (s *TimerLayer) ListChannelSubscriptions() ([]*storemodels.ChannelSubscript
 	return result, err
 }
 
-func (s *TimerLayer) ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error) {
+func (s *TimerLayer) ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error) {
 	start := time.Now()
 
-	result, err := s.Store.ListChannelSubscriptionsToRefresh(certificate)
+	result, err := s.Store.ListChannelSubscriptionsToRefresh()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"
@@ -539,10 +539,10 @@ func (s *TimerLayer) ListGlobalSubscriptions() ([]*storemodels.GlobalSubscriptio
 	return result, err
 }
 
-func (s *TimerLayer) ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error) {
+func (s *TimerLayer) ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error) {
 	start := time.Now()
 
-	result, err := s.Store.ListGlobalSubscriptionsToRefresh(certificate)
+	result, err := s.Store.ListGlobalSubscriptionsToRefresh()
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	success := "false"

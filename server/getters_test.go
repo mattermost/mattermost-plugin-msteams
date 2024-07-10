@@ -140,7 +140,7 @@ func TestGetMessageAndChatFromActivityIds(t *testing.T) {
 			ah := ActivityHandler{}
 			ah.plugin = p
 
-			message, chat, err := ah.getMessageAndChatFromActivityIds(nil, testCase.activityIds)
+			message, chat, err := ah.getMessageAndChatFromActivityIds(testCase.activityIds)
 			if testCase.expectedError != "" {
 				assert.Nil(t, message)
 				assert.Nil(t, chat)

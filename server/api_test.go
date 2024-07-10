@@ -152,49 +152,6 @@ func TestProcessActivity(t *testing.T) {
 		assert.Equal(t, http.StatusAccepted, response.StatusCode)
 		assert.Empty(t, bodyString)
 	})
-
-	t.Run("encrypted message on encrypted subscription", func(t *testing.T) {
-		th.Reset(t)
-
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.CertificateKey = "test"
-		})
-
-		activities := []msteams.Activity{
-			{
-				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-				ChangeType:                     "created",
-				ClientState:                    "webhooksecret",
-				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-				EncryptedContent:               &msteams.EncryptedContent{},
-			},
-		}
-
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Unable to get private key: invalid certificate key\n\n", bodyString)
-	})
-
-	t.Run("non-encrypted message on encrypted subscription", func(t *testing.T) {
-		th.Reset(t)
-
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.CertificateKey = "test"
-		})
-
-		activities := []msteams.Activity{
-			{
-				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-				ChangeType:                     "created",
-				ClientState:                    "webhooksecret",
-				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-			},
-		}
-
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Not encrypted content for encrypted subscription\n", bodyString)
-	})
 }
 
 func TestProcessLifecycle(t *testing.T) {
