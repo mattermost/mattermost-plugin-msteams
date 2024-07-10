@@ -18,10 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
-
-var fakeToken = oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}
 
 func TestProcessActivity(t *testing.T) {
 	th := setupTestHelper(t)

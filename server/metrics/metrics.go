@@ -46,6 +46,7 @@ const (
 	DiscardedReasonFailedToRefresh                 = "failed_to_refresh"
 	DiscardedReasonNotificationsOnly               = "notifications_only"
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"
+	DiscardedReasonNoConnectedUser                 = "no_connected_user"
 
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"

@@ -16,7 +16,19 @@ func TestHandleCreatedActivity(t *testing.T) {
 	th := setupTestHelper(t)
 	team := th.SetupTeam(t)
 
-	t.Run("unable to get original message", func(t *testing.T) {
+	t.Run("ignore non-chats", func(t *testing.T) {
+		th.Reset(t)
+
+		activityIds := clientmodels.ActivityIds{
+			TeamID:    model.NewId(),
+			ChannelID: model.NewId(),
+		}
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
+		assert.Equal(t, metrics.DiscardedReasonChannelNotificationsUnsupported, discardReason)
+	})
+
+	t.Run("unable to get original get", func(t *testing.T) {
 		th.Reset(t)
 
 		activityIds := clientmodels.ActivityIds{
@@ -29,7 +41,34 @@ func TestHandleCreatedActivity(t *testing.T) {
 		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)
 	})
 
-	t.Run("nil message", func(t *testing.T) {
+	t.Run("no connected users to get message", func(t *testing.T) {
+		th.Reset(t)
+
+		senderUser := th.SetupUser(t, team)
+		user1 := th.SetupUser(t, team)
+
+		activityIds := clientmodels.ActivityIds{
+			ChatID:    "chat_id",
+			MessageID: "message_id",
+		}
+
+		th.appClientMock.On("GetChat", activityIds.ChatID).Return(&clientmodels.Chat{
+			ID: activityIds.ChatID,
+			Members: []clientmodels.ChatMember{
+				{
+					UserID: "t" + senderUser.Id,
+				},
+				{
+					UserID: "t" + user1.Id,
+				},
+			},
+		}, nil).Times(1)
+
+		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
+		assert.Equal(t, metrics.DiscardedReasonNoConnectedUser, discardReason)
+	})
+
+	t.Run("failed to get chat message", func(t *testing.T) {
 		th.Reset(t)
 
 		senderUser := th.SetupUser(t, team)
@@ -54,7 +93,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 				},
 			},
 		}, nil).Times(1)
-		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(nil, nil).Times(1)
+		th.clientMock.On("GetChatMessage", activityIds.ChatID, activityIds.MessageID).Return(nil, errors.New("failed to get chat message")).Times(1)
 
 		discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 		assert.Equal(t, metrics.DiscardedReasonUnableToGetTeamsData, discardReason)

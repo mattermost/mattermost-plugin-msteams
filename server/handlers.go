@@ -209,19 +209,44 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
+// handleCreatedActivity handles subscription change events of the created type, i.e. new messages.
 func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(activityIds)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
-		return metrics.DiscardedReasonUnableToGetTeamsData
+	// We're only handling chats at that time.
+	if activityIds.ChatID == "" {
+		return metrics.DiscardedReasonChannelNotificationsUnsupported
 	}
-	if msg == nil {
+
+	// Use the application client to resolve the chat metadata.
+	chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
+	if err != nil || chat == nil {
+		ah.plugin.GetAPI().LogWarn("Failed to get chat", "chat_id", activityIds.ChatID, "error", err)
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
+	// Find a connected member whose client can be used to fetch the chat message itself.
+	var client msteams.Client
+	for _, member := range chat.Members {
+		client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
+		if client != nil {
+			break
+		}
+	}
+	if client == nil {
+		return metrics.DiscardedReasonNoConnectedUser
+	}
+
+	// Fetch the message itself.
+	msg, err := client.GetChatMessage(chat.ID, activityIds.MessageID)
+	if err != nil {
+		ah.plugin.GetAPI().LogWarn("Failed to get message from chat", "chat_id", chat.ID, "message_id", activityIds.MessageID, "error", err)
+		return metrics.DiscardedReasonUnableToGetTeamsData
+	}
+
+	// Skip messages without a user, if this ever happens.
 	if msg.UserID == "" {
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
+	// Finally, process the notification of the chat message received.
 	return ah.handleCreatedActivityNotification(msg, chat)
 }
