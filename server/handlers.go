@@ -141,11 +141,6 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 }
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
-	if !ah.checkSubscription(event.SubscriptionID) {
-		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedSubscriptionCheck)
-		return
-	}
-
 	if event.LifecycleEvent == "reauthorizationRequired" {
 		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 		if err != nil {
@@ -163,35 +158,11 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonNone)
 }
 
-func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
-	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get channel subscription", "subscription_id", subscriptionID, "error", err.Error())
-		return false
-	}
-
-	if _, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID); err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get the link by MS Teams channel ID", "error", err.Error())
-		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-		_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-		return false
-	}
-
-	return true
-}
-
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	done := ah.plugin.GetMetrics().ObserveWorker(metrics.WorkerActivityHandler)
 	defer done()
 
 	activityIds := msteams.GetResourceIds(activity.Resource)
-
-	if activityIds.ChatID == "" {
-		if !ah.checkSubscription(activity.SubscriptionID) {
-			ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, metrics.DiscardedReasonExpiredSubscription)
-			return
-		}
-	}
 
 	var discardedReason string
 	switch activity.ChangeType {
