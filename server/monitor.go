@@ -1,4 +1,4 @@
-package monitor
+package main
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ type Monitor struct {
 }
 
 // New creates a new instance of the Monitor job.
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func NewMonitor(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
