@@ -17,102 +17,16 @@ func shouldRefresh(expiresOn time.Time) bool {
 	return time.Until(expiresOn) < (5 * time.Minute)
 }
 
-// checkGlobalChatsSubscription maintains the global chats subscription, creating one if it doesn't
-// already exist, refreshing the expiry time as needed, or even deleting any that exists if we're
-// no longer syncing direct messages.
-func (m *Monitor) checkGlobalChatsSubscription(msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription) {
-	subscriptions, err := m.store.ListGlobalSubscriptions()
-	if err != nil {
-		m.api.LogWarn("Unable to get the chat subscriptions from store", "error", err.Error())
-		return
-	}
-
-	// Create or save a global subscription if we have none.
-	if len(subscriptions) == 0 {
-		if allChatsSubscription == nil {
-			m.createAndSaveChatSubscription(nil)
-		} else {
-			if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: allChatsSubscription.ID, Type: "allChats", ExpiresOn: allChatsSubscription.ExpiresOn, Secret: m.webhookSecret}); err != nil {
-				m.api.LogWarn("Unable to store all chats subscription in store", "subscription_id", allChatsSubscription.ID, "error", err.Error())
-			}
-		}
-
-		return
-	}
-
-	// We only support one global subscription right now, and it's assumed to be the global
-	// chats subscription.
-	mmSubscription := subscriptions[0]
-
-	// Check if all chats subscription is not present on MS Teams
-	if _, msteamsSubscriptionFound := msteamsSubscriptionsMap[mmSubscription.SubscriptionID]; !msteamsSubscriptionFound {
-		m.api.LogInfo("Creating global chats subscription")
-
-		// Create all chats subscription on MS Teams
-		m.createAndSaveChatSubscription(mmSubscription)
-		return
-	}
-
-	if shouldRefresh(mmSubscription.ExpiresOn) {
-		if isExpired(mmSubscription.ExpiresOn) {
-			// In the future, this won't need to be an error if we can resync, but for
-			// now notify a human.
-			m.api.LogError("Global chats subscription expired")
-		}
-
-		m.api.LogInfo("Renewing global chats subscription")
-		if err := m.refreshSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogWarn("Failed to to refresh global chats subscription, recreating", "error", err.Error())
-			if err := m.recreateGlobalSubscription(mmSubscription.SubscriptionID, mmSubscription.Secret); err != nil {
-				m.api.LogError("Unable to recreate all chats subscription", "error", err.Error())
-			}
-		}
-	}
-}
-
-// createAndSaveChatSubscription creates a chats/getAllMessages subscription, observing the event
-// as a metric, recording the new subscription in the database, and deleting the old global chats
-// subscription if given.
-func (m *Monitor) createAndSaveChatSubscription(mmSubscription *storemodels.GlobalSubscription) {
-	newSubscription, err := m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI, "")
-	if err != nil {
-		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
-		return
-	}
-
-	m.metrics.ObserveSubscription(metrics.SubscriptionConnected)
-
-	if mmSubscription != nil {
-		if err := m.store.DeleteSubscription(mmSubscription.SubscriptionID); err != nil {
-			m.api.LogWarn("Unable to delete the old all chats subscription", "error", err.Error())
-		}
-	}
-
-	if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: m.webhookSecret, ExpiresOn: newSubscription.ExpiresOn}); err != nil {
-		m.api.LogError("Unable to create subscription for all chats", "error", err.Error())
-		return
-	}
-}
-
-// recreateGlobalSubscription deletes the existing chats/getAllMessages subscription (if it exists)
-// and recreates it, observing the event as a metric and recording the new subscription in the
-// database.
-func (m *Monitor) recreateGlobalSubscription(subscriptionID, secret string) error {
-	if err := m.client.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogWarn("Unable to delete old subscription, maybe it doesn't exist anymore in the server", "error", err.Error())
-	}
-
-	newSubscription, err := m.client.SubscribeToChats(m.baseURL, secret, !m.useEvaluationAPI, "")
+// seleteSubscription deletes a subscription and observing the event.
+func (m *Monitor) deleteSubscription(subscriptionID string) error {
+	err := m.client.DeleteSubscription(subscriptionID)
 	if err != nil {
 		return err
 	}
 
-	m.metrics.ObserveSubscription(metrics.SubscriptionReconnected)
+	m.metrics.ObserveSubscription(metrics.SubscriptionDeleted)
 
-	if err = m.store.DeleteSubscription(subscriptionID); err != nil {
-		m.api.LogWarn("Unable to delete old global subscription from DB", "subscription_id", subscriptionID, "error", err.Error())
-	}
-	return m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{SubscriptionID: newSubscription.ID, Type: "allChats", Secret: secret, ExpiresOn: newSubscription.ExpiresOn})
+	return nil
 }
 
 // refreshSubscription renews a subscription by extending its expiry time, observing the event as
@@ -126,6 +40,98 @@ func (m *Monitor) refreshSubscription(subscriptionID string) error {
 	m.metrics.ObserveSubscription(metrics.SubscriptionRefreshed)
 
 	return m.store.UpdateSubscriptionExpiresOn(subscriptionID, *newSubscriptionTime)
+}
+
+// checkGlobalChatsSubscription maintains the global chats subscription, creating one if it doesn't
+// already exist, refreshing the expiry time as needed, or even deleting any that exists if we're
+// no longer syncing direct messages.
+func (m *Monitor) checkGlobalChatsSubscription(remoteSubscription *clientmodels.Subscription) {
+	subscriptions, err := m.store.ListGlobalSubscriptions()
+	if err != nil {
+		m.api.LogWarn("Unable to get the chat subscriptions from store", "error", err.Error())
+		return
+	}
+
+	// We only support one global subscription right now, and it's assumed to be the global
+	// chats subscription.
+	var localSubscription *storemodels.GlobalSubscription
+	if len(subscriptions) > 0 {
+		localSubscription = subscriptions[0]
+	}
+
+	// Delete the remote subscription if there is no local subscription, or it doesn't match the local
+	// subscription. We'll continue afterwards as if there never was a remote subscription.
+	if (localSubscription == nil && remoteSubscription != nil) || (localSubscription != nil && remoteSubscription != nil && remoteSubscription.ID != localSubscription.SubscriptionID) {
+		m.api.LogInfo("Deleting remote global chats subscription", "subscription_id", remoteSubscription.ID)
+
+		if err = m.deleteSubscription(remoteSubscription.ID); err != nil {
+			m.api.LogError("Failed to delete remote global chats subscription", "subscription_id", remoteSubscription.ID, "error", err.Error())
+			return
+		}
+
+		remoteSubscription = nil
+	}
+
+	// Try to refresh the remote subscription, if we still have one. (If we do, we know we have a matching
+	// local subscription from above.)
+	if remoteSubscription != nil && shouldRefresh(remoteSubscription.ExpiresOn) {
+		if isExpired(remoteSubscription.ExpiresOn) {
+			m.api.LogError("Global chats subscription discovered to be expired", "subscription_id", remoteSubscription.ID)
+		}
+
+		m.api.LogInfo("Refreshing global chats subscription", "subscription_id", remoteSubscription.ID)
+		if err = m.refreshSubscription(remoteSubscription.ID); err != nil {
+			m.api.LogWarn("Failed to to refresh global chats subscription", "subscription_id", remoteSubscription.ID, "error", err.Error())
+
+			if err = m.deleteSubscription(remoteSubscription.ID); err != nil {
+				m.api.LogError("Failed to delete remote global chats subscription", "subscription_id", remoteSubscription.ID, "error", err.Error())
+				return
+			}
+
+			remoteSubscription = nil
+		} else {
+			m.api.LogInfo("Refreshed global chats subscription", "subscription_id", remoteSubscription.ID)
+		}
+	}
+
+	// Delete the local subscription if there is no corresponding remote subscription. We either deleted it
+	// above or it was deleted remotely, so we'll start from scratch.
+	if localSubscription != nil && remoteSubscription == nil {
+		m.api.LogInfo("Deleting local global chats subscription", "subscription_id", localSubscription.SubscriptionID)
+
+		if err = m.store.DeleteSubscription(localSubscription.SubscriptionID); err != nil {
+			m.api.LogError("Failed to delete local, global chats subscription", "subscription_id", localSubscription.SubscriptionID, "error", err.Error())
+			return
+		}
+
+		localSubscription = nil
+	}
+
+	// At this point, we either have no subscriptions anywhere, or a matching refreshed subscription that
+	// requires no more action. Just check to see if we need to create one then.
+	if localSubscription == nil && remoteSubscription == nil {
+		m.api.LogInfo("Creating global chats subscription")
+
+		remoteSubscription, err = m.client.SubscribeToChats(m.baseURL, m.webhookSecret, !m.useEvaluationAPI, "")
+		if err != nil {
+			m.api.LogError("Failed to create global chats subscription", "error", err.Error())
+			return
+		}
+
+		m.metrics.ObserveSubscription(metrics.SubscriptionConnected)
+
+		if err := m.store.SaveGlobalSubscription(storemodels.GlobalSubscription{
+			SubscriptionID: remoteSubscription.ID,
+			Type:           "allChats",
+			Secret:         m.webhookSecret,
+			ExpiresOn:      remoteSubscription.ExpiresOn,
+		}); err != nil {
+			m.api.LogError("Failed to save global chats subscription", "error", err.Error())
+			return
+		}
+
+		m.api.LogInfo("Created global chats subscription", "subscription_id", remoteSubscription.ID)
+	}
 }
 
 // getMSTeamsSubscriptionsMap queries MS Teams and returns a map of subscriptions indexed by

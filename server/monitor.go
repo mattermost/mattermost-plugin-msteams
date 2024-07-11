@@ -96,11 +96,11 @@ func (m *Monitor) runMonitoringSystemJob() {
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 
-	msteamsSubscriptionsMap, allChatsSubscription, err := m.getMSTeamsSubscriptionsMap()
+	_, allChatsSubscription, err := m.getMSTeamsSubscriptionsMap()
 	if err != nil {
 		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
-	m.checkGlobalChatsSubscription(msteamsSubscriptionsMap, allChatsSubscription)
+	m.checkGlobalChatsSubscription(allChatsSubscription)
 }
