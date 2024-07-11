@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConvertToMessage(t *testing.T) {
-	teamsUserID := testutils.GetTeamsUserID()
+	teamsUserID := model.NewId()
 	teamsUserDisplayName := "mockTeamsUserDisplayName"
 	teamsReplyID := "mockTeamsReplyID"
 	content := "mockContent"
@@ -22,6 +22,7 @@ func TestConvertToMessage(t *testing.T) {
 	attachmentName := "mockAttachmentName"
 	attachmentURL := "mockAttachmentURL"
 	mentionID := 0
+	channelID := model.NewId()
 	for _, test := range []struct {
 		Name           string
 		ChatMessage    models.ChatMessageable
@@ -113,7 +114,7 @@ func TestConvertToMessage(t *testing.T) {
 						UserID:   teamsUserID,
 					},
 				},
-				ChannelID: testutils.GetChannelID(),
+				ChannelID: channelID,
 				TeamID:    "mockTeamsTeamID",
 				ChatID:    "mockChatID",
 			},
@@ -132,7 +133,7 @@ func TestConvertToMessage(t *testing.T) {
 				Mentions:     []clientmodels.Mention{},
 				CreateAt:     time.Time{},
 				LastUpdateAt: time.Time{},
-				ChannelID:    testutils.GetChannelID(),
+				ChannelID:    channelID,
 				TeamID:       "mockTeamsTeamID",
 				ChatID:       "mockChatID",
 			},
@@ -140,7 +141,7 @@ func TestConvertToMessage(t *testing.T) {
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			resp := convertToMessage(test.ChatMessage, "mockTeamsTeamID", testutils.GetChannelID(), "mockChatID")
+			resp := convertToMessage(test.ChatMessage, "mockTeamsTeamID", channelID, "mockChatID")
 
 			assert.Equal(test.ExpectedResult, *resp)
 		})
