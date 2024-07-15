@@ -73,20 +73,6 @@ func (s *SQLStore) runMigrationSequence(engine *morph.Morph, driver drivers.Driv
 		return mErr
 	}
 
-	if remoteID != "" {
-		if mErr := s.runMigrationRemoteID(remoteID); mErr != nil {
-			return fmt.Errorf("error running remote ID migration: %w", mErr)
-		}
-
-		if mErr := s.runSetEmailVerifiedToTrueForRemoteUsers(remoteID); mErr != nil {
-			return fmt.Errorf("error running set email verified to true for remote users migration: %w", mErr)
-		}
-	}
-
-	if err := s.runMSTeamUserIDDedup(); err != nil {
-		return err
-	}
-
 	if mErr := s.ensureMigrationsAppliedUpToVersion(engine, driver, migrationWhitelistedUsersRequiredVersion); mErr != nil {
 		return mErr
 	}
