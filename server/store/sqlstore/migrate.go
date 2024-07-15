@@ -81,6 +81,10 @@ func (s *SQLStore) runMigrationSequence(engine *morph.Morph, driver drivers.Driv
 		return err
 	}
 
+	if err := s.runArchiveSyntheticUsersMigration(); err != nil {
+		return err
+	}
+
 	appliedMigrations, err := driver.AppliedMigrations()
 	if err != nil {
 		return err
