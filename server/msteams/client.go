@@ -865,7 +865,7 @@ func (tc *ClientImpl) subscribe(baseURL, webhookSecret, resource, changeType, ce
 
 	res, err := tc.client.Subscriptions().Post(tc.ctx, subscription, nil)
 	if err != nil {
-		tc.logService.Error("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
+		tc.logService.Warn("Unable to create the new subscription", "error", NormalizeGraphAPIError(err))
 		return nil, NormalizeGraphAPIError(err)
 	}
 
@@ -920,7 +920,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 	updatedSubscription := models.NewSubscription()
 	updatedSubscription.SetExpirationDateTime(&expirationDateTime)
 	if _, err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Patch(tc.ctx, updatedSubscription, nil); err != nil {
-		tc.logService.Error("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
+		tc.logService.Warn("Unable to refresh the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return nil, NormalizeGraphAPIError(err)
 	}
 	return &expirationDateTime, nil
@@ -928,7 +928,7 @@ func (tc *ClientImpl) RefreshSubscription(subscriptionID string) (*time.Time, er
 
 func (tc *ClientImpl) DeleteSubscription(subscriptionID string) error {
 	if err := tc.client.Subscriptions().BySubscriptionId(subscriptionID).Delete(tc.ctx, nil); err != nil {
-		tc.logService.Error("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
+		tc.logService.Warn("Unable to delete the subscription", "error", NormalizeGraphAPIError(err), "subscription_id", subscriptionID)
 		return NormalizeGraphAPIError(err)
 	}
 	return nil
