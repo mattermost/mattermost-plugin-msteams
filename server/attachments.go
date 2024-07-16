@@ -152,6 +152,13 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
+		// The rest of the code assumes a (file) reference: ignore other content types until we explicitly support them.
+		if a.ContentType != "reference" {
+			ah.plugin.GetAPI().LogWarn("ignored attachment content type", "filename", a.Name, "content_type", a.ContentType)
+			countNonFileAttachments++
+			continue
+		}
+
 		fileInfoID := fileNames[a.Name]
 		if fileInfoID != "" {
 			attachments = append(attachments, fileInfoID)
