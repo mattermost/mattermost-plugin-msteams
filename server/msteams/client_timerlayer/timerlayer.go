@@ -135,12 +135,12 @@ func (c *ClientTimerLayer) DeleteSubscription(subscriptionID string) error {
 	return err
 }
 
-func (c *ClientTimerLayer) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+func (c *ClientTimerLayer) GetApp(applicationID string) (*clientmodels.App, error) {
 	statusCode := "2XX"
 	success := "true"
 	start := time.Now()
 
-	result, err := c.Client.GetAppCredentials(applicationID)
+	result, err := c.Client.GetApp(applicationID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 
@@ -153,7 +153,7 @@ func (c *ClientTimerLayer) GetAppCredentials(applicationID string) ([]clientmode
 		}
 	}
 
-	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetAppCredentials", success, statusCode, elapsed)
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetApp", success, statusCode, elapsed)
 	return result, err
 }
 

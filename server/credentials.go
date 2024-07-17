@@ -22,11 +22,13 @@ func (p *Plugin) checkCredentials() {
 
 	p.API.LogInfo("Running the check credentials job")
 
-	credentials, err := p.GetClientForApp().GetAppCredentials(p.getConfiguration().ClientID)
+	app, err := p.GetClientForApp().GetApp(p.getConfiguration().ClientID)
 	if err != nil {
 		p.API.LogWarn("Failed to get app credentials", "error", err.Error())
 		return
 	}
+
+	credentials := app.Credentials
 
 	// We sort by earliest end date to cover the unlikely event we encounter two credentials
 	// with the same hint when reporting the single metric below.

@@ -104,3 +104,7 @@ type Credential struct {
 	EndDateTime time.Time
 	Hint        string
 }
+
+type App struct {
+	Credentials []Credential
+}

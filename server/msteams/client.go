@@ -278,11 +278,12 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	return conf.TokenSource(context.Background(), token).Token()
 }
 
-func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+func (tc *ClientImpl) GetApp(applicationID string) (*clientmodels.App, error) {
 	application, err := tc.client.ApplicationsWithAppId(&applicationID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+
 	credentials := []clientmodels.Credential{}
 	credentialsList := application.GetPasswordCredentials()
 	for _, credential := range credentialsList {
@@ -293,7 +294,10 @@ func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Cr
 			Hint:        *credential.GetHint(),
 		})
 	}
-	return credentials, nil
+
+	return &clientmodels.App{
+		Credentials: credentials,
+	}, nil
 }
 
 func (tc *ClientImpl) Connect() error {
