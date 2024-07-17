@@ -20,30 +20,18 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	TenantID                           string `json:"tenantid"`
-	ClientID                           string `json:"clientid"`
-	ClientSecret                       string `json:"clientsecret"`
-	EncryptionKey                      string `json:"encryptionkey"`
-	EvaluationAPI                      bool   `json:"evaluationapi"`
-	WebhookSecret                      string `json:"webhooksecret"`
-	SyncNotifications                  bool   `json:"syncnotifications"`
-	SyncChats                          bool   `json:"experimentalSyncChats"`
-	SelectiveSync                      bool   `json:"experimentalSelectiveSync"`
-	SyncLinkedChannels                 bool   `json:"synclinkedchannels"`
-	SyncUsers                          int    `json:"syncusers"`
-	SyncGuestUsers                     bool   `json:"syncGuestUsers"`
-	CertificatePublic                  string `json:"experimentalcertificatepublic"`
-	CertificateKey                     string `json:"experimentalcertificatekey"`
-	MaxSizeForCompleteDownload         int    `json:"maxSizeForCompleteDownload"`
-	BufferSizeForFileStreaming         int    `json:"bufferSizeForFileStreaming"`
-	ConnectedUsersAllowed              int    `json:"connectedUsersAllowed"`
-	ConnectedUsersRestricted           bool   `json:"connectedUsersRestricted"`
-	ConnectedUsersMaxPendingInvites    int    `json:"connectedUsersMaxPendingInvites"`
-	SyntheticUserAuthService           string `json:"syntheticUserAuthService"`
-	SyntheticUserAuthData              string `json:"syntheticUserAuthData"`
-	AutomaticallyPromoteSyntheticUsers bool   `json:"automaticallyPromoteSyntheticUsers"`
-	UseSharedChannels                  bool   `json:"experimentalUseSharedChannels"`
-	DisableCheckCredentials            bool   `json:"internalDisableCheckCredentials"`
+	TenantID                        string `json:"tenantid"`
+	ClientID                        string `json:"clientid"`
+	ClientSecret                    string `json:"clientsecret"`
+	EncryptionKey                   string `json:"encryptionkey"`
+	EvaluationAPI                   bool   `json:"evaluationapi"`
+	WebhookSecret                   string `json:"webhooksecret"`
+	MaxSizeForCompleteDownload      int    `json:"maxSizeForCompleteDownload"`
+	BufferSizeForFileStreaming      int    `json:"bufferSizeForFileStreaming"`
+	ConnectedUsersAllowed           int    `json:"connectedUsersAllowed"`
+	ConnectedUsersRestricted        bool   `json:"connectedUsersRestricted"`
+	ConnectedUsersMaxPendingInvites int    `json:"connectedUsersMaxPendingInvites"`
+	DisableCheckCredentials         bool   `json:"internalDisableCheckCredentials"`
 }
 
 func (c *configuration) ProcessConfiguration() {

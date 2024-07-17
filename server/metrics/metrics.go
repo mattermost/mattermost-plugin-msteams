@@ -10,15 +10,14 @@ import (
 )
 
 const (
-	MetricsNamespace               = "msteams_connect"
-	MetricsSubsystemSystem         = "system"
-	MetricsSubsystemApp            = "app"
-	MetricsSubsystemHTTP           = "http"
-	MetricsSubsystemAPI            = "api"
-	MetricsSubsystemEvents         = "events"
-	MetricsSubsystemDB             = "db"
-	MetricsSubsystemMSGraph        = "msgraph"
-	MetricsSubsystemSharedChannels = "shared_channels"
+	MetricsNamespace        = "msteams_connect"
+	MetricsSubsystemSystem  = "system"
+	MetricsSubsystemApp     = "app"
+	MetricsSubsystemHTTP    = "http"
+	MetricsSubsystemAPI     = "api"
+	MetricsSubsystemEvents  = "events"
+	MetricsSubsystemDB      = "db"
+	MetricsSubsystemMSGraph = "msgraph"
 
 	MetricsCloudInstallationLabel = "installationId"
 	MetricsVersionLabel           = "version"
@@ -35,19 +34,9 @@ const (
 	SubscriptionReconnected = "reconnected"
 
 	DiscardedReasonNone                            = ""
-	DiscardedReasonUnableToGetMMData               = "unable_to_get_mm_data"
-	DiscardedReasonUnableToUploadFileOnTeams       = "unable_to_upload_file_on_teams"
 	DiscardedReasonInvalidChangeType               = "invalid_change_type"
-	DiscardedReasonIsBotUser                       = "is_bot_user"
 	DiscardedReasonUnableToGetTeamsData            = "unable_to_get_teams_data" // #nosec  false positive
 	DiscardedReasonNotUserEvent                    = "no_user_event"
-	DiscardedReasonOther                           = "other"
-	DiscardedReasonInternalError                   = "internal_error"
-	DiscardedReasonChatsDisabled                   = "chats_disabled"
-	DiscardedReasonLinkedChannelsDisabled          = "linked_channels_disabled"
-	DiscardedReasonInactiveUser                    = "inactive_user"
-	DiscardedReasonDuplicatedPost                  = "duplicated_post"
-	DiscardedReasonAlreadyAppliedChange            = "already_applied_change"
 	DiscardedReasonFileLimitReached                = "file_limit_reached"
 	DiscardedReasonEmptyFileID                     = "empty_file_id"
 	DiscardedReasonMaxFileSizeExceeded             = "max_file_size_exceeded"
@@ -55,14 +44,11 @@ const (
 	DiscardedReasonInvalidWebhookSecret            = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck         = "failed_subscription_check"
 	DiscardedReasonFailedToRefresh                 = "failed_to_refresh"
-	DiscardedReasonSelectiveSync                   = "selective_sync"
-	DiscardedReasonUserNotConnected                = "user_not_connected"
-	DiscardedReasonGeneratedFromMattermost         = "generated_from_mattermost"
 	DiscardedReasonNotificationsOnly               = "notifications_only"
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"
+	DiscardedReasonNoConnectedUser                 = "no_connected_user"
 
 	WorkerMonitor          = "monitor"
-	WorkerSyncUsers        = "sync_users"
 	WorkerActivityHandler  = "activity_handler"
 	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 )
@@ -90,9 +76,7 @@ type Metrics interface {
 	ObservePendingInvitesLimit(count int64)
 	ObserveWhitelistedUsers(count int64)
 
-	ObserveSyntheticUsers(count int64)
 	ObserveLinkedChannels(count int64)
-	ObserveUpstreamUsers(count int64)
 	ObserveActiveUsersSending(count int64)
 	ObserveActiveUsersReceiving(count int64)
 
@@ -156,9 +140,7 @@ type metrics struct {
 	pendingInvitesLimit prometheus.Gauge
 	whitelistedUsers    prometheus.Gauge
 
-	syntheticUsers prometheus.Gauge
 	linkedChannels prometheus.Gauge
-	upstreamUsers  prometheus.Gauge
 
 	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
@@ -324,33 +306,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	}, []string{"action"})
 	m.registry.MustRegister(m.subscriptionsTotal)
 
-	m.syncMsgPostDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_post_delay_seconds",
-		Help:        "The delay between a post event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgPostDelayTime)
-
-	m.syncMsgReactionDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_reaction_delay_seconds",
-		Help:        "The delay between a reaction event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgReactionDelayTime)
-
-	m.syncMsgFileDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemSharedChannels,
-		Name:        "sync_msg_file_delay_seconds",
-		Help:        "The delay between a file event and when that event is relayed to the plugin.",
-		ConstLabels: additionalLabels,
-	}, []string{"action"})
-	m.registry.MustRegister(m.syncMsgFileDelayTime)
-
 	m.connectedUsers = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -397,15 +352,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.whitelistedUsers)
 
-	m.syntheticUsers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "synthetic_users",
-		Help:        "The total number of synthetic users.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.syntheticUsers)
-
 	m.linkedChannels = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -414,15 +360,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 		ConstLabels: additionalLabels,
 	})
 	m.registry.MustRegister(m.linkedChannels)
-
-	m.upstreamUsers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "upstream_users",
-		Help:        "The total number of upstream users.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.upstreamUsers)
 
 	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
@@ -627,21 +564,9 @@ func (m *metrics) ObserveSubscription(action string) {
 	}
 }
 
-func (m *metrics) ObserveSyntheticUsers(count int64) {
-	if m != nil {
-		m.syntheticUsers.Set(float64(count))
-	}
-}
-
 func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveUpstreamUsers(count int64) {
-	if m != nil {
-		m.upstreamUsers.Set(float64(count))
 	}
 }
 

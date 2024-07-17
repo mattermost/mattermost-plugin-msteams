@@ -18,10 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
-
-var fakeToken = oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}
 
 func TestProcessActivity(t *testing.T) {
 	th := setupTestHelper(t)
@@ -151,49 +148,6 @@ func TestProcessActivity(t *testing.T) {
 		response, bodyString := sendRequest(t, activities)
 		assert.Equal(t, http.StatusAccepted, response.StatusCode)
 		assert.Empty(t, bodyString)
-	})
-
-	t.Run("encrypted message on encrypted subscription", func(t *testing.T) {
-		th.Reset(t)
-
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.CertificateKey = "test"
-		})
-
-		activities := []msteams.Activity{
-			{
-				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-				ChangeType:                     "created",
-				ClientState:                    "webhooksecret",
-				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-				EncryptedContent:               &msteams.EncryptedContent{},
-			},
-		}
-
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Unable to get private key: invalid certificate key\n\n", bodyString)
-	})
-
-	t.Run("non-encrypted message on encrypted subscription", func(t *testing.T) {
-		th.Reset(t)
-
-		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
-			c.CertificateKey = "test"
-		})
-
-		activities := []msteams.Activity{
-			{
-				Resource:                       "teams('team-id')/channels('channel-id')/messages('message-id')/replies('reply-id')",
-				ChangeType:                     "created",
-				ClientState:                    "webhooksecret",
-				SubscriptionExpirationDateTime: time.Now().Add(10 * time.Minute),
-			},
-		}
-
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Not encrypted content for encrypted subscription\n", bodyString)
 	})
 }
 
@@ -617,11 +571,6 @@ func TestConnect(t *testing.T) {
 
 		u := apiURL
 
-		// 		endPoint := "/connect?"
-		// 		if test.isBot {
-		// 			endPoint += "isBot&"
-		// 		}
-
 		values := make(url.Values)
 		if channelID != "" {
 			values["channel_id"] = []string{channelID}
@@ -704,18 +653,6 @@ func TestConnect(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "login.microsoftonline.com", actualURL.Host)
 		assert.Regexp(t, "oauth2/v2.0/authorize$", actualURL.Path)
-	})
-
-	t.Run("not system admin when connecting bot", func(t *testing.T) {
-		t.Skip()
-	})
-
-	t.Run("bot already connected", func(t *testing.T) {
-		t.Skip()
-	})
-
-	t.Run("bot connected", func(t *testing.T) {
-		t.Skip()
 	})
 }
 
@@ -1063,14 +1000,6 @@ func TestGetSiteStats(t *testing.T) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
 	})
-}
-
-func TestIFrameMattermostTab(t *testing.T) {
-	t.Skip()
-}
-
-func TestIFrameManifest(t *testing.T) {
-	t.Skip()
 }
 
 func TestConnectionStatus(t *testing.T) {

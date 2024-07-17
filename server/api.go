@@ -2,15 +2,8 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/hmac"
-	"crypto/rsa"
-	"crypto/sha1" //nolint:gosec
-	"crypto/sha256"
+	"context" //nolint:gosec
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -29,7 +22,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
@@ -89,10 +81,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
 	router.HandleFunc("/disable-notifications", api.disableNotifications).Methods("POST")
 
-	// iFrame support
-	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/iframe-manifest", api.iFrameManifest).Methods("GET")
-
 	return api
 }
 
@@ -105,77 +93,6 @@ func (a *API) returnJSON(w http.ResponseWriter, data any) {
 		a.p.API.LogWarn("Failed to write to http.ResponseWriter", "error", err.Error())
 		return
 	}
-}
-
-func (a *API) decryptEncryptedContentData(key []byte, encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.Data)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode encrypted data")
-	}
-	msDataSignature, err := base64.StdEncoding.DecodeString(encryptedContent.DataSignature)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode data signature")
-	}
-
-	mac := hmac.New(sha256.New, key)
-	mac.Write(ciphertext)
-	expectedMac := mac.Sum(nil)
-	if !hmac.Equal(expectedMac, msDataSignature) {
-		return nil, errors.New("The key signature doesn't match")
-	}
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ciphertext) < aes.BlockSize {
-		return nil, errors.New("ciphertext too short")
-	}
-	iv := key[:16]
-
-	if len(ciphertext)%block.BlockSize() != 0 {
-		return nil, errors.New("ciphertext is not a multiple of the block size")
-	}
-
-	mode := cipher.NewCBCDecrypter(block, iv)
-	result := make([]byte, len(ciphertext))
-	mode.CryptBlocks(result, ciphertext)
-	resultPadding := int(result[len(result)-1])
-	result = result[:len(result)-resultPadding]
-	return result, nil
-}
-
-func (a *API) decryptEncryptedContentDataKey(encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(encryptedContent.DataKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode key")
-	}
-
-	key, err := a.p.getPrivateKey()
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to get private key")
-	}
-	hash := sha1.New() //nolint:gosec
-	plaintext, err := rsa.DecryptOAEP(hash, nil, key, ciphertext, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decrypt data")
-	}
-	return plaintext, nil
-}
-
-func (a *API) processEncryptedContent(encryptedContent msteams.EncryptedContent) ([]byte, error) {
-	msKey, err := a.decryptEncryptedContentDataKey(encryptedContent)
-	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt key", "error", err.Error())
-		return nil, err
-	}
-
-	data, err := a.decryptEncryptedContentData(msKey, encryptedContent)
-	if err != nil {
-		a.p.API.LogWarn("Unable to decrypt data", "error", err.Error())
-		return nil, err
-	}
-	return data, nil
 }
 
 // processActivity handles the activity received from teams subscriptions
@@ -196,21 +113,8 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	requireEncryptedContent := a.p.getConfiguration().CertificateKey != ""
 	errors := ""
 	for _, activity := range activities.Value {
-		if activity.EncryptedContent != nil {
-			content, err := a.processEncryptedContent(*activity.EncryptedContent)
-			if err != nil {
-				errors += err.Error() + "\n"
-				continue
-			}
-			activity.Content = content
-		} else if requireEncryptedContent {
-			errors += "Not encrypted content for encrypted subscription"
-			continue
-		}
-
 		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
 			errors += "Invalid webhook secret"
 			continue
@@ -342,15 +246,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	query := r.URL.Query()
 	userID := r.Header.Get("Mattermost-User-ID")
-	connectBot := query.Has("isBot")
-	if connectBot {
-		if !a.p.API.HasPermissionTo(userID, model.PermissionManageSystem) {
-			a.p.API.LogWarn("Attempt to connect the bot account, by non system admin.", "user_id", userID)
-			http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
-			return
-		}
-		userID = a.p.GetBotUserID()
-	}
 
 	stateSuffix := ""
 	fromPreferences := query.Get(QueryParamFromPreferences)
@@ -408,10 +303,6 @@ func (a *API) connectionStatus(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) accountConnectedPage(w http.ResponseWriter, r *http.Request) {
 	message := "Your account is now connected to MS Teams."
-	query := r.URL.Query()
-	if query.Has("isBot") {
-		message = "The bot account is now connected."
-	}
 
 	bundlePath, err := a.p.API.GetBundlePath()
 	if err != nil {
@@ -605,23 +496,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if mmUserID == a.p.GetBotUserID() {
-		var userID string
-		userID, err = a.p.GetStore().TeamsToMattermostUserID(msteamsUser.ID)
-		if err == nil && userID != "" && userID != mmUserID {
-			if err = a.p.GetStore().DeleteUserInfo(userID); err != nil {
-				a.p.GetAPI().LogWarn("Unable to delete user info to connect the bot", "user_id", userID, "error", err.Error())
-			}
-			if user, appErr := a.p.GetAPI().GetUser(userID); appErr == nil {
-				if a.p.IsRemoteUser(user) {
-					if appErr := a.p.GetAPI().UpdateUserActive(userID, false); appErr != nil {
-						a.p.GetAPI().LogWarn("Unable to deactivate synthetic user", "user_id", userID, "error", appErr.Error())
-					}
-				}
-			}
-		}
-	}
-
 	if err = a.p.store.SetUserInfo(mmUserID, msteamsUser.ID, token); err != nil {
 		a.p.API.LogWarn("Unable to store the token", "error", err.Error(), "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
@@ -641,48 +515,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "text/html")
-	if mmUser.Id == a.p.GetBotUserID() {
-		http.Redirect(w, r, a.p.GetURL()+"/account-connected?isBot", http.StatusSeeOther)
-		return
-	}
 
-	switch {
-	case a.p.getConfiguration().SyncNotifications:
-		a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
-	default:
-		a.handleDefaultWelcomeMessage(originInfo[0], mmUserID, postID, channelID)
-	}
+	a.handleSyncNotificationsWelcomeMessage(originInfo[0], mmUserID, channelID, postID)
 
 	http.Redirect(w, r, a.p.GetURL()+"/account-connected", http.StatusSeeOther)
-}
-
-func (a *API) handleDefaultWelcomeMessage(originInfo, mmUserID, postID, channelID string) {
-	const userConnectedMessage = "Welcome to Mattermost for Microsoft Teams! Your conversations with MS Teams users are now synchronized."
-	switch originInfo {
-	case "fromBotMessage":
-		post := &model.Post{
-			Id:        postID,
-			Message:   userConnectedMessage,
-			ChannelId: channelID,
-			UserId:    a.p.GetBotUserID(),
-			CreateAt:  model.GetMillis(),
-		}
-
-		_, appErr := a.p.GetAPI().GetPost(post.Id)
-		if appErr == nil {
-			_, appErr = a.p.GetAPI().UpdatePost(post)
-			if appErr != nil {
-				a.p.API.LogWarn("Unable to update post", "post", post.Id, "error", appErr.Error())
-			}
-		} else {
-			_ = a.p.GetAPI().UpdateEphemeralPost(mmUserID, post)
-		}
-	case "fromPreferences":
-		err := a.p.botSendDirectMessage(mmUserID, userConnectedMessage)
-		if err != nil {
-			a.p.API.LogWarn("Unable to send welcome direct message to user from preference", "error", err.Error())
-		}
-	}
 }
 
 func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {

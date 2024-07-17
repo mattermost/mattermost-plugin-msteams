@@ -288,7 +288,7 @@ func TestUserHasRightToConnect(t *testing.T) {
 		assert.Equal(t, true, result)
 	})
 
-	t.Run("has right to connect, is plugin bot", func(t *testing.T) {
+	t.Run("does not have right to connect, is plugin bot", func(t *testing.T) {
 		th.Reset(t)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
@@ -297,7 +297,7 @@ func TestUserHasRightToConnect(t *testing.T) {
 
 		result, err := th.p.UserHasRightToConnect(th.p.botUserID)
 		assert.NoError(t, err)
-		assert.Equal(t, true, result)
+		assert.Equal(t, false, result)
 	})
 }
 

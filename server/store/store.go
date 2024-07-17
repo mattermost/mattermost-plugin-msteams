@@ -46,7 +46,6 @@ type Store interface {
 	// stats
 	GetLinkedChannelsCount() (linkedChannels int64, err error)
 	GetConnectedUsersCount() (connectedUsers int64, err error)
-	GetSyntheticUsersCount(remoteID string) (syntheticUsers int64, err error)
 	GetActiveUsersSendingCount(dur time.Duration) (activeUsersSending int64, err error)
 	GetActiveUsersReceivingCount(dur time.Duration) (activeUsersReceiving int64, err error)
 
@@ -66,10 +65,10 @@ type Store interface {
 
 	// subscriptions
 	ListGlobalSubscriptions() ([]*storemodels.GlobalSubscription, error)
-	ListGlobalSubscriptionsToRefresh(certificate string) ([]*storemodels.GlobalSubscription, error)
+	ListGlobalSubscriptionsToRefresh() ([]*storemodels.GlobalSubscription, error)
 	ListChatSubscriptionsToCheck() ([]storemodels.ChatSubscription, error)
 	ListChannelSubscriptions() ([]*storemodels.ChannelSubscription, error)
-	ListChannelSubscriptionsToRefresh(certificate string) ([]*storemodels.ChannelSubscription, error)
+	ListChannelSubscriptionsToRefresh() ([]*storemodels.ChannelSubscription, error)
 	SaveGlobalSubscription(subscription storemodels.GlobalSubscription) error
 	SaveChatSubscription(subscription storemodels.ChatSubscription) error
 	SaveChannelSubscription(subscription storemodels.ChannelSubscription) error

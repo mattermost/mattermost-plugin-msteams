@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -12,9 +11,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-
-	"github.com/mattermost/mattermost/server/public/model"
 )
 
 var emojisReverseMap map[string]string
@@ -145,11 +141,6 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 }
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
-	if !ah.checkSubscription(event.SubscriptionID) {
-		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedSubscriptionCheck)
-		return
-	}
-
 	if event.LifecycleEvent == "reauthorizationRequired" {
 		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 		if err != nil {
@@ -167,60 +158,20 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonNone)
 }
 
-func (ah *ActivityHandler) checkSubscription(subscriptionID string) bool {
-	subscription, err := ah.plugin.GetStore().GetChannelSubscription(subscriptionID)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get channel subscription", "subscription_id", subscriptionID, "error", err.Error())
-		return false
-	}
-
-	if _, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(subscription.TeamID, subscription.ChannelID); err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get the link by MS Teams channel ID", "error", err.Error())
-		// Ignoring the error because can be the case that the subscription is no longer exists, in that case, it doesn't matter.
-		_ = ah.plugin.GetStore().DeleteSubscription(subscriptionID)
-		return false
-	}
-
-	return true
-}
-
 func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	done := ah.plugin.GetMetrics().ObserveWorker(metrics.WorkerActivityHandler)
 	defer done()
 
 	activityIds := msteams.GetResourceIds(activity.Resource)
 
-	if activityIds.ChatID == "" {
-		if !ah.checkSubscription(activity.SubscriptionID) {
-			ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, metrics.DiscardedReasonExpiredSubscription)
-			return
-		}
-	}
-
 	var discardedReason string
 	switch activity.ChangeType {
 	case "created":
-		var msg *clientmodels.Message
-		if len(activity.Content) > 0 {
-			var err error
-			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
-			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
-			}
-		}
-		discardedReason = ah.handleCreatedActivity(msg, activity.SubscriptionID, activityIds)
+		discardedReason = ah.handleCreatedActivity(activityIds)
 	case "updated":
-		var msg *clientmodels.Message
-		if len(activity.Content) > 0 {
-			var err error
-			msg, err = msteams.GetMessageFromJSON(activity.Content, activityIds.TeamID, activityIds.ChannelID, activityIds.ChatID)
-			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to unmarshal activity message", "activity", activity, "error", err)
-			}
-		}
-		discardedReason = ah.handleUpdatedActivity(msg, activity.SubscriptionID, activityIds)
+		discardedReason = metrics.DiscardedReasonNotificationsOnly
 	case "deleted":
-		discardedReason = ah.handleDeletedActivity(activityIds)
+		discardedReason = metrics.DiscardedReasonNotificationsOnly
 	default:
 		discardedReason = metrics.DiscardedReasonInvalidChangeType
 		ah.plugin.GetAPI().LogWarn("Unsupported change type", "change_type", activity.ChangeType)
@@ -229,409 +180,44 @@ func (ah *ActivityHandler) handleActivity(activity msteams.Activity) {
 	ah.plugin.GetMetrics().ObserveChangeEvent(activity.ChangeType, discardedReason)
 }
 
-func (ah *ActivityHandler) handleCreatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
-		return metrics.DiscardedReasonUnableToGetTeamsData
+// handleCreatedActivity handles subscription change events of the created type, i.e. new messages.
+func (ah *ActivityHandler) handleCreatedActivity(activityIds clientmodels.ActivityIds) string {
+	// We're only handling chats at that time.
+	if activityIds.ChatID == "" {
+		return metrics.DiscardedReasonChannelNotificationsUnsupported
 	}
-	if msg == nil {
+
+	// Use the application client to resolve the chat metadata.
+	chat, err := ah.plugin.GetClientForApp().GetChat(activityIds.ChatID)
+	if err != nil || chat == nil {
+		ah.plugin.GetAPI().LogWarn("Failed to get chat", "chat_id", activityIds.ChatID, "error", err)
 		return metrics.DiscardedReasonUnableToGetTeamsData
 	}
 
+	// Find a connected member whose client can be used to fetch the chat message itself.
+	var client msteams.Client
+	for _, member := range chat.Members {
+		client, _ = ah.plugin.GetClientForTeamsUser(member.UserID)
+		if client != nil {
+			break
+		}
+	}
+	if client == nil {
+		return metrics.DiscardedReasonNoConnectedUser
+	}
+
+	// Fetch the message itself.
+	msg, err := client.GetChatMessage(chat.ID, activityIds.MessageID)
+	if err != nil {
+		ah.plugin.GetAPI().LogWarn("Failed to get message from chat", "chat_id", chat.ID, "message_id", activityIds.MessageID, "error", err)
+		return metrics.DiscardedReasonUnableToGetTeamsData
+	}
+
+	// Skip messages without a user, if this ever happens.
 	if msg.UserID == "" {
 		return metrics.DiscardedReasonNotUserEvent
 	}
 
-	if strings.HasSuffix(msg.Text, ah.plugin.MessageFingerprint()) {
-		return metrics.DiscardedReasonGeneratedFromMattermost
-	}
-
-	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
-		return ah.handleCreatedActivityNotification(msg, chat)
-	}
-
-	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
-
-	// Avoid possible duplication
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo != nil {
-		return metrics.DiscardedReasonDuplicatedPost
-	}
-
-	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsBotUserID {
-		return metrics.DiscardedReasonIsBotUser
-	}
-
-	msteamsUser, clientErr := ah.plugin.GetClientForApp().GetUser(msg.UserID)
-	if clientErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get the MS Teams user", "error", clientErr.Error())
-		return metrics.DiscardedReasonUnableToGetTeamsData
-	}
-
-	if msteamsUser.Type == msteamsUserTypeGuest && !ah.plugin.GetSyncGuestUsers() {
-		if mmUserID, _ := ah.getOrCreateSyntheticUser(msteamsUser, false); mmUserID != "" && ah.isRemoteUser(mmUserID) {
-			if appErr := ah.plugin.GetAPI().UpdateUserActive(mmUserID, false); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to deactivate user", "user_id", mmUserID, "error", appErr.Error())
-			}
-		}
-
-		return metrics.DiscardedReasonOther
-	}
-
-	var senderID string
-	var channelID string
-	// userIDs is used to determine the participants of a DM/GM
-	var userIDs []string
-
-	if chat != nil {
-		if !ah.plugin.GetSyncChats() {
-			return metrics.DiscardedReasonChatsDisabled
-		}
-
-		var channel *model.Channel
-		channel, userIDs, err = ah.getChatChannelAndUsersID(chat)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to resolve chat to channel", "error", err.Error())
-			return metrics.DiscardedReasonOther
-		}
-		channelID = channel.Id
-
-		var chatShouldSync bool
-		var discardReason string
-		chatShouldSync, _, discardReason, err = ah.plugin.ChatShouldSync(channel)
-		if err != nil {
-			ah.plugin.API.LogWarn("Failed to determine if created activity should sync", "channel_id", channel.Id, "error", err.Error())
-			return discardReason
-		} else if !chatShouldSync {
-			return discardReason
-		}
-	} else {
-		if !ah.plugin.GetSyncLinkedChannels() {
-			// Skipping because linked channels are disabled
-			return metrics.DiscardedReasonLinkedChannelsDisabled
-		}
-
-		senderID, _ = ah.getOrCreateSyntheticUser(msteamsUser, true)
-		channelLink, _ := ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
-		if channelLink != nil {
-			channelID = channelLink.MattermostChannelID
-		}
-	}
-
-	if err != nil || senderID == "" {
-		senderID = ah.plugin.GetBotUserID()
-	}
-
-	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		return metrics.DiscardedReasonInactiveUser
-	}
-
-	if channelID == "" {
-		return metrics.DiscardedReasonOther
-	}
-
-	post, skippedFileAttachments, errorFound := ah.msgToPost(channelID, senderID, msg, chat, []string{})
-
-	// Last second check to avoid possible duplication
-	if postInfo, _ = ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID); postInfo != nil {
-		return metrics.DiscardedReasonDuplicatedPost
-	}
-
-	newPost, appErr := ah.plugin.GetAPI().CreatePost(post)
-	if appErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to create post", "error", appErr)
-		return metrics.DiscardedReasonInternalError
-	}
-
-	if skippedFileAttachments > 0 {
-		ah.plugin.GetAPI().LogWarn("Skipped file attachments on post update", "channel_id", post.ChannelId, "post_id", post.Id, "skipped_file_attachments", skippedFileAttachments)
-	}
-
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
-	ah.plugin.GetMetrics().ObserveMessageDelay(metrics.ActionCreated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage, time.Since(msg.CreateAt))
-
-	if errorFound {
-		_ = ah.plugin.GetAPI().SendEphemeralPost(senderID, &model.Post{
-			ChannelId: channelID,
-			UserId:    ah.plugin.GetBotUserID(),
-			Message:   "Some images could not be delivered because they exceeded the maximum resolution and/or size allowed.",
-		})
-	}
-
-	if newPost != nil && newPost.Id != "" && msg.ID != "" {
-		if err := ah.plugin.GetStore().LinkPosts(storemodels.PostInfo{MattermostID: newPost.Id, MSTeamsChannel: fmt.Sprintf(msg.ChatID + msg.ChannelID), MSTeamsID: msg.ID, MSTeamsLastUpdateAt: msg.LastUpdateAt}); err != nil {
-			ah.plugin.GetAPI().LogWarn("Error updating the MSTeams/Mattermost post link metadata", "error", err)
-		}
-	}
-
-	// Update the last chat received at for the participants of DM/GM
-	if chat != nil && len(userIDs) > 0 {
-		// exclude the sender from the list of participants
-		participants := make([]string, 0, len(userIDs)-1)
-		for _, userID := range userIDs {
-			if userID != post.UserId {
-				participants = append(participants, userID)
-			}
-		}
-
-		if len(participants) > 0 {
-			err := ah.plugin.GetStore().SetUsersLastChatReceivedAt(participants, storemodels.MilliToMicroSeconds(post.CreateAt))
-			if err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
-			}
-		}
-	}
-
-	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
-	return metrics.DiscardedReasonNone
-}
-
-func (ah *ActivityHandler) handleUpdatedActivity(msg *clientmodels.Message, subscriptionID string, activityIds clientmodels.ActivityIds) string {
-	if IsDirectOrGroupMessage(activityIds.ChatID) && ah.plugin.GetSyncNotifications() {
-		return metrics.DiscardedReasonNotificationsOnly
-	}
-
-	msg, chat, err := ah.getMessageAndChatFromActivityIds(msg, activityIds)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get original message", "error", err.Error())
-		return metrics.DiscardedReasonUnableToGetTeamsData
-	}
-
-	if msg == nil {
-		return metrics.DiscardedReasonUnableToGetTeamsData
-	}
-
-	if msg.UserID == "" {
-		return metrics.DiscardedReasonNotUserEvent
-	}
-
-	msteamsBotUserID, _ := ah.plugin.GetStore().MattermostToTeamsUserID(ah.plugin.GetBotUserID())
-	if msg.UserID == msteamsBotUserID {
-		return metrics.DiscardedReasonIsBotUser
-	}
-
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(msg.ChatID+msg.ChannelID, msg.ID)
-	if postInfo == nil {
-		return metrics.DiscardedReasonOther
-	}
-
-	// Ignore if the change is already applied in the database
-	if postInfo.MSTeamsLastUpdateAt.UnixMicro() == msg.LastUpdateAt.UnixMicro() {
-		return metrics.DiscardedReasonAlreadyAppliedChange
-	}
-
-	channelID := ""
-	var fileIDs []string
-	if chat == nil {
-		if !ah.plugin.GetSyncLinkedChannels() {
-			// Skipping because linked channels are disabled
-			return metrics.DiscardedReasonLinkedChannelsDisabled
-		}
-
-		var channelLink *storemodels.ChannelLink
-		channelLink, err = ah.plugin.GetStore().GetLinkByMSTeamsChannelID(msg.TeamID, msg.ChannelID)
-		if err != nil || channelLink == nil {
-			ah.plugin.GetAPI().LogWarn("Unable to find the subscription")
-			return metrics.DiscardedReasonOther
-		}
-		channelID = channelLink.MattermostChannelID
-	} else {
-		if !ah.plugin.GetSyncChats() {
-			return metrics.DiscardedReasonChatsDisabled
-		}
-
-		post, postErr := ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
-		if postErr != nil {
-			if strings.EqualFold(postErr.Id, "app.post.get.app_error") {
-				if err = ah.plugin.GetStore().RecoverPost(postInfo.MattermostID); err != nil {
-					ah.plugin.GetAPI().LogWarn("Unable to recover the post", "post_id", postInfo.MattermostID, "error", err)
-					return metrics.DiscardedReasonOther
-				}
-				post, postErr = ah.plugin.GetAPI().GetPost(postInfo.MattermostID)
-				if postErr != nil {
-					ah.plugin.GetAPI().LogWarn("Unable to find the original post after recovery", "post_id", postInfo.MattermostID, "error", postErr.Error())
-					return metrics.DiscardedReasonOther
-				}
-			} else {
-				ah.plugin.GetAPI().LogWarn("Unable to find the original post", "error", postErr.Error())
-				return metrics.DiscardedReasonOther
-			}
-		}
-		fileIDs = post.FileIds
-		channelID = post.ChannelId
-	}
-
-	senderID, err := ah.plugin.GetStore().TeamsToMattermostUserID(msg.UserID)
-	if err != nil || senderID == "" {
-		senderID = ah.plugin.GetBotUserID()
-	}
-
-	if isActiveUser := ah.isActiveUser(senderID); !isActiveUser {
-		return metrics.DiscardedReasonInactiveUser
-	}
-
-	post, skippedFileAttachments, _ := ah.msgToPost(channelID, senderID, msg, chat, fileIDs)
-	post.Id = postInfo.MattermostID
-
-	if skippedFileAttachments > 0 {
-		ah.plugin.GetAPI().LogWarn("Skipped file attachments on post update", "channel_id", post.ChannelId, "post_id", post.Id, "skipped_file_attachments", skippedFileAttachments)
-	}
-
-	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("post_%s", post.Id), true)
-	if _, appErr := ah.plugin.GetAPI().UpdatePost(post); appErr != nil {
-		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("post_%s", post.Id))
-		if strings.EqualFold(appErr.Id, "app.post.get.app_error") {
-			if err = ah.plugin.GetStore().RecoverPost(post.Id); err != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to recover the post", "post_id", post.Id, "error", err)
-				return metrics.DiscardedReasonOther
-			}
-		} else {
-			ah.plugin.GetAPI().LogWarn("Unable to update post", "post_id", post.Id, "error", appErr)
-			return metrics.DiscardedReasonOther
-		}
-	}
-
-	isDirectOrGroupMessage := IsDirectOrGroupMessage(activityIds.ChatID)
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionUpdated, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
-	ah.handleReactions(postInfo.MattermostID, channelID, isDirectOrGroupMessage, msg.Reactions)
-
-	ah.lastUpdateAtMap.Store(subscriptionID, msg.LastUpdateAt)
-	return metrics.DiscardedReasonNone
-}
-
-func (ah *ActivityHandler) handleReactions(postID, channelID string, isDirectOrGroupMessage bool, reactions []clientmodels.Reaction) {
-	postReactions, appErr := ah.plugin.GetAPI().GetReactions(postID)
-	if appErr != nil {
-		return
-	}
-
-	if len(reactions) == 0 && len(postReactions) == 0 {
-		return
-	}
-
-	postReactionsByUserAndEmoji := map[string]bool{}
-	for _, pr := range postReactions {
-		postReactionsByUserAndEmoji[pr.UserId+pr.EmojiName] = true
-	}
-
-	allReactions := map[string]bool{}
-	for _, reaction := range reactions {
-		emojiName, ok := emojisReverseMap[reaction.Reaction]
-		if !ok {
-			ah.plugin.GetAPI().LogWarn("No code reaction found for reaction", "reaction", reaction.Reaction)
-			continue
-		}
-		reactionUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(reaction.UserID)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("unable to find the user for the reaction", "reaction", reaction.Reaction)
-			continue
-		}
-		allReactions[reactionUserID+emojiName] = true
-	}
-
-	for _, r := range postReactions {
-		if !allReactions[r.UserId+r.EmojiName] {
-			r.ChannelId = "removedfromplugin"
-			if appErr = ah.plugin.GetAPI().RemoveReaction(r); appErr != nil {
-				ah.plugin.GetAPI().LogWarn("Unable to remove reaction", "error", appErr.Error())
-			}
-			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionUnsetAction, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
-		}
-	}
-
-	for _, reaction := range reactions {
-		reactionUserID, err := ah.plugin.GetStore().TeamsToMattermostUserID(reaction.UserID)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("unable to find the user for the reaction", "reaction", reaction.Reaction)
-			continue
-		}
-
-		emojiName, ok := emojisReverseMap[reaction.Reaction]
-		if !ok {
-			ah.plugin.GetAPI().LogWarn("No code reaction found for reaction", "reaction", reaction.Reaction)
-			continue
-		}
-		if !postReactionsByUserAndEmoji[reactionUserID+emojiName] {
-			ah.IgnorePluginHooksMap.Store(fmt.Sprintf("%s_%s_%s", postID, reactionUserID, emojiName), true)
-			_, appErr := ah.plugin.GetAPI().AddReaction(&model.Reaction{
-				UserId:    reactionUserID,
-				PostId:    postID,
-				ChannelId: channelID,
-				EmojiName: emojiName,
-			})
-			if appErr != nil {
-				ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("reactions_%s_%s", reactionUserID, emojiName))
-				ah.plugin.GetAPI().LogWarn("failed to create the reaction", "err", appErr)
-				continue
-			}
-			ah.plugin.GetMetrics().ObserveReaction(metrics.ReactionSetAction, metrics.ActionSourceMSTeams, isDirectOrGroupMessage)
-		}
-	}
-}
-
-func (ah *ActivityHandler) handleDeletedActivity(activityIds clientmodels.ActivityIds) string {
-	if IsDirectOrGroupMessage(activityIds.ChatID) {
-		if ah.plugin.GetSyncNotifications() {
-			return metrics.DiscardedReasonNotificationsOnly
-		}
-
-		if !ah.plugin.GetSyncChats() {
-			return metrics.DiscardedReasonChatsDisabled
-		}
-	} else {
-		if !ah.plugin.GetSyncLinkedChannels() {
-			return metrics.DiscardedReasonLinkedChannelsDisabled
-		}
-	}
-
-	messageID := activityIds.MessageID
-	if activityIds.ReplyID != "" {
-		messageID = activityIds.ReplyID
-	}
-	postInfo, _ := ah.plugin.GetStore().GetPostInfoByMSTeamsID(activityIds.ChatID+activityIds.ChannelID, messageID)
-	if postInfo == nil {
-		return metrics.DiscardedReasonOther
-	}
-
-	ah.IgnorePluginHooksMap.Store(fmt.Sprintf("delete_post_%s", postInfo.MattermostID), true)
-	appErr := ah.plugin.GetAPI().DeletePost(postInfo.MattermostID)
-	if appErr != nil {
-		ah.IgnorePluginHooksMap.Delete(fmt.Sprintf("delete_post_%s", postInfo.MattermostID))
-		ah.plugin.GetAPI().LogWarn("Unable to to delete post", "post_id", postInfo.MattermostID, "error", appErr)
-		return metrics.DiscardedReasonOther
-	}
-
-	ah.plugin.GetMetrics().ObserveMessage(metrics.ActionDeleted, metrics.ActionSourceMSTeams, IsDirectOrGroupMessage(activityIds.ChatID))
-
-	return metrics.DiscardedReasonNone
-}
-
-func (ah *ActivityHandler) isActiveUser(userID string) bool {
-	mmUser, err := ah.plugin.GetAPI().GetUser(userID)
-	if err != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get Mattermost user", "user_id", userID, "error", err.Error())
-		return false
-	}
-
-	if mmUser.DeleteAt != 0 {
-		return false
-	}
-
-	return true
-}
-
-func (ah *ActivityHandler) isRemoteUser(userID string) bool {
-	user, userErr := ah.plugin.GetAPI().GetUser(userID)
-	if userErr != nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get MM user", "user_id", userID, "error", userErr.Error())
-		return false
-	}
-
-	return ah.plugin.IsRemoteUser(user)
-}
-
-func IsDirectOrGroupMessage(chatID string) bool {
-	return chatID != ""
+	// Finally, process the notification of the chat message received.
+	return ah.handleCreatedActivityNotification(msg, chat)
 }

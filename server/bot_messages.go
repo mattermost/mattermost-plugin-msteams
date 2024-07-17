@@ -8,12 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Plugin) botSendDirectMessage(userID, message string) error {
-	return p.botSendDirectPost(userID, &model.Post{
-		Message: message,
-	})
-}
-
 func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	channel, err := p.apiClient.Channel.GetDirect(userID, p.botUserID)
 	if err != nil {
@@ -67,19 +61,6 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	if err := p.apiClient.Post.UpdatePost(post); err != nil {
 		p.GetAPI().LogWarn("Failed to update connection post", "user_id", userID, "error", err)
 	}
-}
-
-func (p *Plugin) SendConnectBotMessage(channelID string, userID string) {
-	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?isBot&post_id=%s&channel_id=%s", postID, channelID)
-	connectMessage := fmt.Sprintf("[Click here to connect the bot account](%s)", connectURL)
-	post := &model.Post{
-		Id:        postID,
-		ChannelId: channelID,
-		UserId:    p.GetBotUserID(),
-		Message:   connectMessage,
-	}
-	p.API.SendEphemeralPost(userID, post)
 }
 
 func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {

@@ -195,16 +195,6 @@ func (_m *Metrics) ObserveSyncMsgReactionDelay(action string, delayMillis int64)
 	_m.Called(action, delayMillis)
 }
 
-// ObserveSyntheticUsers provides a mock function with given fields: count
-func (_m *Metrics) ObserveSyntheticUsers(count int64) {
-	_m.Called(count)
-}
-
-// ObserveUpstreamUsers provides a mock function with given fields: count
-func (_m *Metrics) ObserveUpstreamUsers(count int64) {
-	_m.Called(count)
-}
-
 // ObserveWhitelistedUsers provides a mock function with given fields: count
 func (_m *Metrics) ObserveWhitelistedUsers(count int64) {
 	_m.Called(count)

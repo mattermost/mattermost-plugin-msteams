@@ -104,6 +104,7 @@ func setupTestHelper(t *testing.T) *testHelper {
 					"webhooksecret":                   "webhooksecret",
 					"syncusers":                       0,
 					"internalDisableCheckCredentials": true,
+					"connectedUsersAllowed":           1000,
 				},
 			},
 		},
@@ -251,39 +252,6 @@ func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team, opts ..
 	return channel
 }
 
-func (th *testHelper) SetupPrivateChannel(t *testing.T, team *model.Team, opts ...ChannelOption) *model.Channel {
-	t.Helper()
-
-	channelName := model.NewId()
-	channel, appErr := th.p.API.CreateChannel(&model.Channel{
-		Name:        channelName,
-		DisplayName: channelName,
-		Type:        model.ChannelTypePrivate,
-		TeamId:      team.Id,
-	})
-	require.Nil(t, appErr)
-
-	for _, opt := range opts {
-		opt(t, th, channel)
-	}
-
-	return channel
-}
-
-func (th *testHelper) LinkChannel(t *testing.T, team *model.Team, channel *model.Channel, user *model.User) *storemodels.ChannelLink {
-	channelLink := storemodels.ChannelLink{
-		MattermostTeamID:    team.Id,
-		MattermostChannelID: channel.Id,
-		MSTeamsTeam:         model.NewId(),
-		MSTeamsChannel:      model.NewId(),
-		Creator:             user.Id,
-	}
-	err := th.p.store.StoreChannelLink(&channelLink)
-	require.NoError(t, err)
-
-	return &channelLink
-}
-
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
 	t.Helper()
 
@@ -301,32 +269,6 @@ func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
 
 	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
 	require.Nil(t, appErr)
-
-	return user
-}
-
-func (th *testHelper) SetupRemoteUser(t *testing.T, team *model.Team) *model.User {
-	t.Helper()
-
-	username := fmt.Sprintf("msteams_%s", model.NewId())
-	remoteID := &th.p.remoteID
-
-	user := &model.User{
-		Email:         fmt.Sprintf("%s@example.com", username),
-		Username:      username,
-		Password:      "password",
-		EmailVerified: true,
-		RemoteId:      remoteID,
-	}
-
-	user, appErr := th.p.API.CreateUser(user)
-	require.Nil(t, appErr)
-
-	_, appErr = th.p.API.CreateTeamMember(team.Id, user.Id)
-	require.Nil(t, appErr)
-
-	err := th.p.store.SetUserInfo(user.Id, "t"+user.Id, nil)
-	require.NoError(t, err)
 
 	return user
 }
@@ -582,48 +524,6 @@ func (th *testHelper) retrieveEphemeralPost(t *testing.T, userID, channelID stri
 	}
 }
 
-func (th *testHelper) assertDMFromUser(t *testing.T, fromUserID, toUserID, expectedMessage string) {
-	t.Helper()
-
-	channel, appErr := th.p.API.GetDirectChannel(fromUserID, toUserID)
-	require.Nil(t, appErr)
-
-	assert.EventuallyWithT(t, func(t *assert.CollectT) {
-		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-		require.Nil(t, appErr)
-
-		for _, post := range postList.Posts {
-			if post.Message == expectedMessage {
-				return
-			}
-		}
-		t.Errorf("failed to find post with expected message: %s", expectedMessage)
-	}, 1*time.Second, 10*time.Millisecond)
-}
-
-func (th *testHelper) assertGMFromUsers(t *testing.T, fromUserID string, otherUsers []string, expectedMessage string) {
-	t.Helper()
-
-	var users []string
-	users = append(users, fromUserID)
-	users = append(users, otherUsers...)
-
-	channel, appErr := th.p.API.GetGroupChannel(users)
-	require.Nil(t, appErr)
-
-	assert.EventuallyWithT(t, func(t *assert.CollectT) {
-		postList, appErr := th.p.API.GetPostsSince(channel.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-		require.Nil(t, appErr)
-
-		for _, post := range postList.Posts {
-			if post.Message == expectedMessage {
-				return
-			}
-		}
-		t.Errorf("failed to find post with expected message: %s", expectedMessage)
-	}, 1*time.Second, 10*time.Millisecond)
-}
-
 func (th *testHelper) assertDMFromUserRe(t *testing.T, fromUserID, toUserID, expectedMessageRe string) {
 	t.Helper()
 
@@ -657,57 +557,6 @@ func (th *testHelper) assertNoDMFromUser(t *testing.T, fromUserID, toUserID stri
 
 		return len(postList.Posts) > 0
 	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
-}
-
-func (th *testHelper) assertNoGMFromUsers(t *testing.T, fromUserID string, otherUsers []string, checkTime int64) {
-	t.Helper()
-
-	var users []string
-	users = append(users, fromUserID)
-	users = append(users, otherUsers...)
-
-	channel, appErr := th.p.API.GetGroupChannel(users)
-	require.Nil(t, appErr)
-
-	assert.Never(t, func() bool {
-		postList, appErr := th.p.API.GetPostsSince(channel.Id, checkTime)
-		require.Nil(t, appErr)
-
-		return len(postList.Posts) > 0
-	}, 1*time.Second, 10*time.Millisecond, "expected no DMs from user")
-}
-
-func (th *testHelper) assertPostInChannel(t *testing.T, fromUserID, channelID, expectedMessage string) {
-	t.Helper()
-
-	assert.EventuallyWithT(t, func(t *assert.CollectT) {
-		postList, appErr := th.p.API.GetPostsSince(channelID, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-		require.Nil(t, appErr)
-
-		for _, post := range postList.Posts {
-			if post.UserId == fromUserID && post.Message == expectedMessage {
-				return
-			}
-		}
-		t.Errorf("failed to find post with expected message: %s", expectedMessage)
-	}, 1*time.Second, 10*time.Millisecond)
-}
-
-func (th *testHelper) assertNoPostInChannel(t *testing.T, fromUserID, channelID string) {
-	t.Helper()
-
-	assert.Never(t, func() bool {
-		postList, appErr := th.p.API.GetPostsSince(channelID, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
-		require.Nil(t, appErr)
-
-		for _, post := range postList.Posts {
-			if post.UserId == fromUserID {
-				return true
-			}
-		}
-
-		return false
-	}, 1*time.Second, 10*time.Millisecond)
 }
 
 type labelOptionFunc func(metric *dto.Metric) bool

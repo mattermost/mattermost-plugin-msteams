@@ -16,10 +16,6 @@ func TestSendConnectMessage(t *testing.T) {
 	t.Skip()
 }
 
-func TestSendConnectBotMessage(t *testing.T) {
-	t.Skip()
-}
-
 func TestSendWelcomeMessageWithNotificationAction(t *testing.T) {
 	th := setupTestHelper(t)
 

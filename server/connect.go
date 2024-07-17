@@ -160,11 +160,6 @@ func (p *Plugin) canInviteUser(userID string) (bool, error) {
 }
 
 func (p *Plugin) UserHasRightToConnect(mmUserID string) (bool, error) {
-	if mmUserID == p.botUserID {
-		// plugin bot always permitted to connect
-		return true, nil
-	}
-
 	hasConnected, err := p.store.UserHasConnected(mmUserID)
 	if err != nil {
 		return false, errors.Wrapf(err, "error in checking if user has connected or not")
