@@ -284,10 +284,11 @@ func (tc *ClientImpl) GetApp(applicationID string) (*clientmodels.App, error) {
 		return nil, err
 	}
 
-	credentials := []clientmodels.Credential{}
+	var app clientmodels.App
+
 	credentialsList := application.GetPasswordCredentials()
 	for _, credential := range credentialsList {
-		credentials = append(credentials, clientmodels.Credential{
+		app.Credentials = append(app.Credentials, clientmodels.Credential{
 			ID:          credential.GetKeyId().String(),
 			Name:        *credential.GetDisplayName(),
 			EndDateTime: *credential.GetEndDateTime(),
@@ -295,9 +296,16 @@ func (tc *ClientImpl) GetApp(applicationID string) (*clientmodels.App, error) {
 		})
 	}
 
-	return &clientmodels.App{
-		Credentials: credentials,
-	}, nil
+	for _, requiredResourceAccess := range application.GetRequiredResourceAccess() {
+		for _, requiredResource := range requiredResourceAccess.GetResourceAccess() {
+			app.RequiredResources = append(app.RequiredResources, clientmodels.ResourceAccess{
+				ID:   requiredResource.GetId().String(),
+				Type: *requiredResource.GetTypeEscaped(),
+			})
+		}
+	}
+
+	return &app, nil
 }
 
 func (tc *ClientImpl) Connect() error {

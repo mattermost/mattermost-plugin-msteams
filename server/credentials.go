@@ -1,13 +1,101 @@
 package main
 
 import (
+	"fmt"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
+
+const (
+	ResourceAccessTypeScope = "Scope"
+	ResourceAccessTypeRole  = "Role"
+)
+
+type expectedPermission struct {
+	Name           string
+	ResourceAccess clientmodels.ResourceAccess
+}
+
+// getResourceAccessKey makes a map key for the resource access that simplifies checking
+// for the resource access in question. (Technically, we could use the struct itself, but
+// this insulates us from unexpected upstream changes.)
+func getResourceAccessKey(resourceAccess clientmodels.ResourceAccess) string {
+	return fmt.Sprintf("%s+%s", resourceAccess.ID, resourceAccess.Type)
+}
+
+// describeResourceAccessType annotates the resource access type with the user facing term
+// shown in the Azure Tenant UI (Application vs. Delegated).
+func describeResourceAccessType(resourceAccess clientmodels.ResourceAccess) string {
+	switch resourceAccess.Type {
+	case ResourceAccessTypeRole:
+		return "Role (Application)"
+	case ResourceAccessTypeScope:
+		return "Scope (Delegated)"
+	default:
+		return resourceAccess.Type
+	}
+}
+
+// getExpectedPermissions returns the set of expected permissions, keyed by the
+// name the enduser would expect to see in the Azure tenant.
+func getExpectedPermissions() map[string]expectedPermission {
+	expectedPermissions := []expectedPermission{
+		{
+			Name: "https://graph.microsoft.com/Chat.Read",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "f501c180-9344-439a-bca0-6cbf209fd270",
+				Type: "Scope",
+			},
+		},
+		{
+			Name: "https://graph.microsoft.com/ChatMessage.Read",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "cdcdac3a-fd45-410d-83ef-554db620e5c7",
+				Type: "Scope",
+			},
+		},
+		{
+			Name: "https://graph.microsoft.com/Files.Read.All",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "df85f4d6-205c-4ac5-a5ea-6bf408dba283",
+				Type: "Scope",
+			},
+		},
+		{
+			Name: "https://graph.microsoft.com/offline_access",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "7427e0e9-2fba-42fe-b0c0-848c9e6a8182",
+				Type: "Scope",
+			},
+		},
+		{
+			Name: "https://graph.microsoft.com/User.Read",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+				Type: "Scope",
+			},
+		},
+		{
+			Name: "https://graph.microsoft.com/Chat.Read.All",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "6b7d71aa-70aa-4810-a8d9-5d9fb2830017",
+				Type: "Role",
+			},
+		},
+	}
+
+	expectedPermissionsMap := make(map[string]expectedPermission, len(expectedPermissions))
+	for _, expectedPermission := range expectedPermissions {
+		expectedPermissionsMap[getResourceAccessKey(expectedPermission.ResourceAccess)] = expectedPermission
+	}
+
+	return expectedPermissionsMap
+}
 
 func (p *Plugin) checkCredentials() {
 	defer func() {
@@ -60,5 +148,43 @@ func (p *Plugin) checkCredentials() {
 	if !found {
 		p.API.LogWarn("Failed to find credential matching configuration")
 		p.GetMetrics().ObserveClientSecretEndDateTime(time.Time{})
+	}
+
+	actualRequiredResources := make(map[string]clientmodels.ResourceAccess)
+	for _, requiredResource := range app.RequiredResources {
+		actualRequiredResources[getResourceAccessKey(requiredResource)] = requiredResource
+		p.API.LogDebug(
+			"Found API Permission",
+			"resource_id", requiredResource.ID,
+			"type", describeResourceAccessType(requiredResource),
+			"application_id", p.getConfiguration().ClientID,
+		)
+	}
+
+	expectedPermissions := getExpectedPermissions()
+
+	// Verify all expected permissions are present.
+	for _, permission := range expectedPermissions {
+		if _, ok := actualRequiredResources[getResourceAccessKey(permission.ResourceAccess)]; !ok {
+			p.API.LogWarn(
+				"Application missing required API Permission",
+				"permission", permission.Name,
+				"resource_id", permission.ResourceAccess.ID,
+				"type", describeResourceAccessType(permission.ResourceAccess),
+				"application_id", p.getConfiguration().ClientID,
+			)
+		}
+	}
+
+	// Check for unnecessary permissions.
+	for _, requiredResource := range actualRequiredResources {
+		if _, ok := expectedPermissions[getResourceAccessKey(requiredResource)]; !ok {
+			p.API.LogWarn(
+				"Application has redundant API Permission",
+				"resource_id", requiredResource.ID,
+				"type", describeResourceAccessType(requiredResource),
+				"application_id", p.getConfiguration().ClientID,
+			)
+		}
 	}
 }

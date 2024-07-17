@@ -105,6 +105,12 @@ type Credential struct {
 	Hint        string
 }
 
+type ResourceAccess struct {
+	ID   string
+	Type string
+}
+
 type App struct {
-	Credentials []Credential
+	Credentials       []Credential
+	RequiredResources []ResourceAccess
 }
