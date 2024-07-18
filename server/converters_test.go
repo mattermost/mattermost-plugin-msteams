@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/testutils"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,7 +91,7 @@ func TestHandleMentions(t *testing.T) {
 			Mentions: []clientmodels.Mention{
 				{
 					ID:            0,
-					UserID:        testutils.GetTeamsUserID(),
+					UserID:        model.NewId(),
 					MentionedText: "mockMentionedText",
 				},
 			},

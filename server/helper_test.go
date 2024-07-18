@@ -163,6 +163,7 @@ func (th *testHelper) Reset(t *testing.T) *testHelper {
 	th.p.clientBuilderWithToken = func(redirectURL, tenantID, clientId, clientSecret string, token *oauth2.Token, apiClient *pluginapi.LogService) msteams.Client {
 		return clientMock
 	}
+	th.p.monitor.client = th.p.msteamsAppClient
 
 	var err error
 	th.metricsSnapshot, err = th.p.metricsService.GetRegistry().Gather()
