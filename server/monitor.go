@@ -1,9 +1,8 @@
-package monitor
+package main
 
 import (
 	"fmt"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -32,7 +31,7 @@ type Monitor struct {
 }
 
 // New creates a new instance of the Monitor job.
-func New(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
+func NewMonitor(client msteams.Client, store store.Store, api plugin.API, metrics metrics.Metrics, baseURL string, webhookSecret string, useEvaluationAPI bool) *Monitor {
 	return &Monitor{
 		client:           client,
 		store:            store,
@@ -97,21 +96,11 @@ func (m *Monitor) runMonitoringSystemJob() {
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 
-	msteamsSubscriptionsMap, allChatsSubscription, err := m.getMSTeamsSubscriptionsMap()
+	_, allChatsSubscription, err := m.getMSTeamsSubscriptionsMap()
 	if err != nil {
 		m.api.LogError("Unable to fetch subscriptions from MS Teams", "error", err.Error())
 		return
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.checkChannelsSubscriptions(msteamsSubscriptionsMap)
-	}()
-
-	m.checkGlobalChatsSubscription(msteamsSubscriptionsMap, allChatsSubscription)
-
-	wg.Wait()
+	m.checkGlobalChatsSubscription(allChatsSubscription)
 }

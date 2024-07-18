@@ -234,7 +234,9 @@ func TestHandleAttachments(t *testing.T) {
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mock-name",
+					Name:        "mock-name",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 			},
 			ChatID:    model.NewId(),
@@ -243,7 +245,7 @@ func TestHandleAttachments(t *testing.T) {
 		chat := (*clientmodels.Chat)(nil)
 		existingFileIDs := []string{}
 
-		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Once()
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "https://example.com/path/to/file.png").Return(int64(5), "mockDownloadURL", nil).Once()
 		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Once()
 
 		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
@@ -276,7 +278,9 @@ func TestHandleAttachments(t *testing.T) {
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mock-name",
+					Name:        "mock-name",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 			},
 			ChatID:    model.NewId(),
@@ -314,13 +318,19 @@ func TestHandleAttachments(t *testing.T) {
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mock-name-1",
+					Name:        "mock-name-1",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-2",
+					Name:        "mock-name-2",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-3",
+					Name:        "mock-name-3",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 			},
 			ChatID:    model.NewId(),
@@ -329,7 +339,7 @@ func TestHandleAttachments(t *testing.T) {
 		chat := (*clientmodels.Chat)(nil)
 		existingFileIDs := []string{}
 
-		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(3)
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "https://example.com/path/to/file.png").Return(int64(5), "mockDownloadURL", nil).Times(3)
 		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(3)
 
 		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
@@ -364,13 +374,19 @@ func TestHandleAttachments(t *testing.T) {
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mock-name-1",
+					Name:        "mock-name-1",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-2",
+					Name:        "mock-name-2",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-3",
+					Name:        "mock-name-3",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 			},
 			ChatID:    model.NewId(),
@@ -381,7 +397,7 @@ func TestHandleAttachments(t *testing.T) {
 			existingFileInfo1.Id,
 		}
 
-		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(2)
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "https://example.com/path/to/file.png").Return(int64(5), "mockDownloadURL", nil).Times(2)
 		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(2)
 
 		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
@@ -422,13 +438,19 @@ func TestHandleAttachments(t *testing.T) {
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					Name: "mock-name-1",
+					Name:        "mock-name-1",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-2",
+					Name:        "mock-name-2",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 				{
-					Name: "mock-name-3",
+					Name:        "mock-name-3",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
 				},
 			},
 			ChatID:    model.NewId(),
@@ -469,18 +491,66 @@ func TestHandleAttachments(t *testing.T) {
 		text := "message"
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
-				{Name: "mock-name-1"},
-				{Name: "mock-name-2"},
-				{Name: "mock-name-3"},
-				{Name: "mock-name-4"},
-				{Name: "mock-name-5"},
-				{Name: "mock-name-6"},
-				{Name: "mock-name-7"},
-				{Name: "mock-name-8"},
-				{Name: "mock-name-9"},
-				{Name: "mock-name-10"},
-				{Name: "mock-name-11"},
-				{Name: "mock-name-12"},
+				{
+					Name:        "mock-name-1",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-2",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-3",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-4",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-5",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-6",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-7",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-8",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-9",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-10",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-11",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
+				{
+					Name:        "mock-name-12",
+					ContentType: "reference",
+					ContentURL:  "https://example.com/path/to/file.png",
+				},
 			},
 			ChatID:    model.NewId(),
 			ChannelID: model.NewId(),
@@ -488,7 +558,7 @@ func TestHandleAttachments(t *testing.T) {
 		chat := (*clientmodels.Chat)(nil)
 		existingFileIDs := []string{}
 
-		th.appClientMock.On("GetFileSizeAndDownloadURL", "").Return(int64(5), "mockDownloadURL", nil).Times(10)
+		th.appClientMock.On("GetFileSizeAndDownloadURL", "https://example.com/path/to/file.png").Return(int64(5), "mockDownloadURL", nil).Times(10)
 		th.appClientMock.On("GetFileContent", "mockDownloadURL").Return([]byte("abcde"), nil).Times(10)
 
 		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
@@ -615,6 +685,44 @@ snippet content
 		assert.Equal(t, "message", newText)
 		assert.Len(t, attachmentIDs, 0)
 		assert.Equal(t, rootPost.Id, parentID)
+		assert.Equal(t, 0, skippedFileAttachments)
+		assert.False(t, errorsFound)
+	})
+
+	t.Run("unsupported content type", func(t *testing.T) {
+		th.Reset(t)
+
+		user := th.SetupUser(t, team)
+		channel := th.SetupPublicChannel(t, team)
+
+		chatOrChannelID := model.NewId()
+
+		text := "message"
+		message := &clientmodels.Message{
+			Attachments: []clientmodels.Attachment{
+				{
+					ContentType: "application/vnd.microsoft.card.adaptive",
+					Content:     `{\r\n  \"type\": \"AdaptiveCard\",\r\n  \"body\": [\r\n    {\r\n      \"items\": [\r\n        {\r\n          \"text\": \" \",\r\n          \"type\": \"TextBlock\"\r\n        }\r\n      ],\r\n      \"backgroundImage\": {\r\n        \"url\": \"https://img.huffingtonpost.com/asset/default-entry.jpg?ops=1778_1000\",\r\n        \"horizontalAlignment\": \"center\",\r\n        \"verticalAlignment\": \"center\"\r\n      },\r\n      \"bleed\": true,\r\n      \"minHeight\": \"180px\",\r\n      \"type\": \"Container\"\r\n    },\r\n    {\r\n      \"maxLines\": 2,\r\n      \"size\": \"medium\",\r\n      \"text\": \"Looking At Cute Animal Pictures At Work Can Make You More Productive, Study Claims\",\r\n      \"weight\": \"bolder\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"size\": \"small\",\r\n      \"text\": \"The Hufffington Post\",\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"maxLines\": 2,\r\n      \"size\": \"small\",\r\n      \"text\": \"Best News Ever? Perusing Cute Animal Slideshows May Make You A Better Employee\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    }\r\n  ],\r\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\r\n  \"version\": \"1.4\",\r\n  \"selectAction\": {\r\n    \"url\": \"https://www.huffpost.com/entry/looking-at-cute-animal-pictures-at-work-can-make-you-more-productive_n_1930135\",\r\n    \"type\": \"Action.OpenUrl\"\r\n  }\r\n}`,
+				},
+			},
+			ChatID:    "",
+			ChannelID: chatOrChannelID,
+		}
+		chat := (*clientmodels.Chat)(nil)
+		existingFileIDs := []string{}
+
+		newText, attachmentIDs, parentID, skippedFileAttachments, errorsFound := th.p.activityHandler.handleAttachments(
+			channel.Id,
+			user.Id,
+			text,
+			message,
+			chat,
+			existingFileIDs,
+		)
+
+		assert.Equal(t, "message", newText)
+		assert.Len(t, attachmentIDs, 0)
+		assert.Empty(t, parentID)
 		assert.Equal(t, 0, skippedFileAttachments)
 		assert.False(t, errorsFound)
 	})
