@@ -76,7 +76,7 @@ func (m *Monitor) checkGlobalChatsSubscription(remoteSubscription *clientmodels.
 	// local subscription from above.)
 	if remoteSubscription != nil && shouldRefresh(remoteSubscription.ExpiresOn) {
 		if isExpired(remoteSubscription.ExpiresOn) {
-			m.api.LogError("Global chats subscription discovered to be expired", "subscription_id", remoteSubscription.ID)
+			m.api.LogWarn("Global chats subscription discovered to be expired", "subscription_id", remoteSubscription.ID)
 		}
 
 		m.api.LogInfo("Refreshing global chats subscription", "subscription_id", remoteSubscription.ID)
