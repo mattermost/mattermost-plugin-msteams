@@ -43,8 +43,8 @@ func describeResourceAccessType(resourceAccess clientmodels.ResourceAccess) stri
 
 // getExpectedPermissions returns the set of expected permissions, keyed by the
 // name the enduser would expect to see in the Azure tenant.
-func getExpectedPermissions() map[string]expectedPermission {
-	expectedPermissions := []expectedPermission{
+func getExpectedPermissions() []expectedPermission {
+	return []expectedPermission{
 		{
 			Name: "https://graph.microsoft.com/Chat.Read",
 			ResourceAccess: clientmodels.ResourceAccess{
@@ -88,13 +88,6 @@ func getExpectedPermissions() map[string]expectedPermission {
 			},
 		},
 	}
-
-	expectedPermissionsMap := make(map[string]expectedPermission, len(expectedPermissions))
-	for _, expectedPermission := range expectedPermissions {
-		expectedPermissionsMap[getResourceAccessKey(expectedPermission.ResourceAccess)] = expectedPermission
-	}
-
-	return expectedPermissionsMap
 }
 
 func (p *Plugin) checkCredentials() {
@@ -150,6 +143,29 @@ func (p *Plugin) checkCredentials() {
 		p.GetMetrics().ObserveClientSecretEndDateTime(time.Time{})
 	}
 
+	missingPermissions, redundantResourceAccess := p.checkPermissions(app)
+	for _, permission := range missingPermissions {
+		p.API.LogWarn(
+			"Application missing required API Permission",
+			"permission", permission.Name,
+			"resource_id", permission.ResourceAccess.ID,
+			"type", describeResourceAccessType(permission.ResourceAccess),
+			"application_id", p.getConfiguration().ClientID,
+		)
+	}
+
+	for _, resourceAccess := range redundantResourceAccess {
+		p.API.LogWarn(
+			"Application has redundant API Permission",
+			"resource_id", resourceAccess.ID,
+			"type", describeResourceAccessType(resourceAccess),
+			"application_id", p.getConfiguration().ClientID,
+		)
+	}
+}
+
+func (p *Plugin) checkPermissions(app *clientmodels.App) ([]expectedPermission, []clientmodels.ResourceAccess) {
+	// Build a map and log what we find at the same time.
 	actualRequiredResources := make(map[string]clientmodels.ResourceAccess)
 	for _, requiredResource := range app.RequiredResources {
 		actualRequiredResources[getResourceAccessKey(requiredResource)] = requiredResource
@@ -162,29 +178,27 @@ func (p *Plugin) checkCredentials() {
 	}
 
 	expectedPermissions := getExpectedPermissions()
+	expectedPermissionsMap := make(map[string]expectedPermission, len(expectedPermissions))
+	for _, expectedPermission := range expectedPermissions {
+		expectedPermissionsMap[getResourceAccessKey(expectedPermission.ResourceAccess)] = expectedPermission
+	}
+
+	var missing []expectedPermission
+	var redundant []clientmodels.ResourceAccess
 
 	// Verify all expected permissions are present.
 	for _, permission := range expectedPermissions {
 		if _, ok := actualRequiredResources[getResourceAccessKey(permission.ResourceAccess)]; !ok {
-			p.API.LogWarn(
-				"Application missing required API Permission",
-				"permission", permission.Name,
-				"resource_id", permission.ResourceAccess.ID,
-				"type", describeResourceAccessType(permission.ResourceAccess),
-				"application_id", p.getConfiguration().ClientID,
-			)
+			missing = append(missing, permission)
 		}
 	}
 
 	// Check for unnecessary permissions.
-	for _, requiredResource := range actualRequiredResources {
-		if _, ok := expectedPermissions[getResourceAccessKey(requiredResource)]; !ok {
-			p.API.LogWarn(
-				"Application has redundant API Permission",
-				"resource_id", requiredResource.ID,
-				"type", describeResourceAccessType(requiredResource),
-				"application_id", p.getConfiguration().ClientID,
-			)
+	for _, requiredResource := range app.RequiredResources {
+		if _, ok := expectedPermissionsMap[getResourceAccessKey(requiredResource)]; !ok {
+			redundant = append(redundant, requiredResource)
 		}
 	}
+
+	return missing, redundant
 }
