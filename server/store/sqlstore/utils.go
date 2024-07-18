@@ -21,15 +21,3 @@ func tableExist(store *SQLStore, tableName string) (bool, error) {
 	defer rows.Close()
 	return rows.Next(), nil
 }
-
-func createUniqueIndex(store *SQLStore, tableName, indexName, columnList string) error {
-	if _, err := store.db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, columnList)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func createMSTeamsUserIDUniqueIndex(store *SQLStore) error {
-	return createUniqueIndex(store, usersTableName, "idx_msteamssync_users_msteamsuserid_unq", "msteamsuserid")
-}
