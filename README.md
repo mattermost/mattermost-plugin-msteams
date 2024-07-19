@@ -1,14 +1,14 @@
-# Mattermost MS Teams Plugin
+# Mattermost Microsoft Teams Plugin
 
-The plugin enables you to break through siloes in a mixed Mattermost and Teams environment by forwarding real-time chat notifications from Teams to Mattermost.
+The plugin enables you to break through siloes in a mixed Mattermost and Microsoft Teams environment by forwarding real-time chat notifications from Microsoft Teams to Mattermost.
 
 See the [Mattermost Product Documentation](https://docs.mattermost.com/integrate/ms-teams-interoperability.html) for details on installing, configuring, enabling, and using this Mattermost integration. If you are a developer who wants to work on this plugin, visit the [Development](#development) section on this page
 
 ## Features
 
-- Connect to an MS Teams account using the OAuth2 flow.
-- Send bot notifications in Mattermost for chat and group chat messages received in Teams. To respond, click the permalink to open the chat in Teams.
-- Attachments sent from Teams will be forwarded to Mattermost.
+- Connect to a Microsoft Teams account using the OAuth2 flow.
+- Send bot notifications in Mattermost for chat and group chat messages received in Microsoft Teams. To respond, select the link provided to open the chat in Microsoft Teams.
+- Attachments sent from Microsoft Teams will be forwarded to Mattermost.
 
 ## License
 
