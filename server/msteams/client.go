@@ -278,22 +278,34 @@ func (tc *ClientImpl) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
 	return conf.TokenSource(context.Background(), token).Token()
 }
 
-func (tc *ClientImpl) GetAppCredentials(applicationID string) ([]clientmodels.Credential, error) {
+func (tc *ClientImpl) GetApp(applicationID string) (*clientmodels.App, error) {
 	application, err := tc.client.ApplicationsWithAppId(&applicationID).Get(tc.ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	credentials := []clientmodels.Credential{}
+
+	var app clientmodels.App
+
 	credentialsList := application.GetPasswordCredentials()
 	for _, credential := range credentialsList {
-		credentials = append(credentials, clientmodels.Credential{
+		app.Credentials = append(app.Credentials, clientmodels.Credential{
 			ID:          credential.GetKeyId().String(),
 			Name:        *credential.GetDisplayName(),
 			EndDateTime: *credential.GetEndDateTime(),
 			Hint:        *credential.GetHint(),
 		})
 	}
-	return credentials, nil
+
+	for _, requiredResourceAccess := range application.GetRequiredResourceAccess() {
+		for _, requiredResource := range requiredResourceAccess.GetResourceAccess() {
+			app.RequiredResources = append(app.RequiredResources, clientmodels.ResourceAccess{
+				ID:   requiredResource.GetId().String(),
+				Type: *requiredResource.GetTypeEscaped(),
+			})
+		}
+	}
+
+	return &app, nil
 }
 
 func (tc *ClientImpl) Connect() error {
