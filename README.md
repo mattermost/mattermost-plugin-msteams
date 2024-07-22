@@ -1,25 +1,14 @@
-# Mattermost MS Teams Plugin
+# Mattermost Microsoft Teams Plugin
 
-This plugin integrates MS Teams with Mattermost by providing automated syncing of messages from Mattermost to MS Teams and vice versa.  
+The plugin enables you to break through siloes in a mixed Mattermost and Microsoft Teams environment by forwarding real-time chat notifications from Microsoft Teams to Mattermost.
 
 See the [Mattermost Product Documentation](https://docs.mattermost.com/integrate/ms-teams-interoperability.html) for details on installing, configuring, enabling, and using this Mattermost integration. If you are a developer who wants to work on this plugin, visit the [Development](#development) section on this page
 
 ## Features
 
-This plugin supports the following features:
-- Connect to MS Teams account using the OAuth2 flow.
-- Link Mattermost channels with MS Teams channels and sync messages between the linked channels.
-- Link Mattermost DMs and group messages with Teams chats and sync messages.
-- Sync Mattermost and MS Teams messages for any changes made in any existing messages on either side.
-- Deletion of MS Teams messages is synced with Mattermost but it's not vice versa.
-- Sync posts containing markdown and attachments.
-
-    ![image](https://user-images.githubusercontent.com/77336594/226587339-050c35da-a0f1-47db-a15f-f8d5f59bf8cd.png)
-    ![image](https://user-images.githubusercontent.com/77336594/226587366-2c4231bc-1aa2-42c4-b692-bd4441c71c34.png)
-    ![image](https://user-images.githubusercontent.com/77336594/226588263-a7915e4d-d9ae-4294-9134-326628febdfc.png)
-    ![image](https://user-images.githubusercontent.com/77336594/226588309-3202b78f-d87d-439c-967b-25ba8ed328c9.png)
-
-- Sync reactions on posts.
+- Connect to a Microsoft Teams account using the OAuth2 flow.
+- Send bot notifications in Mattermost for chat and group chat messages received in Microsoft Teams. To respond, select the link provided to open the chat in Microsoft Teams.
+- Attachments sent from Microsoft Teams will be forwarded to Mattermost.
 
 ## License
 
