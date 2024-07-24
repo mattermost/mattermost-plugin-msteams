@@ -86,8 +86,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 // returnJSON writes the given data as json with the provided httpStatus
 func (a *API) returnJSON(w http.ResponseWriter, data any) {
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		a.p.API.LogWarn("Failed to write to http.ResponseWriter", "error", err.Error())
