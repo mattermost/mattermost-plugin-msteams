@@ -833,10 +833,9 @@ func (s *SQLStore) getActiveUsersCount(db sq.BaseRunner, dur time.Duration) (act
 	now := time.Now()
 
 	err = s.getQueryBuilder(db).
-		Select("count(*)").
+		Select("count(mmUserID)").
 		From(usersTableName).
 		Where(sq.GtOrEq{"LastChatReceivedAt": now.Add(-dur).UnixMicro()}).
-		Where(sq.LtOrEq{"LastChatReceivedAt": now.UnixMicro()}).
 		QueryRow().
 		Scan(&activeUsers)
 
