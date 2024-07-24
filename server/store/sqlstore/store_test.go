@@ -1229,7 +1229,7 @@ func TestGetLinkedChannelsCount(t *testing.T) {
 	})
 }
 
-func TestGetActiveUsersReceivingCount(t *testing.T) {
+func TestGetActiveUsersCount(t *testing.T) {
 	store, _ := setupTestStore(t)
 	store.encryptionKey = func() []byte {
 		return make([]byte, 16)
@@ -1247,7 +1247,7 @@ func TestGetActiveUsersReceivingCount(t *testing.T) {
 
 	t.Run("all zero", func(t *testing.T) {
 		assert := require.New(t)
-		nb, err := store.GetActiveUsersReceivingCount(duration)
+		nb, err := store.GetActiveUsersCount(duration)
 		assert.Nil(err)
 		assert.EqualValues(0, nb)
 	})
@@ -1269,53 +1269,7 @@ func TestGetActiveUsersReceivingCount(t *testing.T) {
 			assert.Nil(err)
 		}
 
-		nb, getErr := store.GetActiveUsersReceivingCount(duration)
-		assert.Nil(getErr)
-		assert.EqualValues(4, nb)
-	})
-}
-
-func TestGetActiveUsersSendingCount(t *testing.T) {
-	store, _ := setupTestStore(t)
-	store.encryptionKey = func() []byte {
-		return make([]byte, 16)
-	}
-
-	cleanup := func() {
-		t.Helper()
-		_, err := store.getQueryBuilder(store.db).Delete(usersTableName).Where("1=1").Exec()
-		require.Nil(t, err)
-	}
-	cleanup()
-	defer cleanup()
-
-	duration := 7 * 24 * time.Hour
-
-	t.Run("all zero", func(t *testing.T) {
-		assert := require.New(t)
-		nb, err := store.GetActiveUsersSendingCount(duration)
-		assert.Nil(err)
-		assert.EqualValues(0, nb)
-	})
-
-	t.Run("all values set", func(t *testing.T) {
-		assert := require.New(t)
-		now := time.Now()
-
-		for i := 0; i < 5; i++ {
-			userID := model.NewId()
-			err := store.SetUserInfo(userID, model.NewId(), &oauth2.Token{
-				AccessToken: model.NewId(),
-			})
-			assert.Nil(err)
-
-			// last chat sent at is set to will decrease by 48 hours for each user
-			// so the last one will be out of the range
-			err = store.SetUserLastChatSentAt(userID, now.Add(-time.Duration(i)*48*time.Hour).UnixMicro())
-			assert.Nil(err)
-		}
-
-		nb, getErr := store.GetActiveUsersSendingCount(duration)
+		nb, getErr := store.GetActiveUsersCount(duration)
 		assert.Nil(getErr)
 		assert.EqualValues(4, nb)
 	})

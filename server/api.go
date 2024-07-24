@@ -879,16 +879,10 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to get whitelisted users count", http.StatusInternalServerError)
 		return
 	}
-	receiving, err := a.p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange)
+	totalActiveUsers, err := a.p.store.GetActiveUsersCount(metricsActiveUsersRange)
 	if err != nil {
 		a.p.API.LogWarn("Failed to get users receiving count", "error", err.Error())
 		http.Error(w, "unable to get users receiving count", http.StatusInternalServerError)
-		return
-	}
-	sending, err := a.p.store.GetActiveUsersSendingCount(metricsActiveUsersRange)
-	if err != nil {
-		a.p.API.LogWarn("Failed to get sending users count", "error", err.Error())
-		http.Error(w, "unable to get sending users count", http.StatusInternalServerError)
 		return
 	}
 
@@ -896,14 +890,12 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 		TotalConnectedUsers   int64 `json:"total_connected_users"`
 		PendingInvitedUsers   int64 `json:"pending_invited_users"`
 		CurrentWhitelistUsers int64 `json:"current_whitelist_users"`
-		UserReceivingMessages int64 `json:"total_users_receiving"`
-		UserSendingMessages   int64 `json:"total_users_sending"`
+		TotalActiveUsers      int64 `json:"total_active_users"`
 	}{
 		TotalConnectedUsers:   connectedUsersCount,
 		PendingInvitedUsers:   int64(pendingInvites),
 		CurrentWhitelistUsers: int64(whitelistedUsers),
-		UserReceivingMessages: receiving,
-		UserSendingMessages:   sending,
+		TotalActiveUsers:      totalActiveUsers,
 	}
 
 	a.returnJSON(w, siteStats)

@@ -70,17 +70,11 @@ export default class Plugin {
                         icon: 'fa-users', // font-awesome-4.7.0 handler
                         value: siteStats?.total_connected_users || 0,
                     },
-                    msteams_users_sending: {
-                        name: 'MS Teams: Users sending',
-                        id: 'msteams_users_sending',
-                        icon: 'fa-arrow-up',
-                        value: siteStats?.total_users_sending || 0,
-                    },
-                    msteams_users_receiving: {
-                        name: 'MS Teams: Users receiving',
-                        id: 'msteams_users_msteams_users_receiving',
+                    msteams_users_active: {
+                        name: 'MS Teams: Active Users',
+                        id: 'msteams_users_msteams_users_active',
                         icon: 'fa-arrow-down',
-                        value: siteStats?.total_users_receiving || 0,
+                        value: siteStats?.total_active_users || 0,
                     },
                 };
             });

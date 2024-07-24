@@ -46,8 +46,7 @@ type Store interface {
 	// stats
 	GetLinkedChannelsCount() (linkedChannels int64, err error)
 	GetConnectedUsersCount() (connectedUsers int64, err error)
-	GetActiveUsersSendingCount(dur time.Duration) (activeUsersSending int64, err error)
-	GetActiveUsersReceivingCount(dur time.Duration) (activeUsersReceiving int64, err error)
+	GetActiveUsersCount(dur time.Duration) (activeUsers int64, err error)
 
 	// links, channels, posts
 	GetLinkByChannelID(channelID string) (*storemodels.ChannelLink, error)

@@ -572,13 +572,8 @@ func (p *Plugin) updateMetrics() {
 			observeData: p.GetMetrics().ObserveLinkedChannels,
 		},
 		{
-			name:        "active users sending",
-			getData:     func() (int64, error) { return p.store.GetActiveUsersSendingCount(metricsActiveUsersRange) },
-			observeData: p.GetMetrics().ObserveActiveUsersSending,
-		},
-		{
-			name:        "active users receiving",
-			getData:     func() (int64, error) { return p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange) },
+			name:        "active users",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersCount(metricsActiveUsersRange) },
 			observeData: p.GetMetrics().ObserveActiveUsersReceiving,
 		},
 	}

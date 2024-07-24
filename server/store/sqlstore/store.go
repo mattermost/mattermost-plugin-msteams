@@ -829,22 +829,7 @@ func (s *SQLStore) getConnectedUsersCount(db sq.BaseRunner) (connectedUsers int6
 }
 
 //db:withReplica
-func (s *SQLStore) getActiveUsersSendingCount(db sq.BaseRunner, dur time.Duration) (activeUsersSending int64, err error) {
-	now := time.Now()
-
-	err = s.getQueryBuilder(db).
-		Select("count(*)").
-		From(usersTableName).
-		Where(sq.GtOrEq{"LastChatSentAt": now.Add(-dur).UnixMicro()}).
-		Where(sq.LtOrEq{"LastChatSentAt": now.UnixMicro()}).
-		QueryRow().
-		Scan(&activeUsersSending)
-
-	return activeUsersSending, err
-}
-
-//db:withReplica
-func (s *SQLStore) getActiveUsersReceivingCount(db sq.BaseRunner, dur time.Duration) (activeUsersReceiving int64, err error) {
+func (s *SQLStore) getActiveUsersCount(db sq.BaseRunner, dur time.Duration) (activeUsers int64, err error) {
 	now := time.Now()
 
 	err = s.getQueryBuilder(db).
@@ -853,9 +838,9 @@ func (s *SQLStore) getActiveUsersReceivingCount(db sq.BaseRunner, dur time.Durat
 		Where(sq.GtOrEq{"LastChatReceivedAt": now.Add(-dur).UnixMicro()}).
 		Where(sq.LtOrEq{"LastChatReceivedAt": now.UnixMicro()}).
 		QueryRow().
-		Scan(&activeUsersReceiving)
+		Scan(&activeUsers)
 
-	return activeUsersReceiving, err
+	return activeUsers, err
 }
 
 //db:withReplica

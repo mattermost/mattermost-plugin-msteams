@@ -10,8 +10,7 @@ export interface SiteStats {
     total_connected_users: number;
     pending_invited_users: number;
     current_whitelist_users: number;
-    total_users_receiving: number;
-    total_users_sending: number;
+    total_active_users: number;
 }
 
 export interface ConnectionStatus {

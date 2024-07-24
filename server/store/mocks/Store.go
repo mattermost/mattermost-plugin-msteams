@@ -86,48 +86,6 @@ func (_m *Store) DeleteUserInvite(mmUserID string) error {
 	return r0
 }
 
-// GetActiveUsersReceivingCount provides a mock function with given fields: dur
-func (_m *Store) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
-	ret := _m.Called(dur)
-
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(time.Duration) int64); ok {
-		r0 = rf(dur)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
-		r1 = rf(dur)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetActiveUsersSendingCount provides a mock function with given fields: dur
-func (_m *Store) GetActiveUsersSendingCount(dur time.Duration) (int64, error) {
-	ret := _m.Called(dur)
-
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(time.Duration) int64); ok {
-		r0 = rf(dur)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
-		r1 = rf(dur)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetChannelSubscription provides a mock function with given fields: subscriptionID
 func (_m *Store) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	ret := _m.Called(subscriptionID)
@@ -525,6 +483,27 @@ func (_m *Store) GetTokenForMattermostUser(userID string) (*oauth2.Token, error)
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetActiveUsersCount provides a mock function with given fields: dur
+func (_m *Store) GetActiveUsersCount(dur time.Duration) (int64, error) {
+	ret := _m.Called(dur)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(time.Duration) int64); ok {
+		r0 = rf(dur)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
+		r1 = rf(dur)
 	} else {
 		r1 = ret.Error(1)
 	}

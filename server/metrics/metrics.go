@@ -77,7 +77,6 @@ type Metrics interface {
 	ObserveWhitelistedUsers(count int64)
 
 	ObserveLinkedChannels(count int64)
-	ObserveActiveUsersSending(count int64)
 	ObserveActiveUsersReceiving(count int64)
 
 	ObserveChangeEventQueueCapacity(count int64)
@@ -142,7 +141,6 @@ type metrics struct {
 
 	linkedChannels prometheus.Gauge
 
-	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
@@ -361,15 +359,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.linkedChannels)
 
-	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "active_users_sending",
-		Help:        "The number of users who have sent messages in the last week.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.activeUsersSending)
-
 	m.activeUsersReceiving = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -567,12 +556,6 @@ func (m *metrics) ObserveSubscription(action string) {
 func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveActiveUsersSending(count int64) {
-	if m != nil {
-		m.activeUsersSending.Set(float64(count))
 	}
 }
 

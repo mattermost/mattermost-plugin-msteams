@@ -935,7 +935,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_active_users":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -945,14 +945,12 @@ func TestGetSiteStats(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		err := th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
-		require.NoError(t, err)
-		err = th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+		err := th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
 		require.NoError(t, err)
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_active_users":1}`, bodyString)
 	})
 
 	t.Run("1 invited user, 2 whitelisted users", func(t *testing.T) {
@@ -969,7 +967,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_active_users":0}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -987,18 +985,11 @@ func TestGetSiteStats(t *testing.T) {
 				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
 				require.NoError(t, err)
 			}
-			if i < 2 {
-				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
-				require.NoError(t, err)
-			} else {
-				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
-				require.NoError(t, err)
-			}
 		}
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_active_users":5}`, bodyString)
 	})
 }
 
