@@ -40,6 +40,8 @@ const (
 	DiscardedReasonFileLimitReached                = "file_limit_reached"
 	DiscardedReasonEmptyFileID                     = "empty_file_id"
 	DiscardedReasonMaxFileSizeExceeded             = "max_file_size_exceeded"
+	DiscardedReasonUnknownLifecycleEvent           = "unknown_lifeycle_event"
+	DiscardedReasonUnusedSubscription              = "unused_subscription"
 	DiscardedReasonExpiredSubscription             = "expired_subscription"
 	DiscardedReasonInvalidWebhookSecret            = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck         = "failed_subscription_check"

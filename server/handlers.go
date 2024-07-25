@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"regexp"
 	"strings"
@@ -141,18 +142,33 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 }
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
-	if event.LifecycleEvent == "reauthorizationRequired" {
-		expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
-		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to refresh the subscription", "error", err.Error())
-			ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedToRefresh)
-			return
-		}
+	if event.LifecycleEvent != "reauthorizationRequired" {
+		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonUnknownLifecycleEvent)
+		return
+	}
 
-		ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
-		if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to store the subscription new expiry date", "subscription_id", event.SubscriptionID, "error", err.Error())
-		}
+	// Ignore subscriptions we aren't tracking locally. For now, that's just the single global chats subscription.
+	if _, err := ah.plugin.GetStore().GetGlobalSubscription(event.SubscriptionID); err == sql.ErrNoRows {
+		ah.plugin.GetAPI().LogWarn("Ignoring reauthorizationRequired lifecycle event for unused subscription", "subscription_id", event.SubscriptionID)
+		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonUnusedSubscription)
+		return
+	} else if err != nil {
+		ah.plugin.GetAPI().LogWarn("Failed to lookup subscription, refreshing anyway", "subscription_id", event.SubscriptionID, "error", err.Error())
+	}
+
+	ah.plugin.GetAPI().LogWarn("Refreshing subscription", "subscription_id", event.SubscriptionID)
+	expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
+	if err != nil {
+		ah.plugin.GetAPI().LogWarn("Unable to refresh the subscription", "subscription_id", event.SubscriptionID, "error", err.Error())
+		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonFailedToRefresh)
+		return
+	}
+
+	ah.plugin.GetAPI().LogWarn("Refreshed subscription", "subscription_id", event.SubscriptionID, "expires_on", expiresOn.Format("2006-01-02 15:04:05.000 Z07:00"))
+	ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
+
+	if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
+		ah.plugin.GetAPI().LogWarn("Unable to store the subscription new expiry date", "subscription_id", event.SubscriptionID, "error", err.Error())
 	}
 
 	ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonNone)
