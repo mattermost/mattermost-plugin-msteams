@@ -91,8 +91,6 @@ func (m *Monitor) runMonitoringSystemJob() {
 		}
 	}()
 
-	m.api.LogInfo("Running the Monitoring System Job")
-
 	done := m.metrics.ObserveWorker(metrics.WorkerMonitor)
 	defer done()
 
