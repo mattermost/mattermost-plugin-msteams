@@ -52,7 +52,7 @@ const (
 
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"
-	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positiveo
+	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
 	WorkerMetricsUpdater   = "metrics_updater"
 )
 
