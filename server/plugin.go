@@ -297,7 +297,7 @@ func (p *Plugin) start(isRestart bool) {
 		p.checkCredentialsJob = checkCredentialsJob
 
 		// Run the job above right away so we immediately populate metrics.
-		p.checkCredentials()
+		go p.checkCredentials()
 	}
 
 	// Unregister and re-register slash command to reflect any configuration changes.
