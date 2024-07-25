@@ -256,6 +256,9 @@ func (p *Plugin) start(isRestart bool) {
 		if err != nil {
 			p.API.LogError("failed to start metrics job", "error", err)
 		}
+
+		// Run the job above right away so we immediately populate metrics.
+		go p.updateMetrics()
 	}
 
 	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
@@ -540,6 +543,16 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	done := p.GetMetrics().ObserveWorker(metrics.WorkerMetricsUpdater)
+	defer done()
+
 	stats := []struct {
 		name        string
 		getData     func() (int64, error)

@@ -52,7 +52,8 @@ const (
 
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"
-	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
+	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positiveo
+	WorkerMetricsUpdater   = "metrics_updater"
 )
 
 type Metrics interface {
