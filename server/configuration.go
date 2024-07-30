@@ -40,6 +40,12 @@ func (c *configuration) ProcessConfiguration() {
 	c.ClientSecret = strings.TrimSpace(c.ClientSecret)
 	c.EncryptionKey = strings.TrimSpace(c.EncryptionKey)
 	c.WebhookSecret = strings.TrimSpace(c.WebhookSecret)
+	if c.MaxSizeForCompleteDownload < 0 {
+		c.MaxSizeForCompleteDownload = 0
+	}
+	if c.BufferSizeForFileStreaming <= 0 {
+		c.BufferSizeForFileStreaming = 20
+	}
 }
 
 func (p *Plugin) validateConfiguration(configuration *configuration) error {
@@ -58,12 +64,6 @@ func (p *Plugin) validateConfiguration(configuration *configuration) error {
 	}
 	if configuration.WebhookSecret == "" {
 		return errors.New("webhook secret should not be empty")
-	}
-	if configuration.MaxSizeForCompleteDownload < 0 {
-		return errors.New("max size for complete single download should not be negative")
-	}
-	if configuration.BufferSizeForFileStreaming <= 0 {
-		return errors.New("buffer size for file streaming should be greater than zero")
 	}
 
 	return nil

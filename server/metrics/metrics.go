@@ -40,6 +40,8 @@ const (
 	DiscardedReasonFileLimitReached                = "file_limit_reached"
 	DiscardedReasonEmptyFileID                     = "empty_file_id"
 	DiscardedReasonMaxFileSizeExceeded             = "max_file_size_exceeded"
+	DiscardedReasonUnknownLifecycleEvent           = "unknown_lifeycle_event"
+	DiscardedReasonUnusedSubscription              = "unused_subscription"
 	DiscardedReasonExpiredSubscription             = "expired_subscription"
 	DiscardedReasonInvalidWebhookSecret            = "invalid_webhook_secret"
 	DiscardedReasonFailedSubscriptionCheck         = "failed_subscription_check"
@@ -51,6 +53,7 @@ const (
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"
 	WorkerCheckCredentials = "check_credentials" //#nosec G101 -- This is a false positive
+	WorkerMetricsUpdater   = "metrics_updater"
 )
 
 type Metrics interface {
@@ -77,7 +80,6 @@ type Metrics interface {
 	ObserveWhitelistedUsers(count int64)
 
 	ObserveLinkedChannels(count int64)
-	ObserveActiveUsersSending(count int64)
 	ObserveActiveUsersReceiving(count int64)
 
 	ObserveChangeEventQueueCapacity(count int64)
@@ -142,7 +144,6 @@ type metrics struct {
 
 	linkedChannels prometheus.Gauge
 
-	activeUsersSending   prometheus.Gauge
 	activeUsersReceiving prometheus.Gauge
 
 	changeEventQueueCapacity      prometheus.Gauge
@@ -361,15 +362,6 @@ func NewMetrics(info InstanceInfo) Metrics {
 	})
 	m.registry.MustRegister(m.linkedChannels)
 
-	m.activeUsersSending = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubsystemApp,
-		Name:        "active_users_sending",
-		Help:        "The number of users who have sent messages in the last week.",
-		ConstLabels: additionalLabels,
-	})
-	m.registry.MustRegister(m.activeUsersSending)
-
 	m.activeUsersReceiving = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubsystemApp,
@@ -567,12 +559,6 @@ func (m *metrics) ObserveSubscription(action string) {
 func (m *metrics) ObserveLinkedChannels(count int64) {
 	if m != nil {
 		m.linkedChannels.Set(float64(count))
-	}
-}
-
-func (m *metrics) ObserveActiveUsersSending(count int64) {
-	if m != nil {
-		m.activeUsersSending.Set(float64(count))
 	}
 }
 

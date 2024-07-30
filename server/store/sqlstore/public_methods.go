@@ -42,14 +42,6 @@ func (s *SQLStore) DeleteUserInvite(mmUserID string) error {
 	return s.deleteUserInvite(s.db, mmUserID)
 }
 
-func (s *SQLStore) GetActiveUsersReceivingCount(dur time.Duration) (int64, error) {
-	return s.getActiveUsersReceivingCount(s.replica, dur)
-}
-
-func (s *SQLStore) GetActiveUsersSendingCount(dur time.Duration) (int64, error) {
-	return s.getActiveUsersSendingCount(s.replica, dur)
-}
-
 func (s *SQLStore) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	return s.getChannelSubscription(s.replica, subscriptionID)
 }
@@ -120,6 +112,10 @@ func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) 
 
 func (s *SQLStore) GetTokenForMattermostUser(userID string) (*oauth2.Token, error) {
 	return s.getTokenForMattermostUser(s.replica, userID)
+}
+
+func (s *SQLStore) GetActiveUsersCount(dur time.Duration) (int64, error) {
+	return s.getActiveUsersCount(s.replica, dur)
 }
 
 func (s *SQLStore) GetUserConnectStatus(mmUserID string) (*storemodels.UserConnectStatus, error) {

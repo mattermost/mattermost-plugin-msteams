@@ -256,6 +256,9 @@ func (p *Plugin) start(isRestart bool) {
 		if err != nil {
 			p.API.LogError("failed to start metrics job", "error", err)
 		}
+
+		// Run the job above right away so we immediately populate metrics.
+		go p.updateMetrics()
 	}
 
 	p.metricsService.ObserveConnectedUsersLimit(int64(p.configuration.ConnectedUsersAllowed))
@@ -294,7 +297,7 @@ func (p *Plugin) start(isRestart bool) {
 		p.checkCredentialsJob = checkCredentialsJob
 
 		// Run the job above right away so we immediately populate metrics.
-		p.checkCredentials()
+		go p.checkCredentials()
 	}
 
 	// Unregister and re-register slash command to reflect any configuration changes.
@@ -540,6 +543,16 @@ func (p *Plugin) GetRemoteID() string {
 }
 
 func (p *Plugin) updateMetrics() {
+	defer func() {
+		if r := recover(); r != nil {
+			p.GetMetrics().ObserveGoroutineFailure()
+			p.API.LogError("Recovering from panic", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
+	done := p.GetMetrics().ObserveWorker(metrics.WorkerMetricsUpdater)
+	defer done()
+
 	stats := []struct {
 		name        string
 		getData     func() (int64, error)
@@ -572,13 +585,8 @@ func (p *Plugin) updateMetrics() {
 			observeData: p.GetMetrics().ObserveLinkedChannels,
 		},
 		{
-			name:        "active users sending",
-			getData:     func() (int64, error) { return p.store.GetActiveUsersSendingCount(metricsActiveUsersRange) },
-			observeData: p.GetMetrics().ObserveActiveUsersSending,
-		},
-		{
-			name:        "active users receiving",
-			getData:     func() (int64, error) { return p.store.GetActiveUsersReceivingCount(metricsActiveUsersRange) },
+			name:        "active users",
+			getData:     func() (int64, error) { return p.store.GetActiveUsersCount(metricsActiveUsersRange) },
 			observeData: p.GetMetrics().ObserveActiveUsersReceiving,
 		},
 	}

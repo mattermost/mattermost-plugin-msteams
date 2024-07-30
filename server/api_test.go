@@ -154,7 +154,6 @@ func TestProcessActivity(t *testing.T) {
 func TestProcessLifecycle(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "lifecycle")
-	team := th.SetupTeam(t)
 
 	sendRequest := func(t *testing.T, activities []msteams.Activity) (*http.Response, string) {
 		t.Helper()
@@ -222,7 +221,7 @@ func TestProcessLifecycle(t *testing.T) {
 				Resource:       "mockResource",
 				ChangeType:     "mockChangeType",
 				ClientState:    "mockClientState",
-				LifecycleEvent: "mockLifecycleEvent",
+				LifecycleEvent: "reauthorizationRequired",
 			},
 		}
 
@@ -231,40 +230,16 @@ func TestProcessLifecycle(t *testing.T) {
 		assert.Equal(t, "Invalid webhook secret\n", bodyString)
 	})
 
-	t.Run("valid event, no refresh needed", func(t *testing.T) {
+	t.Run("valid payload, unknown subscription", func(t *testing.T) {
 		th.Reset(t)
-
-		channel := th.SetupPublicChannel(t, team)
-
-		subscription := storemodels.ChannelSubscription{
-			SubscriptionID: model.NewId(),
-			TeamID:         model.NewId(),
-			ChannelID:      model.NewId(),
-			ExpiresOn:      time.Now().Add(10 * time.Minute),
-			Secret:         th.p.getConfiguration().WebhookSecret,
-		}
-		err := th.p.GetStore().SaveChannelSubscription(subscription)
-		require.NoError(t, err)
-
-		link := &storemodels.ChannelLink{
-			MattermostTeamID:      channel.TeamId,
-			MattermostTeamName:    team.Name,
-			MattermostChannelID:   channel.Id,
-			MattermostChannelName: channel.Name,
-			MSTeamsTeam:           subscription.TeamID,
-			MSTeamsChannel:        subscription.ChannelID,
-			Creator:               "creator_id",
-		}
-		err = th.p.GetStore().StoreChannelLink(link)
-		require.NoError(t, err)
 
 		activities := []msteams.Activity{
 			{
-				SubscriptionID: subscription.SubscriptionID,
+				SubscriptionID: model.NewId(),
 				Resource:       "mockResource",
 				ClientState:    "webhooksecret",
 				ChangeType:     "mockChangeType",
-				LifecycleEvent: "mockLifecycleEvent",
+				LifecycleEvent: "reauthorizationRequired",
 			},
 		}
 
@@ -275,37 +250,69 @@ func TestProcessLifecycle(t *testing.T) {
 		assert.Eventually(t, func() bool {
 			return th.getRelativeCounter(t,
 				"msteams_connect_events_lifecycle_events_total",
-				withLabel("event_type", "mockLifecycleEvent"),
-				withLabel("discarded_reason", metrics.DiscardedReasonNone),
+				withLabel("event_type", "reauthorizationRequired"),
+				withLabel("discarded_reason", metrics.DiscardedReasonUnusedSubscription),
 			) == 1
+		}, 5*time.Second, 500*time.Millisecond)
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_subscriptions_total",
+				withLabel("action", metrics.SubscriptionRefreshed),
+			) > 0
+		}, 5*time.Second, 500*time.Millisecond)
+	})
+
+	t.Run("valid payload, unknown event", func(t *testing.T) {
+		th.Reset(t)
+
+		subscription := storemodels.GlobalSubscription{
+			SubscriptionID: model.NewId(),
+			Type:           "allChats",
+			ExpiresOn:      time.Now().Add(10 * time.Minute),
+			Secret:         th.p.getConfiguration().WebhookSecret,
+		}
+		err := th.p.GetStore().SaveGlobalSubscription(subscription)
+		require.NoError(t, err)
+
+		activities := []msteams.Activity{
+			{
+				SubscriptionID: subscription.SubscriptionID,
+				Resource:       "mockResource",
+				ClientState:    "webhooksecret",
+				ChangeType:     "mockChangeType",
+				LifecycleEvent: "unknownEvent",
+			},
+		}
+
+		response, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Empty(t, bodyString)
+
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_lifecycle_events_total",
+				withLabel("event_type", "unknownEvent"),
+				withLabel("discarded_reason", metrics.DiscardedReasonUnknownLifecycleEvent),
+			) == 1
+		}, 5*time.Second, 500*time.Millisecond)
+		assert.Never(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_subscriptions_total",
+				withLabel("action", metrics.SubscriptionRefreshed),
+			) > 0
 		}, 5*time.Second, 500*time.Millisecond)
 	})
 
 	t.Run("valid event, refresh needed", func(t *testing.T) {
 		th.Reset(t)
 
-		channel := th.SetupPublicChannel(t, team)
-
-		subscription := storemodels.ChannelSubscription{
+		subscription := storemodels.GlobalSubscription{
 			SubscriptionID: model.NewId(),
-			TeamID:         model.NewId(),
-			ChannelID:      model.NewId(),
+			Type:           "allChats",
 			ExpiresOn:      time.Now().Add(10 * time.Minute),
 			Secret:         th.p.getConfiguration().WebhookSecret,
 		}
-		err := th.p.GetStore().SaveChannelSubscription(subscription)
-		require.NoError(t, err)
-
-		link := &storemodels.ChannelLink{
-			MattermostTeamID:      channel.TeamId,
-			MattermostTeamName:    team.Name,
-			MattermostChannelID:   channel.Id,
-			MattermostChannelName: channel.Name,
-			MSTeamsTeam:           subscription.TeamID,
-			MSTeamsChannel:        subscription.ChannelID,
-			Creator:               "creator_id",
-		}
-		err = th.p.GetStore().StoreChannelLink(link)
+		err := th.p.GetStore().SaveGlobalSubscription(subscription)
 		require.NoError(t, err)
 
 		activities := []msteams.Activity{
@@ -330,6 +337,12 @@ func TestProcessLifecycle(t *testing.T) {
 				"msteams_connect_events_lifecycle_events_total",
 				withLabel("event_type", "reauthorizationRequired"),
 				withLabel("discarded_reason", metrics.DiscardedReasonNone),
+			) == 1
+		}, 5*time.Second, 500*time.Millisecond)
+		assert.Eventually(t, func() bool {
+			return th.getRelativeCounter(t,
+				"msteams_connect_events_subscriptions_total",
+				withLabel("action", metrics.SubscriptionRefreshed),
 			) == 1
 		}, 5*time.Second, 500*time.Millisecond)
 	})
@@ -935,7 +948,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_active_users":0}`, bodyString)
 	})
 
 	t.Run("1 connected user", func(t *testing.T) {
@@ -945,14 +958,12 @@ func TestGetSiteStats(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		err := th.p.store.SetUserLastChatSentAt(user1.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
-		require.NoError(t, err)
-		err = th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
+		err := th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
 		require.NoError(t, err)
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_users_receiving":1, "total_users_sending":1}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_active_users":1}`, bodyString)
 	})
 
 	t.Run("1 invited user, 2 whitelisted users", func(t *testing.T) {
@@ -969,7 +980,7 @@ func TestGetSiteStats(t *testing.T) {
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_users_receiving":0, "total_users_sending":0}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_active_users":0}`, bodyString)
 	})
 
 	t.Run("10 connected users", func(t *testing.T) {
@@ -987,18 +998,11 @@ func TestGetSiteStats(t *testing.T) {
 				err := th.p.store.SetUserLastChatReceivedAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
 				require.NoError(t, err)
 			}
-			if i < 2 {
-				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-3*24*time.Hour).UnixMicro())
-				require.NoError(t, err)
-			} else {
-				err := th.p.store.SetUserLastChatSentAt(user.Id, time.Now().Add(-8*24*time.Hour).UnixMicro())
-				require.NoError(t, err)
-			}
 		}
 
 		response, bodyString := sendRequest(t, sysadmin)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
-		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_users_receiving":5, "total_users_sending":2}`, bodyString)
+		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_active_users":5}`, bodyString)
 	})
 }
 
