@@ -1,7 +1,7 @@
 {
   "id": "com.mattermost.msteams-sync",
   "name": "MS Teams",
-  "description": "Plugin to sync Mattermost channels with Microsoft Teams channels",
+  "description": "Break through siloes in a mixed Mattermost and Teams environment by forwarding real-time chat notifications from Teams to Mattermost.",
   "homepage_url": "https://github.com/mattermost/mattermost-plugin-msteams",
   "support_url": "https://github.com/mattermost/mattermost-plugin-msteams/issues",
   "icon_path": "assets/icon.svg",
