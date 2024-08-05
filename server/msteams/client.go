@@ -28,6 +28,7 @@ import (
 	msgraphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	a "github.com/microsoftgraph/msgraph-sdk-go-core/authentication"
 	"github.com/microsoftgraph/msgraph-sdk-go/chats"
+	"github.com/microsoftgraph/msgraph-sdk-go/communications"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -2128,6 +2129,39 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 	}
 
 	return &clientmodels.Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
+}
+
+func (tc *ClientImpl) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+	body := communications.NewGetPresencesByUserIdPostRequestBody()
+	body.SetIds(userIDs)
+
+	res, err := tc.client.Communications().GetPresencesByUserId().PostAsGetPresencesByUserIdPostResponse(context.Background(), body, nil)
+	if err != nil {
+		return nil, NormalizeGraphAPIError(err)
+	}
+
+	rawPresences := res.GetValue()
+	presences := make(map[string]*clientmodels.Presence, len(rawPresences))
+
+	for _, rawPresence := range rawPresences {
+		var presence clientmodels.Presence
+
+		if rawPresence.GetId() == nil {
+			continue
+		}
+		presence.UserID = *rawPresence.GetId()
+
+		if rawPresence.GetActivity() != nil {
+			presence.Activity = *rawPresence.GetActivity()
+		}
+		if rawPresence.GetAvailability() != nil {
+			presence.Availability = *rawPresence.GetAvailability()
+		}
+
+		presences[presence.UserID] = &presence
+	}
+
+	return presences, nil
 }
 
 func GetAuthURL(redirectURL string, tenantID string, clientID string, clientSecret string, state string, codeVerifier string) string {

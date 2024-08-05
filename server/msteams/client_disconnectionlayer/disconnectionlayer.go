@@ -212,6 +212,17 @@ func (c *ClientDisconnectionLayer) GetMyID() (string, error) {
 	return result, err
 }
 
+func (c *ClientDisconnectionLayer) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+	result, err := c.Client.GetPresencesForUsers(userIDs)
+	if err != nil {
+		var graphErr *msteams.GraphAPIError
+		if msteams.IsOAuthError(err) || (errors.As(err, &graphErr) && graphErr.StatusCode == http.StatusUnauthorized) {
+			c.onDisconnect(c.userID)
+		}
+	}
+	return result, err
+}
+
 func (c *ClientDisconnectionLayer) GetReply(teamID string, channelID string, messageID string, replyID string) (*clientmodels.Message, error) {
 	result, err := c.Client.GetReply(teamID, channelID, messageID, replyID)
 	if err != nil {

@@ -87,6 +87,13 @@ func getExpectedPermissions() []expectedPermission {
 				Type: "Role",
 			},
 		},
+		{
+			Name: "https://graph.microsoft.com/Presence.Read.All",
+			ResourceAccess: clientmodels.ResourceAccess{
+				ID:   "a70e0c2d-e793-494c-94c4-118fa0a67f42",
+				Type: "Role",
+			},
+		},
 	}
 }
 
