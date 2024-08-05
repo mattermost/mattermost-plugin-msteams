@@ -25,7 +25,7 @@
           "uid": "${datasource}"
         },
         "enable": true,
-        "expr": "msteams_connect_system_plugin_start_timestamp_seconds{namespace=\"$namespace\"} * 1000",
+        "expr": "msteams_connect_system_plugin_start_timestamp_seconds{namespace=~\"$namespace\"} * 1000",
         "iconColor": "green",
         "name": "Plugin Start",
         "target": {
@@ -44,7 +44,7 @@
           "uid": "${datasource}"
         },
         "enable": true,
-        "expr": "kube_pod_created{namespace=\"$namespace\"} * 1000",
+        "expr": "kube_pod_created{namespace=~\"$namespace\"} * 1000",
         "iconColor": "yellow",
         "name": "Pod created",
         "target": {
@@ -1409,7 +1409,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\",method=~\"$top_db_count\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\",method=~\"$top_db_count\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{method}}",
           "range": true,
@@ -1641,7 +1641,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method)",
+          "expr": "sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=~\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\",method=~\"$top_db_latency\"}[5m])) by (method)",
           "instant": false,
           "legendFormat": "{{method}}",
           "range": true,
@@ -1852,7 +1852,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_system_plugin_goroutine_failures_total{namespace=\"$namespace\"}[5m])) by (instance) ",
+          "expr": "sum(rate(msteams_connect_system_plugin_goroutine_failures_total{namespace=~\"$namespace\"}[5m])) by (instance) ",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3039,7 +3039,7 @@
             "uid": "P3497915E6DC419FB"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_msgraph_oauth_token_invalidated_total{namespace=\"$namespace\"}[5m]))",
+          "expr": "sum(increase(msteams_connect_msgraph_oauth_token_invalidated_total{namespace=~\"$namespace\"}[5m]))",
           "instant": false,
           "legendFormat": "Invalidated Tokens",
           "range": true,
@@ -3285,7 +3285,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_app_change_event_queue_length{namespace=\"$namespace\"}[5m])) by (instance)",
+          "expr": "sum(increase(msteams_connect_app_change_event_queue_length{namespace=~\"$namespace\"}[5m])) by (instance)",
           "hide": false,
           "instant": false,
           "legendFormat": "Length {{instance}}",
@@ -3298,7 +3298,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(msteams_connect_events_change_event_queue_rejected_total{namespace=\"$namespace\"}[5m])) by (instance)",
+          "expr": "sum(increase(msteams_connect_events_change_event_queue_rejected_total{namespace=~\"$namespace\"}[5m])) by (instance)",
           "hide": false,
           "instant": false,
           "legendFormat": "Rejected {{instance}}",
@@ -3405,7 +3405,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[5m])) by (change_type)",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=~\"$namespace\",discarded_reason=\"\"}[5m])) by (change_type)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3502,7 +3502,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=~\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3594,7 +3594,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_change_events_total{namespace=\"$namespace\"}[15m]))",
+          "expr": "sum(rate(msteams_connect_events_change_events_total{namespace=~\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_change_events_total{namespace=~\"$namespace\"}[15m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3691,7 +3691,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\"}[5m])) by (event_type)",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=~\"$namespace\"}[5m])) by (event_type)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3788,7 +3788,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=~\"$namespace\",discarded_reason!=\"\"}[5m])) by (discarded_reason)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3880,7 +3880,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_lifecycle_events_total{namespace=\"$namespace\"}[15m]))",
+          "expr": "sum(rate(msteams_connect_events_lifecycle_events_total{namespace=~\"$namespace\",discarded_reason=\"\"}[15m])) / sum(rate(msteams_connect_events_lifecycle_events_total{namespace=~\"$namespace\"}[15m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3977,7 +3977,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_subscriptions_total{namespace=\"$namespace\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_subscriptions_total{namespace=~\"$namespace\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "{{action}}",
           "range": true,
@@ -4074,7 +4074,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=\"$namespace\",is_group_chat=\"false\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=~\"$namespace\",is_group_chat=\"false\"}[5m])) by (action)",
           "instant": false,
           "legendFormat": "Chat",
           "range": true,
@@ -4086,7 +4086,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=\"$namespace\",is_group_chat=\"true\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=~\"$namespace\",is_group_chat=\"true\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Group",
@@ -4099,7 +4099,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=\"$namespace\"}[5m])) by (action)",
+          "expr": "sum(rate(msteams_connect_events_notifications_total{namespace=~\"$namespace\"}[5m])) by (action)",
           "hide": false,
           "instant": false,
           "legendFormat": "Total",
@@ -4888,7 +4888,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(mattermost_db_master_connections_total{namespace=\"${namespace}\"})",
+          "expr": "sum(mattermost_db_master_connections_total{namespace=~\"${namespace}\"})",
           "interval": "",
           "legendFormat": "master",
           "range": true,
@@ -4900,7 +4900,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(mattermost_db_read_replica_connections_total{namespace=\"${namespace}\"})",
+          "expr": "sum(mattermost_db_read_replica_connections_total{namespace=~\"${namespace}\"})",
           "interval": "",
           "legendFormat": "replica",
           "range": true,
@@ -4952,7 +4952,7 @@
             "uid": "P4F55509B51A00EB7"
           },
           "editorMode": "code",
-          "expr": "{namespace=\"$namespace\"} | json | plugin_id=\"com.mattermost.msteams-sync\" | level=\"error\"",
+          "expr": "{namespace=~\"$namespace\"} | json | plugin_id=\"com.mattermost.msteams-sync\" | level=\"error\"",
           "queryType": "range",
           "refId": "A"
         },
@@ -4962,7 +4962,7 @@
             "uid": "PFB2D5CACEC34D62E"
           },
           "editorMode": "code",
-          "expr": "{namespace=\"$namespace\"} | json | plugin_id=\"com.mattermost.msteams-sync\" | level=\"error\"",
+          "expr": "{namespace=~\"$namespace\"} | json | plugin_id=\"com.mattermost.msteams-sync\" | level=\"error\"",
           "hide": false,
           "queryType": "range",
           "refId": "B"
@@ -5093,7 +5093,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
         "hide": 2,
         "includeAll": true,
         "multi": true,
@@ -5101,7 +5101,7 @@
         "options": [],
         "query": {
           "qryType": 3,
-          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -5124,7 +5124,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=~\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
         "hide": 2,
         "includeAll": true,
         "multi": true,
@@ -5132,7 +5132,7 @@
         "options": [],
         "query": {
           "qryType": 3,
-          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "query": "query_result(topk(10, sum(increase(msteams_connect_db_store_time_seconds_sum{namespace=~\"$namespace\"}[${__range_s}s])) by (method) / sum(increase(msteams_connect_db_store_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -5155,7 +5155,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
         "description": "",
         "hide": 2,
         "includeAll": true,
@@ -5164,7 +5164,7 @@
         "options": [],
         "query": {
           "qryType": 3,
-          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -5187,7 +5187,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+        "definition": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
         "description": "",
         "hide": 2,
         "includeAll": true,
@@ -5196,7 +5196,7 @@
         "options": [],
         "query": {
           "qryType": 3,
-          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=\"$namespace\"}[${__range_s}s])) by (method)))",
+          "query": "query_result(topk(10, sum(increase(msteams_connect_msgraph_client_time_seconds_count{namespace=~\"$namespace\"}[${__range_s}s])) by (method)))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
