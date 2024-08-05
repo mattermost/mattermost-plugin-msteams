@@ -49,6 +49,13 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 
 		if !ah.plugin.getNotificationPreference(mattermostUserID) {
+			ah.plugin.GetAPI().LogInfo(
+				"Skipping notification for chat member who disabled notifications",
+				"user_id", mattermostUserID,
+				"teams_user_id", member.UserID,
+				"chat_id", chat.ID,
+				"message_id", msg.ID,
+			)
 			continue
 		}
 
