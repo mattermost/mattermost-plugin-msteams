@@ -70,11 +70,6 @@ func (_m *Metrics) ObserveActiveUsersReceiving(count int64) {
 	_m.Called(count)
 }
 
-// ObserveActiveUsersSending provides a mock function with given fields: count
-func (_m *Metrics) ObserveActiveUsersSending(count int64) {
-	_m.Called(count)
-}
-
 // ObserveChangeEvent provides a mock function with given fields: changeType, discardedReason
 func (_m *Metrics) ObserveChangeEvent(changeType string, discardedReason string) {
 	_m.Called(changeType, discardedReason)

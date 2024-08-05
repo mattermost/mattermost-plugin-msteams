@@ -91,6 +91,20 @@ func (s *TimerLayer) DeleteUserInvite(mmUserID string) error {
 	return err
 }
 
+func (s *TimerLayer) GetActiveUsersCount(dur time.Duration) (int64, error) {
+	start := time.Now()
+
+	result, err := s.Store.GetActiveUsersCount(dur)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	success := "false"
+	if err == nil {
+		success = "true"
+	}
+	s.metrics.ObserveStoreMethodDuration("Store.GetActiveUsersCount", success, elapsed)
+	return result, err
+}
+
 func (s *TimerLayer) GetChannelSubscription(subscriptionID string) (*storemodels.ChannelSubscription, error) {
 	start := time.Now()
 
@@ -340,20 +354,6 @@ func (s *TimerLayer) GetTokenForMattermostUser(userID string) (*oauth2.Token, er
 		success = "true"
 	}
 	s.metrics.ObserveStoreMethodDuration("Store.GetTokenForMattermostUser", success, elapsed)
-	return result, err
-}
-
-func (s *TimerLayer) GetActiveUsersCount(dur time.Duration) (int64, error) {
-	start := time.Now()
-
-	result, err := s.Store.GetActiveUsersCount(dur)
-
-	elapsed := float64(time.Since(start)) / float64(time.Second)
-	success := "false"
-	if err == nil {
-		success = "true"
-	}
-	s.metrics.ObserveStoreMethodDuration("Store.GetActiveUsersCount", success, elapsed)
 	return result, err
 }
 
