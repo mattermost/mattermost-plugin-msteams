@@ -34,6 +34,8 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 	botUserID := ah.plugin.GetBotUserID()
 
 	chatLink := fmt.Sprintf("https://teams.microsoft.com/l/message/%s/%s?tenantId=%s&context={\"contextType\":\"chat\"}", chat.ID, msg.ID, ah.plugin.GetTenantID())
+	isGroupChat := len(chat.Members) >= 3
+	hasFilesUnknown := false
 	for _, member := range chat.Members {
 		// Don't notify senders about their own posts.
 		if member.UserID == msg.UserID {
@@ -45,6 +47,7 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 			continue
 		} else if err != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to map Teams user to Mattermost user", "teams_user_id", member.UserID, "error", err)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFilesUnknown, metrics.DiscardedReasonInternalError)
 			continue
 		}
 
@@ -56,6 +59,7 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 				"chat_id", chat.ID,
 				"message_id", msg.ID,
 			)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFilesUnknown, metrics.DiscardedReasonUserDisabledNotifications)
 			continue
 		}
 
@@ -70,18 +74,21 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 				"activity", presences[member.UserID].Activity,
 				"availability", presences[member.UserID].Availability,
 			)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFilesUnknown, metrics.DiscardedReasonUserActiveInTeams)
 			continue
 		}
 
 		channel, err := ah.plugin.apiClient.Channel.GetDirect(mattermostUserID, ah.plugin.botUserID)
 		if err != nil {
 			ah.plugin.GetAPI().LogWarn("Failed to get bot DM channel with user", "user_id", mattermostUserID, "teams_user_id", member.UserID, "error", err)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFilesUnknown, metrics.DiscardedReasonInternalError)
 			continue
 		}
 
 		post, skippedFileAttachments, _ := ah.msgToPost(channel.Id, botUserID, msg, chat, []string{})
 
-		ah.plugin.metricsService.ObserveNotification(len(chat.Members) >= 3, len(post.FileIds) > 0)
+		hasFiles := len(post.FileIds) > 0
+		ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonNone)
 		ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
