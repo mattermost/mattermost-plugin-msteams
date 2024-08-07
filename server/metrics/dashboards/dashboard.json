@@ -4882,7 +4882,7 @@
             "uid": "P27C405C01959D762"
           },
           "editorMode": "code",
-          "expr": "sum(msteams_connect_app_active_workers_total) by (worker)",
+          "expr": "sum(msteams_connect_app_active_workers_total{namespace=~\"$namespace\"}) by (worker)",
           "instant": false,
           "legendFormat": "{{worker}}",
           "range": true,
