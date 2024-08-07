@@ -143,6 +143,7 @@ func (ah *ActivityHandler) Handle(activity msteams.Activity) error {
 
 func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 	if event.LifecycleEvent != "reauthorizationRequired" {
+		ah.plugin.GetAPI().LogWarn("Ignoring unknown lifecycle event", "lifecycle_event", event.LifecycleEvent)
 		ah.plugin.GetMetrics().ObserveLifecycleEvent(event.LifecycleEvent, metrics.DiscardedReasonUnknownLifecycleEvent)
 		return
 	}
@@ -156,7 +157,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		ah.plugin.GetAPI().LogWarn("Failed to lookup subscription, refreshing anyway", "subscription_id", event.SubscriptionID, "error", err.Error())
 	}
 
-	ah.plugin.GetAPI().LogWarn("Refreshing subscription", "subscription_id", event.SubscriptionID)
+	ah.plugin.GetAPI().LogInfo("Refreshing subscription", "subscription_id", event.SubscriptionID)
 	expiresOn, err := ah.plugin.GetClientForApp().RefreshSubscription(event.SubscriptionID)
 	if err != nil {
 		ah.plugin.GetAPI().LogWarn("Unable to refresh the subscription", "subscription_id", event.SubscriptionID, "error", err.Error())
@@ -164,7 +165,7 @@ func (ah *ActivityHandler) HandleLifecycleEvent(event msteams.Activity) {
 		return
 	}
 
-	ah.plugin.GetAPI().LogWarn("Refreshed subscription", "subscription_id", event.SubscriptionID, "expires_on", expiresOn.Format("2006-01-02 15:04:05.000 Z07:00"))
+	ah.plugin.GetAPI().LogInfo("Refreshed subscription", "subscription_id", event.SubscriptionID, "expires_on", expiresOn.Format("2006-01-02 15:04:05.000 Z07:00"))
 	ah.plugin.GetMetrics().ObserveSubscription(metrics.SubscriptionRefreshed)
 
 	if err = ah.plugin.GetStore().UpdateSubscriptionExpiresOn(event.SubscriptionID, *expiresOn); err != nil {
