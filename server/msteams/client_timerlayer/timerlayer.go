@@ -412,6 +412,28 @@ func (c *ClientTimerLayer) GetMyID() (string, error) {
 	return result, err
 }
 
+func (c *ClientTimerLayer) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+	statusCode := "2XX"
+	success := "true"
+	start := time.Now()
+
+	result, err := c.Client.GetPresencesForUsers(userIDs)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+
+	if err != nil {
+		success = "false"
+		statusCode = "0"
+		var apiErr *msteams.GraphAPIError
+		if errors.As(err, &apiErr) {
+			statusCode = strconv.Itoa(apiErr.StatusCode)
+		}
+	}
+
+	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetPresencesForUsers", success, statusCode, elapsed)
+	return result, err
+}
+
 func (c *ClientTimerLayer) GetReply(teamID string, channelID string, messageID string, replyID string) (*clientmodels.Message, error) {
 	statusCode := "2XX"
 	success := "true"

@@ -77,7 +77,7 @@ func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
 	msg := []string{
 		"**Notifications from chats and group chats**",
-		"When you enable this feature, you'll be notified here in Mattermost by the MS Teams bot whenever you receive a message from a chat or group chat from Microsoft Teams!",
+		"When you enable this feature, you'll be notified here in Mattermost whenever you're away from Microsoft Teams and receive a message from a chat or group chat.",
 		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
 	}
 

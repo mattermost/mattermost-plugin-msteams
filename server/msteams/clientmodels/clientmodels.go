@@ -114,3 +114,9 @@ type App struct {
 	Credentials       []Credential
 	RequiredResources []ResourceAccess
 }
+
+type Presence struct {
+	UserID       string
+	Availability string
+	Activity     string
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/pkg/errors"
 )
 
 func isExpired(expiresOn time.Time) bool {
@@ -139,8 +140,7 @@ func (m *Monitor) checkGlobalChatsSubscription(remoteSubscription *clientmodels.
 func (m *Monitor) getMSTeamsSubscriptionsMap() (msteamsSubscriptionsMap map[string]*clientmodels.Subscription, allChatsSubscription *clientmodels.Subscription, err error) {
 	msteamsSubscriptions, err := m.client.ListSubscriptions()
 	if err != nil {
-		m.api.LogError("Unable to list MS Teams subscriptions", "error", err.Error())
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "failed to list subscriptions")
 	}
 
 	msteamsSubscriptionsMap = make(map[string]*clientmodels.Subscription)

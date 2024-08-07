@@ -133,6 +133,7 @@ func TestHandleCreatedActivity(t *testing.T) {
 	t.Run("notifications", func(t *testing.T) {
 		type parameters struct {
 			NotificationPref bool
+			OnlineInTeams    bool
 		}
 		runPermutations(t, parameters{}, func(t *testing.T, params parameters) {
 			th.Reset(t)
@@ -162,10 +163,25 @@ func TestHandleCreatedActivity(t *testing.T) {
 				mockTeams.registerChat(activityIds.ChatID, []*model.User{user1, senderUser})
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
 
+				user1Presence := clientmodels.Presence{
+					UserID: "t" + user1.Id,
+				}
+				if params.OnlineInTeams {
+					user1Presence.Activity = PresenceActivityAvailable
+					user1Presence.Availability = PresenceAvailabilityAvailable
+				} else {
+					user1Presence.Activity = PresenceActivityOffline
+					user1Presence.Availability = PresenceAvailabilityOffline
+				}
+
+				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id}).Return(map[string]*clientmodels.Presence{
+					"t" + user1.Id: &user1Presence,
+				}, nil).Times(1)
+
 				discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 				assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 
-				if params.NotificationPref {
+				if params.NotificationPref && !params.OnlineInTeams {
 					th.assertDMFromUserRe(t, botUser.Id, user1.Id, "message")
 				} else {
 					th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
@@ -187,6 +203,17 @@ func TestHandleCreatedActivity(t *testing.T) {
 				user2 := th.SetupUser(t, team)
 				th.ConnectUser(t, user2.Id)
 
+				// user2 always prefers to get the notification
+				err = th.p.setNotificationPreference(user2.Id, true)
+				require.NoError(t, err)
+
+				user3 := th.SetupUser(t, team)
+				th.ConnectUser(t, user3.Id)
+
+				// user3 always prefers to get the notification
+				err = th.p.setNotificationPreference(user3.Id, true)
+				require.NoError(t, err)
+
 				botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
 				require.NoError(t, err)
 				th.ConnectUser(t, botUser.Id)
@@ -197,17 +224,41 @@ func TestHandleCreatedActivity(t *testing.T) {
 				}
 
 				mockTeams := newMockTeamsHelper(th)
-				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, senderUser})
+				mockTeams.registerGroupChat(activityIds.ChatID, []*model.User{user1, user2, user3})
 				mockTeams.registerChatMessage(activityIds.ChatID, activityIds.MessageID, senderUser, "message")
+
+				user1Presence := clientmodels.Presence{
+					UserID: "t" + user1.Id,
+				}
+				if params.OnlineInTeams {
+					user1Presence.Activity = PresenceActivityAvailable
+					user1Presence.Availability = PresenceAvailabilityAvailable
+				} else {
+					user1Presence.Activity = PresenceActivityOffline
+					user1Presence.Availability = PresenceAvailabilityOffline
+				}
+
+				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id, "t" + user2.Id, "t" + user3.Id}).Return(map[string]*clientmodels.Presence{
+					"t" + user1.Id: &user1Presence,
+					"t" + user2.Id: {
+						UserID:       "t" + user2.Id,
+						Activity:     PresenceActivityOffline,
+						Availability: PresenceAvailabilityOffline,
+					},
+					// no presence for user3: should always get the message
+				}, nil).Times(1)
 
 				discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
 				assert.Equal(t, metrics.DiscardedReasonNone, discardReason)
 
-				if params.NotificationPref {
+				if params.NotificationPref && !params.OnlineInTeams {
 					th.assertDMFromUserRe(t, botUser.Id, user1.Id, "message")
 				} else {
 					th.assertNoDMFromUser(t, botUser.Id, user1.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 				}
+
+				th.assertDMFromUserRe(t, botUser.Id, user2.Id, "message")
+				th.assertDMFromUserRe(t, botUser.Id, user3.Id, "message")
 			})
 		})
 	})

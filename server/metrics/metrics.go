@@ -49,6 +49,9 @@ const (
 	DiscardedReasonNotificationsOnly               = "notifications_only"
 	DiscardedReasonChannelNotificationsUnsupported = "channel_notifications_unsupported"
 	DiscardedReasonNoConnectedUser                 = "no_connected_user"
+	DiscardedReasonUserDisabledNotifications       = "user_disabled_notifications"
+	DiscardedReasonUserActiveInTeams               = "user_active_in_teams"
+	DiscardedReasonInternalError                   = "internal_error"
 
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"
@@ -100,7 +103,7 @@ type Metrics interface {
 	ObserveSyncMsgPostDelay(action string, delayMillis int64)
 	ObserveSyncMsgReactionDelay(action string, delayMillis int64)
 	ObserveSyncMsgFileDelay(action string, delayMillis int64)
-	ObserveNotification(isGroupChat, hasAttachments bool)
+	ObserveNotification(isGroupChat, hasAttachments bool, discardedReason string)
 }
 
 type InstanceInfo struct {
@@ -452,7 +455,7 @@ func NewMetrics(info InstanceInfo) Metrics {
 		Name:        "notifications_total",
 		Help:        "The total number of chat notifications delivered.",
 		ConstLabels: additionalLabels,
-	}, []string{"is_group_chat", "has_attachments"})
+	}, []string{"is_group_chat", "has_attachments", "discarded_reason"})
 	m.registry.MustRegister(m.notificationsTotal)
 
 	return m
@@ -685,11 +688,12 @@ func (m *metrics) ObserveWorker(worker string) func() {
 	return func() {}
 }
 
-func (m *metrics) ObserveNotification(isGroupChat, hasAttachments bool) {
+func (m *metrics) ObserveNotification(isGroupChat, hasAttachments bool, discardedReason string) {
 	if m != nil {
 		m.notificationsTotal.With(prometheus.Labels{
-			"is_group_chat":   strconv.FormatBool(isGroupChat),
-			"has_attachments": strconv.FormatBool(hasAttachments),
+			"is_group_chat":    strconv.FormatBool(isGroupChat),
+			"has_attachments":  strconv.FormatBool(hasAttachments),
+			"discarded_reason": discardedReason,
 		}).Inc()
 	}
 }
