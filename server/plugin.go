@@ -504,7 +504,7 @@ func generateSecret() (string, error) {
 }
 
 func (p *Plugin) GenerateRandomPassword() string {
-	lowerCharSet := "abcdedfghijklmnopqrst"
+	lowerCharSet := "abcdefghijklmnopqrstuvwxyz"
 	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	specialCharSet := "!@#$%&*"
 	numberSet := "0123456789"
