@@ -21,7 +21,7 @@ require (
 	github.com/microsoft/kiota-abstractions-go v1.6.1
 	github.com/microsoft/kiota-http-go v1.4.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.46.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
