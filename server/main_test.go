@@ -54,8 +54,7 @@ func (mt *mainT) FailNow() {
 // use with tests.
 func setupDatabase(mt *mainT) error {
 	// Setup a Postgres testcontainer for all tests.
-	pgContainer, err := postgres.RunContainer(context.TODO(),
-		testcontainers.WithImage("docker.io/postgres:15.2-alpine"),
+	pgContainer, err := postgres.Run(context.TODO(), "docker.io/postgres:15.2-alpine",
 		postgres.WithDatabase("mattermost_test"),
 		postgres.WithUsername("mmuser"),
 		postgres.WithPassword("mostest"),
