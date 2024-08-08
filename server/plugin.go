@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"runtime/debug"
@@ -501,33 +500,6 @@ func generateSecret() (string, error) {
 	s := base64.RawStdEncoding.EncodeToString(b)
 	s = s[:32]
 	return s, nil
-}
-
-func (p *Plugin) GenerateRandomPassword() string {
-	lowerCharSet := "abcdedfghijklmnopqrst"
-	upperCharSet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	specialCharSet := "!@#$%&*"
-	numberSet := "0123456789"
-	allCharSet := lowerCharSet + upperCharSet + specialCharSet + numberSet
-
-	var password strings.Builder
-
-	password.WriteString(getRandomString(lowerCharSet, 1))
-	password.WriteString(getRandomString(upperCharSet, 1))
-	password.WriteString(getRandomString(specialCharSet, 1))
-	password.WriteString(getRandomString(numberSet, 1))
-	password.WriteString(getRandomString(allCharSet, 20))
-	return password.String()
-}
-
-func getRandomString(characterSet string, length int) string {
-	var randomString strings.Builder
-	for i := 0; i < length; i++ {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(characterSet))))
-		randomString.WriteString(string(characterSet[num.Int64()]))
-	}
-
-	return randomString.String()
 }
 
 func (p *Plugin) IsUserConnected(userID string) (bool, error) {
