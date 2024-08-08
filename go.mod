@@ -18,9 +18,9 @@ require (
 	github.com/mattermost/mattermost/server/public v0.1.4
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20240520151130-4bdd8bb18e47
 	github.com/mattermost/morph v1.1.0
-	github.com/microsoft/kiota-abstractions-go v1.6.0
+	github.com/microsoft/kiota-abstractions-go v1.6.1
 	github.com/microsoft/kiota-http-go v1.4.1
-	github.com/microsoftgraph/msgraph-sdk-go v1.43.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.46.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
@@ -199,7 +199,7 @@ require (
 	github.com/splitio/go-split-commons/v5 v5.2.1 // indirect
 	github.com/splitio/go-toolkit/v5 v5.4.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.55 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.57 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/throttled/throttled v2.2.5+incompatible // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
