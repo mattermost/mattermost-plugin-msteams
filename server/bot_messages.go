@@ -39,7 +39,10 @@ func (p *Plugin) SendEphemeralConnectMessage(channelID string, userID string, me
 		Message:   connectMessage,
 	}
 	p.API.SendEphemeralPost(userID, post)
+
+	p.API.LogInfo("Sent ephemeral connect message to user", "user_id", userID)
 }
+
 func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
 	post := &model.Post{
 		Message:   message,
@@ -61,6 +64,8 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	if err := p.apiClient.Post.UpdatePost(post); err != nil {
 		p.GetAPI().LogWarn("Failed to update connection post", "user_id", userID, "error", err)
 	}
+
+	p.API.LogInfo("Sent connect message to user", "user_id", userID)
 }
 
 func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
@@ -70,6 +75,8 @@ func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 	); err != nil {
 		return errors.Wrapf(err, "failed to send welcome message to user %s", userID)
 	}
+
+	p.API.LogInfo("Sent welcome message with notification action to user", "user_id", userID)
 
 	return nil
 }
@@ -172,4 +179,6 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 	}); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
 	}
+
+	p.GetAPI().LogInfo("Sent chat notification message to user", "user_id", recipientUserID, "num_file_attachments", len(fileIds), "skipped_file_attachments", skippedFileAttachments)
 }
