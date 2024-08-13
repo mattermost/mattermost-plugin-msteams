@@ -168,6 +168,8 @@ func (p *Plugin) executeDisconnectCommand(args *model.CommandArgs) (*model.Comma
 		return p.cmdSuccess(args, fmt.Sprintf("Error: unable to disconnect your account, %s", err.Error()))
 	}
 
+	p.API.LogInfo("User disconnected from Teams", "user_id", args.UserId, "teams_user_id", teamsUserID)
+
 	p.API.PublishWebSocketEvent(WSEventUserDisconnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: args.UserId,
 	})

@@ -282,6 +282,8 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.API.LogInfo("Redirecting user to OAuth flow", "user_id", userID)
+
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
@@ -488,8 +490,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if nAvailable > 0 {
+				a.p.API.LogWarn("Denying attempt to connect because invitation is required", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.", http.StatusBadRequest)
 			} else {
+				a.p.API.LogWarn("Denying attempt to connect because max limit reached", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
 			}
 			return
@@ -501,6 +505,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.LogInfo("User successfully connected to Teams", "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 
 	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: mmUserID,
