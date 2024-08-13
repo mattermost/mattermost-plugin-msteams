@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/enescakir/emoji"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -31,7 +30,6 @@ type ActivityHandler struct {
 	quit                 chan bool
 	workersWaitGroup     sync.WaitGroup
 	IgnorePluginHooksMap sync.Map
-	lastUpdateAtMap      sync.Map
 }
 
 func NewActivityHandler(plugin *Plugin) *ActivityHandler {
@@ -80,30 +78,6 @@ func (ah *ActivityHandler) Start() {
 		ah.workersWaitGroup.Done()
 	}
 
-	// doStart is the meat of the activity handler worker
-	doStartLastActivityAt := func() {
-		updateLastActivityAt := func(subscriptionID, lastUpdateAt any) bool {
-			if time.Since(lastUpdateAt.(time.Time)) <= 5*time.Minute {
-				if err := ah.plugin.GetStore().UpdateSubscriptionLastActivityAt(subscriptionID.(string), lastUpdateAt.(time.Time)); err != nil {
-					ah.plugin.GetAPI().LogWarn("Error storing the subscription last activity at", "error", err, "subscription_id", subscriptionID.(string), "last_update_at", lastUpdateAt.(time.Time))
-				}
-			}
-			return true
-		}
-		for {
-			timer := time.NewTimer(5 * time.Minute)
-			select {
-			case <-timer.C:
-				ah.lastUpdateAtMap.Range(updateLastActivityAt)
-			case <-ah.quit:
-				// we have received a signal to stop
-				timer.Stop()
-				ah.lastUpdateAtMap.Range(updateLastActivityAt)
-				return
-			}
-		}
-	}
-
 	// isQuitting informs the recovery handler if the shutdown is intentional
 	isQuitting := func() bool {
 		select {
@@ -121,7 +95,6 @@ func (ah *ActivityHandler) Start() {
 		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart, doQuit)
 	}
 	ah.workersWaitGroup.Add(1)
-	startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStartLastActivityAt, doQuit)
 }
 
 func (ah *ActivityHandler) Stop() {

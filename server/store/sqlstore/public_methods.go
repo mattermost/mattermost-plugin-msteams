@@ -106,10 +106,6 @@ func (s *SQLStore) GetSubscriptionType(subscriptionID string) (string, error) {
 	return s.getSubscriptionType(s.replica, subscriptionID)
 }
 
-func (s *SQLStore) GetSubscriptionsLastActivityAt() (map[string]time.Time, error) {
-	return s.getSubscriptionsLastActivityAt(s.replica)
-}
-
 func (s *SQLStore) GetTokenForMSTeamsUser(userID string) (*oauth2.Token, error) {
 	return s.getTokenForMSTeamsUser(s.replica, userID)
 }
@@ -312,8 +308,4 @@ func (s *SQLStore) TeamsToMattermostUserID(userID string) (string, error) {
 
 func (s *SQLStore) UpdateSubscriptionExpiresOn(subscriptionID string, expiresOn time.Time) error {
 	return s.updateSubscriptionExpiresOn(s.db, subscriptionID, expiresOn)
-}
-
-func (s *SQLStore) UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error {
-	return s.updateSubscriptionLastActivityAt(s.db, subscriptionID, lastActivityAt)
 }
