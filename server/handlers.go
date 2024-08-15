@@ -94,7 +94,6 @@ func (ah *ActivityHandler) Start() {
 		ah.workersWaitGroup.Add(1)
 		startWorker(logError, ah.plugin.GetMetrics(), isQuitting, doStart, doQuit)
 	}
-	ah.workersWaitGroup.Add(1)
 }
 
 func (ah *ActivityHandler) Stop() {
