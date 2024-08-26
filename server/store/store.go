@@ -78,6 +78,4 @@ type Store interface {
 	GetChatSubscription(subscriptionID string) (*storemodels.ChatSubscription, error)
 	GetGlobalSubscription(subscriptionID string) (*storemodels.GlobalSubscription, error)
 	GetSubscriptionType(subscriptionID string) (string, error)
-	UpdateSubscriptionLastActivityAt(subscriptionID string, lastActivityAt time.Time) error
-	GetSubscriptionsLastActivityAt() (map[string]time.Time, error)
 }

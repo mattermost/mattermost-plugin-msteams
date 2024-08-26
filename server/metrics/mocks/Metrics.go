@@ -140,9 +140,9 @@ func (_m *Metrics) ObserveMessageDelay(action string, source string, isDirectOrG
 	_m.Called(action, source, isDirectOrGroupMessage, delay)
 }
 
-// ObserveNotification provides a mock function with given fields: isGroupChat, hasAttachments
-func (_m *Metrics) ObserveNotification(isGroupChat bool, hasAttachments bool) {
-	_m.Called(isGroupChat, hasAttachments)
+// ObserveNotification provides a mock function with given fields: isGroupChat, hasAttachments, discardedReason
+func (_m *Metrics) ObserveNotification(isGroupChat bool, hasAttachments bool, discardedReason string) {
+	_m.Called(isGroupChat, hasAttachments, discardedReason)
 }
 
 // ObserveOAuthTokenInvalidated provides a mock function with given fields:
