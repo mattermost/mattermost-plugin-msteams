@@ -333,7 +333,6 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -568,7 +567,6 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -593,7 +591,6 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -645,7 +642,6 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -697,7 +693,6 @@ func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
