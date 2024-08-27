@@ -88,6 +88,16 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		post, skippedFileAttachments, _ := ah.msgToPost(channel.Id, botUserID, msg, chat, []string{})
 
 		hasFiles := len(post.FileIds) > 0
+
+		ah.plugin.GetAPI().LogInfo(
+			"Delivered notification for chat member away from Teams",
+			"user_id", mattermostUserID,
+			"teams_user_id", member.UserID,
+			"chat_id", chat.ID,
+			"message_id", msg.ID,
+			"activity", presences[member.UserID].Activity,
+			"availability", presences[member.UserID].Availability,
+		)
 		ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonNone)
 		ah.plugin.notifyChat(
 			mattermostUserID,
