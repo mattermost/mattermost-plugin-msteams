@@ -182,3 +182,26 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 
 	p.GetAPI().LogInfo("Sent chat notification message to user", "user_id", recipientUserID, "num_file_attachments", len(fileIds), "skipped_file_attachments", skippedFileAttachments)
 }
+
+func (p *Plugin) SendInviteMessage(user *model.User) error {
+	message := fmt.Sprintf("@%s, you've been invited by your administrator to connect your Mattermost account with Microsoft Teams.", user.Username)
+	invitePost := &model.Post{
+		Message: message,
+	}
+
+	if err := p.botSendDirectPost(user.Id, invitePost); err != nil {
+		p.GetAPI().LogWarn("Failed to send invitation message", "user_id", user.Id, "error", err)
+		return errors.Wrapf(err, "error sending invitation bot message")
+	}
+
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, invitePost.ChannelId)
+	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s).", invitePost.Message, connectURL)
+	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
+		p.GetAPI().LogWarn("Failed to update invitation message", "user_id", user.Id, "error", err)
+		return errors.Wrapf(err, "error updating invitation bot message")
+	}
+
+	p.GetAPI().LogInfo("Sent invitation message to user", "user_id", user.Id)
+
+	return nil
+}

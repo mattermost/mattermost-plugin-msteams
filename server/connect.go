@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 )
 
@@ -68,45 +66,25 @@ func (p *Plugin) MaybeSendInviteMessage(userID string, currentTime time.Time) (b
 		return false, nil
 	}
 
-	if err := p.SendInviteMessage(user, pendingSince, currentTime); err != nil {
+	if err := p.SendInviteMessage(user); err != nil {
 		return false, errors.Wrapf(err, "error sending invite")
 	}
 
-	return true, nil
-}
-
-func (p *Plugin) SendInviteMessage(user *model.User, pendingSince time.Time, currentTime time.Time) error {
-	invitedUser := &storemodels.InvitedUser{ID: user.Id, InvitePendingSince: pendingSince, InviteLastSentAt: currentTime}
+	invitedUser = &storemodels.InvitedUser{
+		ID:                 user.Id,
+		InvitePendingSince: pendingSince,
+		InviteLastSentAt:   currentTime,
+	}
 	if invitedUser.InvitePendingSince.IsZero() {
 		invitedUser.InvitePendingSince = currentTime
 	}
-
-	channel, err := p.apiClient.Channel.GetDirect(user.Id, p.botUserID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get bot DM channel with user_id %s", user.Id)
-	}
-
-	message := fmt.Sprintf("@%s, you've been invited by your administrator to connect your Mattermost account with Microsoft Teams.", user.Username)
-	invitePost := &model.Post{
-		Message:   message,
-		UserId:    p.botUserID,
-		ChannelId: channel.Id,
-	}
-	if err := p.apiClient.Post.CreatePost(invitePost); err != nil {
-		return errors.Wrapf(err, "error sending bot message")
-	}
-
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, channel.Id)
-	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s).", invitePost.Message, connectURL)
-	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
-		return errors.Wrapf(err, "error sending bot message")
-	}
-
 	if err := p.store.StoreInvitedUser(invitedUser); err != nil {
-		return errors.Wrapf(err, "error storing user in invite list")
+		return false, errors.Wrapf(err, "error storing user in invite list")
 	}
 
-	return nil
+	p.apiClient.Log.Info("Recorded user invite", "user_id", invitedUser.ID, "pending_since", invitedUser.InvitePendingSince, "last_sent_at", invitedUser.InviteLastSentAt)
+
+	return true, nil
 }
 
 func (p *Plugin) shouldSendInviteMessage(
