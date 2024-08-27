@@ -33,9 +33,9 @@ const (
 )
 
 // userPresenceIsActive returns true if the user is considered online in Teams.
-func userPresenceIsActive(presence *clientmodels.Presence) bool {
+func userPresenceIsActive(presence clientmodels.Presence) bool {
 	// If we're missing presence, default to the user being inactive.
-	if presence == nil {
+	if presence.UserID == "" {
 		return false
 	}
 

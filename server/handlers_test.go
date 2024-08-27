@@ -174,8 +174,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 					user1Presence.Availability = PresenceAvailabilityOffline
 				}
 
-				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id}).Return(map[string]*clientmodels.Presence{
-					"t" + user1.Id: &user1Presence,
+				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id}).Return(map[string]clientmodels.Presence{
+					"t" + user1.Id: user1Presence,
 				}, nil).Times(1)
 
 				discardReason := th.p.activityHandler.handleCreatedActivity(activityIds)
@@ -238,8 +238,8 @@ func TestHandleCreatedActivity(t *testing.T) {
 					user1Presence.Availability = PresenceAvailabilityOffline
 				}
 
-				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id, "t" + user2.Id, "t" + user3.Id}).Return(map[string]*clientmodels.Presence{
-					"t" + user1.Id: &user1Presence,
+				th.appClientMock.On("GetPresencesForUsers", []string{"t" + user1.Id, "t" + user2.Id, "t" + user3.Id}).Return(map[string]clientmodels.Presence{
+					"t" + user1.Id: user1Presence,
 					"t" + user2.Id: {
 						UserID:       "t" + user2.Id,
 						Activity:     PresenceActivityOffline,

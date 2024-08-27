@@ -412,7 +412,7 @@ func (c *ClientTimerLayer) GetMyID() (string, error) {
 	return result, err
 }
 
-func (c *ClientTimerLayer) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+func (c *ClientTimerLayer) GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error) {
 	statusCode := "2XX"
 	success := "true"
 	start := time.Now()
