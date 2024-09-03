@@ -1121,7 +1121,7 @@ func TestNotificationsWelcomeMessage(t *testing.T) {
 		err := json.NewDecoder(response.Body).Decode(&resp)
 		require.NoError(t, err)
 		assert.Len(t, resp.Update.Attachments(), 0)
-		assert.Equal(t, "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command.", resp.Update.Message)
+		assert.Equal(t, "You'll now be notified of all MS Teams chats when you're away or offline from MS Teams. To turn off these notifications, go to Settings > MS Teams.", resp.Update.Message)
 
 		// Assert: 2. the notification preference is updated
 		assert.True(t, th.p.getNotificationPreference(user1.Id))

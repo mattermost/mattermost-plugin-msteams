@@ -958,7 +958,7 @@ func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post.Message = "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command."
+	post.Message = "You'll now be notified of all MS Teams chats when you're away or offline from MS Teams. To turn off these notifications, go to Settings > MS Teams."
 	post.DelProp("attachments")
 
 	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{

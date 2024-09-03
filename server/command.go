@@ -74,8 +74,8 @@ func getAutocompleteData() *model.AutocompleteData {
 	notifications := model.NewAutocompleteData("notifications", "", "Enable or disable notifications from MSTeams. You must be connected to perform this action.")
 	notifications.AddStaticListArgument("status", true, []model.AutocompleteListItem{
 		{Item: "status", HelpText: "Show current notification status."},
-		{Item: "on", HelpText: "Enable notifications from chats and group chats."},
-		{Item: "off", HelpText: "Disable notifications from chats and group chats."},
+		{Item: "on", HelpText: "Enable notifications for MS Teams chats."},
+		{Item: "off", HelpText: "Disable notifications for MS Teams chats."},
 	})
 	cmd.AddCommand(notifications)
 
@@ -212,7 +212,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		if notificationPreferenceEnabled {
 			status = "enabled"
 		}
-		return p.cmdSuccess(args, fmt.Sprintf("Notifications from chats and group chats in MS Teams are currently %s.", status))
+		return p.cmdSuccess(args, fmt.Sprintf("Notifications for MS Teams chats are currently %s.", status))
 	case "on":
 		if !notificationPreferenceEnabled {
 			err = p.setNotificationPreference(args.UserId, true)
@@ -221,7 +221,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 				return p.cmdError(args, "Error: Unable to enable notifications.")
 			}
 		}
-		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now enabled.")
+		return p.cmdSuccess(args, "Notifications for MS Teams chats are now enabled.")
 	case "off":
 		if notificationPreferenceEnabled {
 			err = p.setNotificationPreference(args.UserId, false)
@@ -230,7 +230,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 				return p.cmdError(args, "Error: Unable to disable notifications.")
 			}
 		}
-		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now disabled.")
+		return p.cmdSuccess(args, "Notifications for MS Teams chats are now disabled.")
 	}
 
 	return p.cmdSuccess(args, parameters[0]+" is not a valid argument.")

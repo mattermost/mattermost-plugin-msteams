@@ -36,7 +36,7 @@ func TestSendWelcomeMessageWithNotificationAction(t *testing.T) {
 
 	post := posts.Posts[posts.Order[0]]
 	// make sure we have the message and a button
-	require.Contains(t, post.Message, "**Notifications from chats and group chats**")
+	require.Contains(t, post.Message, "**Get notified for MS Teams Chats**")
 	require.Len(t, post.Attachments(), 1)
 	require.Len(t, post.Attachments()[0].Actions, 2)
 	require.EqualValues(t, model.PostActionTypeButton, post.Attachments()[0].Actions[0].Type)
