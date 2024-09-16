@@ -645,48 +645,6 @@ func (s *SQLStore) updateSubscriptionExpiresOn(db sq.BaseRunner, subscriptionID 
 	return nil
 }
 
-func (s *SQLStore) updateSubscriptionLastActivityAt(db sq.BaseRunner, subscriptionID string, lastActivityAt time.Time) error {
-	query := s.getQueryBuilder(db).
-		Update(subscriptionsTableName).
-		Set("lastActivityAt", lastActivityAt.UnixMicro()).
-		Where(sq.And{
-			sq.Eq{"subscriptionID": subscriptionID},
-			sq.Or{sq.Lt{"lastActivityAt": lastActivityAt.UnixMicro()}, sq.Eq{"lastActivityAt": nil}},
-		})
-	_, err := query.Exec()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//db:withReplica
-func (s *SQLStore) getSubscriptionsLastActivityAt(db sq.BaseRunner) (map[string]time.Time, error) {
-	query := s.getQueryBuilder(db).
-		Select("subscriptionID, lastActivityAt").
-		From(subscriptionsTableName).
-		Where(
-			sq.NotEq{"lastActivityAt": nil},
-			sq.NotEq{"lastActivityAt": 0},
-		)
-	rows, err := query.Query()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := map[string]time.Time{}
-	for rows.Next() {
-		var lastActivityAt int64
-		var subscriptionID string
-		if scanErr := rows.Scan(&subscriptionID, &lastActivityAt); scanErr != nil {
-			return nil, scanErr
-		}
-		result[subscriptionID] = time.UnixMicro(lastActivityAt)
-	}
-	return result, nil
-}
-
 func (s *SQLStore) deleteSubscription(db sq.BaseRunner, subscriptionID string) error {
 	if _, err := s.getQueryBuilder(db).Delete(subscriptionsTableName).Where(sq.Eq{"subscriptionID": subscriptionID}).Exec(); err != nil {
 		return err
