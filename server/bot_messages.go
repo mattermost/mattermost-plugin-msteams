@@ -167,10 +167,10 @@ func formatNotificationMessage(actorDisplayName string, chatTopic string, chatSi
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, fileIds model.StringArray, skippedFileAttachments int) {
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, fileIds model.StringArray, skippedFileAttachments int) error {
 	formattedMessage := formatNotificationMessage(actorDisplayName, chatTopic, chatSize, chatLink, message, len(fileIds), skippedFileAttachments)
 	if formattedMessage == "" {
-		return
+		return nil
 	}
 
 	if err := p.botSendDirectPost(recipientUserID, &model.Post{
@@ -178,9 +178,11 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 		FileIds: fileIds,
 	}); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
+		return errors.Wrap(err, "error sending chat notification")
 	}
 
-	p.GetAPI().LogInfo("Sent chat notification message to user", "user_id", recipientUserID, "num_file_attachments", len(fileIds), "skipped_file_attachments", skippedFileAttachments)
+	p.GetAPI().LogInfo("Sent chat notification message to user", "user_id", recipientUserID)
+	return nil
 }
 
 func (p *Plugin) SendInviteMessage(user *model.User) error {
