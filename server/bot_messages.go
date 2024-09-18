@@ -82,38 +82,8 @@ func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
 }
 
 func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
-	msg := []string{
-		"**Notifications from chats and group chats**",
-		"When you enable this feature, you'll be notified here in Mattermost whenever you're away from Microsoft Teams and receive a message from a chat or group chat.",
-		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
-	}
-
 	return &model.Post{
-		Message: strings.Join(msg, "\n\n"),
-		Props: model.StringInterface{
-			"attachments": []*model.SlackAttachment{
-				{
-					Actions: []*model.PostAction{
-						{
-							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
-							},
-							Name:  "Enable notifications",
-							Style: "primary",
-							Type:  model.PostActionTypeButton,
-						},
-						{
-							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/disable-notifications", p.GetRelativeURL()),
-							},
-							Name:  "Disable",
-							Style: "default",
-							Type:  model.PostActionTypeButton,
-						},
-					},
-				},
-			},
-		},
+		Message: "You'll now start receiving notifications in Mattermost for chats and group chats when you're away or offline in Microsoft Teams. To turn off these notifications in Mattermost, go to **Settings > MS Teams**. Learn more in our [documentation](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more).",
 	}
 }
 
