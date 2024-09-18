@@ -54,6 +54,25 @@ func New(db, replica *sql.DB, api plugin.API, encryptionKey func() []byte) *SQLS
 	}
 }
 
+// offset is a helper function to make golangci-lint happy.
+func offset(page int, perPage int) uint64 {
+	o := page * perPage
+	if o < 0 {
+		return 0
+	}
+
+	return uint64(o)
+}
+
+// limit is a helper function to make golangci-lint happy.
+func limit(perPage int) uint64 {
+	if perPage <= 0 {
+		return 0
+	}
+
+	return uint64(perPage)
+}
+
 func (s *SQLStore) Init(remoteID string) error {
 	if err := s.Migrate(remoteID); err != nil {
 		return fmt.Errorf("error running database migrations: %w", err)
@@ -802,7 +821,7 @@ func (s *SQLStore) getActiveUsersCount(db sq.BaseRunner, dur time.Duration) (act
 
 //db:withReplica
 func (s *SQLStore) getConnectedUsers(db sq.BaseRunner, page, perPage int) ([]*storemodels.ConnectedUser, error) {
-	query := s.getQueryBuilder(db).Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From(usersTableName).LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(uint64(page * perPage)).Limit(uint64(perPage))
+	query := s.getQueryBuilder(db).Select("mmuserid, msteamsuserid, Users.FirstName, Users.LastName, Users.Email").From(usersTableName).LeftJoin("Users ON Users.Id = msteamssync_users.mmuserid").Where(sq.NotEq{"token": ""}).OrderBy("Users.FirstName").Offset(offset(page, perPage)).Limit(limit(perPage))
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
@@ -952,8 +971,8 @@ func (s *SQLStore) getWhitelistEmails(db sq.BaseRunner, page, perPage int) ([]st
 		Select("Users.Email").
 		From(whitelistTableName).
 		LeftJoin("Users ON Users.Id = msteamssync_whitelist.mmuserid").
-		Offset(uint64(page * perPage)).
-		Limit(uint64(perPage))
+		Offset(offset(page, perPage)).
+		Limit(limit(perPage))
 	rows, err := query.Query()
 	if err != nil {
 		return nil, err
