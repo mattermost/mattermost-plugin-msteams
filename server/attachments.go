@@ -167,6 +167,13 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
+		// handle an adaptive card
+		if a.ContentType == "application/vnd.microsoft.card.adaptive" {
+			newText = ah.handleCard(logger, a, newText)
+			countNonFileAttachments++
+			continue
+		}
+
 		// The rest of the code assumes a (file) reference: ignore other content types until we explicitly support them.
 		if a.ContentType != "reference" {
 			logger.Warn("ignored attachment content type")
@@ -340,4 +347,43 @@ func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment
 	}
 
 	return post.Id
+}
+
+func (ah *ActivityHandler) handleCard(logger logrus.FieldLogger, attach clientmodels.Attachment, text string) string {
+	var content struct {
+		Type string `json:"type"`
+		Body []struct {
+			Text string `json:"text"`
+			Type string `json:"type"`
+		} `json:"body"`
+	}
+	err := json.Unmarshal([]byte(attach.Content), &content)
+	if err != nil {
+		logger.WithError(err).Warn("failed to unmarshal card")
+		return text
+	}
+
+	logger = logger.WithField("card_type", content.Type)
+
+	if content.Type != "AdaptiveCard" {
+		logger.Warn("ignoring unexpected card type")
+		return text
+	}
+
+	foundContent := false
+	for _, element := range content.Body {
+		if element.Type == "TextBlock" {
+			foundContent = true
+			text = text + "\n" + element.Text
+			continue
+		}
+
+		logger.Debug("skipping unsupported element type in card", "element_type", element.Type)
+	}
+
+	if !foundContent {
+		logger.Warn("failed to find any text to render from card")
+	}
+
+	return text
 }
