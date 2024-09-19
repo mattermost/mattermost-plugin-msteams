@@ -532,12 +532,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {
 	switch originInfo {
 	case "fromPreferences":
-		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+		err := a.p.SendWelcomeMessage(mmUserID)
 		if err != nil {
 			a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 		}
 	case "fromBotMessage":
-		welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
+		welcomePost := a.p.makeWelcomeMessagePost()
 		var originalPost *model.Post
 		originalPost, appErr := a.p.GetAPI().GetPost(postID)
 		if appErr == nil {
@@ -561,7 +561,7 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 			})
 
 			// Send the welcome message in the bot channel.
-			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+			err := a.p.SendWelcomeMessage(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 			}

@@ -68,20 +68,20 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	p.API.LogInfo("Sent connect message to user", "user_id", userID)
 }
 
-func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
+func (p *Plugin) SendWelcomeMessage(userID string) error {
 	if err := p.botSendDirectPost(
 		userID,
-		p.makeWelcomeMessageWithNotificationActionPost(),
+		p.makeWelcomeMessagePost(),
 	); err != nil {
 		return errors.Wrapf(err, "failed to send welcome message to user %s", userID)
 	}
 
-	p.API.LogInfo("Sent welcome message with notification action to user", "user_id", userID)
+	p.API.LogInfo("Sent welcome message", "user_id", userID)
 
 	return nil
 }
 
-func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
+func (p *Plugin) makeWelcomeMessagePost() *model.Post {
 	return &model.Post{
 		Message: "You'll now start receiving notifications in Mattermost for chats and group chats when you're away or offline in Microsoft Teams. To turn off these notifications in Mattermost, go to **Settings > MS Teams**. Learn more in our [documentation](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more).",
 	}
