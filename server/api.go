@@ -282,6 +282,8 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.API.LogInfo("Redirecting user to OAuth flow", "user_id", userID)
+
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
@@ -331,17 +333,14 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	now := time.Now()
 
-	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
+	if _, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
-	} else if inviteWasSent {
-		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
 	}
 }
 
@@ -488,8 +487,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if nAvailable > 0 {
+				a.p.API.LogWarn("Denying attempt to connect because invitation is required", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.", http.StatusBadRequest)
 			} else {
+				a.p.API.LogWarn("Denying attempt to connect because max limit reached", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
 			}
 			return
@@ -501,6 +502,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	a.p.API.LogInfo("User successfully connected to Teams", "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 
 	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: mmUserID,
@@ -564,7 +567,6 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -589,7 +591,6 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -641,7 +642,6 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -693,7 +693,6 @@ func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}

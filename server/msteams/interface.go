@@ -57,5 +57,5 @@ type Client interface {
 	ListChannelMessages(teamID, channelID string, since time.Time) ([]*clientmodels.Message, error)
 	ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error)
 	GetApp(applicationID string) (*clientmodels.App, error)
-	GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error)
+	GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error)
 }

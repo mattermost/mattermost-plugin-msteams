@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -86,10 +87,27 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 		}
 
 		post, skippedFileAttachments, _ := ah.msgToPost(channel.Id, botUserID, msg, chat, []string{})
+		attachmentCount := len(post.FileIds)
+		hasFiles := attachmentCount > 0
 
-		hasFiles := len(post.FileIds) > 0
-		ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonNone)
-		ah.plugin.notifyChat(
+		// Sometimes we'll fail to convert anything in the msg. Check for that and both avoid sending an empty notification
+		// but also log and capture metrics accordingly.
+		post.Message = strings.TrimSpace(post.Message)
+		if post.Message == "" && attachmentCount == 0 && skippedFileAttachments == 0 {
+			ah.plugin.GetAPI().LogInfo(
+				"Skipping empty notification for chat member away from Teams",
+				"user_id", mattermostUserID,
+				"teams_user_id", member.UserID,
+				"chat_id", chat.ID,
+				"message_id", msg.ID,
+				"activity", presences[member.UserID].Activity,
+				"availability", presences[member.UserID].Availability,
+			)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonEmptyMessage)
+			continue
+		}
+
+		err = ah.plugin.notifyChat(
 			mattermostUserID,
 			msg.UserDisplayName,
 			chat.Topic,
@@ -99,13 +117,46 @@ func (ah *ActivityHandler) handleCreatedActivityNotification(msg *clientmodels.M
 			post.FileIds,
 			skippedFileAttachments,
 		)
+		if err != nil {
+			ah.plugin.GetAPI().LogWarn(
+				"Failed to deliver notification for chat member away from Teams",
+				"error", err,
+				"user_id", mattermostUserID,
+				"teams_user_id", member.UserID,
+				"chat_id", chat.ID,
+				"message_id", msg.ID,
+				"activity", presences[member.UserID].Activity,
+				"availability", presences[member.UserID].Availability,
+			)
+			ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonInternalError)
+			continue
+		}
+
+		ah.plugin.GetAPI().LogInfo(
+			"Delivered notification for chat member away from Teams",
+			"user_id", mattermostUserID,
+			"teams_user_id", member.UserID,
+			"chat_id", chat.ID,
+			"message_id", msg.ID,
+			"activity", presences[member.UserID].Activity,
+			"availability", presences[member.UserID].Availability,
+		)
+		ah.plugin.metricsService.ObserveNotification(isGroupChat, hasFiles, metrics.DiscardedReasonNone)
 
 		err = ah.plugin.GetStore().SetUserLastChatReceivedAt(mattermostUserID, storemodels.MilliToMicroSeconds(post.CreateAt))
 		if err != nil {
-			ah.plugin.GetAPI().LogWarn("Unable to set the last chat received at", "error", err)
+			ah.plugin.GetAPI().LogWarn(
+				"Unable to set the last chat received at",
+				"error", err,
+				"user_id", mattermostUserID,
+				"teams_user_id", member.UserID,
+				"chat_id", chat.ID,
+				"message_id", msg.ID,
+			)
 		}
 	}
 
+	// From a handler perspective, we never discard, even though we may not always choose to deliver.
 	return metrics.DiscardedReasonNone
 }
 
