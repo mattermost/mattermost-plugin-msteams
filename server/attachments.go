@@ -150,7 +150,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			"attachment_content_type": a.ContentType,
 		})
 
-		// remove the attachment tags from the textK
+		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
 
 		// handle a code snippet (code block)
