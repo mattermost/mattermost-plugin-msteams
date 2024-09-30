@@ -328,6 +328,46 @@ func TestNotificationCommand(t *testing.T) {
 		}
 	})
 
+	t.Run("default", func(t *testing.T) {
+		t.Run("connected user should get the appropriate message", func(t *testing.T) {
+			cases := []struct {
+				name     string
+				enabled  *bool
+				expected string
+			}{
+				{
+					name:     "enabled",
+					enabled:  model.NewBool(true),
+					expected: "Notifications from chats and group chats in MS Teams are currently enabled.",
+				},
+				{
+					name:     "disabled",
+					enabled:  model.NewBool(false),
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
+				},
+				{
+					name:     "not set",
+					enabled:  nil,
+					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
+				},
+			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					reset(th, t, true)
+					if tc.enabled != nil {
+						err := th.p.setNotificationPreference(user1.Id, *tc.enabled)
+						require.Nil(t, err)
+					}
+
+					commandResponse, appErr := th.p.executeNotificationsCommand(args, nil)
+					require.Nil(t, appErr)
+					assertNoCommandResponse(t, commandResponse)
+					assertEphemeralResponse(th, t, args, tc.expected)
+				})
+			}
+		})
+	})
+
 	t.Run("status", func(t *testing.T) {
 		t.Run("connected user should get the appropriate message", func(t *testing.T) {
 			cases := []struct {

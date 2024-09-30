@@ -194,7 +194,12 @@ func (p *Plugin) executeStatusCommand(args *model.CommandArgs) (*model.CommandRe
 }
 
 func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters []string) (*model.CommandResponse, *model.AppError) {
-	if len(parameters) != 1 {
+	command := ""
+	if len(parameters) == 0 {
+		command = "status"
+	} else if len(parameters) == 1 {
+		command = strings.ToLower(parameters[0])
+	} else {
 		return p.cmdSuccess(args, "Invalid notifications command, one argument is required.")
 	}
 
@@ -208,7 +213,7 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 	}
 
 	notificationPreferenceEnabled := p.getNotificationPreference(args.UserId)
-	switch strings.ToLower(parameters[0]) {
+	switch command {
 	case "status":
 		status := "disabled"
 		if notificationPreferenceEnabled {
@@ -235,5 +240,5 @@ func (p *Plugin) executeNotificationsCommand(args *model.CommandArgs, parameters
 		return p.cmdSuccess(args, "Notifications from chats and group chats in MS Teams are now disabled.")
 	}
 
-	return p.cmdSuccess(args, parameters[0]+" is not a valid argument.")
+	return p.cmdSuccess(args, command+" is not a valid argument.")
 }
