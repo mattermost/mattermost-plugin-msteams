@@ -41,7 +41,7 @@ func userPresenceIsActive(presence clientmodels.Presence) bool {
 
 	// Explicitly handle known activity states for being inactive or away.
 	switch presence.Activity {
-	case PresenceActivityOffline, PresenceActivityInactive, PresenceActivityAway:
+	case PresenceActivityOffline, PresenceActivityOffWork, PresenceActivityInactive, PresenceActivityAway:
 		return false
 	}
 
