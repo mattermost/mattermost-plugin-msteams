@@ -4,19 +4,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMaybeSendInviteMessage(t *testing.T) {
 	th := setupTestHelper(t)
 	team := th.SetupTeam(t)
-	user := th.SetupUser(t, team)
+
+	botUser, err := th.p.apiClient.User.Get(th.p.botUserID)
+	require.NoError(t, err)
 
 	tuesdayNoon, _ := time.Parse(time.RFC3339, "2024-01-09T12:00:00Z")
 	saturdayEvening, _ := time.Parse(time.RFC3339, "2024-01-06T22:00:00Z")
 
 	t.Run("don't send invite, invites disabled", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersMaxPendingInvites = 0
@@ -25,10 +30,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, max pending invites reached", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 0
@@ -38,10 +45,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, not whitelisted", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
@@ -52,10 +61,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, already invited", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
@@ -67,10 +78,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, already connected", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 2
@@ -82,10 +95,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, weekend", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
@@ -95,6 +110,7 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, saturdayEvening)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, user.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, guest account", func(t *testing.T) {
@@ -109,24 +125,27 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(guestUser.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, guestUser.Id, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("don't send invite, bot account", func(t *testing.T) {
 		th.Reset(t)
-		botUser := th.CreateBot(t)
+		otherBotUser := th.CreateBot(t)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
 			c.ConnectedUsersMaxPendingInvites = 1
 		})
 
-		result, err := th.p.MaybeSendInviteMessage(botUser.UserId, tuesdayNoon)
+		result, err := th.p.MaybeSendInviteMessage(otherBotUser.UserId, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, false, result)
+		th.assertNoDMFromUser(t, botUser.Id, otherBotUser.UserId, model.GetMillisForTime(time.Now().Add(-5*time.Second)))
 	})
 
 	t.Run("send invite, open invites allowed", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
@@ -136,10 +155,12 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+		th.assertDMFromUserRe(t, botUser.Id, user.Id, "you've been invited by your administrator")
 	})
 
 	t.Run("send invite, whitelist restricted", func(t *testing.T) {
 		th.Reset(t)
+		user := th.SetupUser(t, team)
 
 		th.setPluginConfigurationTemporarily(t, func(c *configuration) {
 			c.ConnectedUsersAllowed = 1
@@ -152,15 +173,8 @@ func TestMaybeSendInviteMessage(t *testing.T) {
 		result, err := th.p.MaybeSendInviteMessage(user.Id, tuesdayNoon)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+		th.assertDMFromUserRe(t, botUser.Id, user.Id, "you've been invited by your administrator")
 	})
-}
-
-func TestSendInviteMessage(t *testing.T) {
-	t.Skip()
-}
-
-func TestShouldSendInviteMessage(t *testing.T) {
-	t.Skip()
 }
 
 func TestCanInviteUser(t *testing.T) {

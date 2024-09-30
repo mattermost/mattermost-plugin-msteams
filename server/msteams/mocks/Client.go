@@ -383,15 +383,15 @@ func (_m *Client) GetMyID() (string, error) {
 }
 
 // GetPresencesForUsers provides a mock function with given fields: userIDs
-func (_m *Client) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+func (_m *Client) GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error) {
 	ret := _m.Called(userIDs)
 
-	var r0 map[string]*clientmodels.Presence
-	if rf, ok := ret.Get(0).(func([]string) map[string]*clientmodels.Presence); ok {
+	var r0 map[string]clientmodels.Presence
+	if rf, ok := ret.Get(0).(func([]string) map[string]clientmodels.Presence); ok {
 		r0 = rf(userIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*clientmodels.Presence)
+			r0 = ret.Get(0).(map[string]clientmodels.Presence)
 		}
 	}
 

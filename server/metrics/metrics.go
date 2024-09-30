@@ -52,6 +52,8 @@ const (
 	DiscardedReasonUserDisabledNotifications       = "user_disabled_notifications"
 	DiscardedReasonUserActiveInTeams               = "user_active_in_teams"
 	DiscardedReasonInternalError                   = "internal_error"
+	DiscardedReasonEmptyMessage                    = "empty_message"
+	DiscardedReasonChatSize                        = "chat_size"
 
 	WorkerMonitor          = "monitor"
 	WorkerActivityHandler  = "activity_handler"

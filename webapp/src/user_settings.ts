@@ -8,7 +8,7 @@ export default function getUserSettings(serverRoute: string, disabled: boolean) 
         uiName: manifest.name,
         action: disabled ? {
             title: 'Connect your Microsoft Teams Account',
-            text: 'Connect your Mattermost and Microsoft Teams accounts to get the ability to link and synchronise channel-based collaboration with Microsoft Teams.',
+            text: 'Connect your Mattermost and Microsoft Teams accounts to receive notifications in Mattermost for chats and group chats when you\'re away or offline in Microsoft Teams.',
             buttonText: 'Connect account',
             onClick: () => window.open(`${Client.url}/connect?from_preferences=true`),
         } : undefined, //eslint-disable-line no-undefined
@@ -24,9 +24,9 @@ function makeNotificationsSetting(disabled: boolean) {
             name: 'notifications',
             options: [
                 {
-                    text: 'Notifications from chats and group chats',
+                    text: 'Enabled',
                     value: 'on',
-                    helpText: 'The MS Teams bot will notify you here in Mattermost whenever you receive a message from a chat or group chat from Microsoft Teams.',
+                    helpText: 'The MS Teams bot will notify you in Mattermost for chats and group chats when you\'re away or offline in Microsoft Teams.',
                 },
                 {
                     text: 'Disabled',

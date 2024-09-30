@@ -2131,7 +2131,7 @@ func (tc *ClientImpl) SendBatchRequestAndGetMessage(batchRequest msgraphcore.Bat
 	return &clientmodels.Message{LastUpdateAt: *resp.GetLastModifiedDateTime()}, nil
 }
 
-func (tc *ClientImpl) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+func (tc *ClientImpl) GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error) {
 	body := communications.NewGetPresencesByUserIdPostRequestBody()
 	body.SetIds(userIDs)
 
@@ -2141,7 +2141,7 @@ func (tc *ClientImpl) GetPresencesForUsers(userIDs []string) (map[string]*client
 	}
 
 	rawPresences := res.GetValue()
-	presences := make(map[string]*clientmodels.Presence, len(rawPresences))
+	presences := make(map[string]clientmodels.Presence, len(rawPresences))
 
 	for _, rawPresence := range rawPresences {
 		var presence clientmodels.Presence
@@ -2158,7 +2158,7 @@ func (tc *ClientImpl) GetPresencesForUsers(userIDs []string) (map[string]*client
 			presence.Availability = *rawPresence.GetAvailability()
 		}
 
-		presences[presence.UserID] = &presence
+		presences[presence.UserID] = presence
 	}
 
 	return presences, nil

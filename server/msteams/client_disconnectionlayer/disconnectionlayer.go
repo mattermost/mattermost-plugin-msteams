@@ -212,7 +212,7 @@ func (c *ClientDisconnectionLayer) GetMyID() (string, error) {
 	return result, err
 }
 
-func (c *ClientDisconnectionLayer) GetPresencesForUsers(userIDs []string) (map[string]*clientmodels.Presence, error) {
+func (c *ClientDisconnectionLayer) GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error) {
 	result, err := c.Client.GetPresencesForUsers(userIDs)
 	if err != nil {
 		var graphErr *msteams.GraphAPIError

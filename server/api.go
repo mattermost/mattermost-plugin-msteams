@@ -78,8 +78,6 @@ func NewAPI(p *Plugin, store store.Store) *API {
 	router.HandleFunc("/notify-connect", api.notifyConnect).Methods("GET")
 	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
-	router.HandleFunc("/enable-notifications", api.enableNotifications).Methods("POST")
-	router.HandleFunc("/disable-notifications", api.disableNotifications).Methods("POST")
 
 	return api
 }
@@ -282,6 +280,8 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.p.API.LogInfo("Redirecting user to OAuth flow", "user_id", userID)
+
 	connectURL := msteams.GetAuthURL(a.p.GetURL()+"/oauth-redirect", a.p.configuration.TenantID, a.p.configuration.ClientID, a.p.configuration.ClientSecret, state, codeVerifier)
 	http.Redirect(w, r, connectURL, http.StatusSeeOther)
 }
@@ -331,17 +331,14 @@ func (a *API) notifyConnect(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
 
 	now := time.Now()
 
-	if inviteWasSent, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
+	if _, err := a.p.MaybeSendInviteMessage(userID, now); err != nil {
 		a.p.API.LogWarn("Error in connection invite flow", "user_id", userID, "error", err.Error())
-	} else if inviteWasSent {
-		a.p.API.LogInfo("Successfully sent connection invite", "user_id", userID)
 	}
 }
 
@@ -488,8 +485,10 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if nAvailable > 0 {
+				a.p.API.LogWarn("Denying attempt to connect because invitation is required", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account at this time because an invitation is required. Please contact your system administrator to request an invitation.", http.StatusBadRequest)
 			} else {
+				a.p.API.LogWarn("Denying attempt to connect because max limit reached", "user_id", mmUserID)
 				http.Error(w, "You cannot connect your account because the maximum limit of users allowed to connect has been reached. Please contact your system administrator.", http.StatusBadRequest)
 			}
 			return
@@ -501,6 +500,15 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to store the token", http.StatusInternalServerError)
 		return
 	}
+
+	err = a.p.setNotificationPreference(mmUserID, true)
+	if err != nil {
+		a.p.API.LogWarn("Failed to update user preferences on connect", "user_id", mmUserID, "error", err.Error())
+		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
+		return
+	}
+
+	a.p.API.LogInfo("User successfully connected to Teams", "user_id", mmUserID, "teams_user_id", msteamsUser.ID)
 
 	a.p.API.PublishWebSocketEvent(WSEventUserConnected, map[string]any{}, &model.WebsocketBroadcast{
 		UserId: mmUserID,
@@ -524,12 +532,12 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID, channelID, postID string) {
 	switch originInfo {
 	case "fromPreferences":
-		err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+		err := a.p.SendWelcomeMessage(mmUserID)
 		if err != nil {
 			a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 		}
 	case "fromBotMessage":
-		welcomePost := a.p.makeWelcomeMessageWithNotificationActionPost()
+		welcomePost := a.p.makeWelcomeMessagePost()
 		var originalPost *model.Post
 		originalPost, appErr := a.p.GetAPI().GetPost(postID)
 		if appErr == nil {
@@ -553,7 +561,7 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 			})
 
 			// Send the welcome message in the bot channel.
-			err := a.p.SendWelcomeMessageWithNotificationAction(mmUserID)
+			err := a.p.SendWelcomeMessage(mmUserID)
 			if err != nil {
 				a.p.API.LogWarn("Unable to send welcome post with notifications", "error", err.Error())
 			}
@@ -564,7 +572,6 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -589,7 +596,6 @@ func (a *API) getConnectedUsers(w http.ResponseWriter, r *http.Request) {
 func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -641,7 +647,6 @@ func (a *API) getConnectedUsersFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -693,7 +698,6 @@ func (a *API) getWhitelistEmailsFile(w http.ResponseWriter, r *http.Request) {
 func (a *API) updateWhitelist(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("Mattermost-User-ID")
 	if userID == "" {
-		a.p.API.LogWarn("Not authorized")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
@@ -899,101 +903,4 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.returnJSON(w, siteStats)
-}
-
-func (a *API) preHandleNotifications(w http.ResponseWriter, r *http.Request) *model.Post {
-	userID := r.Header.Get("Mattermost-User-ID")
-
-	var actionHandler model.PostActionIntegrationRequest
-	if err := json.NewDecoder(r.Body).Decode(&actionHandler); err != nil {
-		a.p.API.LogWarn("Unable to decode the action handler", "error", err.Error())
-		http.Error(w, "unable to decode the action handler", http.StatusBadRequest)
-		return nil
-	}
-
-	post, err := a.p.apiClient.Post.GetPost(actionHandler.PostId)
-	if err != nil {
-		a.p.API.LogWarn("Unable to get the post", "error", err.Error())
-		http.Error(w, "unable to get the post", http.StatusBadRequest)
-		return nil
-	}
-
-	// Verify the post was authored by the bot itself.
-	if post.UserId != a.p.botUserID {
-		a.p.API.LogWarn("Attempt to update post not authored by the bot", "user_id", userID)
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return nil
-	}
-
-	// Verify the post is in the direct message channel between the bot and the user.
-	botDMChannel, err := a.p.apiClient.Channel.GetDirect(a.p.botUserID, userID)
-	if err != nil {
-		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID, "error", err.Error())
-		http.Error(w, "failed to authenticate the request", http.StatusInternalServerError)
-		return nil
-	} else if botDMChannel.Id != post.ChannelId {
-		a.p.API.LogWarn("Unable to get the bot direct channel", "user_id", userID)
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return nil
-	}
-
-	// At this point, it might be /another/ post by the bot in the DM with that user, but we
-	// allow this for now.
-
-	return post
-}
-
-func (a *API) enableNotifications(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-
-	post := a.preHandleNotifications(w, r)
-	if post == nil {
-		return
-	}
-
-	err := a.p.setNotificationPreference(userID, true)
-	if err != nil {
-		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
-		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
-		return
-	}
-
-	post.Message = "You'll now start receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command."
-	post.DelProp("attachments")
-
-	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
-		Update: post,
-	})
-
-	if err != nil {
-		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
-		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
-	}
-}
-
-func (a *API) disableNotifications(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-
-	post := a.preHandleNotifications(w, r)
-	if post == nil {
-		return
-	}
-
-	err := a.p.setNotificationPreference(userID, false)
-	if err != nil {
-		a.p.API.LogWarn("Error when updating the preferences", "error", err.Error())
-		http.Error(w, "error updating the preferences", http.StatusInternalServerError)
-		return
-	}
-
-	post.Message = "You'll stop receiving notifications here in Mattermost from chats and group chats from Microsoft Teams. To change this Mattermost setting, select **Settings > MS Teams**, or run the **/msteams notifications** slash command."
-	post.DelProp("attachments")
-
-	err = json.NewEncoder(w).Encode(model.PostActionIntegrationResponse{
-		Update: post,
-	})
-	if err != nil {
-		a.p.API.LogWarn("Unable to encode the response", "error", err.Error())
-		http.Error(w, "unable to encode the response", http.StatusInternalServerError)
-	}
 }

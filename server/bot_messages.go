@@ -39,7 +39,10 @@ func (p *Plugin) SendEphemeralConnectMessage(channelID string, userID string, me
 		Message:   connectMessage,
 	}
 	p.API.SendEphemeralPost(userID, post)
+
+	p.API.LogInfo("Sent ephemeral connect message to user", "user_id", userID)
 }
+
 func (p *Plugin) SendConnectMessage(channelID string, userID string, message string) {
 	post := &model.Post{
 		Message:   message,
@@ -61,52 +64,26 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 	if err := p.apiClient.Post.UpdatePost(post); err != nil {
 		p.GetAPI().LogWarn("Failed to update connection post", "user_id", userID, "error", err)
 	}
+
+	p.API.LogInfo("Sent connect message to user", "user_id", userID)
 }
 
-func (p *Plugin) SendWelcomeMessageWithNotificationAction(userID string) error {
+func (p *Plugin) SendWelcomeMessage(userID string) error {
 	if err := p.botSendDirectPost(
 		userID,
-		p.makeWelcomeMessageWithNotificationActionPost(),
+		p.makeWelcomeMessagePost(),
 	); err != nil {
 		return errors.Wrapf(err, "failed to send welcome message to user %s", userID)
 	}
 
+	p.API.LogInfo("Sent welcome message", "user_id", userID)
+
 	return nil
 }
 
-func (p *Plugin) makeWelcomeMessageWithNotificationActionPost() *model.Post {
-	msg := []string{
-		"**Notifications from chats and group chats**",
-		"When you enable this feature, you'll be notified here in Mattermost whenever you're away from Microsoft Teams and receive a message from a chat or group chat.",
-		fmt.Sprintf("![enable notifications picture](%s/static/enable_notifications.gif)", p.GetRelativeURL()),
-	}
-
+func (p *Plugin) makeWelcomeMessagePost() *model.Post {
 	return &model.Post{
-		Message: strings.Join(msg, "\n\n"),
-		Props: model.StringInterface{
-			"attachments": []*model.SlackAttachment{
-				{
-					Actions: []*model.PostAction{
-						{
-							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/enable-notifications", p.GetRelativeURL()),
-							},
-							Name:  "Enable notifications",
-							Style: "primary",
-							Type:  model.PostActionTypeButton,
-						},
-						{
-							Integration: &model.PostActionIntegration{
-								URL: fmt.Sprintf("%s/disable-notifications", p.GetRelativeURL()),
-							},
-							Name:  "Disable",
-							Style: "default",
-							Type:  model.PostActionTypeButton,
-						},
-					},
-				},
-			},
-		},
+		Message: "You'll now start receiving notifications in Mattermost for chats and group chats when you're away or offline in Microsoft Teams. To turn off these notifications in Mattermost, go to **Settings > MS Teams**. Learn more in our [documentation](https://mattermost.com/pl/ms-teams-plugin-end-user-learn-more).",
 	}
 }
 
@@ -160,10 +137,10 @@ func formatNotificationMessage(actorDisplayName string, chatTopic string, chatSi
 }
 
 // notifyMessage sends the given receipient a notification of a chat received on Teams.
-func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, fileIds model.StringArray, skippedFileAttachments int) {
+func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, chatTopic string, chatSize int, chatLink string, message string, fileIds model.StringArray, skippedFileAttachments int) error {
 	formattedMessage := formatNotificationMessage(actorDisplayName, chatTopic, chatSize, chatLink, message, len(fileIds), skippedFileAttachments)
 	if formattedMessage == "" {
-		return
+		return nil
 	}
 
 	if err := p.botSendDirectPost(recipientUserID, &model.Post{
@@ -171,5 +148,32 @@ func (p *Plugin) notifyChat(recipientUserID string, actorDisplayName string, cha
 		FileIds: fileIds,
 	}); err != nil {
 		p.GetAPI().LogWarn("Failed to send notification message", "user_id", recipientUserID, "error", err)
+		return errors.Wrap(err, "error sending chat notification")
 	}
+
+	p.GetAPI().LogInfo("Sent chat notification message to user", "user_id", recipientUserID)
+	return nil
+}
+
+func (p *Plugin) SendInviteMessage(user *model.User) error {
+	message := fmt.Sprintf("@%s, you've been invited by your administrator to connect your Mattermost account with Microsoft Teams.", user.Username)
+	invitePost := &model.Post{
+		Message: message,
+	}
+
+	if err := p.botSendDirectPost(user.Id, invitePost); err != nil {
+		p.GetAPI().LogWarn("Failed to send invitation message", "user_id", user.Id, "error", err)
+		return errors.Wrapf(err, "error sending invitation bot message")
+	}
+
+	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, invitePost.ChannelId)
+	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s).", invitePost.Message, connectURL)
+	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
+		p.GetAPI().LogWarn("Failed to update invitation message", "user_id", user.Id, "error", err)
+		return errors.Wrapf(err, "error updating invitation bot message")
+	}
+
+	p.GetAPI().LogInfo("Sent invitation message to user", "user_id", user.Id)
+
+	return nil
 }
