@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -95,6 +97,14 @@ func (ah *ActivityHandler) ProcessAndUploadFileToMM(attachmentData []byte, attac
 }
 
 func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg *clientmodels.Message, chat *clientmodels.Chat, existingFileIDs []string) (string, model.StringArray, string, int, bool) {
+	var logger logrus.FieldLogger = logrus.StandardLogger()
+
+	logger = logger.WithFields(logrus.Fields{
+		"channel_id":       channelID,
+		"user_id":          userID,
+		"teams_message_id": msg.ID,
+	})
+
 	attachments := []string{}
 	newText := text
 	parentID := ""
@@ -114,7 +124,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 
 	errorFound := false
 	if client == nil {
-		ah.plugin.GetAPI().LogWarn("Unable to get the client")
+		logger.Warn("Unable to get the client to handle attachments")
 		return "", nil, "", 0, errorFound
 	}
 
@@ -135,6 +145,11 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 
 	skippedFileAttachments := 0
 	for _, a := range msg.Attachments {
+		logger := logger.WithFields(logrus.Fields{
+			"attachment_id":           a.ID,
+			"attachment_content_type": a.ContentType,
+		})
+
 		// remove the attachment tags from the text
 		newText = attachRE.ReplaceAllString(newText, "")
 
@@ -152,9 +167,16 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			continue
 		}
 
+		// handle an adaptive card
+		if a.ContentType == "application/vnd.microsoft.card.adaptive" {
+			newText = ah.handleCard(logger, a, newText)
+			countNonFileAttachments++
+			continue
+		}
+
 		// The rest of the code assumes a (file) reference: ignore other content types until we explicitly support them.
 		if a.ContentType != "reference" {
-			ah.plugin.GetAPI().LogWarn("ignored attachment content type", "filename", a.Name, "content_type", a.ContentType)
+			logger.Warn("ignored attachment content type")
 			countNonFileAttachments++
 			continue
 		}
@@ -173,7 +195,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		if strings.Contains(a.ContentURL, hostedContentsStr) && strings.HasSuffix(a.ContentURL, "$value") {
 			attachmentData, err = ah.handleDownloadFile(a.ContentURL, client)
 			if err != nil {
-				ah.plugin.GetAPI().LogWarn("failed to download the file", "filename", a.Name, "error", err.Error())
+				logger.WithError(err).Warn("failed to download the file")
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 				skippedFileAttachments++
 				continue
@@ -181,7 +203,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 		} else {
 			fileSize, downloadURL, err = client.GetFileSizeAndDownloadURL(a.ContentURL)
 			if err != nil {
-				ah.plugin.GetAPI().LogWarn("failed to get file size and download URL", "error", err.Error())
+				logger.WithError(err).Warn("failed to get file size and download URL")
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 				skippedFileAttachments++
 				continue
@@ -189,7 +211,10 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 
 			fileSizeAllowed := *ah.plugin.GetAPI().GetConfig().FileSettings.MaxFileSize
 			if fileSize > fileSizeAllowed {
-				ah.plugin.GetAPI().LogWarn("skipping file download from MS Teams because the file size is greater than the allowed size")
+				logger.WithFields(logrus.Fields{
+					"file_size":         fileSize,
+					"file_size_allowed": fileSizeAllowed,
+				}).Warn("skipping file download from MS Teams because the file size is greater than the allowed size")
 				errorFound = true
 				ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonMaxFileSizeExceeded, isDirectOrGroupMessage)
 				skippedFileAttachments++
@@ -200,7 +225,7 @@ func (ah *ActivityHandler) handleAttachments(channelID, userID, text string, msg
 			if fileSize <= int64(ah.plugin.GetMaxSizeForCompleteDownload()*1024*1024) {
 				attachmentData, err = client.GetFileContent(downloadURL)
 				if err != nil {
-					ah.plugin.GetAPI().LogWarn("failed to get file content", "error", err.Error())
+					logger.WithError(err).Warn("failed to get file content")
 					ah.plugin.GetMetrics().ObserveFile(metrics.ActionCreated, metrics.ActionSourceMSTeams, metrics.DiscardedReasonUnableToGetTeamsData, isDirectOrGroupMessage)
 					skippedFileAttachments++
 					continue
@@ -322,4 +347,43 @@ func (ah *ActivityHandler) handleMessageReference(attach clientmodels.Attachment
 	}
 
 	return post.Id
+}
+
+func (ah *ActivityHandler) handleCard(logger logrus.FieldLogger, attach clientmodels.Attachment, text string) string {
+	var content struct {
+		Type string `json:"type"`
+		Body []struct {
+			Text string `json:"text"`
+			Type string `json:"type"`
+		} `json:"body"`
+	}
+	err := json.Unmarshal([]byte(attach.Content), &content)
+	if err != nil {
+		logger.WithError(err).Warn("failed to unmarshal card")
+		return text
+	}
+
+	logger = logger.WithField("card_type", content.Type)
+
+	if content.Type != "AdaptiveCard" {
+		logger.Warn("ignoring unexpected card type")
+		return text
+	}
+
+	foundContent := false
+	for _, element := range content.Body {
+		if element.Type == "TextBlock" {
+			foundContent = true
+			text = text + "\n" + element.Text
+			continue
+		}
+
+		logger.Debug("skipping unsupported element type in card", "element_type", element.Type)
+	}
+
+	if !foundContent {
+		logger.Warn("failed to find any text to render from card")
+	}
+
+	return text
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/mattermost/mattermost-plugin-msteams/assets"
@@ -416,6 +417,9 @@ func (p *Plugin) onActivate() error {
 	if err != nil {
 		return err
 	}
+
+	logger := logrus.StandardLogger()
+	pluginapi.ConfigureLogrus(logger, p.apiClient)
 
 	p.botUserID, err = p.apiClient.Bot.EnsureBot(&model.Bot{
 		Username:    botUsername,

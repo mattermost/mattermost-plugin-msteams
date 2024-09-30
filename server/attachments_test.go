@@ -11,6 +11,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -203,6 +204,81 @@ func TestHandleMessageReference(t *testing.T) {
 
 		actualParentID := th.p.activityHandler.handleMessageReference(attachment, chatOrChannelID)
 		assert.Equal(t, expectedParentID, actualParentID)
+	})
+}
+
+func TestHandleCard(t *testing.T) {
+	th := setupTestHelper(t)
+	logger := logrus.StandardLogger()
+
+	t.Run("unable to marshal content", func(t *testing.T) {
+		th.Reset(t)
+
+		originalText := "original text"
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     "Invalid JSON",
+		}
+
+		text := th.p.activityHandler.handleCard(logger, attachment, originalText)
+		assert.Equal(t, originalText, text)
+	})
+
+	t.Run("unknown card type", func(t *testing.T) {
+		th.Reset(t)
+
+		originalText := "original text"
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     `{"type": "unknown"}`,
+		}
+
+		text := th.p.activityHandler.handleCard(logger, attachment, originalText)
+		assert.Equal(t, originalText, text)
+	})
+
+	t.Run("no text blocks", func(t *testing.T) {
+		th.Reset(t)
+
+		originalText := "original text"
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     "{\r\n  \"type\": \"AdaptiveCard\",\r\n  \"body\": [\r\n    {\r\n      \"items\": [\r\n        {\r\n          \"text\": \" \",\r\n          \"type\": \"TextBlock\"\r\n        }\r\n      ],\r\n      \"backgroundImage\": {\r\n        \"url\": \"https://img.huffingtonpost.com/asset/default-entry.jpg?ops=1778_1000\",\r\n        \"horizontalAlignment\": \"center\",\r\n        \"verticalAlignment\": \"center\"\r\n      },\r\n      \"bleed\": true,\r\n      \"minHeight\": \"180px\",\r\n      \"type\": \"Container\"\r\n    },\r\n    ],\r\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\r\n  \"version\": \"1.4\",\r\n  \"selectAction\": {\r\n    \"url\": \"https://www.huffpost.com/entry/looking-at-cute-animal-pictures-at-work-can-make-you-more-productive_n_1930135\",\r\n    \"type\": \"Action.OpenUrl\"\r\n  }\r\n}",
+		}
+
+		text := th.p.activityHandler.handleCard(logger, attachment, originalText)
+		assert.Equal(t, originalText, text)
+	})
+
+	t.Run("sample card 1", func(t *testing.T) {
+		th.Reset(t)
+
+		originalText := "original text"
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     "{\r\n  \"type\": \"AdaptiveCard\",\r\n  \"body\": [\r\n    {\r\n      \"items\": [\r\n        {\r\n          \"text\": \" \",\r\n          \"type\": \"TextBlock\"\r\n        }\r\n      ],\r\n      \"backgroundImage\": {\r\n        \"url\": \"https://img.huffingtonpost.com/asset/default-entry.jpg?ops=1778_1000\",\r\n        \"horizontalAlignment\": \"center\",\r\n        \"verticalAlignment\": \"center\"\r\n      },\r\n      \"bleed\": true,\r\n      \"minHeight\": \"180px\",\r\n      \"type\": \"Container\"\r\n    },\r\n    {\r\n      \"maxLines\": 2,\r\n      \"size\": \"medium\",\r\n      \"text\": \"Looking At Cute Animal Pictures At Work Can Make You More Productive, Study Claims\",\r\n      \"weight\": \"bolder\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"size\": \"small\",\r\n      \"text\": \"The Hufffington Post\",\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"maxLines\": 2,\r\n      \"size\": \"small\",\r\n      \"text\": \"Best News Ever? Perusing Cute Animal Slideshows May Make You A Better Employee\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    }\r\n  ],\r\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\r\n  \"version\": \"1.4\",\r\n  \"selectAction\": {\r\n    \"url\": \"https://www.huffpost.com/entry/looking-at-cute-animal-pictures-at-work-can-make-you-more-productive_n_1930135\",\r\n    \"type\": \"Action.OpenUrl\"\r\n  }\r\n}",
+		}
+
+		text := th.p.activityHandler.handleCard(logger, attachment, originalText)
+		assert.Equal(t, "original text\nLooking At Cute Animal Pictures At Work Can Make You More Productive, Study Claims\nThe Hufffington Post\nBest News Ever? Perusing Cute Animal Slideshows May Make You A Better Employee", text)
+	})
+
+	t.Run("sample card 2", func(t *testing.T) {
+		th.Reset(t)
+
+		originalText := "original text"
+
+		attachment := clientmodels.Attachment{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     "{\r\n  \"type\": \"AdaptiveCard\",\r\n  \"body\": [\r\n    {\r\n      \"text\": \"👋 Hey, are you available now?\",\r\n      \"wrap\": true,\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"actions\": [\r\n        {\r\n          \"data\": {\r\n            \"action\": {\r\n              \"id\": \"ab48b33b-740e-43af-9750-51bd8c7d6301:615d26c7-7fa5-474f-b88b-35dcd8105a17:sure\",\r\n              \"value\": \"sure\"\r\n            },\r\n            \"__APP__\": \"__PARROT__\"\r\n          },\r\n          \"title\": \"👍 Sure, let's go!\",\r\n          \"msTeams\": {\r\n            \"feedback\": {\r\n              \"hide\": true\r\n            }\r\n          },\r\n          \"type\": \"Action.Submit\"\r\n        },\r\n        {\r\n          \"data\": {\r\n            \"action\": {\r\n              \"id\": \"ab48b33b-740e-43af-9750-51bd8c7d6301:615d26c7-7fa5-474f-b88b-35dcd8105a17:not_now\",\r\n              \"value\": \"not_now\"\r\n            },\r\n            \"__APP__\": \"__PARROT__\"\r\n          },\r\n          \"title\": \"😴 Not now\",\r\n          \"msTeams\": {\r\n            \"feedback\": {\r\n              \"hide\": true\r\n            }\r\n          },\r\n          \"type\": \"Action.Submit\"\r\n        }\r\n      ],\r\n      \"type\": \"ActionSet\"\r\n    }\r\n  ],\r\n  \"actions\": [],\r\n  \"$schema\": \"https://adaptivecards.io/schemas/adaptive-card.json\",\r\n  \"version\": \"1.2\"\r\n}",
+		}
+
+		text := th.p.activityHandler.handleCard(logger, attachment, originalText)
+		assert.Equal(t, "original text\n👋 Hey, are you available now?", text)
 	})
 }
 
@@ -701,8 +777,8 @@ snippet content
 		message := &clientmodels.Message{
 			Attachments: []clientmodels.Attachment{
 				{
-					ContentType: "application/vnd.microsoft.card.adaptive",
-					Content:     `{\r\n  \"type\": \"AdaptiveCard\",\r\n  \"body\": [\r\n    {\r\n      \"items\": [\r\n        {\r\n          \"text\": \" \",\r\n          \"type\": \"TextBlock\"\r\n        }\r\n      ],\r\n      \"backgroundImage\": {\r\n        \"url\": \"https://img.huffingtonpost.com/asset/default-entry.jpg?ops=1778_1000\",\r\n        \"horizontalAlignment\": \"center\",\r\n        \"verticalAlignment\": \"center\"\r\n      },\r\n      \"bleed\": true,\r\n      \"minHeight\": \"180px\",\r\n      \"type\": \"Container\"\r\n    },\r\n    {\r\n      \"maxLines\": 2,\r\n      \"size\": \"medium\",\r\n      \"text\": \"Looking At Cute Animal Pictures At Work Can Make You More Productive, Study Claims\",\r\n      \"weight\": \"bolder\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"size\": \"small\",\r\n      \"text\": \"The Hufffington Post\",\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    },\r\n    {\r\n      \"isSubtle\": true,\r\n      \"maxLines\": 2,\r\n      \"size\": \"small\",\r\n      \"text\": \"Best News Ever? Perusing Cute Animal Slideshows May Make You A Better Employee\",\r\n      \"wrap\": true,\r\n      \"spacing\": \"Small\",\r\n      \"type\": \"TextBlock\"\r\n    }\r\n  ],\r\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\r\n  \"version\": \"1.4\",\r\n  \"selectAction\": {\r\n    \"url\": \"https://www.huffpost.com/entry/looking-at-cute-animal-pictures-at-work-can-make-you-more-productive_n_1930135\",\r\n    \"type\": \"Action.OpenUrl\"\r\n  }\r\n}`,
+					ContentType: "unsupported",
+					Content:     "unsupported",
 				},
 			},
 			ChatID:    "",
