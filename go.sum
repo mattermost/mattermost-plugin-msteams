@@ -349,8 +349,8 @@ github.com/mattermost/ldap v0.0.0-20231116144001-0f480c025956 h1:Y1Tu/swM31pVwwb
 github.com/mattermost/ldap v0.0.0-20231116144001-0f480c025956/go.mod h1:SRl30Lb7/QoYyohYeVBuqYvvmXSZJxZgiV3Zf6VbxjI=
 github.com/mattermost/logr/v2 v2.0.21 h1:CMHsP+nrbRlEC4g7BwOk1GAnMtHkniFhlSQPXy52be4=
 github.com/mattermost/logr/v2 v2.0.21/go.mod h1:kZkB/zqKL9e+RY5gB3vGpsyenC+TpuiOenjMkvJJbzc=
-github.com/mattermost/mattermost/server/public v0.1.6 h1:k3upRnYfDY9CtVifQ+hQS6ZP4dGsU6I3oG1DCcBYy0c=
-github.com/mattermost/mattermost/server/public v0.1.6/go.mod h1:Dm5uf3z8ckDOKYD1cbnb1Uqm/G9WYIaouSP/HnH+Rbs=
+github.com/mattermost/mattermost/server/public v0.1.7 h1:WA+fnLrQQeE6xTyHERqcGiKljBFK6m8WYL4Pez07ko4=
+github.com/mattermost/mattermost/server/public v0.1.7/go.mod h1:SkTKbMul91Rq0v2dIxe8mqzUOY+3KwlwwLmAlxDfGCk=
 github.com/mattermost/mattermost/server/v8 v8.0.0-20240725195723-b244bb621d4d h1:1iojRx6mqgtb44ViIUcbAuKn4uzKERKYsFf8W1J76Hg=
 github.com/mattermost/mattermost/server/v8 v8.0.0-20240725195723-b244bb621d4d/go.mod h1:bCPUN2odATk4v9Gox88gBphLhnrJfEvqNQtaFVVVso4=
 github.com/mattermost/morph v1.1.0 h1:Q9vrJbeM3s2jfweGheq12EFIzdNp9a/6IovcbvOQ6Cw=
