@@ -8,7 +8,6 @@ linters-settings:
   goimports:
     local-prefixes: github.com/mattermost/mattermost-plugin-matterbridge
   govet:
-    check-shadowing: true
     enable-all: true
     disable:
       - fieldalignment

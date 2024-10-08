@@ -256,7 +256,7 @@ func (th *testHelper) SetupPublicChannel(t *testing.T, team *model.Team, opts ..
 func (th *testHelper) SetupUser(t *testing.T, team *model.Team) *model.User {
 	t.Helper()
 
-	username := model.NewId()
+	username := model.NewUsername()
 
 	user := &model.User{
 		Email:         fmt.Sprintf("%s@example.com", username),
