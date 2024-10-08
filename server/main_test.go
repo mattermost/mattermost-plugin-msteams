@@ -172,7 +172,7 @@ func setupServer(mt *mainT) error {
 	ap := app.New(app.ServerConnector(server.Channels()))
 
 	// Setup the first user immediately.
-	username := model.NewId()
+	username := model.NewUsername()
 	user := &model.User{
 		Email:         fmt.Sprintf("%s@example.com", username),
 		Username:      username,
