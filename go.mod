@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/enescakir/emoji v1.0.0
@@ -184,7 +184,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/redis/go-redis/v9 v9.6.0 // indirect
+	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	github.com/redis/rueidis v1.0.41 // indirect
 	github.com/reflog/dateconstraints v0.2.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
