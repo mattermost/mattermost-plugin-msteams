@@ -18,7 +18,7 @@ require (
 	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.8.1
 	github.com/microsoft/kiota-http-go v1.4.5
-	github.com/microsoftgraph/msgraph-sdk-go v1.53.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.55.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
