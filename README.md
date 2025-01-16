@@ -12,9 +12,9 @@ See the [Mattermost Product Documentation](https://docs.mattermost.com/integrate
 
 ## License
 
-This repository is licensed under the [Mattermost Source Available License](LICENSE) and requires a valid Enterprise Edition License when used for production. See [frequently asked questions](https://docs.mattermost.com/overview/faq.html#mattermost-source-available-license) to learn more.
+This repository is licensed under the [Mattermost Source Available License](LICENSE.txt) and requires a valid Enterprise Edition License when used for production. See [frequently asked questions](https://docs.mattermost.com/overview/faq.html#mattermost-source-available-license) to learn more.
 
-Although a valid Mattermost Enterprise Edition License is required if using this plugin in production, the [Mattermost Source Available License](LICENSE) allows you to compile and test this plugin in development and testing environments without a Mattermost Enterprise Edition License. As such, we welcome community contributions to this plugin.
+Although a valid Mattermost Enterprise Edition License is required if using this plugin in production, the [Mattermost Source Available License](LICENSE.txt) allows you to compile and test this plugin in development and testing environments without a Mattermost Enterprise Edition License. As such, we welcome community contributions to this plugin.
 
 If you're running an Enterprise Edition of Mattermost and don't already have a valid license, you can obtain a trial license from **System Console > Edition and License**. If you're running the Team Edition of Mattermost, including when you run the server directly from source, you may instead configure your server to enable both testing (`ServiceSettings.EnableTesting`) and developer mode (`ServiceSettings.EnableDeveloper`). These settings are not recommended in production environments.
 
@@ -102,37 +102,49 @@ make deploy
 To trigger a release, follow these steps:
 
 1. **For Patch Release:** Run the following command:
+
     ```
     make patch
     ```
+
    This will release a patch change.
 
 2. **For Minor Release:** Run the following command:
+
     ```
     make minor
     ```
+
    This will release a minor change.
 
 3. **For Major Release:** Run the following command:
+
     ```
     make major
     ```
+
    This will release a major change.
 
 4. **For Patch Release Candidate (RC):** Run the following command:
+
     ```
     make patch-rc
     ```
+
    This will release a patch release candidate.
 
 5. **For Minor Release Candidate (RC):** Run the following command:
+
     ```
     make minor-rc
     ```
+
    This will release a minor release candidate.
 
 6. **For Major Release Candidate (RC):** Run the following command:
+
     ```
     make major-rc
     ```
+
    This will release a major release candidate.

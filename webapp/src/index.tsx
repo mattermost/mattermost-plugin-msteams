@@ -1,3 +1,6 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
 import {Store, Dispatch} from 'redux';
 import {GlobalState} from 'mattermost-redux/types/store';
 import {getCurrentUserRoles} from 'mattermost-redux/selectors/entities/users';

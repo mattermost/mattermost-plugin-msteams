@@ -1,5 +1,8 @@
 //go:generate mockery --name=Store
 //go:generate go run generators/main.go
+
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 package store
 
 import (

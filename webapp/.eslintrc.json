@@ -1,44 +1,84 @@
 {
-  "extends": [
-      "eslint:recommended",
-      "plugin:react-hooks/recommended",
-      "plugin:@typescript-eslint/recommended"
-  ],
-  "parserOptions": {
-    "ecmaVersion": 8,
-    "sourceType": "module",
-    "ecmaFeatures": {
-      "jsx": true,
-      "impliedStrict": true,
-      "modules": true,
-      "experimentalObjectRestSpread": true
-    }
+  "env": {
+    "browser": true,
+    "es6": true,
+    "jest": true,
+    "jquery": true,
+    "node": true
   },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "globals": {
+    "after": true,
+    "before": true,
+    "beforeEach": true,
+    "describe": true,
+    "expect": true,
+    "it": true,
+    "jest": true
+  },
+  "overrides": [
+    {
+      "extends": "plugin:@typescript-eslint/recommended",
+      "files": [
+        "**/*.tsx",
+        "**/*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/ban-ts-comment": 0,
+        "@typescript-eslint/ban-ts-ignore": 0,
+        "@typescript-eslint/ban-types": 1,
+        "@typescript-eslint/explicit-function-return-type": 0,
+        "@typescript-eslint/explicit-module-boundary-types": 0,
+        "@typescript-eslint/indent": [
+          2,
+          4,
+          {
+            "SwitchCase": 0
+          }
+        ],
+        "@typescript-eslint/no-use-before-define": [
+          2,
+          {
+            "classes": false,
+            "functions": false,
+            "variables": false
+          }
+        ],
+        "@typescript-eslint/no-var-requires": 0,
+        "@typescript-eslint/prefer-interface": 0,
+        "react/jsx-filename-extension": [
+          1,
+          {
+            "extensions": [
+              ".jsx",
+              ".tsx"
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "experimentalObjectRestSpread": true,
+      "impliedStrict": true,
+      "jsx": true,
+      "modules": true
+    },
+    "ecmaVersion": 8,
+    "sourceType": "module"
+  },
   "plugins": [
     "react",
     "import",
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "header"
   ],
-  "env": {
-    "browser": true,
-    "node": true,
-    "jquery": true,
-    "es6": true,
-    "jest": true
-  },
-  "globals": {
-    "jest": true,
-    "describe": true,
-    "it": true,
-    "expect": true,
-    "before": true,
-    "after": true,
-    "beforeEach": true
-  },
-  "settings": {
-    "import/resolver": "webpack"
-  },
   "rules": {
     "array-bracket-spacing": [
       2,
@@ -53,8 +93,8 @@
     "arrow-spacing": [
       2,
       {
-        "before": true,
-        "after": true
+        "after": true,
+        "before": true
       }
     ],
     "block-scoped-var": 2,
@@ -74,8 +114,8 @@
     "comma-spacing": [
       2,
       {
-        "before": false,
-        "after": true
+        "after": true,
+        "before": false
       }
     ],
     "comma-style": [
@@ -125,18 +165,23 @@
     "generator-star-spacing": [
       2,
       {
-        "before": false,
-        "after": true
+        "after": true,
+        "before": false
       }
     ],
     "global-require": 2,
     "guard-for-in": 2,
+    "header/header": [
+      2,
+      "line",
+      " Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.\n See LICENSE.txt for license information.",
+      2
+    ],
     "id-blacklist": 0,
     "import/no-unresolved": 2,
     "import/order": [
       "error",
       {
-        "newlines-between": "always-and-inside-groups",
         "groups": [
           "builtin",
           "external",
@@ -146,7 +191,8 @@
           ],
           "sibling",
           "index"
-        ]
+        ],
+        "newlines-between": "always-and-inside-groups"
       }
     ],
     "indent": [
@@ -163,16 +209,16 @@
     "key-spacing": [
       2,
       {
-        "beforeColon": false,
         "afterColon": true,
+        "beforeColon": false,
         "mode": "strict"
       }
     ],
     "keyword-spacing": [
       2,
       {
-        "before": true,
         "after": true,
+        "before": true,
         "overrides": {}
       }
     ],
@@ -181,10 +227,10 @@
     "lines-around-comment": [
       2,
       {
-        "beforeBlockComment": true,
-        "beforeLineComment": true,
+        "allowBlockEnd": true,
         "allowBlockStart": true,
-        "allowBlockEnd": true
+        "beforeBlockComment": true,
+        "beforeLineComment": true
       }
     ],
     "max-lines": [
@@ -271,14 +317,14 @@
     "no-magic-numbers": [
       0,
       {
+        "detectObjects": true,
+        "enforceConst": true,
         "ignore": [
           -1,
           0,
           1,
           2
-        ],
-        "enforceConst": true,
-        "detectObjects": true
+        ]
       }
     ],
     "no-mixed-operators": [
@@ -369,8 +415,8 @@
     "no-unused-vars": [
       2,
       {
-        "vars": "all",
-        "args": "after-used"
+        "args": "after-used",
+        "vars": "all"
       }
     ],
     "no-use-before-define": [
@@ -511,9 +557,9 @@
     "react/jsx-tag-spacing": [
       2,
       {
-        "closingSlash": "never",
+        "afterOpening": "never",
         "beforeSelfClosing": "never",
-        "afterOpening": "never"
+        "closingSlash": "never"
       }
     ],
     "react/jsx-uses-react": 2,
@@ -576,8 +622,8 @@
     "semi-spacing": [
       2,
       {
-        "before": false,
-        "after": true
+        "after": true,
+        "before": false
       }
     ],
     "sort-imports": 0,
@@ -590,8 +636,8 @@
       2,
       {
         "anonymous": "never",
-        "named": "never",
-        "asyncArrow": "always"
+        "asyncArrow": "always",
+        "named": "never"
       }
     ],
     "space-in-parens": [
@@ -602,8 +648,8 @@
     "space-unary-ops": [
       2,
       {
-        "words": true,
-        "nonwords": false
+        "nonwords": false,
+        "words": true
       }
     ],
     "symbol-description": 2,
@@ -632,40 +678,7 @@
       }
     ]
   },
-  "overrides": [
-    {
-      "files": ["**/*.tsx", "**/*.ts"],
-      "extends": "plugin:@typescript-eslint/recommended",
-      "rules": {
-        "@typescript-eslint/ban-ts-ignore": 0,
-        "@typescript-eslint/ban-types": 1,
-        "@typescript-eslint/ban-ts-comment": 0,
-        "@typescript-eslint/no-var-requires": 0,
-        "@typescript-eslint/prefer-interface": 0,
-        "@typescript-eslint/explicit-function-return-type": 0,
-        "@typescript-eslint/explicit-module-boundary-types": 0,
-        "@typescript-eslint/indent": [
-          2,
-          4,
-          {
-            "SwitchCase": 0
-          }
-        ],
-        "@typescript-eslint/no-use-before-define": [
-          2,
-          {
-            "classes": false,
-            "functions": false,
-            "variables": false
-          }
-        ],
-        "react/jsx-filename-extension": [
-          1,
-          {
-            "extensions": [".jsx", ".tsx"]
-          }
-        ]
-      }
-    }
-  ]
+  "settings": {
+    "import/resolver": "webpack"
+  }
 }
