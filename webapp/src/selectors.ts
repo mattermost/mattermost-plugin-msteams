@@ -1,3 +1,6 @@
+// Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
 import {GlobalState} from 'mattermost-redux/types/store';
 
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
