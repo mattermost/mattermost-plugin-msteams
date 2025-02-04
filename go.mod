@@ -14,7 +14,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/mattermost/mattermost/server/public v0.1.9
-	github.com/mattermost/mattermost/server/v8 v8.0.0-20240912172627-d1557271f1b4
+	github.com/mattermost/mattermost/server/v8 v8.0.0-20241113102039-053d0b5f0ad5
 	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.8.1
 	github.com/microsoft/kiota-http-go v1.4.7
@@ -50,7 +50,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/avct/uasurfer v0.0.0-20240501094946-ca0c4d1e541b // indirect
-	github.com/aws/aws-sdk-go v1.55.0 // indirect
+	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
@@ -185,7 +185,7 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/redis/go-redis/v9 v9.7.0 // indirect
-	github.com/redis/rueidis v1.0.41 // indirect
+	github.com/redis/rueidis v1.0.45 // indirect
 	github.com/reflog/dateconstraints v0.2.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect

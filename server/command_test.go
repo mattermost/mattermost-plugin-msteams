@@ -340,12 +340,12 @@ func TestNotificationCommand(t *testing.T) {
 			}{
 				{
 					name:     "enabled",
-					enabled:  model.NewBool(true),
+					enabled:  model.NewPointer(true),
 					expected: "Notifications from chats and group chats in MS Teams are currently enabled.",
 				},
 				{
 					name:     "disabled",
-					enabled:  model.NewBool(false),
+					enabled:  model.NewPointer(false),
 					expected: "Notifications from chats and group chats in MS Teams are currently disabled.",
 				},
 				{
@@ -378,8 +378,8 @@ func TestNotificationCommand(t *testing.T) {
 			name    string
 			enabled *bool
 		}{
-			{name: "was enabled", enabled: model.NewBool(true)},
-			{name: "was disabled", enabled: model.NewBool(false)},
+			{name: "was enabled", enabled: model.NewPointer(true)},
+			{name: "was disabled", enabled: model.NewPointer(false)},
 			{name: "was not set", enabled: nil},
 		}
 		for _, tc := range cases {
@@ -406,8 +406,8 @@ func TestNotificationCommand(t *testing.T) {
 			name    string
 			enabled *bool
 		}{
-			{name: "was enabled", enabled: model.NewBool(true)},
-			{name: "was disabled", enabled: model.NewBool(false)},
+			{name: "was enabled", enabled: model.NewPointer(true)},
+			{name: "was disabled", enabled: model.NewPointer(false)},
 			{name: "was not set", enabled: nil},
 		}
 		for _, tc := range cases {
