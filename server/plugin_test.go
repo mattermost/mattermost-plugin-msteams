@@ -44,7 +44,7 @@ func TestGetURL(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			config := &model.Config{}
 			config.SetDefaults()
-			config.ServiceSettings.SiteURL = model.NewString(testCase.URL)
+			config.ServiceSettings.SiteURL = model.NewPointer(testCase.URL)
 
 			actual := getURL(config)
 			assert.Equal(t, testCase.Expected, actual)
@@ -89,7 +89,7 @@ func TestGetRelativeURL(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			config := &model.Config{}
 			config.SetDefaults()
-			config.ServiceSettings.SiteURL = model.NewString(testCase.URL)
+			config.ServiceSettings.SiteURL = model.NewPointer(testCase.URL)
 
 			actual := getRelativeURL(config)
 			assert.Equal(t, testCase.Expected, actual)
