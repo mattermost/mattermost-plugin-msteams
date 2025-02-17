@@ -116,7 +116,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 
 	errors := ""
 	for _, activity := range activities.Value {
-		if activity.ClientState != a.p.getConfiguration().WebhookSecret {
+		if subtle.ConstantTimeCompare([]byte(activity.ClientState), []byte(a.p.getConfiguration().WebhookSecret)) == 0 {
 			errors += "Invalid webhook secret"
 			continue
 		}
