@@ -114,6 +114,13 @@
         "type": "custom",
         "help_text": "",
         "default": ""
+      },
+      {
+        "key": "appManifestDownload",
+        "display_name": "Download Manifest",
+        "type": "custom",
+        "help_text": "",
+        "default": ""
       }
     ]
   }
