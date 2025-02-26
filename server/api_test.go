@@ -1041,6 +1041,15 @@ func TestIFrameMattermostTab(t *testing.T) {
 	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
 	assert.Contains(t, bodyString, `src="`+*siteURL+`"`)
 
+	// Verify security headers are set correctly
+	parsedURL, err := url.Parse(*siteURL)
+	require.NoError(t, err)
+	origin := parsedURL.Scheme + "://" + parsedURL.Host
+	expectedCSP := "default-src 'none'; frame-src " + origin + "; style-src 'unsafe-inline'"
+	assert.Equal(t, expectedCSP, response.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", response.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "strict-origin-when-cross-origin", response.Header.Get("Referrer-Policy"))
+
 	// Verify MMEMBED cookie is set
 	cookies := response.Cookies()
 	var mmembedCookie *http.Cookie
@@ -1054,6 +1063,8 @@ func TestIFrameMattermostTab(t *testing.T) {
 	assert.Equal(t, "1", mmembedCookie.Value)
 	// The cookie is not HttpOnly in the actual implementation
 	assert.Equal(t, "/", mmembedCookie.Path)
+	assert.True(t, mmembedCookie.Secure)
+	assert.Equal(t, http.SameSiteNoneMode, mmembedCookie.SameSite)
 }
 
 func TestConnectionStatus(t *testing.T) {

@@ -6,6 +6,7 @@ package main
 import (
 	_ "embed"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -18,6 +19,26 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "SiteURL is empty", http.StatusInternalServerError)
 		return
 	}
+
+	parsedURL, err := url.Parse(siteURL)
+	if err != nil {
+		a.p.API.LogError("Invalid SiteURL for MS Teams iFrame", "error", err.Error())
+		http.Error(w, "Invalid SiteURL", http.StatusInternalServerError)
+		return
+	}
+
+	// Get the origin (scheme + host) for CSP
+	origin := parsedURL.Scheme + "://" + parsedURL.Host
+
+	// Set a minimal CSP for the wrapper page
+	cspDirectives := []string{
+		"default-src 'none'",        // Block all resources by default
+		"frame-src " + origin,       // Only allow iframe to load content from Mattermost origin
+		"style-src 'unsafe-inline'", // Allow inline styles for the iframe positioning
+	}
+	w.Header().Set("Content-Security-Policy", strings.Join(cspDirectives, "; "))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
 	html := strings.ReplaceAll(iFrameHTML, "{{SITE_URL}}", siteURL)
 
