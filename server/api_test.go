@@ -1010,7 +1010,50 @@ func TestGetSiteStats(t *testing.T) {
 }
 
 func TestIFrameMattermostTab(t *testing.T) {
-	t.Skip()
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/iframe/mattermostTab")
+	team := th.SetupTeam(t)
+	user := th.SetupUser(t, team)
+	client := th.SetupClient(t, user.Id)
+
+	th.Reset(t)
+
+	request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	require.NoError(t, err)
+
+	request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
+
+	response, err := http.DefaultClient.Do(request)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, response.Body.Close())
+	})
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	bodyString := string(bodyBytes)
+
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.Contains(t, bodyString, "<html")
+	assert.Contains(t, bodyString, "</html>")
+
+	// Verify iframe src matches site URL
+	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
+	assert.Contains(t, bodyString, `src="`+*siteURL+`"`)
+
+	// Verify MMEMBED cookie is set
+	cookies := response.Cookies()
+	var mmembedCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == "MMEMBED" {
+			mmembedCookie = cookie
+			break
+		}
+	}
+	require.NotNil(t, mmembedCookie, "MMEMBED cookie should be set")
+	assert.Equal(t, "1", mmembedCookie.Value)
+	// The cookie is not HttpOnly in the actual implementation
+	assert.Equal(t, "/", mmembedCookie.Path)
 }
 
 func TestConnectionStatus(t *testing.T) {
