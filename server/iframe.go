@@ -15,26 +15,42 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	config := a.p.API.GetConfig()
 	siteURL := *config.ServiceSettings.SiteURL
 	if siteURL == "" {
-		a.p.API.LogError("SiteURL cannot be empty for MS Teams iFrame")
-		http.Error(w, "SiteURL is empty", http.StatusInternalServerError)
+		a.p.API.LogError("ServiceSettings.SiteURL cannot be empty for MS Teams iFrame")
+		http.Error(w, "ServiceSettings.SiteURL is empty", http.StatusInternalServerError)
 		return
 	}
 
 	parsedURL, err := url.Parse(siteURL)
 	if err != nil {
-		a.p.API.LogError("Invalid SiteURL for MS Teams iFrame", "error", err.Error())
-		http.Error(w, "Invalid SiteURL", http.StatusInternalServerError)
+		a.p.API.LogError("Invalid ServiceSettings.SiteURL for MS Teams iFrame", "error", err.Error())
+		http.Error(w, "Invalid ServiceSettings.SiteURL", http.StatusInternalServerError)
 		return
 	}
 
-	// Get the origin (scheme + host) for CSP
-	origin := parsedURL.Scheme + "://" + parsedURL.Host
+	// By default, only allow iframe to load content from Mattermost origin
+	frameSrc := []string{
+		"'self'",
+		parsedURL.Scheme + "://" + parsedURL.Host,
+	}
+
+	// If SAML is configured, allow loading the IdpURL to which a user must browse to complete sign on.
+	if config.SamlSettings.IdpURL != nil && *config.SamlSettings.IdpURL != "" {
+		parsedIDPURL, err := url.Parse(*config.SamlSettings.IdpURL)
+		if err != nil {
+			a.p.API.LogError("Invalid SamlSettings.IdpURL for MS Teams iFrame", "error", err.Error())
+			http.Error(w, "Invalid SamlSettings.IdpURL", http.StatusInternalServerError)
+			return
+		}
+
+		if parsedIDPURL != nil {
+			frameSrc = append(frameSrc, parsedIDPURL.Scheme+"://"+parsedIDPURL.Host)
+		}
+	}
 
 	// Set a minimal CSP for the wrapper page
 	cspDirectives := []string{
-		"default-src 'none'",        // Block all resources by default
-		"frame-src " + origin,       // Only allow iframe to load content from Mattermost origin
-		"style-src 'unsafe-inline'", // Allow inline styles for the iframe positioning
+		"default-src 'none'", // Block all resources by default
+		"frame-src " + strings.Join(frameSrc, " "),
 	}
 	w.Header().Set("Content-Security-Policy", strings.Join(cspDirectives, "; "))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
