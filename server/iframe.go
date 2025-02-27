@@ -6,7 +6,6 @@ package main
 import (
 	_ "embed"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -18,33 +17,6 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 		a.p.API.LogError("ServiceSettings.SiteURL cannot be empty for MS Teams iFrame")
 		http.Error(w, "ServiceSettings.SiteURL is empty", http.StatusInternalServerError)
 		return
-	}
-
-	parsedURL, err := url.Parse(siteURL)
-	if err != nil {
-		a.p.API.LogError("Invalid ServiceSettings.SiteURL for MS Teams iFrame", "error", err.Error())
-		http.Error(w, "Invalid ServiceSettings.SiteURL", http.StatusInternalServerError)
-		return
-	}
-
-	// By default, only allow iframe to load content from Mattermost origin
-	frameSrc := []string{
-		"'self'",
-		parsedURL.Scheme + "://" + parsedURL.Host,
-	}
-
-	// If SAML is configured, allow loading the IdpURL to which a user must browse to complete sign on.
-	if config.SamlSettings.IdpURL != nil && *config.SamlSettings.IdpURL != "" {
-		parsedIDPURL, err := url.Parse(*config.SamlSettings.IdpURL)
-		if err != nil {
-			a.p.API.LogError("Invalid SamlSettings.IdpURL for MS Teams iFrame", "error", err.Error())
-			http.Error(w, "Invalid SamlSettings.IdpURL", http.StatusInternalServerError)
-			return
-		}
-
-		if parsedIDPURL != nil {
-			frameSrc = append(frameSrc, parsedIDPURL.Scheme+"://"+parsedIDPURL.Host)
-		}
 	}
 
 	// Set a minimal CSP for the wrapper page
