@@ -51,7 +51,6 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	cspDirectives := []string{
 		"default-src 'none'", // Block all resources by default
 		"frame-src " + strings.Join(frameSrc, " "),
-		"style-src 'unsafe-inline'", // Allow inline styles for the iframe positioning
 	}
 	w.Header().Set("Content-Security-Policy", strings.Join(cspDirectives, "; "))
 	w.Header().Set("X-Content-Type-Options", "nosniff")

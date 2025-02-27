@@ -1045,7 +1045,7 @@ func TestIFrameMattermostTab(t *testing.T) {
 	parsedURL, err := url.Parse(*siteURL)
 	require.NoError(t, err)
 	origin := parsedURL.Scheme + "://" + parsedURL.Host
-	expectedCSP := "default-src 'none'; frame-src 'self' " + origin + "; style-src 'unsafe-inline'"
+	expectedCSP := "default-src 'none'; frame-src 'self' " + origin
 	assert.Equal(t, expectedCSP, response.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", response.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "strict-origin-when-cross-origin", response.Header.Get("Referrer-Policy"))
@@ -1111,7 +1111,7 @@ func TestIFrameMattermostTabWithIdpURL(t *testing.T) {
 	require.NoError(t, err)
 	origin := parsedURL.Scheme + "://" + parsedURL.Host
 
-	expectedCSP := "default-src 'none'; frame-src 'self' " + origin + " https://idp.example.com" + "; style-src 'unsafe-inline'"
+	expectedCSP := "default-src 'none'; frame-src 'self' " + origin + " https://idp.example.com"
 	assert.Equal(t, expectedCSP, response.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", response.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "strict-origin-when-cross-origin", response.Header.Get("Referrer-Policy"))
