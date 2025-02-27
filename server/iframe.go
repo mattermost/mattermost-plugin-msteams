@@ -49,8 +49,6 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 
 	// Set a minimal CSP for the wrapper page
 	cspDirectives := []string{
-		"default-src 'none'", // Block all resources by default
-		"frame-src " + strings.Join(frameSrc, " "),
 		"style-src 'unsafe-inline'", // Allow inline styles for the iframe positioning
 	}
 	w.Header().Set("Content-Security-Policy", strings.Join(cspDirectives, "; "))
