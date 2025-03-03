@@ -50,13 +50,22 @@ var iFrameHTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Mattermost</title>
+  <title>Mattermost DevSecOps</title>
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
+  <script src="https://statics.teams.cdn.office.net/sdk/v1.10.0/js/MicrosoftTeams.min.js"></script>
 </head>
 <body>
-	<iframe
-		style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
-		src="{{SITE_URL}}" title="Mattermost">
-	</iframe>
+    <iframe
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+        src="{{SITE_URL}}" title="Mattermost DevSecOps" onload="notifyAppLoaded()">
+    </iframe>
+  <script>
+    // Initialize the Microsoft Teams SDK
+    microsoftTeams.initialize();
+
+    function notifyAppLoaded() {
+      microsoftTeams.appInitialization.notifySuccess();
+    }
+  </script>
 </body>
 </html>`
