@@ -52,7 +52,11 @@ var iFrameHTML = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <title>Mattermost DevSecOps</title>
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
-  <script src="https://statics.teams.cdn.office.net/sdk/v1.10.0/js/MicrosoftTeams.min.js"></script>
+  <script 
+    src="https://res.cdn.office.net/teams-js/2.34.0/js/MicrosoftTeams.min.js"
+    integrity="sha384-brW9AazbKR2dYw2DucGgWCCcmrm2oBFV4HQidyuyZRI/TnAkmOOnTARSTdps3Hwt"
+    crossorigin="anonymous"
+  ></script>
 </head>
 <body>
     <iframe
@@ -61,10 +65,10 @@ var iFrameHTML = `<!DOCTYPE html>
     </iframe>
   <script>
     // Initialize the Microsoft Teams SDK
-    microsoftTeams.initialize();
+    microsoftTeams.app.initialize(["{{SITE_URL}}"]);
 
     function notifyAppLoaded() {
-      microsoftTeams.appInitialization.notifySuccess();
+      microsoftTeams.app.notifySuccess();
     }
   </script>
 </body>
