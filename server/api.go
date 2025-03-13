@@ -919,6 +919,14 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 
 // userLogin is used to show a login page for the user to trigger the Microsoft Teams login flow
 func (a *API) userLogin(w http.ResponseWriter, r *http.Request) {
+	// If the user is already logged in, redirect to the home page
+	// TODO: Refactor the user properties setup to a function and call it from here if the user is already logged in
+	// just in case the user logs in from a tabApp in a browser.
+	if r.Header.Get("Mattermost-User-ID") != "" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
 	html := `
 	<html>
 		<head>
@@ -950,7 +958,7 @@ func (a *API) userLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // userLoginComplete is used to handle the callback from the Microsoft Teams login flow
-func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) { // Get the token from the parammeters
+func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
 		a.p.API.LogError("No token provided")
