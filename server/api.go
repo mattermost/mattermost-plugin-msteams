@@ -6,11 +6,14 @@ package main
 import (
 	"bytes"
 	"context" //nolint:gosec
+	"crypto/rsa"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -18,6 +21,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -84,7 +88,8 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/users/setup", api.userSetup).Methods("GET")
+	router.HandleFunc("/users/login", api.userLogin).Methods("GET")
+	router.HandleFunc("/users/login/complete", api.userLoginComplete).Methods("GET")
 
 	return api
 }
@@ -912,44 +917,181 @@ func (a *API) siteStats(w http.ResponseWriter, r *http.Request) {
 	a.returnJSON(w, siteStats)
 }
 
-func (a *API) userSetup(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("Mattermost-User-ID")
-	if userID == "" {
-		http.Error(w, "Not authorized", http.StatusUnauthorized)
+// userLogin is used to show a login page for the user to trigger the Microsoft Teams login flow
+func (a *API) userLogin(w http.ResponseWriter, r *http.Request) {
+	html := `
+	<html>
+		<head>
+			<title>Login</title>
+		</head>
+		<body>
+			<script>
+				window.parent.postMessage({
+					type: 'mattermost_external_auth_login',
+					provider: 'msteams',
+					href: '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/users/login/complete',
+				}, '*');
+			</script>
+			<h1>Logging in...</h1>
+		</body>
+	</html>
+	`
+
+	html, err := a.formatTemplate(html)
+	if err != nil {
+		a.p.API.LogError("Failed to format iFrame HTML", "error", err.Error())
+		http.Error(w, "Failed to format iFrame HTML", http.StatusInternalServerError)
 		return
 	}
 
-	userId := r.URL.Query().Get("id")
-	if userId == "" {
-		http.Error(w, "Not authorized", http.StatusUnauthorized)
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
+}
+
+// userLoginComplete is used to handle the callback from the Microsoft Teams login flow
+func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) { // Get the token from the parammeters
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		a.p.API.LogError("No token provided")
+		http.Error(w, "No token provided", http.StatusBadRequest)
 		return
 	}
 
-	userPrincipalName := r.URL.Query().Get("user_principal_name")
-	if userPrincipalName == "" {
-		http.Error(w, "Not authorized", http.StatusUnauthorized)
+	// Parse the token without verification first to log the claims
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		// TODO: Cache
+		keys, err := getSigningKey(a.p.configuration.TenantID, token.Header["kid"].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get signing keys: %w", err)
+		}
+
+		return keys, nil
+	})
+	if err != nil {
+		a.p.API.LogError("Failed to parse JWT token", "error", err.Error())
+		http.Error(w, "Failed to parse JWT token", http.StatusBadRequest)
 		return
 	}
 
-	a.p.API.LogInfo("Patching user", "user_id", userID)
+	claims := parsedToken.Claims.(jwt.MapClaims)
 
-	user, appErr := a.p.API.GetUser(userID)
+	a.p.API.LogInfo("JWT claims", "claims", claims)
+
+	email, ok := claims["preferred_username"].(string)
+	if !ok {
+		a.p.API.LogError("Preferred username not found in claims")
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+
+	mmUser, appErr := a.p.API.GetUserByEmail(email)
 	if appErr != nil {
-		a.p.API.LogError("Failed to get user", "error", appErr.Error())
-		http.Error(w, appErr.Error(), http.StatusInternalServerError)
+		a.p.API.LogError("Failed to get Mattermost user", "error", appErr.Error())
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	user.Props["com.mattermost.plugin-msteams-devsecops.user_principal_name"] = userPrincipalName
-	user.Props["com.mattermost.plugin-msteams-devsecops.user_id"] = userId
+	mmUser.Props["com.mattermost.plugin-msteams-devsecops.user_principal_name"] = claims["preferred_username"].(string)
+	mmUser.Props["com.mattermost.plugin-msteams-devsecops.user_id"] = claims["oid"].(string)
 
-	_, appErr = a.p.API.UpdateUser(user)
+	_, appErr = a.p.API.UpdateUser(mmUser)
 	if appErr != nil {
 		a.p.API.LogError("Failed to patch user", "error", appErr.Error())
 		http.Error(w, appErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// w.WriteHeader(http.StatusOK)
+	// Create session token for Mattermost user
+	session, appErr := a.p.API.CreateSession(&model.Session{
+		UserId:    mmUser.Id,
+		DeviceId:  model.NewId(),
+		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 30), // 30 days
+	})
+	if appErr != nil {
+		a.p.API.LogError("Failed to create session", "error", appErr.Error())
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	// Set session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "MMAUTHTOKEN",
+		Value:    session.Token,
+		Path:     "/",
+		HttpOnly: true,
+	})
+
+	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func getSigningKey(tenantID string, kid string) (*rsa.PublicKey, error) {
+	// Construct the OpenID Connect discovery endpoint URL
+	jwksURL := fmt.Sprintf("https://login.microsoftonline.com/%s/discovery/v2.0/keys", tenantID)
+
+	// Make an HTTP request to get the JWKS
+	resp, err := http.Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JWKS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and parse the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read JWKS response: %w", err)
+	}
+
+	// Parse the JWKS
+	var jwks struct {
+		Keys []struct {
+			KeyType string `json:"kty"`
+			N       string `json:"n"`
+			E       string `json:"e"`
+			Kid     string `json:"kid"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		return nil, fmt.Errorf("failed to parse JWKS: %w", err)
+	}
+
+	for _, key := range jwks.Keys {
+		if key.KeyType != "RSA" {
+			continue
+		}
+
+		if key.Kid != kid {
+			continue
+		}
+
+		// Decode the base64 URL encoded modulus and exponent
+		nBytes, err := base64.RawURLEncoding.DecodeString(key.N)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode modulus: %w", err)
+		}
+
+		eBytes, err := base64.RawURLEncoding.DecodeString(key.E)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode exponent: %w", err)
+		}
+
+		// Convert the modulus to a big integer
+		n := new(big.Int)
+		n.SetBytes(nBytes)
+
+		// Convert the exponent to an integer
+		var eInt int
+		for i := 0; i < len(eBytes); i++ {
+			eInt = eInt<<8 + int(eBytes[i])
+		}
+
+		// Create and return the RSA public key
+		return &rsa.PublicKey{
+			N: n,
+			E: eInt,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no matching key found")
 }
