@@ -67,8 +67,55 @@ var iFrameHTML = `<!DOCTYPE html>
     // Initialize the Microsoft Teams SDK
     microsoftTeams.app.initialize(["{{SITE_URL}}"]);
 
+    // Listen for a message from the iframe "mattermost_external_auth_login" sent by using window.parent.postMessage
+    window.addEventListener('message', async function (event) {
+      console.log('Received message from Mattermost:', event.data);
+
+      if (event.data.type === 'mattermost_external_auth_login') {
+        console.log("Authenticating...");
+
+        microsoftTeams.authentication.authenticate({
+          url: event.data.href,
+          width: 600,
+          height: 535,
+          isExternal: false,
+        })
+        .then(microsoftTeams.authentication.getAuthToken)
+        .then(microsoftTeams.app.getContext)
+        .then(redirectToUserSetupPage)
+        .catch(function (e) {
+          console.error("Authentication failed:", e);
+        });
+      }
+    });
+
     function notifyAppLoaded() {
-      microsoftTeams.app.notifySuccess();
+      return microsoftTeams.app.notifySuccess();
+    }
+
+    function updateUserWithTeamsContext(context) {
+      // Update current Mattermost user with the token
+      return fetch("{{SITE_URL}}/plugins/com.mattermost.plugin-msteams-devsecops/users/setup", {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: context.user.id,
+          user_principal_name: context.user.userPrincipalName,
+        })      
+      }).then(function (response) {
+        console.log("User updated successfully");
+        return response;
+      }).catch(function (error) {
+        return "Error updating user: " + error;
+      });
+    }
+
+    // Redirect to the user setup page where we will store the user information and redirect back to the Mattermost login page
+    function redirectToUserSetupPage(context) {
+      iframe = document.querySelector('iframe');
+      iframe.src = "{{SITE_URL}}/plugins/com.mattermost.plugin-msteams-devsecops/users/setup?id=" + context.user.id + "&user_principal_name=" + context.user.userPrincipalName + "&_t=" + new Date().getTime();
     }
   </script>
 </body>
