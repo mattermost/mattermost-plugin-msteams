@@ -75,7 +75,7 @@ var iFrameHTML = `<!DOCTYPE html>
         microsoftTeams.authentication.getAuthToken()
         .then(function(token){
           // redirect to user complete page
-          iframe.src = "{{SITE_URL}}/plugins/{{PLUGIN_ID}}/users/login/complete?token=" + token;
+          iframe.src = event.data.href + "?token=" + token;
         })
         .catch(function (e) {
           console.error("Authentication failed:", e);
