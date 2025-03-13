@@ -960,13 +960,15 @@ func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) { // Get
 
 	// Parse the token without verification first to log the claims
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		// TODO: Cache
-		keys, err := getSigningKey(a.p.configuration.TenantID, token.Header["kid"].(string))
+		// TODO: Cache?
+		key, err := getSigningKey(a.p.configuration.TenantID, token.Header["kid"].(string))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get signing keys: %w", err)
 		}
 
-		return keys, nil
+		a.p.API.LogInfo("Signing key", "key", key)
+
+		return key, nil
 	})
 	if err != nil {
 		a.p.API.LogError("Failed to parse JWT token", "error", err.Error())
@@ -975,8 +977,6 @@ func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) { // Get
 	}
 
 	claims := parsedToken.Claims.(jwt.MapClaims)
-
-	a.p.API.LogInfo("JWT claims", "claims", claims)
 
 	email, ok := claims["preferred_username"].(string)
 	if !ok {
@@ -1019,7 +1019,16 @@ func (a *API) userLoginComplete(w http.ResponseWriter, r *http.Request) { // Get
 		Name:     "MMAUTHTOKEN",
 		Value:    session.Token,
 		Path:     "/",
-		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "MMUSERID",
+		Value:    mmUser.Id,
+		Path:     "/",
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Redirect to the home page
