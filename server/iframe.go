@@ -130,6 +130,14 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	logger = logger.WithField("user_id", mmUser.Id)
 
+	if mmUser.DeleteAt != 0 {
+		logger.Warn("Mattermost user is archived, redirecting to login")
+
+		// Redirect to the home page
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
 	mmUser.Props["com.mattermost.plugin-msteams-devsecops.sso_username"] = ssoUsername
