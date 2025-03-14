@@ -30,22 +30,26 @@
         tenantId = context.user.tenant.id;
       }
 
-      switch(tenantId) {
+      switch (tenantId) {
         case 'd2888234-d303-4c94-8f45-c7348f089048':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
           });
           break;
-        // TODO
         case 'hub tenant id':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https//hub.mattermost.com/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
+            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
           });
           break;
         // TODO
         case 'snow tenant id':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?token=' + token;
+          });
+          break;
+        case '{{TENANT_ID}}':
+          microsoftTeams.authentication.getAuthToken().then((token) => {
+            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
           });
           break;
         default:
