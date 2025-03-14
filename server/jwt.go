@@ -17,7 +17,7 @@ import (
 
 const (
 	MicrosoftOnlineJWKSURL = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-	ExpectedAudience       = "api://4ef56ea2-4a2f-4817-a6e0-a7cd760e2034"
+	ExpectedAudience       = "api://community.mattermost.com/4ef56ea2-4a2f-4817-a6e0-a7cd760e2034"
 )
 
 type validationError struct {
