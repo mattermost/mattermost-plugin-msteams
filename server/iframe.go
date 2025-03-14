@@ -121,8 +121,10 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	} else if mmUser == nil {
-		logger.Warn("No Mattermost user matching unique_name")
-		http.Error(w, "User not found", http.StatusNotFound)
+		logger.Warn("No Mattermost user matching unique_name, redirecting to login")
+
+		// Redirect to the home page
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
