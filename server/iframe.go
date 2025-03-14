@@ -103,14 +103,19 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	logger = logger.WithField("oid", oid)
 
-	uniqueName, ok := claims["unique_name"].(string)
+	ssoUsername, ok := claims["unique_name"].(string)
 	if !ok {
-		logger.Error("No claim for unique_name")
-		http.Error(w, "", http.StatusBadRequest)
-		return
+		logger.Warn("no unique_name claim")
+
+		ssoUsername, ok = claims["preferred_username"].(string)
+		if !ok {
+			logger.Error("No claim for unique_name or preferred_username")
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
 	}
 
-	mmUser, err := a.p.apiClient.User.GetByEmail(uniqueName)
+	mmUser, err := a.p.apiClient.User.GetByEmail(ssoUsername)
 	if err != nil && err != pluginapi.ErrNotFound {
 		logger.WithError(err).Error("Failed to query Mattermost user matching unique_name")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -125,7 +130,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.unique_name"] = uniqueName
+	mmUser.Props["com.mattermost.plugin-msteams-devsecops.sso_username"] = ssoUsername
 	mmUser.Props["com.mattermost.plugin-msteams-devsecops.oid"] = oid
 
 	err = a.p.apiClient.User.Update(mmUser)
