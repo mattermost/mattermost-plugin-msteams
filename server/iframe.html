@@ -31,6 +31,11 @@
       }
 
       switch(tenantId) {
+        case 'd2888234-d303-4c94-8f45-c7348f089048':
+          microsoftTeams.authentication.getAuthToken().then((token) => {
+            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
+          });
+          break;
         // TODO
         case 'hub tenant id':
           microsoftTeams.authentication.getAuthToken().then((token) => {
