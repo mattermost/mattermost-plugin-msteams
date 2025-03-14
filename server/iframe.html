@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mattermost DevSecOps</title>
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
+  <script
+    src="https://res.cdn.office.net/teams-js/2.34.0/js/MicrosoftTeams.min.js"
+    integrity="sha384-brW9AazbKR2dYw2DucGgWCCcmrm2oBFV4HQidyuyZRI/TnAkmOOnTARSTdps3Hwt"
+    crossorigin="anonymous"
+  ></script>
+</head>
+<body>
+    <iframe
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+        title="Mattermost DevSecOps"
+        src="about:blank"
+        onload="notifyAppLoaded()">
+    </iframe>
+  <script>
+    var iframe = document.querySelector('iframe');
+
+    // Initialize the Microsoft Teams SDK
+    microsoftTeams.app.initialize(["{{SITE_URL}}"]);
+
+    // Choose the iFrame content based on the tenant.
+    microsoftTeams.app.getContext().then((context) => {
+      let tenantId;
+      if (context && context.user && context.user.tenant && context.user.tenant.id) {
+        tenantId = context.user.tenant.id;
+      }
+
+      switch(tenantId) {
+        // TODO
+        case 'hub tenant id':
+          microsoftTeams.authentication.getAuthToken().then((token) => {
+            iframe.src = 'https//hub.mattermost.com/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
+          });
+          break;
+        // TODO
+        case 'snow tenant id':
+          microsoftTeams.authentication.getAuthToken().then((token) => {
+            iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?token=' + token;
+          });
+          break;
+        default:
+          iframe.src = '{{SITE_URL}}';
+          break;
+      }
+    });
+
+    // // Listen for an optional message from the iframe asking for the Entra ID token.
+    // window.addEventListener('message', async function (event) {
+    //   console.log('Received event from iframe', event.data);
+    //
+    //   if (event.data.type === 'mattermost_external_auth_login') {
+    //     console.log('Relaying token', event.data);
+    //
+    //     microsoftTeams.authentication.getAuthToken().then((token) => {
+    //       iframe.contentWindow.postMessage({
+    //         type: 'mattermost_external_auth_token',
+    //         token: token,
+    //       }, event.origin);
+    //     }).catch(function (e) {
+    //       console.error("Failed to relay token", e)
+    //     });
+    //   }
+    // });
+
+    function notifyAppLoaded() {
+      return microsoftTeams.app.notifySuccess();
+    }
+  </script>
+</body>
+</html>
