@@ -87,7 +87,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	enableDeveloper := config.ServiceSettings.EnableDeveloper
 
-	// Ideally we'd accept the token via an Authorization header, but for now get it from the query sring.
+	// Ideally we'd accept the token via an Authorization header, but for now get it from the query string.
 	// token := r.Header.Get("Authorization")
 	token := r.URL.Query().Get("token")
 
