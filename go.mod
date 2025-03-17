@@ -7,6 +7,8 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.1
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/MicahParks/jwkset v0.8.0
+	github.com/MicahParks/keyfunc/v3 v3.3.10
 	github.com/enescakir/emoji v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -43,8 +45,6 @@ require (
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.2 // indirect
 	github.com/JalfResi/justext v0.0.0-20221106200834-be571e3e3052 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/MicahParks/jwkset v0.8.0 // indirect
-	github.com/MicahParks/keyfunc/v3 v3.3.10 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/PuerkitoBio/goquery v1.9.2 // indirect
 	github.com/RoaringBitmap/roaring v1.9.4 // indirect
