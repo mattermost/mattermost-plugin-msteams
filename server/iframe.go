@@ -7,10 +7,13 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -80,7 +83,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enableDeveloper := a.p.apiClient.Configuration.GetConfig().ServiceSettings.EnableDeveloper
+	config := a.p.apiClient.Configuration.GetConfig()
+
+	enableDeveloper := config.ServiceSettings.EnableDeveloper
 
 	// Ideally we'd accept the token via an Authorization header, but for now get it from the query sring.
 	// token := r.Header.Get("Authorization")
@@ -150,12 +155,19 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create session token for Mattermost user
+	// This is effectively copied from https://github.com/mattermost/mattermost/blob/a184e5677d28433495b0cde764bfd99700838740/server/channels/app/login.go#L287
+	secure := true
+	maxAgeSeconds := *config.ServiceSettings.SessionLengthWebInHours * 60 * 60
+	domain := getCookieDomain(config)
+	subpath, _ := utils.GetSubpathFromConfig(config)
+
+	expiresAt := time.Unix(model.GetMillis()/1000+int64(maxAgeSeconds), 0)
+
 	session, err := a.p.apiClient.Session.Create(&model.Session{
 		UserId:   mmUser.Id,
 		DeviceId: model.NewId(),
-		// TODO?
-		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 30), // 30 days
+		// TODO, should we allow this to be configurable?
+		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 1), // 1 day
 	})
 	if err != nil {
 		logger.WithError(err).Error("Failed to create session for Mattermost user")
@@ -164,22 +176,52 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "MMAUTHTOKEN",
+	sessionCookie := &http.Cookie{
+		Name:     model.SessionCookieToken,
 		Value:    session.Token,
-		Path:     "/",
-		Secure:   true,
+		Path:     subpath,
+		MaxAge:   maxAgeSeconds,
+		Expires:  expiresAt,
+		HttpOnly: true,
+		Domain:   domain,
+		Secure:   secure,
 		SameSite: http.SameSiteNoneMode,
-	})
+	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "MMUSERID",
+	userCookie := &http.Cookie{
+		Name:     model.SessionCookieUser,
 		Value:    mmUser.Id,
-		Path:     "/",
-		Secure:   true,
+		Path:     subpath,
+		MaxAge:   maxAgeSeconds,
+		Expires:  expiresAt,
+		Domain:   domain,
+		Secure:   secure,
 		SameSite: http.SameSiteNoneMode,
-	})
+	}
+
+	csrfCookie := &http.Cookie{
+		Name:    model.SessionCookieCsrf,
+		Value:   session.GetCSRF(),
+		Path:    subpath,
+		MaxAge:  maxAgeSeconds,
+		Expires: expiresAt,
+		Domain:  domain,
+		Secure:  secure,
+	}
+
+	http.SetCookie(w, sessionCookie)
+	http.SetCookie(w, userCookie)
+	http.SetCookie(w, csrfCookie)
 
 	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func getCookieDomain(config *model.Config) string {
+	if *config.ServiceSettings.AllowCookiesForSubdomains {
+		if siteURL, err := url.Parse(*config.ServiceSettings.SiteURL); err == nil {
+			return siteURL.Hostname()
+		}
+	}
+	return ""
 }

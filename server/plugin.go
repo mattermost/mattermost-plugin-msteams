@@ -140,10 +140,6 @@ func (p *Plugin) GetClientForApp() msteams.Client {
 	return p.msteamsAppClient
 }
 
-func (p *Plugin) getJWTKeyFunc() keyfunc.Keyfunc {
-	return p.tabAppJWTKeyFunc
-}
-
 func getURL(config *model.Config) string {
 	siteURL := ""
 	if config.ServiceSettings.SiteURL != nil {
