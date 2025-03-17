@@ -164,8 +164,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	expiresAt := time.Unix(model.GetMillis()/1000+int64(maxAgeSeconds), 0)
 
 	session, err := a.p.apiClient.Session.Create(&model.Session{
-		UserId:   mmUser.Id,
-		DeviceId: model.NewId(),
+		UserId: mmUser.Id,
 		// TODO, should we allow this to be configurable?
 		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 1), // 1 day
 	})
