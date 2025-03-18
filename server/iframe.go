@@ -98,23 +98,28 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if claims == nil {
+		handleErrorWithCode(logger, w, http.StatusUnauthorized, "Invalid token claims", nil)
+		return
+	}
+
 	oid, ok := claims["oid"].(string)
-	if !ok {
-		logger.Error("No claim for oid")
-		http.Error(w, "", http.StatusBadRequest)
+	if !ok || oid == "" {
+		logger.Error("Missing or empty claim for oid")
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	logger = logger.WithField("oid", oid)
 
 	ssoUsername, ok := claims["unique_name"].(string)
-	if !ok {
-		logger.Warn("no unique_name claim")
+	if !ok || ssoUsername == "" {
+		logger.Warn("Missing or empty claim for unique_name")
 
 		ssoUsername, ok = claims["preferred_username"].(string)
-		if !ok {
-			logger.Error("No claim for unique_name or preferred_username")
-			http.Error(w, "", http.StatusBadRequest)
+		if !ok || ssoUsername == "" {
+			logger.Error("Missing or empty claim for unique_name or preferred_username")
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 	}
@@ -161,9 +166,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	subpath, _ := utils.GetSubpathFromConfig(config)
 
 	jwtExpiresAt, err := claims.GetExpirationTime()
-	if err != nil {
-		logger.WithError(err).Error("Missing expiration time claim")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	if err != nil || jwtExpiresAt == nil {
+		logger.WithError(err).Error("Missing or invalid expiration time claim")
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	expiresAt := jwtExpiresAt.Time
