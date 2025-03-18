@@ -121,7 +121,7 @@ func TestIFrameAuthenticate(t *testing.T) {
 		})
 
 		// Should return an error
-		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
 	})
 
 	t.Run("invalid token", func(t *testing.T) {
