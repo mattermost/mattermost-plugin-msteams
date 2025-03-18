@@ -1037,9 +1037,12 @@ func TestIFrameMattermostTab(t *testing.T) {
 	assert.Contains(t, bodyString, "<html")
 	assert.Contains(t, bodyString, "</html>")
 
-	// Verify iframe src matches site URL
+	// Verify iframe src is correct
+	assert.Contains(t, bodyString, `src="about:blank"`)
+
+	// Verify the SITE_URL is present
 	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
-	assert.Contains(t, bodyString, `src="`+*siteURL+`"`)
+	assert.Contains(t, bodyString, `iframe.src = '`+*siteURL+`'`)
 
 	// Verify security headers are set correctly
 	require.NoError(t, err)
