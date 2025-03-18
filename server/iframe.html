@@ -48,7 +48,7 @@
         case '8bcff170-9979-491e-8683-d8ced0850bad':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             params.set('token', token);
-            iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?' + params.toString();
+            iframe.src = 'https://servicenow.cloud.mattermost.com/plugins/{{ .PluginID }}/iframe/authenticate?' + params.toString();
           });
           break;
         case '{{TENANT_ID}}':
