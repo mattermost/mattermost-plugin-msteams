@@ -135,3 +135,54 @@ func TestIFrameMattermostTabWithIdpURL(t *testing.T) {
 	assert.True(t, mmembedCookie.Secure)
 	assert.Equal(t, http.SameSiteNoneMode, mmembedCookie.SameSite)
 }
+
+func TestGetCookieDomain(t *testing.T) {
+	tests := []struct {
+		name                     string
+		siteURL                  string
+		allowCookiesForSubdomain bool
+		expected                 string
+	}{
+		{
+			name:                     "Allow cookies for subdomains with valid URL",
+			siteURL:                  "https://example.mattermost.com",
+			allowCookiesForSubdomain: true,
+			expected:                 "example.mattermost.com",
+		},
+		{
+			name:                     "Allow cookies for subdomains with invalid URL",
+			siteURL:                  "invalid-url",
+			allowCookiesForSubdomain: true,
+			expected:                 "",
+		},
+		{
+			name:                     "Disallow cookies for subdomains",
+			siteURL:                  "https://example.mattermost.com",
+			allowCookiesForSubdomain: false,
+			expected:                 "",
+		},
+		{
+			name:                     "Allow cookies for subdomains with URL containing port",
+			siteURL:                  "https://example.mattermost.com:8065",
+			allowCookiesForSubdomain: true,
+			expected:                 "example.mattermost.com",
+		},
+		{
+			name:                     "Allow cookies for subdomains with localhost",
+			siteURL:                  "http://localhost:8065",
+			allowCookiesForSubdomain: true,
+			expected:                 "localhost",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &model.Config{}
+			config.ServiceSettings.SiteURL = &tt.siteURL
+			config.ServiceSettings.AllowCookiesForSubdomains = &tt.allowCookiesForSubdomain
+
+			result := getCookieDomain(config)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
