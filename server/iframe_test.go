@@ -123,3 +123,68 @@ func TestGetCookieDomain(t *testing.T) {
 		})
 	}
 }
+
+func TestIFrameAuthenticate(t *testing.T) {
+	th := setupTestHelper(t)
+	apiURL := th.pluginURL(t, "/iframe/authenticate")
+
+	t.Run("already logged in user", func(t *testing.T) {
+		team := th.SetupTeam(t)
+		user := th.SetupUser(t, team)
+		client := th.SetupClient(t, user.Id)
+
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		// Set the Mattermost-User-ID header to simulate an already logged in user
+		request.Header.Set("Mattermost-User-ID", user.Id)
+		request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		// Should redirect to home page
+		assert.Equal(t, http.StatusSeeOther, response.StatusCode)
+		assert.Equal(t, "/", response.Header.Get("Location"))
+	})
+
+	t.Run("missing token", func(t *testing.T) {
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		// Should return an error
+		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+	})
+
+	t.Run("invalid token", func(t *testing.T) {
+		th.Reset(t)
+
+		request, err := http.NewRequest(http.MethodGet, apiURL+"?token=invalid_token", nil)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, response.Body.Close())
+		})
+
+		// Should return an error
+		assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+	})
+
+	// Note: Testing with a valid token would require mocking the JWT validation
+	// and claims extraction, which would be more complex and require additional setup
+}
