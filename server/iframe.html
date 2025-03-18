@@ -30,25 +30,31 @@
         tenantId = context.user.tenant.id;
       }
 
+      const params = new URLSearchParams();
+      
       switch (tenantId) {
         case 'd2888234-d303-4c94-8f45-c7348f089048':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
+            params.set('token', token);
+            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?' + params.toString();
           });
           break;
         case '7419f71d-0b07-4d0a-89b8-3a4be2ec8627':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
+            params.set('token', token);
+            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + params.toString();
           });
           break;
         case '8bcff170-9979-491e-8683-d8ced0850bad':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?token=' + token;
+            params.set('token', token);
+            iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?' + params.toString();
           });
           break;
         case '{{TENANT_ID}}':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
+            params.set('token', token);
+            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + params.toString();
           });
           break;
         default:
