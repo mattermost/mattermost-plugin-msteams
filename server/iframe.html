@@ -31,28 +31,41 @@
         tenantId = context.user.tenant.id;
       }
 
+      // Build query params to be sent to the iframe.
+      const queryParams = new URLSearchParams()
+
+      // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
+      // and send it to the iframe to redirect the user to what triggered the notification.
+      if (context && context.page && context.page.subPageId) {
+        queryParams.set('sub_entity_id', context.page.subPageId);
+      }
+
       switch (tenantId) {
         case 'd2888234-d303-4c94-8f45-c7348f089048':
           console.log('redirecting iframe to msteams-sync-test')
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?token=' + token;
+            queryParams.set('token', token);
+            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?' + queryParams.toString();
           });
           break;
         case 'hub tenant id':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
+            queryParams.set('token', token);
+            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
         // TODO
         case 'snow tenant id':
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = 'https://servicenow.cloud.mattermost.com/iframe/authenticate?token=' + token;
+            queryParams.set('token', token);
+            iframe.src = 'https://servicenow.cloud.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
         case '{{TENANT_ID}}':
           console.log('redirecting iframe to configured tenant')
           microsoftTeams.authentication.getAuthToken().then((token) => {
-            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?token=' + token;
+            queryParams.set('token', token);
+            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
         default:
@@ -62,23 +75,6 @@
       }
     });
 
-    // // Listen for an optional message from the iframe asking for the Entra ID token.
-    // window.addEventListener('message', async function (event) {
-    //   console.log('Received event from iframe', event.data);
-    //
-    //   if (event.data.type === 'mattermost_external_auth_login') {
-    //     console.log('Relaying token', event.data);
-    //
-    //     microsoftTeams.authentication.getAuthToken().then((token) => {
-    //       iframe.contentWindow.postMessage({
-    //         type: 'mattermost_external_auth_token',
-    //         token: token,
-    //       }, event.origin);
-    //     }).catch(function (e) {
-    //       console.error("Failed to relay token", e)
-    //     });
-    //   }
-    // });
 
     function notifyAppLoaded() {
       return microsoftTeams.app.notifySuccess();

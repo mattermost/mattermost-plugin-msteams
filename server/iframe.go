@@ -5,11 +5,15 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/sirupsen/logrus"
 )
@@ -70,13 +74,41 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	var logger logrus.FieldLogger
 	logger = logrus.StandardLogger()
 
+	redirectPath := "/"
+
+	// Check if we have a subEntityId coming from the Microsoft Teams SDK to redirect the user to the correct URL.
+	// We use this from the Team's notifications to redirect the user to what triggered the notification, in this case,
+	// a post.
+	subEntityId := r.URL.Query().Get("sub_entity_id")
+	if subEntityId != "" {
+		if strings.HasPrefix(subEntityId, "post_") {
+			postId := strings.TrimPrefix(subEntityId, "post_")
+			post, err := a.p.API.GetPost(postId)
+			if err != nil {
+				logger.WithError(err).Error("Failed to get post to generate redirect path from subEntityId")
+			}
+
+			channel, appErr := a.p.API.GetChannel(post.ChannelId)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get channel to generate redirect path from subEntityId")
+			}
+
+			team, appErr := a.p.API.GetTeam(channel.TeamId)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
+			}
+
+			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postId)
+		}
+	}
+
 	// If the user is already logged in, redirect to the home page.
 	// TODO: Refactor the user properties setup to a function and call it from here if the user is already logged in
 	// just in case the user logs in from a tabApp in a browser.
 	if r.Header.Get("Mattermost-User-ID") != "" {
 		logger = logger.WithField("user_id", r.Header.Get("Mattermost-User-ID"))
 		logger.Info("Skipping authentication, user already logged in")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, redirectPath, http.StatusSeeOther)
 		return
 	}
 
@@ -105,9 +137,13 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	uniqueName, ok := claims["unique_name"].(string)
 	if !ok {
-		logger.Error("No claim for unique_name")
-		http.Error(w, "", http.StatusBadRequest)
-		return
+		preferred_username, ok := claims["preferred_username"].(string)
+		if !ok {
+			logger.Error("No claim for unique_name or preferred_username")
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+		uniqueName = preferred_username
 	}
 
 	mmUser, err := a.p.apiClient.User.GetByEmail(uniqueName)
@@ -166,5 +202,55 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Redirect to the home page
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
+}
+
+func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
+	p.API.LogError("Message has been posted", "post_id", post.Id, "post_participants", post.Participants)
+
+	context := map[string]string{
+		"subEntityId": fmt.Sprintf("post_%s", post.Id),
+	}
+
+	jsonContext, err := json.Marshal(context)
+	if err != nil {
+		p.API.LogError("Failed to marshal context", "error", err.Error())
+		return
+	}
+
+	urlParams := url.Values{}
+	urlParams.Set("context", string(jsonContext))
+
+	for _, mention := range extractMentionsFromPost(post) {
+		u, err := p.apiClient.User.GetByUsername(mention)
+		if err != nil {
+			p.API.LogError("Failed to get user", "error", err.Error())
+			continue
+		}
+
+		msteamUserId, ok := u.GetProp("com.mattermost.plugin-msteams-devsecops.user_id")
+		if !ok {
+			p.API.LogError("User ID is empty")
+			continue
+		}
+
+		if err := p.msteamsAppClient.SendUserActivity(msteamUserId, "mattermost_mention", post.Message, urlParams, map[string]string{
+			"post_author_name": post.UserId,
+		}); err != nil {
+			p.API.LogError("Failed to send user activity notification", "error", err.Error())
+		}
+	}
+}
+
+func extractMentionsFromPost(post *model.Post) []string {
+	// Regular expression to find mentions of the form @username
+	mentionRegex := regexp.MustCompile(`@[a-zA-Z0-9._-]+`)
+	matches := mentionRegex.FindAllString(post.Message, -1)
+
+	// Remove the '@' symbol from each mention
+	mentions := []string{}
+	for _, match := range matches {
+		mentions = append(mentions, match[1:]) // Remove the '@'
+	}
+	return mentions
 }
