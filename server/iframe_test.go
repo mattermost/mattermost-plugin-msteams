@@ -46,7 +46,7 @@ func TestIFrameMattermostTab(t *testing.T) {
 
 	// Verify the SITE_URL is present
 	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
-	assert.Contains(t, bodyString, `iframe.src = '`+*siteURL+`'`)
+	assert.Contains(t, bodyString, `'`+th.p.configuration.TenantID+`': '`+*siteURL+`'`)
 
 	// Verify security headers are set correctly
 	require.NoError(t, err)
