@@ -148,38 +148,44 @@ func TestGetCookieDomain(t *testing.T) {
 	tests := []struct {
 		name                     string
 		siteURL                  string
-		allowCookiesForSubdomain bool
+		allowCookiesForSubdomain *bool
 		expected                 string
 	}{
 		{
 			name:                     "Allow cookies for subdomains with valid URL",
 			siteURL:                  "https://example.mattermost.com",
-			allowCookiesForSubdomain: true,
+			allowCookiesForSubdomain: model.NewPointer(true),
 			expected:                 "example.mattermost.com",
 		},
 		{
 			name:                     "Allow cookies for subdomains with invalid URL",
 			siteURL:                  "invalid-url",
-			allowCookiesForSubdomain: true,
+			allowCookiesForSubdomain: model.NewPointer(true),
 			expected:                 "",
 		},
 		{
 			name:                     "Disallow cookies for subdomains",
 			siteURL:                  "https://example.mattermost.com",
-			allowCookiesForSubdomain: false,
+			allowCookiesForSubdomain: model.NewPointer(false),
 			expected:                 "",
 		},
 		{
 			name:                     "Allow cookies for subdomains with URL containing port",
 			siteURL:                  "https://example.mattermost.com:8065",
-			allowCookiesForSubdomain: true,
+			allowCookiesForSubdomain: model.NewPointer(true),
 			expected:                 "example.mattermost.com",
 		},
 		{
 			name:                     "Allow cookies for subdomains with localhost",
 			siteURL:                  "http://localhost:8065",
-			allowCookiesForSubdomain: true,
+			allowCookiesForSubdomain: model.NewPointer(true),
 			expected:                 "localhost",
+		},
+		{
+			name:                     "Nil AllowCookiesForSubdomain",
+			siteURL:                  "https://example.mattermost.com",
+			allowCookiesForSubdomain: nil,
+			expected:                 "",
 		},
 	}
 
@@ -187,7 +193,7 @@ func TestGetCookieDomain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &model.Config{}
 			config.ServiceSettings.SiteURL = &tt.siteURL
-			config.ServiceSettings.AllowCookiesForSubdomains = &tt.allowCookiesForSubdomain
+			config.ServiceSettings.AllowCookiesForSubdomains = tt.allowCookiesForSubdomain
 
 			result := getCookieDomain(config)
 			assert.Equal(t, tt.expected, result)

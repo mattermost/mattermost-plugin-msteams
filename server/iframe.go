@@ -221,7 +221,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 }
 
 func getCookieDomain(config *model.Config) string {
-	if *config.ServiceSettings.AllowCookiesForSubdomains {
+	if config.ServiceSettings.AllowCookiesForSubdomains != nil && *config.ServiceSettings.AllowCookiesForSubdomains {
 		if siteURL, err := url.Parse(*config.ServiceSettings.SiteURL); err == nil {
 			return siteURL.Hostname()
 		}
