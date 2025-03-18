@@ -279,8 +279,24 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			continue
 		}
 
-		if err := p.msteamsAppClient.SendUserActivity(msteamUserId, "mattermost_mention", post.Message, urlParams, map[string]string{
-			"post_author_name": post.UserId,
+		postAuthor, err := p.apiClient.User.Get(post.UserId)
+		if err != nil {
+			p.API.LogError("Failed to get post author", "error", err.Error())
+			continue
+		}
+
+		// Sending the post author requires the proper variable to be set in the manifest:
+		// "activities": {
+		// 	"activityTypes": [
+		// 	  {
+		// 		"type": "mattermost_mention_with_name",
+		// 		"description": "New message in Mattermost for the Teams user",
+		// 		"templateText": "{post_author} mentioned you in Mattermost."
+		// 	  }
+		// 	]
+		// }
+		if err := p.msteamsAppClient.SendUserActivity(msteamUserId, "mattermost_mention_with_name", post.Message, urlParams, map[string]string{
+			"post_author": postAuthor.GetDisplayName(model.ShowNicknameFullName),
 		}); err != nil {
 			p.API.LogError("Failed to send user activity notification", "error", err.Error())
 		}

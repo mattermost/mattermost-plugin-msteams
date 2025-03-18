@@ -4,7 +4,6 @@
 package msteams
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	mmModel "github.com/mattermost/mattermost/server/public/model"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -39,6 +39,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
+	"github.com/microsoftgraph/msgraph-sdk-go/teamwork"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/oauth2"
 )
@@ -2230,92 +2231,42 @@ func checkGroupChat(c models.Chatable, userIDs []string) *clientmodels.Chat {
 
 	return nil
 }
-
 func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, urlParams url.Values, params map[string]string) error {
 	keyValuePairs := []models.KeyValuePairable{}
-	// for k, v := range params {
-	// 	key := k
-	// 	value := v
-	// 	keyPair := models.NewKeyValuePair()
-	// 	keyPair.SetName(&key)
-	// 	keyPair.SetValue(&value)
-	// 	keyValuePairs = append(keyValuePairs, keyPair)
-	// }
-
-	// Create the request body as a map
-	requestBody := map[string]interface{}{
-		"topic": map[string]interface{}{
-			"source": "text",
-			"value":  "Mattermost for MS Teams",
-			"webUrl": "https://teams.microsoft.com/l/entity/52297e21-9f7c-419c-94b6-80dc9181f339/?" + urlParams.Encode(),
-		},
-		"activityType": activityType,
-		"previewText": map[string]interface{}{
-			"content": message,
-		},
-		"recipient": map[string]interface{}{
-			"@odata.type": "microsoft.graph.aadUserNotificationRecipient",
-			"userId":      userID,
-		},
-		"templateParameters": keyValuePairs,
+	for k, v := range params {
+		key := k
+		value := v
+		keyPair := models.NewKeyValuePair()
+		keyPair.SetName(&key)
+		keyPair.SetValue(&value)
+		keyValuePairs = append(keyValuePairs, keyPair)
 	}
 
-	// Convert the request body to JSON
-	jsonData, err := json.Marshal(requestBody)
+	topic := models.NewTeamworkActivityTopic()
+	topicSource, err := models.ParseTeamworkActivityTopicSource("text")
 	if err != nil {
 		return err
 	}
+	topic.SetSource(topicSource.(*models.TeamworkActivityTopicSource))
+	topic.SetValue(mmModel.NewPointer("Mattermost for MS Teams"))
+	topic.SetWebUrl(mmModel.NewPointer("https://teams.microsoft.com/l/entity/" + tc.clientID + "/?" + urlParams.Encode()))
 
-	// Create the HTTP request
-	url := fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/teamwork/sendActivityNotification", userID)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	previewText := models.NewItemBody()
+	previewText.SetContent(mmModel.NewPointer(message))
+
+	recipient := models.NewAadUserNotificationRecipient()
+	recipient.SetUserId(mmModel.NewPointer(userID))
+
+	activity := teamwork.NewSendActivityNotificationToRecipientsPostRequestBody()
+	activity.SetActivityType(mmModel.NewPointer(activityType))
+	activity.SetPreviewText(previewText)
+	activity.SetTopic(topic)
+	activity.SetRecipients([]models.TeamworkNotificationRecipientable{recipient})
+	activity.SetTemplateParameters(keyValuePairs)
+
+	err = tc.client.Teamwork().SendActivityNotificationToRecipients().Post(context.Background(), activity, nil)
 	if err != nil {
-		return err
-	}
-
-	// Set the headers
-	req.Header.Set("Content-Type", "application/json")
-
-	// Get the access token
-	var token string
-	if tc.clientType == "token" && tc.token != nil {
-		token = tc.token.AccessToken
-	} else {
-		// For app authentication, we need to get a token
-		cred, err := azidentity.NewClientSecretCredential(
-			tc.tenantID,
-			tc.clientID,
-			tc.clientSecret,
-			&azidentity.ClientSecretCredentialOptions{},
-		)
-		if err != nil {
-			return err
-		}
-
-		accessToken, err := cred.GetToken(tc.ctx, policy.TokenRequestOptions{
-			Scopes: []string{"https://graph.microsoft.com/.default"},
-		})
-		if err != nil {
-			return err
-		}
-
-		token = accessToken.Token
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	// Send the request
-	client := getHTTPClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// Check the response
-	if resp.StatusCode >= 400 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error sending activity notification: %s - %s", resp.Status, string(bodyBytes))
+		return fmt.Errorf("failed to send user activity: %w", err)
 	}
 
 	return nil
