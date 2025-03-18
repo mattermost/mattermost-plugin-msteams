@@ -247,6 +247,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
 }
 
+// MessageHasBeenPosted is called when a message is posted in Mattermost. We rely on it to send a user activity notification
+// to Microsoft Teams when a user is mentioned in a message.
+// This is called in a controller Goroutine in the server side so there's no need to worry about concurrency here.
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	p.API.LogError("Message has been posted", "post_id", post.Id, "post_participants", post.Participants)
 
