@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -161,12 +160,17 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	domain := getCookieDomain(config)
 	subpath, _ := utils.GetSubpathFromConfig(config)
 
-	expiresAt := time.Unix(model.GetMillis()/1000+int64(maxAgeSeconds), 0)
+	jwtExpiresAt, err := claims.GetExpirationTime()
+	if err != nil {
+		logger.WithError(err).Error("Missing expiration time claim")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	expiresAt := jwtExpiresAt.Time
 
 	session, err := a.p.apiClient.Session.Create(&model.Session{
-		UserId: mmUser.Id,
-		// TODO, should we allow this to be configurable?
-		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 1), // 1 day
+		UserId:    mmUser.Id,
+		ExpiresAt: model.GetMillisForTime(expiresAt),
 	})
 	if err != nil {
 		logger.WithError(err).Error("Failed to create session for Mattermost user")
