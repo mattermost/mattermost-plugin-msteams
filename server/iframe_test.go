@@ -76,6 +76,13 @@ func TestIFrameAuthenticate(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "/iframe/authenticate")
 
+	// Create a client that doesn't follow redirects
+	httpClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	t.Run("already logged in user", func(t *testing.T) {
 		th.Reset(t)
 
@@ -90,7 +97,7 @@ func TestIFrameAuthenticate(t *testing.T) {
 		request.Header.Set("Mattermost-User-ID", user.Id)
 		request.Header.Set(model.HeaderAuth, client.AuthType+" "+client.AuthToken)
 
-		response, err := http.DefaultClient.Do(request)
+		response, err := httpClient.Do(request)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			require.NoError(t, response.Body.Close())
@@ -107,7 +114,7 @@ func TestIFrameAuthenticate(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
 		require.NoError(t, err)
 
-		response, err := http.DefaultClient.Do(request)
+		response, err := httpClient.Do(request)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			require.NoError(t, response.Body.Close())
@@ -123,7 +130,7 @@ func TestIFrameAuthenticate(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, apiURL+"?token=invalid_token", nil)
 		require.NoError(t, err)
 
-		response, err := http.DefaultClient.Do(request)
+		response, err := httpClient.Do(request)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			require.NoError(t, response.Body.Close())
