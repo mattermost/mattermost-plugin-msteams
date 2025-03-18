@@ -25,36 +25,48 @@
 
     // Choose the iFrame content based on the tenant.
     microsoftTeams.app.getContext().then((context) => {
-      let tenantId;
-      if (context && context.user && context.user.tenant && context.user.tenant.id) {
-        tenantId = context.user.tenant.id;
-      }
+        let tenantId;
+        if (context && context.user && context.user.tenant && context.user.tenant.id) {
+          tenantId = context.user.tenant.id;
+        }
 
-      const params = new URLSearchParams();
+        const params = new URLSearchParams();
 
-      switch (tenantId) {
+        switch (tenantId) {
         case 'd2888234-d303-4c94-8f45-c7348f089048':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             params.set('token', token);
             iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?' + params.toString();
+          }).catch((error) => {
+            console.error('Failed to get auth token:', error);
+            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/';
           });
           break;
         case '7419f71d-0b07-4d0a-89b8-3a4be2ec8627':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             params.set('token', token);
             iframe.src = 'https://hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + params.toString();
+          }).catch((error) => {
+            console.error('Failed to get auth token:', error);
+            iframe.src = 'https://hub.mattermost.com/';
           });
           break;
         case '8bcff170-9979-491e-8683-d8ced0850bad':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             params.set('token', token);
             iframe.src = 'https://servicenow.cloud.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + params.toString();
+          }).catch((error) => {
+            console.error('Failed to get auth token:', error);
+            iframe.src = 'https://servicenow.cloud.mattermost.com/';
           });
           break;
         case '{{TENANT_ID}}':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             params.set('token', token);
             iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + params.toString();
+          }).catch((error) => {
+            console.error('Failed to get auth token:', error);
+            iframe.src = '{{SITE_URL}}';
           });
           break;
         default:
