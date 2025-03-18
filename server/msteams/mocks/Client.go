@@ -4,6 +4,7 @@ package mocks
 
 import (
 	io "io"
+	"net/url"
 
 	clientmodels "github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 
@@ -1024,6 +1025,20 @@ func (_m *Client) UploadFile(teamID string, channelID string, filename string, f
 	}
 
 	return r0, r1
+}
+
+// SendUserActivity provides a mock function with given fields: userID, activityType, message, urlParams, params
+func (_m *Client) SendUserActivity(userID string, activityType string, message string, urlParams url.Values, params map[string]string) error {
+	ret := _m.Called(userID, activityType, message, urlParams, params)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, url.Values, map[string]string) error); ok {
+		r0 = rf(userID, activityType, message, urlParams, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 type mockConstructorTestingTNewClient interface {
