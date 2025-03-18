@@ -63,7 +63,7 @@ func (a *API) formatTemplate(template string) (string, error) {
 
 	html := strings.ReplaceAll(template, "{{SITE_URL}}", siteURL)
 	html = strings.ReplaceAll(html, "{{PLUGIN_ID}}", url.PathEscape(manifest.Id))
-	html = strings.ReplaceAll(html, "{{TENANT_ID}}", url.PathEscape(a.p.getConfiguration().TenantID))
+	html = strings.ReplaceAll(html, "{{TENANT_ID}}", a.p.getConfiguration().TenantID)
 	return html, nil
 }
 
