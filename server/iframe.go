@@ -11,10 +11,12 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -112,9 +114,11 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enableDeveloper := a.p.apiClient.Configuration.GetConfig().ServiceSettings.EnableDeveloper
+	config := a.p.apiClient.Configuration.GetConfig()
 
-	// Ideally we'd accept the token via an Authorization header, but for now get it from the query sring.
+	enableDeveloper := config.ServiceSettings.EnableDeveloper
+
+	// Ideally we'd accept the token via an Authorization header, but for now get it from the query string.
 	// token := r.Header.Get("Authorization")
 	token := r.URL.Query().Get("token")
 
@@ -135,33 +139,44 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	logger = logger.WithField("oid", oid)
 
-	uniqueName, ok := claims["unique_name"].(string)
+	ssoUsername, ok := claims["unique_name"].(string)
 	if !ok {
-		preferred_username, ok := claims["preferred_username"].(string)
+		logger.Warn("no unique_name claim")
+
+		ssoUsername, ok = claims["preferred_username"].(string)
 		if !ok {
 			logger.Error("No claim for unique_name or preferred_username")
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		uniqueName = preferred_username
 	}
 
-	mmUser, err := a.p.apiClient.User.GetByEmail(uniqueName)
+	mmUser, err := a.p.apiClient.User.GetByEmail(ssoUsername)
 	if err != nil && err != pluginapi.ErrNotFound {
 		logger.WithError(err).Error("Failed to query Mattermost user matching unique_name")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	} else if mmUser == nil {
-		logger.Warn("No Mattermost user matching unique_name")
-		http.Error(w, "User not found", http.StatusNotFound)
+		logger.Warn("No Mattermost user matching unique_name, redirecting to login")
+
+		// Redirect to the home page
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
 	logger = logger.WithField("user_id", mmUser.Id)
 
+	if mmUser.DeleteAt != 0 {
+		logger.Warn("Mattermost user is archived, redirecting to login")
+
+		// Redirect to the home page
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.unique_name"] = uniqueName
+	mmUser.Props["com.mattermost.plugin-msteams-devsecops.sso_username"] = ssoUsername
 	mmUser.Props["com.mattermost.plugin-msteams-devsecops.oid"] = oid
 
 	err = a.p.apiClient.User.Update(mmUser)
@@ -171,12 +186,18 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create session token for Mattermost user
+	// This is effectively copied from https://github.com/mattermost/mattermost/blob/a184e5677d28433495b0cde764bfd99700838740/server/channels/app/login.go#L287
+	secure := true
+	maxAgeSeconds := *config.ServiceSettings.SessionLengthWebInHours * 60 * 60
+	domain := getCookieDomain(config)
+	subpath, _ := utils.GetSubpathFromConfig(config)
+
+	expiresAt := time.Unix(model.GetMillis()/1000+int64(maxAgeSeconds), 0)
+
 	session, err := a.p.apiClient.Session.Create(&model.Session{
-		UserId:   mmUser.Id,
-		DeviceId: model.NewId(),
-		// TODO?
-		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 30), // 30 days
+		UserId: mmUser.Id,
+		// TODO, should we allow this to be configurable?
+		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 1), // 1 day
 	})
 	if err != nil {
 		logger.WithError(err).Error("Failed to create session for Mattermost user")
@@ -185,21 +206,42 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "MMAUTHTOKEN",
+	sessionCookie := &http.Cookie{
+		Name:     model.SessionCookieToken,
 		Value:    session.Token,
-		Path:     "/",
-		Secure:   true,
+		Path:     subpath,
+		MaxAge:   maxAgeSeconds,
+		Expires:  expiresAt,
+		HttpOnly: true,
+		Domain:   domain,
+		Secure:   secure,
 		SameSite: http.SameSiteNoneMode,
-	})
+	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "MMUSERID",
+	userCookie := &http.Cookie{
+		Name:     model.SessionCookieUser,
 		Value:    mmUser.Id,
-		Path:     "/",
-		Secure:   true,
+		Path:     subpath,
+		MaxAge:   maxAgeSeconds,
+		Expires:  expiresAt,
+		Domain:   domain,
+		Secure:   secure,
 		SameSite: http.SameSiteNoneMode,
-	})
+	}
+
+	csrfCookie := &http.Cookie{
+		Name:    model.SessionCookieCsrf,
+		Value:   session.GetCSRF(),
+		Path:    subpath,
+		MaxAge:  maxAgeSeconds,
+		Expires: expiresAt,
+		Domain:  domain,
+		Secure:  secure,
+	}
+
+	http.SetCookie(w, sessionCookie)
+	http.SetCookie(w, userCookie)
+	http.SetCookie(w, csrfCookie)
 
 	// Redirect to the home page
 	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
@@ -253,4 +295,13 @@ func extractMentionsFromPost(post *model.Post) []string {
 		mentions = append(mentions, match[1:]) // Remove the '@'
 	}
 	return mentions
+}
+
+func getCookieDomain(config *model.Config) string {
+	if *config.ServiceSettings.AllowCookiesForSubdomains {
+		if siteURL, err := url.Parse(*config.ServiceSettings.SiteURL); err == nil {
+			return siteURL.Hostname()
+		}
+	}
+	return ""
 }

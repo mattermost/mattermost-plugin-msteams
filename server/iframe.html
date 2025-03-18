@@ -14,14 +14,13 @@
     <iframe
         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
         title="Mattermost DevSecOps"
-        src="https://community.mattermost.com"
+        src="about:blank"
         onload="notifyAppLoaded()">
     </iframe>
   <script>
     var iframe = document.querySelector('iframe');
 
     // Initialize the Microsoft Teams SDK
-    console.log('initializing with {{SITE_URL}}');
     microsoftTeams.app.initialize(["{{SITE_URL}}"]);
 
     // Choose the iFrame content based on the tenant.
@@ -42,34 +41,30 @@
 
       switch (tenantId) {
         case 'd2888234-d303-4c94-8f45-c7348f089048':
-          console.log('redirecting iframe to msteams-sync-test')
           microsoftTeams.authentication.getAuthToken().then((token) => {
             queryParams.set('token', token);
             iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?' + queryParams.toString();
           });
           break;
-        case 'hub tenant id':
+        case '7419f71d-0b07-4d0a-89b8-3a4be2ec8627':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             queryParams.set('token', token);
             iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
-        // TODO
-        case 'snow tenant id':
+        case '8bcff170-9979-491e-8683-d8ced0850bad':
           microsoftTeams.authentication.getAuthToken().then((token) => {
             queryParams.set('token', token);
             iframe.src = 'https://servicenow.cloud.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
         case '{{TENANT_ID}}':
-          console.log('redirecting iframe to configured tenant')
           microsoftTeams.authentication.getAuthToken().then((token) => {
             queryParams.set('token', token);
             iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
           });
           break;
         default:
-          console.log('redirecting iframe to community')
           iframe.src = '{{SITE_URL}}';
           break;
       }

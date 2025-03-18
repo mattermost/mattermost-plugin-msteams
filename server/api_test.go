@@ -1100,9 +1100,10 @@ func TestIFrameMattermostTabWithIdpURL(t *testing.T) {
 	assert.Contains(t, bodyString, "<html")
 	assert.Contains(t, bodyString, "</html>")
 
-	// Verify iframe src matches site URL
+	// Verify src has had site URL replaced
 	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
-	assert.Contains(t, bodyString, `src="`+*siteURL+`"`)
+	assert.Contains(t, bodyString, `"`+*siteURL+`"`)
+	assert.NotContains(t, bodyString, "SITE_URL")
 
 	// Verify security headers are set correctly with IdP URL included
 	require.NoError(t, err)
