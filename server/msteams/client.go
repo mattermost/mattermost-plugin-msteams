@@ -2231,7 +2231,7 @@ func checkGroupChat(c models.Chatable, userIDs []string) *clientmodels.Chat {
 
 	return nil
 }
-func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, urlParams url.Values, params map[string]string) error {
+func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, webUrl url.URL, params map[string]string) error {
 	keyValuePairs := []models.KeyValuePairable{}
 	for k, v := range params {
 		key := k
@@ -2249,7 +2249,9 @@ func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, url
 	}
 	topic.SetSource(topicSource.(*models.TeamworkActivityTopicSource))
 	topic.SetValue(mmModel.NewPointer("Mattermost for MS Teams"))
-	topic.SetWebUrl(mmModel.NewPointer("https://teams.microsoft.com/l/entity/" + tc.clientID + "/?" + urlParams.Encode()))
+	topic.SetWebUrl(mmModel.NewPointer(webUrl.String()))
+
+	tc.logService.Info("Sending user activity", "webUrl", webUrl.String())
 
 	previewText := models.NewItemBody()
 	previewText.SetContent(mmModel.NewPointer(message))

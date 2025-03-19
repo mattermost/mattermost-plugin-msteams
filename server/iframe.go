@@ -114,6 +114,11 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	appID := r.URL.Query().Get("app_id")
+	if appID == "" {
+		logger.Error("App ID was not sent with the authentication request")
+	}
+
 	config := a.p.apiClient.Configuration.GetConfig()
 
 	enableDeveloper := config.ServiceSettings.EnableDeveloper
@@ -176,9 +181,13 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.sso_username"] = ssoUsername
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.oid"] = oid
+	mmUser.Props[getUserPropKey("sso_username")] = ssoUsername
+	mmUser.Props[getUserPropKey("oid")] = oid
+	if appID != "" {
+		mmUser.Props[getUserPropKey("app_id")] = appID
+	}
 
+	// Update the user with the claims
 	err = a.p.apiClient.User.Update(mmUser)
 	if err != nil {
 		logger.WithError(err).Error("Failed to update Mattermost user with claims")
@@ -273,9 +282,15 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			continue
 		}
 
-		msteamsUserID, ok := u.GetProp("com.mattermost.plugin-msteams-devsecops.user_id")
-		if !ok {
-			p.API.LogError("User ID is empty")
+		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
+		if !exists {
+			p.API.LogError("MSTeams user ID is empty. Not sending notification.")
+			continue
+		}
+
+		appID, exists := u.GetProp(getUserPropKey("app_id"))
+		if !exists {
+			p.API.LogError("MSTeams app ID is empty. Not sending notification.")
 			continue
 		}
 
@@ -296,9 +311,10 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		// 	]
 		// }
 		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", post.Message, url.URL{
-			Scheme: "https",
-			Host:   "teams.microsoft.com",
-			Path:   "/l/entity/" + p.getConfiguration().ClientID + "/",
+			Scheme:   "https",
+			Host:     "teams.microsoft.com",
+			Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
+			RawQuery: urlParams.Encode(),
 		}, map[string]string{
 			"post_author": postAuthor.GetDisplayName(model.ShowNicknameFullName),
 		}); err != nil {
@@ -321,10 +337,14 @@ func extractMentionsFromPost(post *model.Post) []string {
 }
 
 func getCookieDomain(config *model.Config) string {
-	if *config.ServiceSettings.AllowCookiesForSubdomains {
+	if config.ServiceSettings.AllowCookiesForSubdomains != nil && *config.ServiceSettings.AllowCookiesForSubdomains && config.ServiceSettings.SiteURL != nil {
 		if siteURL, err := url.Parse(*config.ServiceSettings.SiteURL); err == nil {
 			return siteURL.Hostname()
 		}
 	}
 	return ""
+}
+
+func getUserPropKey(key string) string {
+	return "com.mattermost.plugin-msteams-devsecops." + key
 }
