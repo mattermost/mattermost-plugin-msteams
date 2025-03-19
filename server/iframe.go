@@ -39,6 +39,7 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Failed to format iFrame HTML", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html")
 
 	// set session cookie to indicate Mattermost is hosted in an iFrame, which allows

@@ -31,46 +31,34 @@
       }
 
       // Build query params to be sent to the iframe.
-      const queryParams = new URLSearchParams()
-      queryParams.set('app_id', context.app.appId.appIdAsString);
+      const params = new URLSearchParams()
+      params.set('app_id', context.app.appId.appIdAsString);
 
       // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
       // and send it to the iframe to redirect the user to what triggered the notification.
       if (context && context.page && context.page.subPageId) {
-        queryParams.set('sub_entity_id', context.page.subPageId);
+        params.set('sub_entity_id', context.page.subPageId);
       }
 
-      switch (tenantId) {
-        case 'd2888234-d303-4c94-8f45-c7348f089048':
-          microsoftTeams.authentication.getAuthToken().then((token) => {
-            queryParams.set('token', token);
-            iframe.src = 'https://msteams-sync-test.test.mattermost.cloud/plugins/com.mattermost.msteams-sync/iframe/authenticate?' + queryParams.toString();
+      // If there's an explicit match in the tenant map, try to get auth token
+      if (tenantMap[tenantId]) {
+        const domainRoot = tenantMap[tenantId];
+        const params = new URLSearchParams();
+        microsoftTeams.authentication.getAuthToken()
+          .then((token) => {
+            params.set('token', token);
+            iframe.src = `${domainRoot}/plugins/{{PLUGIN_ID}}/iframe/authenticate?${params.toString()}`;
+          })
+          .catch((error) => {
+            console.error('Failed to get auth token:', error);
+            iframe.src = domainRoot;
           });
-          break;
-        case '7419f71d-0b07-4d0a-89b8-3a4be2ec8627':
-          microsoftTeams.authentication.getAuthToken().then((token) => {
-            queryParams.set('token', token);
-            iframe.src = 'https//hub.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
-          });
-          break;
-        case '8bcff170-9979-491e-8683-d8ced0850bad':
-          microsoftTeams.authentication.getAuthToken().then((token) => {
-            queryParams.set('token', token);
-            iframe.src = 'https://servicenow.cloud.mattermost.com/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
-          });
-          break;
-        case '{{TENANT_ID}}':
-          microsoftTeams.authentication.getAuthToken().then((token) => {
-            queryParams.set('token', token);
-            iframe.src = '{{SITE_URL}}/plugins/{{PLUGIN_ID}}/iframe/authenticate?' + queryParams.toString();
-          });
-          break;
-        default:
-          iframe.src = '{{SITE_URL}}';
-          break;
+      } else {
+        // No explicit match, just redirect to SITE_URL
+        console.log('No tenant match found, redirecting to default site');
+        iframe.src = '{{SITE_URL}}';
       }
     });
-
 
     function notifyAppLoaded() {
       return microsoftTeams.app.notifySuccess();
