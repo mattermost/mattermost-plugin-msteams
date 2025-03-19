@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -86,6 +87,10 @@ type Plugin struct {
 
 	subCommands      []string
 	subCommandsMutex sync.RWMutex
+
+	cancelKeyFunc     context.CancelFunc
+	cancelKeyFuncLock sync.Mutex
+	tabAppJWTKeyFunc  keyfunc.Keyfunc
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -310,6 +315,13 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand()); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
+
+	p.cancelKeyFuncLock.Lock()
+	if !isRestart && p.cancelKeyFunc == nil {
+		p.tabAppJWTKeyFunc, p.cancelKeyFunc = setupJWKSet()
+	}
+	p.cancelKeyFuncLock.Unlock()
+
 	p.API.LogDebug("plugin started")
 }
 
@@ -344,6 +356,15 @@ func (p *Plugin) stop(isRestart bool) {
 		if err := p.apiClient.Store.Close(); err != nil {
 			p.API.LogError("failed to close db connection", "error", err)
 		}
+	}
+
+	if !isRestart {
+		p.cancelKeyFuncLock.Lock()
+		if p.cancelKeyFunc != nil {
+			p.cancelKeyFunc()
+			p.cancelKeyFunc = nil
+		}
+		p.cancelKeyFuncLock.Unlock()
 	}
 }
 

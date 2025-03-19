@@ -23,6 +23,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
+	"github.com/sirupsen/logrus"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/oauth2"
@@ -84,8 +85,39 @@ func NewAPI(p *Plugin, store store.Store) *API {
 
 	// iFrame support
 	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
+	router.HandleFunc("/iframe/authenticate", api.authenticate).Methods("GET")
 
 	return api
+}
+
+// handleErrorWithCode logs the internal error and sends the public facing error
+// message as JSON in a response with the provided code.
+func handleErrorWithCode(logger logrus.FieldLogger, w http.ResponseWriter, code int, publicErrorMsg string, internalErr error) {
+	if internalErr != nil {
+		logger = logger.WithError(internalErr)
+	}
+
+	if code >= http.StatusInternalServerError {
+		logger.Error(publicErrorMsg)
+	} else {
+		logger.Warn(publicErrorMsg)
+	}
+
+	handleResponseWithCode(w, code, publicErrorMsg)
+}
+
+// handleResponseWithCode logs the internal error and sends the public facing error
+// message as JSON in a response with the provided code.
+func handleResponseWithCode(w http.ResponseWriter, code int, publicMsg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+
+	responseMsg, _ := json.Marshal(struct {
+		Error string `json:"error"` // A public facing message providing details about the error.
+	}{
+		Error: publicMsg,
+	})
+	_, _ = w.Write(responseMsg)
 }
 
 // returnJSON writes the given data as json with the provided httpStatus
