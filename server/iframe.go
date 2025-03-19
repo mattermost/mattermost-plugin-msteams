@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -37,12 +38,12 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 
-	// set session cookie to indicate Mattermost is hosted in an iFrame, which allows
-	// webapp to bypass "Where do you want to view this" page and set SameSite=none.
+	// delete any existing MMEMBED session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "MMEMBED",
-		Value:    "1",
+		Value:    "",
 		Path:     "/",
+		Expires:  time.Now().Add(-1 * time.Hour),
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
 	})
