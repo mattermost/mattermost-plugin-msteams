@@ -1106,7 +1106,8 @@ func TestIFrameMattermostTabWithIdpURL(t *testing.T) {
 	// Verify src has had site URL replaced
 	siteURL := th.p.API.GetConfig().ServiceSettings.SiteURL
 	assert.Contains(t, bodyString, `"`+*siteURL+`"`)
-	assert.NotContains(t, bodyString, "SITE_URL")
+	assert.NotContains(t, bodyString, "{SITE_URL}")
+	assert.NotContains(t, bodyString, "{TENANT_ID}")
 
 	// Verify security headers are set correctly with IdP URL included
 	require.NoError(t, err)
