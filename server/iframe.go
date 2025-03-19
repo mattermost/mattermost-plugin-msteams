@@ -5,12 +5,15 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/sirupsen/logrus"
@@ -35,6 +38,7 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Failed to format iFrame HTML", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html")
 
 	// set session cookie to indicate Mattermost is hosted in an iFrame, which allows
@@ -72,14 +76,47 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	var logger logrus.FieldLogger
 	logger = logrus.StandardLogger()
 
+	redirectPath := "/"
+
+	// Check if we have a subEntityID coming from the Microsoft Teams SDK to redirect the user to the correct URL.
+	// We use this from the Team's notifications to redirect the user to what triggered the notification, in this case,
+	// a post.
+	subEntityID := r.URL.Query().Get("sub_entity_id")
+	if subEntityID != "" {
+		if strings.HasPrefix(subEntityID, "post_") {
+			postID := strings.TrimPrefix(subEntityID, "post_")
+			post, err := a.p.API.GetPost(postID)
+			if err != nil {
+				logger.WithError(err).Error("Failed to get post to generate redirect path from subEntityId")
+			}
+
+			channel, appErr := a.p.API.GetChannel(post.ChannelId)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get channel to generate redirect path from subEntityId")
+			}
+
+			team, appErr := a.p.API.GetTeam(channel.TeamId)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
+			}
+
+			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postID)
+		}
+	}
+
 	// If the user is already logged in, redirect to the home page.
 	// TODO: Refactor the user properties setup to a function and call it from here if the user is already logged in
 	// just in case the user logs in from a tabApp in a browser.
 	if r.Header.Get("Mattermost-User-ID") != "" {
 		logger = logger.WithField("user_id", r.Header.Get("Mattermost-User-ID"))
 		logger.Info("Skipping authentication, user already logged in")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, redirectPath, http.StatusSeeOther)
 		return
+	}
+
+	appID := r.URL.Query().Get("app_id")
+	if appID == "" {
+		logger.Error("App ID was not sent with the authentication request")
 	}
 
 	config := a.p.apiClient.Configuration.GetConfig()
@@ -149,9 +186,13 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.sso_username"] = ssoUsername
-	mmUser.Props["com.mattermost.plugin-msteams-devsecops.oid"] = oid
+	mmUser.Props[getUserPropKey("sso_username")] = ssoUsername
+	mmUser.Props[getUserPropKey("oid")] = oid
+	if appID != "" {
+		mmUser.Props[getUserPropKey("app_id")] = appID
+	}
 
+	// Update the user with the claims
 	err = a.p.apiClient.User.Update(mmUser)
 	if err != nil {
 		logger.WithError(err).Error("Failed to update Mattermost user with claims")
@@ -222,14 +263,98 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, csrfCookie)
 
 	// Redirect to the home page
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
+}
+
+// MessageHasBeenPosted is called when a message is posted in Mattermost. We rely on it to send a user activity notification
+// to Microsoft Teams when a user is mentioned in a message.
+// This is called in a controller Goroutine in the server side so there's no need to worry about concurrency here.
+func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
+	p.API.LogError("Message has been posted", "post_id", post.Id, "post_participants", post.Participants)
+
+	context := map[string]string{
+		"subEntityId": fmt.Sprintf("post_%s", post.Id),
+	}
+
+	jsonContext, err := json.Marshal(context)
+	if err != nil {
+		p.API.LogError("Failed to marshal context", "error", err.Error())
+		return
+	}
+
+	urlParams := url.Values{}
+	urlParams.Set("context", string(jsonContext))
+
+	for _, mention := range extractMentionsFromPost(post) {
+		u, err := p.apiClient.User.GetByUsername(mention)
+		if err != nil {
+			p.API.LogError("Failed to get user", "error", err.Error())
+			continue
+		}
+
+		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
+		if !exists {
+			p.API.LogError("MSTeams user ID is empty. Not sending notification.")
+			continue
+		}
+
+		appID, exists := u.GetProp(getUserPropKey("app_id"))
+		if !exists {
+			p.API.LogError("MSTeams app ID is empty. Not sending notification.")
+			continue
+		}
+
+		postAuthor, err := p.apiClient.User.Get(post.UserId)
+		if err != nil {
+			p.API.LogError("Failed to get post author", "error", err.Error())
+			continue
+		}
+
+		// Sending the post author requires the proper variable to be set in the manifest:
+		// "activities": {
+		// 	"activityTypes": [
+		// 	  {
+		// 		"type": "mattermost_mention_with_name",
+		// 		"description": "New message in Mattermost for the Teams user",
+		// 		"templateText": "{post_author} mentioned you in Mattermost."
+		// 	  }
+		// 	]
+		// }
+		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", post.Message, url.URL{
+			Scheme:   "https",
+			Host:     "teams.microsoft.com",
+			Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
+			RawQuery: urlParams.Encode(),
+		}, map[string]string{
+			"post_author": postAuthor.GetDisplayName(model.ShowNicknameFullName),
+		}); err != nil {
+			p.API.LogError("Failed to send user activity notification", "error", err.Error())
+		}
+	}
+}
+
+func extractMentionsFromPost(post *model.Post) []string {
+	// Regular expression to find mentions of the form @username
+	mentionRegex := regexp.MustCompile(`@[a-zA-Z0-9._-]+`)
+	matches := mentionRegex.FindAllString(post.Message, -1)
+
+	// Remove the '@' symbol from each mention
+	mentions := []string{}
+	for _, match := range matches {
+		mentions = append(mentions, match[1:]) // Remove the '@'
+	}
+	return mentions
 }
 
 func getCookieDomain(config *model.Config) string {
-	if config.ServiceSettings.AllowCookiesForSubdomains != nil && *config.ServiceSettings.AllowCookiesForSubdomains {
+	if config.ServiceSettings.AllowCookiesForSubdomains != nil && *config.ServiceSettings.AllowCookiesForSubdomains && config.ServiceSettings.SiteURL != nil {
 		if siteURL, err := url.Parse(*config.ServiceSettings.SiteURL); err == nil {
 			return siteURL.Hostname()
 		}
 	}
 	return ""
+}
+
+func getUserPropKey(key string) string {
+	return "com.mattermost.plugin-msteams-devsecops." + key
 }

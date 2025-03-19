@@ -38,10 +38,21 @@
         tenantId = context.user.tenant.id;
       }
 
+      
       // If there's an explicit match in the tenant map, try to get auth token
       if (tenantMap[tenantId]) {
         const domainRoot = tenantMap[tenantId];
-        const params = new URLSearchParams();
+        
+        // Build query params to be sent to the iframe.
+        const params = new URLSearchParams()
+        params.set('app_id', context.app.appId.appIdAsString);
+  
+        // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
+        // and send it to the iframe to redirect the user to what triggered the notification.
+        if (context && context.page && context.page.subPageId) {
+          params.set('sub_entity_id', context.page.subPageId);
+        }
+  
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);
