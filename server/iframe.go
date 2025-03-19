@@ -78,14 +78,14 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	redirectPath := "/"
 
-	// Check if we have a subEntityId coming from the Microsoft Teams SDK to redirect the user to the correct URL.
+	// Check if we have a subEntityID coming from the Microsoft Teams SDK to redirect the user to the correct URL.
 	// We use this from the Team's notifications to redirect the user to what triggered the notification, in this case,
 	// a post.
-	subEntityId := r.URL.Query().Get("sub_entity_id")
-	if subEntityId != "" {
-		if strings.HasPrefix(subEntityId, "post_") {
-			postId := strings.TrimPrefix(subEntityId, "post_")
-			post, err := a.p.API.GetPost(postId)
+	subEntityID := r.URL.Query().Get("sub_entity_id")
+	if subEntityID != "" {
+		if strings.HasPrefix(subEntityID, "post_") {
+			postID := strings.TrimPrefix(subEntityID, "post_")
+			post, err := a.p.API.GetPost(postID)
 			if err != nil {
 				logger.WithError(err).Error("Failed to get post to generate redirect path from subEntityId")
 			}
@@ -100,7 +100,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 				logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
 			}
 
-			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postId)
+			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postID)
 		}
 	}
 
@@ -273,7 +273,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			continue
 		}
 
-		msteamUserId, ok := u.GetProp("com.mattermost.plugin-msteams-devsecops.user_id")
+		msteamsUserID, ok := u.GetProp("com.mattermost.plugin-msteams-devsecops.user_id")
 		if !ok {
 			p.API.LogError("User ID is empty")
 			continue
@@ -295,7 +295,11 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		// 	  }
 		// 	]
 		// }
-		if err := p.msteamsAppClient.SendUserActivity(msteamUserId, "mattermost_mention_with_name", post.Message, urlParams, map[string]string{
+		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", post.Message, url.URL{
+			Scheme: "https",
+			Host:   "teams.microsoft.com",
+			Path:   "/l/entity/" + p.getConfiguration().ClientID + "/",
+		}, map[string]string{
 			"post_author": postAuthor.GetDisplayName(model.ShowNicknameFullName),
 		}); err != nil {
 			p.API.LogError("Failed to send user activity notification", "error", err.Error())
