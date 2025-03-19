@@ -23,6 +23,14 @@
     // Initialize the Microsoft Teams SDK
     microsoftTeams.app.initialize(["{{SITE_URL}}"]);
 
+    // Define a map of tenant IDs to their corresponding domain roots
+    const tenantMap = {
+      'd2888234-d303-4c94-8f45-c7348f089048': 'https://msteams-sync-test.test.mattermost.cloud',
+      '7419f71d-0b07-4d0a-89b8-3a4be2ec8627': 'https://hub.mattermost.com',
+      '8bcff170-9979-491e-8683-d8ced0850bad': 'https://servicenow.cloud.mattermost.com',
+      '{{TENANT_ID}}': '{{SITE_URL}}'
+    };
+
     // Choose the iFrame content based on the tenant.
     microsoftTeams.app.getContext().then((context) => {
       let tenantId;
@@ -30,20 +38,21 @@
         tenantId = context.user.tenant.id;
       }
 
-      // Build query params to be sent to the iframe.
-      const params = new URLSearchParams()
-      params.set('app_id', context.app.appId.appIdAsString);
-
-      // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
-      // and send it to the iframe to redirect the user to what triggered the notification.
-      if (context && context.page && context.page.subPageId) {
-        params.set('sub_entity_id', context.page.subPageId);
-      }
-
+      
       // If there's an explicit match in the tenant map, try to get auth token
       if (tenantMap[tenantId]) {
         const domainRoot = tenantMap[tenantId];
-        const params = new URLSearchParams();
+        
+        // Build query params to be sent to the iframe.
+        const params = new URLSearchParams()
+        params.set('app_id', context.app.appId.appIdAsString);
+  
+        // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
+        // and send it to the iframe to redirect the user to what triggered the notification.
+        if (context && context.page && context.page.subPageId) {
+          params.set('sub_entity_id', context.page.subPageId);
+        }
+  
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);

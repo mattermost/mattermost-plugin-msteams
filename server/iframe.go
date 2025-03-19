@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -67,7 +66,7 @@ func (a *API) formatTemplate(template string) (string, error) {
 
 	html := strings.ReplaceAll(template, "{{SITE_URL}}", siteURL)
 	html = strings.ReplaceAll(html, "{{PLUGIN_ID}}", url.PathEscape(manifest.Id))
-	html = strings.ReplaceAll(html, "{{TENANT_ID}}", url.PathEscape(a.p.getConfiguration().TenantID))
+	html = strings.ReplaceAll(html, "{{TENANT_ID}}", a.p.getConfiguration().TenantID)
 	return html, nil
 }
 
@@ -136,23 +135,28 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if claims == nil {
+		handleErrorWithCode(logger, w, http.StatusUnauthorized, "Invalid token claims", nil)
+		return
+	}
+
 	oid, ok := claims["oid"].(string)
-	if !ok {
-		logger.Error("No claim for oid")
-		http.Error(w, "", http.StatusBadRequest)
+	if !ok || oid == "" {
+		logger.Error("Missing or empty claim for oid")
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	logger = logger.WithField("oid", oid)
 
 	ssoUsername, ok := claims["unique_name"].(string)
-	if !ok {
-		logger.Warn("no unique_name claim")
+	if !ok || ssoUsername == "" {
+		logger.Warn("Missing or empty claim for unique_name")
 
 		ssoUsername, ok = claims["preferred_username"].(string)
-		if !ok {
-			logger.Error("No claim for unique_name or preferred_username")
-			http.Error(w, "", http.StatusBadRequest)
+		if !ok || ssoUsername == "" {
+			logger.Error("Missing or empty claim for unique_name or preferred_username")
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 	}
@@ -202,12 +206,17 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	domain := getCookieDomain(config)
 	subpath, _ := utils.GetSubpathFromConfig(config)
 
-	expiresAt := time.Unix(model.GetMillis()/1000+int64(maxAgeSeconds), 0)
+	jwtExpiresAt, err := claims.GetExpirationTime()
+	if err != nil || jwtExpiresAt == nil {
+		logger.WithError(err).Error("Missing or invalid expiration time claim")
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	expiresAt := jwtExpiresAt.Time
 
 	session, err := a.p.apiClient.Session.Create(&model.Session{
-		UserId: mmUser.Id,
-		// TODO, should we allow this to be configurable?
-		ExpiresAt: model.GetMillis() + (1000 * 60 * 60 * 24 * 1), // 1 day
+		UserId:    mmUser.Id,
+		ExpiresAt: model.GetMillisForTime(expiresAt),
 	})
 	if err != nil {
 		logger.WithError(err).Error("Failed to create session for Mattermost user")
