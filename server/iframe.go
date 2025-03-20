@@ -84,6 +84,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	subEntityID := r.URL.Query().Get("sub_entity_id")
 	if subEntityID != "" {
 		if strings.HasPrefix(subEntityID, "post_") {
+			var team *model.Team
 			postID := strings.TrimPrefix(subEntityID, "post_")
 			post, err := a.p.API.GetPost(postID)
 			if err != nil {
@@ -95,9 +96,17 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 				logger.WithError(appErr).Error("Failed to get channel to generate redirect path from subEntityId")
 			}
 
-			team, appErr := a.p.API.GetTeam(channel.TeamId)
-			if appErr != nil {
-				logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
+			if channel.TeamId == "" {
+				teams, appErr := a.p.API.GetTeamsForUser(post.UserId)
+				if appErr != nil {
+					logger.WithError(appErr).Error("Failed to get teams for user to generate redirect path from subEntityId")
+				}
+				team = teams[0]
+			} else {
+				team, appErr = a.p.API.GetTeam(channel.TeamId)
+				if appErr != nil {
+					logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
+				}
 			}
 
 			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postID)
@@ -270,7 +279,39 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 // to Microsoft Teams when a user is mentioned in a message.
 // This is called in a controller Goroutine in the server side so there's no need to worry about concurrency here.
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
-	p.API.LogError("Message has been posted", "post_id", post.Id, "post_participants", post.Participants)
+	// Check if user activity notifications are enabled
+	if !p.getConfiguration().EnableUserActivityNotifications {
+		return
+	}
+
+	mentions, err := p.GetAllMentions(post)
+	if err != nil {
+		p.API.LogError("Failed to get mentions from post", "error", err.Error())
+		return
+	}
+
+	// Log the mentions
+	p.API.LogInfo("Message mentions detected",
+		"post_id", post.Id,
+		"user_mentions", formatMentionsForLog(mentions.Mentions),
+		"here_mentioned", mentions.HereMentioned,
+		"channel_mentioned", mentions.ChannelMentioned,
+		"all_mentioned", mentions.AllMentioned,
+		"group_mentions", formatMentionsForLog(mentions.GroupMentions),
+		"other_potential_mentions", mentions.OtherPotentialMentions)
+
+	// Send notifications to mentioned users
+	sender, appErr := p.API.GetUser(post.UserId)
+	if appErr != nil {
+		p.API.LogError("Failed to get sender for notification", "error", appErr.Error())
+		return
+	}
+
+	// Extract post message to use in notification
+	message := post.Message
+	if len(message) > 100 {
+		message = message[:97] + "..."
+	}
 
 	context := map[string]string{
 		"subEntityId": fmt.Sprintf("post_%s", post.Id),
@@ -285,8 +326,14 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	urlParams := url.Values{}
 	urlParams.Set("context", string(jsonContext))
 
-	for _, mention := range extractMentionsFromPost(post) {
-		u, err := p.apiClient.User.GetByUsername(mention)
+	// Send notifications to all mentioned users
+	for userID := range mentions.Mentions {
+		// Don't send notifications to the post author
+		if userID == post.UserId {
+			continue
+		}
+
+		u, err := p.apiClient.User.Get(userID)
 		if err != nil {
 			p.API.LogError("Failed to get user", "error", err.Error())
 			continue
@@ -304,12 +351,6 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 			continue
 		}
 
-		postAuthor, err := p.apiClient.User.Get(post.UserId)
-		if err != nil {
-			p.API.LogError("Failed to get post author", "error", err.Error())
-			continue
-		}
-
 		// Sending the post author requires the proper variable to be set in the manifest:
 		// "activities": {
 		// 	"activityTypes": [
@@ -320,13 +361,13 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		// 	  }
 		// 	]
 		// }
-		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", post.Message, url.URL{
+		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", message, url.URL{
 			Scheme:   "https",
 			Host:     "teams.microsoft.com",
 			Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
 			RawQuery: urlParams.Encode(),
 		}, map[string]string{
-			"post_author": postAuthor.GetDisplayName(model.ShowNicknameFullName),
+			"post_author": sender.GetDisplayName(model.ShowNicknameFullName),
 		}); err != nil {
 			p.API.LogError("Failed to send user activity notification", "error", err.Error())
 		}
