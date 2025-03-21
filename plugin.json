@@ -102,6 +102,13 @@
         "default": false
       },
       {
+        "key": "enableUserActivityNotifications",
+        "display_name": "Enable User Activity Notifications",
+        "type": "bool",
+        "help_text": "Allows the plugin to send notification from Mattermost as activities in Microsoft Teams.",
+        "default": false
+      },
+      {
         "key": "connectedUsersWhitelist",
         "display_name": "New User Connections: Whitelist",
         "type": "custom",
@@ -114,13 +121,6 @@
         "type": "custom",
         "help_text": "",
         "default": ""
-      },
-      {
-        "key": "enableUserActivityNotifications",
-        "display_name": "Enable User Activity Notifications",
-        "type": "bool",
-        "help_text": "Allows the plugin to send notification from Mattermost as activities in Microsoft Teams.",
-        "default": false
       }
     ]
   }
