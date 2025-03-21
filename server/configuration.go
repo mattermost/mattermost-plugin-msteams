@@ -35,6 +35,7 @@ type configuration struct {
 	ConnectedUsersRestricted        bool   `json:"connectedUsersRestricted"`
 	ConnectedUsersMaxPendingInvites int    `json:"connectedUsersMaxPendingInvites"`
 	DisableCheckCredentials         bool   `json:"internalDisableCheckCredentials"`
+	EnableUserActivityNotifications bool   `json:"enableUserActivityNotifications"`
 }
 
 func (c *configuration) ProcessConfiguration() {
