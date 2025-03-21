@@ -282,7 +282,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		return
 	}
 
-	parser := NewMentionParser(p.API, p.msteamsAppClient)
+	parser := NewNotificationsParser(p.API, p.msteamsAppClient)
 	if err := parser.ProcessPost(post); err != nil {
 		p.API.LogError("Failed to process mentions", "error", err.Error())
 		return

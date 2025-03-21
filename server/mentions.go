@@ -15,30 +15,30 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
-type Mention struct {
+type UserNotification struct {
 	Trigger    string
 	Post       *model.Post
 	Channel    *model.Channel
 	PostAuthor *model.User
 	User       *model.User
 	Group      *model.Group
-	IsDM       bool // true if the mention is a DM
+	IsDM       bool // true if the notification is because a DM instead of a mention. Also used for group messages.
 }
 
-type MentionParser struct {
+type NotificationsParser struct {
 	PAPI             plugin.API
-	Notifications    []*Mention
+	Notifications    []*UserNotification
 	msteamsAppClient msteams.Client
 }
 
-func NewMentionParser(api plugin.API, msteamsAppClient msteams.Client) *MentionParser {
-	return &MentionParser{
+func NewNotificationsParser(api plugin.API, msteamsAppClient msteams.Client) *NotificationsParser {
+	return &NotificationsParser{
 		PAPI:             api,
 		msteamsAppClient: msteamsAppClient,
 	}
 }
 
-func (p *MentionParser) ProcessPost(post *model.Post) error {
+func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 	mentions := p.extractMentionsFromPost(post)
 	channel, err := p.PAPI.GetChannel(post.ChannelId)
 	if err != nil {
@@ -46,7 +46,7 @@ func (p *MentionParser) ProcessPost(post *model.Post) error {
 	}
 
 	for _, mention := range mentions {
-		m := &Mention{
+		m := &UserNotification{
 			Trigger: mention,
 			Post:    post,
 			Channel: channel,
@@ -72,8 +72,13 @@ func (p *MentionParser) ProcessPost(post *model.Post) error {
 		p.Notifications = append(p.Notifications, m)
 	}
 
-	if channel.Type == model.ChannelTypeDirect {
-		p.processDMsNotifications(channel, post)
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		p.Notifications = append(p.Notifications, &UserNotification{
+			Trigger: post.Message,
+			Post:    post,
+			Channel: channel,
+			IsDM:    true,
+		})
 	}
 
 	for _, notification := range p.Notifications {
@@ -83,7 +88,7 @@ func (p *MentionParser) ProcessPost(post *model.Post) error {
 	return nil
 }
 
-func (p *MentionParser) processDMsNotifications(channel *model.Channel, post *model.Post) {
+func (p *NotificationsParser) processDMsNotifications(channel *model.Channel, post *model.Post) {
 	channelMembers, err := p.PAPI.GetChannelMembers(channel.Id, 0, 1000)
 	if err != nil {
 		p.PAPI.LogError("Failed to get channel members", "error", err.Error())
@@ -101,7 +106,7 @@ func (p *MentionParser) processDMsNotifications(channel *model.Channel, post *mo
 			continue
 		}
 
-		p.Notifications = append(p.Notifications, &Mention{
+		p.Notifications = append(p.Notifications, &UserNotification{
 			Trigger: post.Message,
 			Post:    post,
 			Channel: channel,
@@ -110,13 +115,13 @@ func (p *MentionParser) processDMsNotifications(channel *model.Channel, post *mo
 	}
 }
 
-func (p *MentionParser) extractMentionsFromPost(post *model.Post) []string {
+func (p *NotificationsParser) extractMentionsFromPost(post *model.Post) []string {
 	// Regular expression to find mentions of the form @username
 	mentionRegex := regexp.MustCompile(`@[a-zA-Z0-9._-]+`)
 	return mentionRegex.FindAllString(post.Message, -1)
 }
 
-func (p *MentionParser) isUserMention(mention string) *model.User {
+func (p *NotificationsParser) isUserMention(mention string) *model.User {
 	user, err := p.PAPI.GetUserByUsername(mention)
 	if err != nil {
 		return nil
@@ -124,7 +129,7 @@ func (p *MentionParser) isUserMention(mention string) *model.User {
 	return user
 }
 
-func (p *MentionParser) isGroupMention(mention string) *model.Group {
+func (p *NotificationsParser) isGroupMention(mention string) *model.Group {
 	group, err := p.PAPI.GetGroupByName(mention)
 	if err != nil {
 		return nil
@@ -132,50 +137,47 @@ func (p *MentionParser) isGroupMention(mention string) *model.Group {
 	return group
 }
 
-func (p *MentionParser) SendNotifications() error {
-	for _, mention := range p.Notifications {
-		if err := p.SendNotification(mention); err != nil {
+func (p *NotificationsParser) SendNotifications() error {
+	for _, userNotification := range p.Notifications {
+		if err := p.SendNotification(userNotification); err != nil {
 			p.PAPI.LogError("Failed to send notification", "error", err.Error())
 		}
 	}
 	return nil
 }
 
-func (p *MentionParser) SendNotification(mention *Mention) error {
-	if mention.IsDM {
-		return p.sendDMNotification(mention)
+func (p *NotificationsParser) SendNotification(notification *UserNotification) error {
+	// Send notifications for direct and group messages
+	if notification.Channel != nil {
+		return p.sendChannelNotification(notification, false)
 	}
 
-	if mention.User != nil {
-		return p.sendUserNotification(mention)
+	if notification.User != nil {
+		return p.sendUserNotification(notification)
 	}
 
-	if mention.Group != nil {
-		return p.sendGroupNotification(mention)
+	if notification.Group != nil {
+		return p.sendGroupNotification(notification)
 	}
 
-	switch mention.Trigger {
+	switch notification.Trigger {
 	case "@here":
-		return p.sendChannelNotification(mention, true)
+		return p.sendChannelNotification(notification, true)
 	case "@channel":
 		fallthrough
 	case "@all":
-		return p.sendChannelNotification(mention, false)
+		return p.sendChannelNotification(notification, false)
 	}
 	return nil
 }
 
-func (p *MentionParser) sendDMNotification(mention *Mention) error {
-	return p.sendUserActivityNotification(NewNotification(mention, mention.User))
-}
-
-func (p *MentionParser) sendUserNotification(mention *Mention) error {
+func (p *NotificationsParser) sendUserNotification(un *UserNotification) error {
 	// Do not mention yourself
-	if mention.Post.UserId == mention.User.Id {
+	if un.Post.UserId == un.User.Id {
 		return nil
 	}
 
-	channelMembership, err := p.PAPI.GetChannelMember(mention.Post.ChannelId, mention.User.Id)
+	channelMembership, err := p.PAPI.GetChannelMember(un.Post.ChannelId, un.User.Id)
 	if err != nil {
 		return err
 	}
@@ -183,24 +185,24 @@ func (p *MentionParser) sendUserNotification(mention *Mention) error {
 		return nil
 	}
 
-	notification := NewNotification(mention, mention.User)
+	userActivity := NewUserActivity(un, un.User)
 
-	return p.sendUserActivityNotification(notification)
+	return p.sendUserActivity(userActivity)
 }
 
-func (p *MentionParser) sendGroupNotification(mention *Mention) error {
-	userGroup, err := p.PAPI.GetGroupMemberUsers(mention.Group.Id, 0, 1000)
+func (p *NotificationsParser) sendGroupNotification(un *UserNotification) error {
+	userGroup, err := p.PAPI.GetGroupMemberUsers(un.Group.Id, 0, 1000)
 	if err != nil {
 		return err
 	}
 	for _, user := range userGroup {
 		// Avoid sending notifications to the user who posted the message even if it's part of the group
-		if user.Id == mention.Post.UserId {
+		if user.Id == un.Post.UserId {
 			continue
 		}
 
 		// only send notification if the user belongs to the channel the group was mentioned in
-		channelMembership, err := p.PAPI.GetChannelMember(mention.Post.ChannelId, user.Id)
+		channelMembership, err := p.PAPI.GetChannelMember(un.Post.ChannelId, user.Id)
 		if err != nil {
 			return err
 		}
@@ -208,8 +210,8 @@ func (p *MentionParser) sendGroupNotification(mention *Mention) error {
 			continue
 		}
 
-		notification := NewNotification(mention, user)
-		if err := p.sendUserActivityNotification(notification); err != nil {
+		userActivity := NewUserActivity(un, user)
+		if err := p.sendUserActivity(userActivity); err != nil {
 			p.PAPI.LogError("Failed to send user activity notification", "error", err.Error())
 		}
 	}
@@ -217,14 +219,14 @@ func (p *MentionParser) sendGroupNotification(mention *Mention) error {
 	return nil
 }
 
-func (p *MentionParser) sendChannelNotification(mention *Mention, onlineOnly bool) error {
-	channelMembers, err := p.PAPI.GetChannelMembers(mention.Post.ChannelId, 0, 1000)
+func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onlineOnly bool) error {
+	channelMembers, err := p.PAPI.GetChannelMembers(un.Post.ChannelId, 0, 1000)
 	if err != nil {
 		return err
 	}
 
 	for _, member := range channelMembers {
-		if member.UserId == mention.Post.UserId {
+		if member.UserId == un.Post.UserId {
 			continue
 		}
 
@@ -245,8 +247,8 @@ func (p *MentionParser) sendChannelNotification(mention *Mention, onlineOnly boo
 			return err
 		}
 
-		notification := NewNotification(mention, user)
-		if err := p.sendUserActivityNotification(notification); err != nil {
+		userActivity := NewUserActivity(un, user)
+		if err := p.sendUserActivity(userActivity); err != nil {
 			p.PAPI.LogError("Failed to send user activity notification", "error", err.Error())
 		}
 	}
@@ -254,8 +256,8 @@ func (p *MentionParser) sendChannelNotification(mention *Mention, onlineOnly boo
 	return nil
 }
 
-func (p *MentionParser) sendUserActivityNotification(notification *Notification) error {
-	user, err := p.PAPI.GetUser(notification.User.Id)
+func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error {
+	user, err := p.PAPI.GetUser(userActivity.User.Id)
 	if err != nil {
 		return err
 	}
@@ -270,20 +272,20 @@ func (p *MentionParser) sendUserActivityNotification(notification *Notification)
 		return nil
 	}
 
-	sender, err := p.PAPI.GetUser(notification.Mention.Post.UserId)
+	sender, err := p.PAPI.GetUser(userActivity.UserNotification.Post.UserId)
 	if err != nil {
 		p.PAPI.LogError("Failed to get sender", "error", err.Error())
 		return err
 	}
 
 	// Extract post message to use in notification
-	message := notification.Mention.Post.Message
+	message := userActivity.UserNotification.Post.Message
 	if len(message) > 100 {
 		message = message[:97] + "..."
 	}
 
 	context := map[string]string{
-		"subEntityId": fmt.Sprintf("post_%s", notification.Mention.Post.Id),
+		"subEntityId": fmt.Sprintf("post_%s", userActivity.UserNotification.Post.Id),
 	}
 
 	jsonContext, jsonErr := json.Marshal(context)
@@ -309,14 +311,14 @@ func (p *MentionParser) sendUserActivityNotification(notification *Notification)
 	return nil
 }
 
-type Notification struct {
-	Mention *Mention
-	User    *model.User
+type UserActivity struct {
+	UserNotification *UserNotification
+	User             *model.User
 }
 
-func NewNotification(mention *Mention, user *model.User) *Notification {
-	return &Notification{
-		Mention: mention,
-		User:    user,
+func NewUserActivity(mention *UserNotification, user *model.User) *UserActivity {
+	return &UserActivity{
+		UserNotification: mention,
+		User:             user,
 	}
 }
