@@ -74,50 +74,21 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	var logger logrus.FieldLogger
 	logger = logrus.StandardLogger()
 
-	redirectPath := "/"
-
-	// Check if we have a subEntityID coming from the Microsoft Teams SDK to redirect the user to the correct URL.
-	// We use this from the Team's notifications to redirect the user to what triggered the notification, in this case,
-	// a post.
-	subEntityID := r.URL.Query().Get("sub_entity_id")
-	if subEntityID != "" {
-		if strings.HasPrefix(subEntityID, "post_") {
-			var team *model.Team
-			postID := strings.TrimPrefix(subEntityID, "post_")
-			post, appErr := a.p.API.GetPost(postID)
-			if appErr != nil {
-				logger.WithError(appErr).Error("Failed to get post to generate redirect path from subEntityId")
-			}
-
-			channel, appErr := a.p.API.GetChannel(post.ChannelId)
-			if appErr != nil {
-				logger.WithError(appErr).Error("Failed to get channel to generate redirect path from subEntityId")
-			}
-
-			if channel.TeamId == "" {
-				teams, appErr := a.p.API.GetTeamsForUser(post.UserId)
-				if appErr != nil {
-					logger.WithError(appErr).Error("Failed to get teams for user to generate redirect path from subEntityId")
-				}
-				team = teams[0]
-			} else {
-				team, appErr = a.p.API.GetTeam(channel.TeamId)
-				if appErr != nil {
-					logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
-				}
-			}
-
-			redirectPath = fmt.Sprintf("/%s/pl/%s", team.Name, postID)
-		}
-	}
-
 	// If the user is already logged in, redirect to the home page.
 	// TODO: Refactor the user properties setup to a function and call it from here if the user is already logged in
 	// just in case the user logs in from a tabApp in a browser.
 	if r.Header.Get("Mattermost-User-ID") != "" {
 		logger = logger.WithField("user_id", r.Header.Get("Mattermost-User-ID"))
 		logger.Info("Skipping authentication, user already logged in")
-		http.Redirect(w, r, redirectPath, http.StatusSeeOther)
+
+		user, err := a.p.apiClient.User.Get(r.Header.Get("Mattermost-User-ID"))
+		if err != nil {
+			logger.WithError(err).Error("Failed to get user")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, a.p.getRedirectPathFromUser(logger, user, r.URL.Query().Get("sub_entity_id")), http.StatusSeeOther)
 		return
 	}
 
@@ -270,7 +241,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, csrfCookie)
 
 	// Redirect to the home page
-	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
+	http.Redirect(w, r, a.p.getRedirectPathFromUser(logger, mmUser, r.URL.Query().Get("sub_entity_id")), http.StatusSeeOther)
 }
 
 // MessageHasBeenPosted is called when a message is posted in Mattermost. We rely on it to send a user activity notification
@@ -304,4 +275,42 @@ func getCookieDomain(config *model.Config) string {
 
 func getUserPropKey(key string) string {
 	return "com.mattermost.plugin-msteams-devsecops." + key
+}
+
+// getRedirectPathFromUser generates a redirect path for the user based on the subEntityID.
+// This is used to redirect the user to the correct URL when they click on a notification in Microsoft Teams.
+func (p *Plugin) getRedirectPathFromUser(logger logrus.FieldLogger, user *model.User, subEntityID string) string {
+	if subEntityID != "" {
+		if strings.HasPrefix(subEntityID, "post_") {
+			var team *model.Team
+			postID := strings.TrimPrefix(subEntityID, "post_")
+			post, appErr := p.API.GetPost(postID)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get post to generate redirect path from subEntityId")
+			}
+
+			channel, appErr := p.API.GetChannel(post.ChannelId)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get channel to generate redirect path from subEntityId")
+			}
+
+			if channel.TeamId == "" {
+				var teams []*model.Team
+				teams, appErr = p.API.GetTeamsForUser(user.Id)
+				if appErr != nil {
+					logger.WithError(appErr).Error("Failed to get teams for user to generate redirect path from subEntityId")
+				}
+				team = teams[0]
+			} else {
+				team, appErr = p.API.GetTeam(channel.TeamId)
+				if appErr != nil {
+					logger.WithError(appErr).Error("Failed to get team to generate redirect path from subEntityId")
+				}
+			}
+
+			return fmt.Sprintf("/%s/pl/%s", team.Name, postID)
+		}
+	}
+
+	return "/"
 }
