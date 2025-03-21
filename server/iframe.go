@@ -5,11 +5,9 @@ package main
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -284,107 +282,15 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		return
 	}
 
-	mentions, err := p.GetAllMentions(post)
-	if err != nil {
-		p.API.LogError("Failed to get mentions from post", "error", err.Error())
+	parser := NewMentionParser(p.API, p.msteamsAppClient)
+	if err := parser.ProcessPost(post); err != nil {
+		p.API.LogError("Failed to process mentions", "error", err.Error())
 		return
 	}
 
-	// Log the mentions
-	p.API.LogInfo("Message mentions detected",
-		"post_id", post.Id,
-		"user_mentions", formatMentionsForLog(mentions.Mentions),
-		"here_mentioned", mentions.HereMentioned,
-		"channel_mentioned", mentions.ChannelMentioned,
-		"all_mentioned", mentions.AllMentioned,
-		"group_mentions", formatMentionsForLog(mentions.GroupMentions),
-		"other_potential_mentions", mentions.OtherPotentialMentions)
-
-	// Send notifications to mentioned users
-	sender, appErr := p.API.GetUser(post.UserId)
-	if appErr != nil {
-		p.API.LogError("Failed to get sender for notification", "error", appErr.Error())
-		return
+	if err := parser.SendNotifications(); err != nil {
+		p.API.LogError("Failed to send notifications", "error", err.Error())
 	}
-
-	// Extract post message to use in notification
-	message := post.Message
-	if len(message) > 100 {
-		message = message[:97] + "..."
-	}
-
-	context := map[string]string{
-		"subEntityId": fmt.Sprintf("post_%s", post.Id),
-	}
-
-	jsonContext, err := json.Marshal(context)
-	if err != nil {
-		p.API.LogError("Failed to marshal context", "error", err.Error())
-		return
-	}
-
-	urlParams := url.Values{}
-	urlParams.Set("context", string(jsonContext))
-
-	// Send notifications to all mentioned users
-	for userID := range mentions.Mentions {
-		// Don't send notifications to the post author
-		if userID == post.UserId {
-			continue
-		}
-
-		u, err := p.apiClient.User.Get(userID)
-		if err != nil {
-			p.API.LogError("Failed to get user", "error", err.Error())
-			continue
-		}
-
-		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
-		if !exists {
-			p.API.LogError("MSTeams user ID is empty. Not sending notification.")
-			continue
-		}
-
-		appID, exists := u.GetProp(getUserPropKey("app_id"))
-		if !exists {
-			p.API.LogError("MSTeams app ID is empty. Not sending notification.")
-			continue
-		}
-
-		// Sending the post author requires the proper variable to be set in the manifest:
-		// "activities": {
-		// 	"activityTypes": [
-		// 	  {
-		// 		"type": "mattermost_mention_with_name",
-		// 		"description": "New message in Mattermost for the Teams user",
-		// 		"templateText": "{post_author} mentioned you in Mattermost."
-		// 	  }
-		// 	]
-		// }
-		if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", message, url.URL{
-			Scheme:   "https",
-			Host:     "teams.microsoft.com",
-			Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
-			RawQuery: urlParams.Encode(),
-		}, map[string]string{
-			"post_author": sender.GetDisplayName(model.ShowNicknameFullName),
-		}); err != nil {
-			p.API.LogError("Failed to send user activity notification", "error", err.Error())
-		}
-	}
-}
-
-func extractMentionsFromPost(post *model.Post) []string {
-	// Regular expression to find mentions of the form @username
-	mentionRegex := regexp.MustCompile(`@[a-zA-Z0-9._-]+`)
-	matches := mentionRegex.FindAllString(post.Message, -1)
-
-	// Remove the '@' symbol from each mention
-	mentions := []string{}
-	for _, match := range matches {
-		mentions = append(mentions, match[1:]) // Remove the '@'
-	}
-	return mentions
 }
 
 func getCookieDomain(config *model.Config) string {
