@@ -22,7 +22,6 @@ type UserNotification struct {
 	PostAuthor *model.User
 	User       *model.User
 	Group      *model.Group
-	IsDM       bool // true if the notification is because a DM instead of a mention. Also used for group messages.
 }
 
 type NotificationsParser struct {
@@ -77,7 +76,6 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 			Trigger: post.Message,
 			Post:    post,
 			Channel: channel,
-			IsDM:    true,
 		})
 	}
 
@@ -86,33 +84,6 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 	}
 
 	return nil
-}
-
-func (p *NotificationsParser) processDMsNotifications(channel *model.Channel, post *model.Post) {
-	channelMembers, err := p.PAPI.GetChannelMembers(channel.Id, 0, 1000)
-	if err != nil {
-		p.PAPI.LogError("Failed to get channel members", "error", err.Error())
-		return
-	}
-
-	for _, member := range channelMembers {
-		if member.UserId == post.UserId {
-			continue
-		}
-
-		user, err := p.PAPI.GetUser(member.UserId)
-		if err != nil {
-			p.PAPI.LogError("Failed to get user", "error", err.Error())
-			continue
-		}
-
-		p.Notifications = append(p.Notifications, &UserNotification{
-			Trigger: post.Message,
-			Post:    post,
-			Channel: channel,
-			User:    user,
-		})
-	}
 }
 
 func (p *NotificationsParser) extractMentionsFromPost(post *model.Post) []string {
@@ -148,7 +119,7 @@ func (p *NotificationsParser) SendNotifications() error {
 
 func (p *NotificationsParser) SendNotification(notification *UserNotification) error {
 	// Send notifications for direct and group messages
-	if notification.Channel != nil {
+	if notification.Channel.Type == model.ChannelTypeDirect || notification.Channel.Type == model.ChannelTypeGroup {
 		return p.sendChannelNotification(notification, false)
 	}
 

@@ -84,9 +84,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(subEntityID, "post_") {
 			var team *model.Team
 			postID := strings.TrimPrefix(subEntityID, "post_")
-			post, err := a.p.API.GetPost(postID)
-			if err != nil {
-				logger.WithError(err).Error("Failed to get post to generate redirect path from subEntityId")
+			post, appErr := a.p.API.GetPost(postID)
+			if appErr != nil {
+				logger.WithError(appErr).Error("Failed to get post to generate redirect path from subEntityId")
 			}
 
 			channel, appErr := a.p.API.GetChannel(post.ChannelId)
