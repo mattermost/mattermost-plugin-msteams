@@ -60,11 +60,18 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 
 		default:
 			user := p.isUserMention(strings.TrimPrefix(mention, "@"))
-			group := p.isGroupMention(strings.TrimPrefix(mention, "@"))
 			if user != nil {
 				m.User = user
-			} else if group != nil {
-				m.Group = group
+			} else {
+				group := p.isGroupMention(strings.TrimPrefix(mention, "@"))
+				if group != nil {
+					m.Group = group
+				}
+			}
+
+			if m.User == nil && m.Group == nil {
+				p.PAPI.LogError("Failed to find user or group for metnion", "mention", mention)
+				continue
 			}
 		}
 
