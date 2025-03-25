@@ -2248,7 +2248,7 @@ func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message s
 		return err
 	}
 	topic.SetSource(topicSource.(*models.TeamworkActivityTopicSource))
-	topic.SetValue(mmModel.NewPointer("Mattermost for MS Teams"))
+	topic.SetValue(mmModel.NewPointer("Mattermost"))
 	topic.SetWebUrl(mmModel.NewPointer(webURL.String()))
 
 	tc.logService.Info("Sending user activity", "webUrl", webURL.String())

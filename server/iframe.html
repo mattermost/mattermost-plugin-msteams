@@ -51,8 +51,19 @@
         // and send it to the iframe to redirect the user to what triggered the notification.
         if (context && context.page && context.page.subPageId) {
           params.set('sub_entity_id', context.page.subPageId);
+
+          // Since we received a sub_entity_id, redirect to the subEntityId page.
+          try {
+            microsoftTeams.app.openLink(
+              `https://teams.microsoft.com/l/entity/${context.app.appId.appIdAsString}/?context=` + JSON.stringify({
+                subEntityId: context.page.subPageId
+              })
+            );
+          } catch (error) {
+            console.error('Failed to open link, fallback to using the iframe.', error);
+          }
         }
-  
+
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);
