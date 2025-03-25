@@ -142,7 +142,6 @@ func (p *NotificationsParser) SendNotification(notification *UserNotification) e
 	case "@here":
 		return p.sendChannelNotification(notification, true)
 	case "@channel":
-		fallthrough
 	case "@all":
 		return p.sendChannelNotification(notification, false)
 	}
