@@ -2231,7 +2231,7 @@ func checkGroupChat(c models.Chatable, userIDs []string) *clientmodels.Chat {
 
 	return nil
 }
-func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, webURL url.URL, params map[string]string) error {
+func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message string, webURL url.URL, params map[string]string) error {
 	keyValuePairs := []models.KeyValuePairable{}
 	for k, v := range params {
 		key := k
@@ -2256,14 +2256,18 @@ func (tc *ClientImpl) SendUserActivity(userID, activityType, message string, web
 	previewText := models.NewItemBody()
 	previewText.SetContent(mmModel.NewPointer(message))
 
-	recipient := models.NewAadUserNotificationRecipient()
-	recipient.SetUserId(mmModel.NewPointer(userID))
+	var recipients []models.TeamworkNotificationRecipientable
+	for _, userID := range userIDs {
+		recipient := models.NewAadUserNotificationRecipient()
+		recipient.SetUserId(mmModel.NewPointer(userID))
+		recipients = append(recipients, recipient)
+	}
 
 	activity := teamwork.NewSendActivityNotificationToRecipientsPostRequestBody()
+	activity.SetRecipients(recipients)
 	activity.SetActivityType(mmModel.NewPointer(activityType))
 	activity.SetPreviewText(previewText)
 	activity.SetTopic(topic)
-	activity.SetRecipients([]models.TeamworkNotificationRecipientable{recipient})
 	activity.SetTemplateParameters(keyValuePairs)
 
 	err = tc.client.Teamwork().SendActivityNotificationToRecipients().Post(context.Background(), activity, nil)

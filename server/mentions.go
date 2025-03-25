@@ -163,7 +163,7 @@ func (p *NotificationsParser) sendUserNotification(un *UserNotification) error {
 		return nil
 	}
 
-	userActivity := NewUserActivity(un, un.User)
+	userActivity := NewUserActivity(un, []*model.User{un.User})
 
 	return p.sendUserActivity(userActivity)
 }
@@ -173,6 +173,8 @@ func (p *NotificationsParser) sendGroupNotification(un *UserNotification) error 
 	if err != nil {
 		return err
 	}
+
+	users := []*model.User{}
 	for _, user := range userGroup {
 		// Avoid sending notifications to the user who posted the message even if it's part of the group
 		if user.Id == un.Post.UserId {
@@ -188,13 +190,11 @@ func (p *NotificationsParser) sendGroupNotification(un *UserNotification) error 
 			continue
 		}
 
-		userActivity := NewUserActivity(un, user)
-		if err := p.sendUserActivity(userActivity); err != nil {
-			p.PAPI.LogError("Failed to send user activity notification", "error", err.Error())
-		}
+		users = append(users, user)
 	}
 
-	return nil
+	userActivity := NewUserActivity(un, users)
+	return p.sendUserActivity(userActivity)
 }
 
 func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onlineOnly bool) error {
@@ -203,6 +203,7 @@ func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onli
 		return err
 	}
 
+	users := []*model.User{}
 	for _, member := range channelMembers {
 		if member.UserId == un.Post.UserId {
 			continue
@@ -225,31 +226,14 @@ func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onli
 			return err
 		}
 
-		userActivity := NewUserActivity(un, user)
-		if err := p.sendUserActivity(userActivity); err != nil {
-			p.PAPI.LogError("Failed to send user activity notification", "error", err.Error())
-		}
+		users = append(users, user)
 	}
 
-	return nil
+	userActivity := NewUserActivity(un, users)
+	return p.sendUserActivity(userActivity)
 }
 
 func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error {
-	user, err := p.PAPI.GetUser(userActivity.User.Id)
-	if err != nil {
-		return err
-	}
-
-	appID, exists := user.GetProp(getUserPropKey("app_id"))
-	if !exists {
-		return nil
-	}
-
-	msteamsUserID, exists := user.GetProp(getUserPropKey("user_id"))
-	if !exists {
-		return nil
-	}
-
 	sender, err := p.PAPI.GetUser(userActivity.UserNotification.Post.UserId)
 	if err != nil {
 		p.PAPI.LogError("Failed to get sender", "error", err.Error())
@@ -275,7 +259,32 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 	urlParams := url.Values{}
 	urlParams.Set("context", string(jsonContext))
 
-	if err := p.msteamsAppClient.SendUserActivity(msteamsUserID, "mattermost_mention_with_name", message, url.URL{
+	var appID string
+	msteamsUserIDs := []string{}
+	for _, user := range userActivity.Users {
+		u, err := p.PAPI.GetUser(user.Id)
+		if err != nil {
+			p.PAPI.LogError("Failed to get user", "error", err.Error())
+			continue
+		}
+
+		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
+		if !exists {
+			continue
+		}
+		msteamsUserIDs = append(msteamsUserIDs, msteamsUserID)
+
+		if appID == "" {
+			appID, _ = u.GetProp(getUserPropKey("app_id"))
+		}
+	}
+
+	if appID == "" {
+		p.PAPI.LogError("No app ID found for user activity notification", "user_ids", msteamsUserIDs)
+		return fmt.Errorf("no app ID found for user activity notification")
+	}
+
+	if err := p.msteamsAppClient.SendUserActivity(msteamsUserIDs, "mattermost_mention_with_name", message, url.URL{
 		Scheme:   "https",
 		Host:     "teams.microsoft.com",
 		Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
@@ -291,12 +300,12 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 
 type UserActivity struct {
 	UserNotification *UserNotification
-	User             *model.User
+	Users            []*model.User
 }
 
-func NewUserActivity(mention *UserNotification, user *model.User) *UserActivity {
+func NewUserActivity(mention *UserNotification, users []*model.User) *UserActivity {
 	return &UserActivity{
 		UserNotification: mention,
-		User:             user,
+		Users:            users,
 	}
 }
