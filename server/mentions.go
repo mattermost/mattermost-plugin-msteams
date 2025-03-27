@@ -70,7 +70,7 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 			}
 
 			if m.User == nil && m.Group == nil {
-				p.PAPI.LogError("Failed to find user or group for metnion", "mention", mention)
+				p.PAPI.LogDebug("Failed to find user or group for metnion", "mention", mention)
 				continue
 			}
 		}
