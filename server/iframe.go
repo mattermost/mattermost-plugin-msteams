@@ -114,11 +114,6 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appID := r.URL.Query().Get("app_id")
-	if appID == "" {
-		logger.Error("App ID was not sent with the authentication request")
-	}
-
 	config := a.p.apiClient.Configuration.GetConfig()
 
 	enableDeveloper := config.ServiceSettings.EnableDeveloper
@@ -188,7 +183,10 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	// notifications in the future.
 	mmUser.Props[getUserPropKey("sso_username")] = ssoUsername
 	mmUser.Props[getUserPropKey("oid")] = oid
-	if appID != "" {
+	appID := r.URL.Query().Get("app_id")
+	if appID == "" {
+		logger.Error("App ID was not sent with the authentication request")
+	} else {
 		mmUser.Props[getUserPropKey("app_id")] = appID
 	}
 
