@@ -14,14 +14,17 @@
     <iframe
         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
         title="Mattermost DevSecOps"
-        src="about:blank"
-        onload="notifyAppLoaded()">
+        src="about:blank">
     </iframe>
   <script>
     var iframe = document.querySelector('iframe');
 
     // Initialize the Microsoft Teams SDK
-    microsoftTeams.app.initialize(["{{SITE_URL}}"]);
+    microsoftTeams.app.initialize(["{{SITE_URL}}"]).then(() => {
+      microsoftTeams.app.notifySuccess();
+    }).catch((error) => {
+      console.error('Failed to initialize Microsoft Teams SDK:', error);
+    });
 
     // Define a map of tenant IDs to their corresponding domain roots
     const tenantMap = {
@@ -38,7 +41,6 @@
         tenantId = context.user.tenant.id;
       }
 
-      
       // If there's an explicit match in the tenant map, try to get auth token
       if (tenantMap[tenantId]) {
         const domainRoot = tenantMap[tenantId];
@@ -51,8 +53,21 @@
         // and send it to the iframe to redirect the user to what triggered the notification.
         if (context && context.page && context.page.subPageId) {
           params.set('sub_entity_id', context.page.subPageId);
+
+          // Since we received a sub_entity_id, redirect to the subEntityId page manually using the Microsoft Teams SDK.
+          // This is a workaround so we send the user to the tab application when opening the link from the 
+          // Microsoft Teams User Activity notifications page.
+          // Trying to navigate to the app within the app seems to be a no-op from the SDK, which is good for us.
+          microsoftTeams.pages.navigateToApp({
+            appId: context.app.appId.appIdAsString,
+            subPageId: context.page.subPageId
+          }).then(() => {
+            console.log("Successfully opened link, redirecting to the tab application.");
+          }).catch((error) => {
+            console.error('Failed to open link, fallback to using the iframe.', error);
+          });
         }
-  
+
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);
@@ -68,10 +83,6 @@
         iframe.src = '{{SITE_URL}}';
       }
     });
-
-    function notifyAppLoaded() {
-      return microsoftTeams.app.notifySuccess();
-    }
   </script>
 </body>
 </html>
