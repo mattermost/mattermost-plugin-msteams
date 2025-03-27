@@ -268,8 +268,6 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 // to Microsoft Teams when a user is mentioned in a message.
 // This is called in a controller Goroutine in the server side so there's no need to worry about concurrency here.
 func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
-	p.API.LogError("Message has been posted", "post_id", post.Id, "post_participants", post.Participants)
-
 	context := map[string]string{
 		"subEntityId": fmt.Sprintf("post_%s", post.Id),
 	}
