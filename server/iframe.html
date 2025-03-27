@@ -20,7 +20,7 @@
     var iframe = document.querySelector('iframe');
 
     // Initialize the Microsoft Teams SDK
-    microsoftTeams.app.initialize(["{{SITE_URL}}"]).then(() => {
+    microsoftTeams.app.initialize(["{{.SiteURL}}"]).then(() => {
       microsoftTeams.app.notifySuccess();
     }).catch((error) => {
       console.error('Failed to initialize Microsoft Teams SDK:', error);
@@ -31,7 +31,7 @@
       'd2888234-d303-4c94-8f45-c7348f089048': 'https://msteams-sync-test.test.mattermost.cloud',
       '7419f71d-0b07-4d0a-89b8-3a4be2ec8627': 'https://hub.mattermost.com',
       '8bcff170-9979-491e-8683-d8ced0850bad': 'https://servicenow.cloud.mattermost.com',
-      '{{TENANT_ID}}': '{{SITE_URL}}'
+      '{{.TenantID}}': '{{.SiteURL}}'
     };
 
     // Choose the iFrame content based on the tenant.
@@ -58,20 +58,20 @@
           // This is a workaround so we send the user to the tab application when opening the link from the 
           // Microsoft Teams User Activity notifications page.
           // Trying to navigate to the app within the app seems to be a no-op from the SDK, which is good for us.
-          microsoftTeams.pages.navigateToApp({
-            appId: context.app.appId.appIdAsString,
-            subPageId: context.page.subPageId
-          }).then(() => {
-            console.log("Successfully opened link, redirecting to the tab application.");
-          }).catch((error) => {
-            console.error('Failed to open link, fallback to using the iframe.', error);
-          });
+          // microsoftTeams.pages.navigateToApp({
+          //   appId: context.app.appId.appIdAsString,
+          //   subPageId: context.page.subPageId
+          // }).then(() => {
+          //   console.log("Successfully opened link, redirecting to the tab application.");
+          // }).catch((error) => {
+          //   console.error('Failed to open link, fallback to using the iframe.', error);
+          // });
         }
 
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);
-            iframe.src = `${domainRoot}/plugins/{{PLUGIN_ID}}/iframe/authenticate?${params.toString()}`;
+            iframe.src = `${domainRoot}/plugins/{{.PluginID}}/iframe/authenticate?${params.toString()}&sub_entity_id=${context.page.subPageId}`;
           })
           .catch((error) => {
             console.error('Failed to get auth token:', error);
@@ -80,7 +80,7 @@
       } else {
         // No explicit match, just redirect to SITE_URL
         console.log('No tenant match found, redirecting to default site');
-        iframe.src = '{{SITE_URL}}';
+        iframe.src = '{{.SiteURL}}';
       }
     });
   </script>

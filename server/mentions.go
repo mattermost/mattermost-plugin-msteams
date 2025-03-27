@@ -245,7 +245,7 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 	}
 
 	context := map[string]string{
-		"subEntityId": fmt.Sprintf("post_%s", userActivity.UserNotification.Post.Id),
+		"subEntityId": fmt.Sprintf("post_preview_%s", userActivity.UserNotification.Post.Id),
 	}
 
 	jsonContext, jsonErr := json.Marshal(context)
@@ -285,7 +285,7 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 	if err := p.msteamsAppClient.SendUserActivity(msteamsUserIDs, "mattermost_mention_with_name", message, url.URL{
 		Scheme:   "https",
 		Host:     "teams.microsoft.com",
-		Path:     "/l/entity/" + appID + "/" + context["subEntityId"],
+		Path:     "/l/entity/" + appID + "/notification_preview",
 		RawQuery: urlParams.Encode(),
 	}, map[string]string{
 		"post_author": sender.GetDisplayName(model.ShowNicknameFullName),

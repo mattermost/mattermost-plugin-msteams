@@ -4,8 +4,11 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,8 +23,21 @@ import (
 //go:embed iframe.html
 var iFrameHTML string
 
+//go:embed iframe_notification_preview.html
+var iFrameNotificationPreviewHTML string
+
+type iFrameContext struct {
+	SiteURL  string
+	PluginID string
+	TenantID string
+	UserId   string
+
+	Post     *model.Post
+	PostJSON string
+}
+
 // iFrame returns the iFrame HTML needed to host Mattermost within a MS Teams app.
-func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
+func (a *API) iFrame(w http.ResponseWriter, r *http.Request) {
 	// Set a minimal CSP for the wrapper page
 	cspDirectives := []string{
 		"style-src 'unsafe-inline'", // Allow inline styles for the iframe positioning
@@ -30,7 +46,9 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-	html, err := a.formatTemplate(iFrameHTML)
+	a.p.API.LogDebug("iFrame", "action", r.URL.Query().Get("action"), "sub_entity_id", r.URL.Query().Get("sub_entity_id"))
+
+	html, err := a.formatTemplate(iFrameHTML, iFrameContext{})
 	if err != nil {
 		a.p.API.LogError("Failed to format iFrame HTML", "error", err.Error())
 		http.Error(w, "Failed to format iFrame HTML", http.StatusInternalServerError)
@@ -54,18 +72,72 @@ func (a *API) iFrame(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("Mattermost-User-ID")
+	if userID == "" {
+		http.Error(w, "user not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	postID := r.URL.Query().Get("post_id")
+	if postID == "" {
+		http.Error(w, "post_id is required", http.StatusBadRequest)
+		return
+	}
+
+	post, err := a.p.API.GetPost(postID)
+	if err != nil {
+		http.Error(w, "failed to get post", http.StatusInternalServerError)
+		return
+	}
+
+	iframeCtx := iFrameContext{
+		Post:   post,
+		UserId: userID,
+	}
+
+	html, appErr := a.formatTemplate(iFrameNotificationPreviewHTML, iframeCtx)
+	if appErr != nil {
+		a.p.API.LogError("Failed to format iFrame HTML", "error", appErr.Error())
+		http.Error(w, "Failed to format iFrame HTML", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
+}
+
 // formatTemplate formats the iFrame HTML template with the site URL and plugin ID
-func (a *API) formatTemplate(template string) (string, error) {
+func (a *API) formatTemplate(templateBody string, iframeCtx iFrameContext) (string, error) {
 	config := a.p.API.GetConfig()
 	siteURL := *config.ServiceSettings.SiteURL
 	if siteURL == "" {
 		return "", fmt.Errorf("ServiceSettings.SiteURL cannot be empty for MS Teams iFrame")
 	}
 
-	html := strings.ReplaceAll(template, "{{SITE_URL}}", siteURL)
-	html = strings.ReplaceAll(html, "{{PLUGIN_ID}}", url.PathEscape(manifest.Id))
-	html = strings.ReplaceAll(html, "{{TENANT_ID}}", a.p.getConfiguration().TenantID)
-	return html, nil
+	tmpl, err := template.New("iFrame").Parse(templateBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse iFrame template: %w", err)
+	}
+
+	iframeCtx.SiteURL = siteURL
+	iframeCtx.PluginID = url.PathEscape(manifest.Id)
+	iframeCtx.TenantID = a.p.getConfiguration().TenantID
+
+	postJSON, err := json.Marshal(iframeCtx.Post)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal post: %w", err)
+	}
+	iframeCtx.PostJSON = string(postJSON)
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, iframeCtx); err != nil {
+		return "", fmt.Errorf("failed to execute iFrame template: %w", err)
+	}
+
+	return buf.String(), nil
+
 }
 
 // authenticate expects a Microsoft Entra ID in the Authorization header, and uses that
@@ -279,7 +351,10 @@ func getUserPropKey(key string) string {
 // This is used to redirect the user to the correct URL when they click on a notification in Microsoft Teams.
 func (p *Plugin) getRedirectPathFromUser(logger logrus.FieldLogger, user *model.User, subEntityID string) string {
 	if subEntityID != "" {
-		if strings.HasPrefix(subEntityID, "post_") {
+		if strings.HasPrefix(subEntityID, "post_preview_") {
+			postID := strings.TrimPrefix(subEntityID, "post_preview_")
+			return fmt.Sprintf("/plugins/%s/iframe/notification_preview?post_id=%s", url.PathEscape(manifest.Id), url.QueryEscape(postID))
+		} else if strings.HasPrefix(subEntityID, "post_") {
 			var team *model.Team
 			postID := strings.TrimPrefix(subEntityID, "post_")
 			post, appErr := p.API.GetPost(postID)
@@ -310,7 +385,7 @@ func (p *Plugin) getRedirectPathFromUser(logger logrus.FieldLogger, user *model.
 				}
 			}
 
-			return fmt.Sprintf("/%s/pl/%s", team.Name, postID)
+			return fmt.Sprintf("/%s/pl/%s", team.Name, post.Id)
 		}
 	}
 
