@@ -141,8 +141,7 @@ func (p *NotificationsParser) SendNotification(notification *UserNotification) e
 	switch notification.Trigger {
 	case "@here":
 		return p.sendChannelNotification(notification, true)
-	case "@channel":
-	case "@all":
+	case "@all", "@channel":
 		return p.sendChannelNotification(notification, false)
 	}
 	return nil
