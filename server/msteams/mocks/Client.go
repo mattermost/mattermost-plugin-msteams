@@ -1028,12 +1028,12 @@ func (_m *Client) UploadFile(teamID string, channelID string, filename string, f
 }
 
 // SendUserActivity provides a mock function with given fields: userID, activityType, message, webUrl, params
-func (_m *Client) SendUserActivity(userID string, activityType string, message string, webUrl url.URL, params map[string]string) error {
-	ret := _m.Called(userID, activityType, message, webUrl, params)
+func (_m *Client) SendUserActivity(userIDs []string, activityType string, message string, webUrl url.URL, params map[string]string) error {
+	ret := _m.Called(userIDs, activityType, message, webUrl, params)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, url.URL, map[string]string) error); ok {
-		r0 = rf(userID, activityType, message, webUrl, params)
+	if rf, ok := ret.Get(0).(func([]string, string, string, url.URL, map[string]string) error); ok {
+		r0 = rf(userIDs, activityType, message, webUrl, params)
 	} else {
 		r0 = ret.Error(0)
 	}
