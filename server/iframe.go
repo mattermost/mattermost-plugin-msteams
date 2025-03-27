@@ -30,7 +30,7 @@ type iFrameContext struct {
 	SiteURL  string
 	PluginID string
 	TenantID string
-	UserId   string
+	UserID   string
 
 	Post     *model.Post
 	PostJSON string
@@ -93,7 +93,7 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 
 	iframeCtx := iFrameContext{
 		Post:   post,
-		UserId: userID,
+		UserID: userID,
 	}
 
 	html, appErr := a.formatTemplate(iFrameNotificationPreviewHTML, iframeCtx)
@@ -105,7 +105,9 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		a.p.API.LogError("Unable to serve the iFrame", "error", err.Error())
+	}
 }
 
 // formatTemplate formats the iFrame HTML template with the site URL and plugin ID
@@ -125,11 +127,13 @@ func (a *API) formatTemplate(templateBody string, iframeCtx iFrameContext) (stri
 	iframeCtx.PluginID = url.PathEscape(manifest.Id)
 	iframeCtx.TenantID = a.p.getConfiguration().TenantID
 
-	postJSON, err := json.Marshal(iframeCtx.Post)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal post: %w", err)
+	if iframeCtx.Post != nil {
+		postJSON, err := json.Marshal(iframeCtx.Post)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal post: %w", err)
+		}
+		iframeCtx.PostJSON = string(postJSON)
 	}
-	iframeCtx.PostJSON = string(postJSON)
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, iframeCtx); err != nil {
@@ -137,7 +141,6 @@ func (a *API) formatTemplate(templateBody string, iframeCtx iFrameContext) (stri
 	}
 
 	return buf.String(), nil
-
 }
 
 // authenticate expects a Microsoft Entra ID in the Authorization header, and uses that

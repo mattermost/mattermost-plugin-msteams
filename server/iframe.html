@@ -18,6 +18,7 @@
     </iframe>
   <script>
     var iframe = document.querySelector('iframe');
+    console.log("{{.SiteURL}}");
 
     // Initialize the Microsoft Teams SDK
     microsoftTeams.app.initialize(["{{.SiteURL}}"]).then(() => {
@@ -80,7 +81,7 @@
       } else {
         // No explicit match, just redirect to SITE_URL
         console.log('No tenant match found, redirecting to default site');
-        iframe.src = '{{.SiteURL}}';
+        iframe.src = "{{.SiteURL}}";
       }
     });
   </script>
