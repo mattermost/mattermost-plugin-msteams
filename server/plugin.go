@@ -282,7 +282,7 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	if p.configuration.EnableSyncJob {
+	if !p.configuration.DisableSyncJob {
 		p.monitor = NewMonitor(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
 		if err = p.monitor.Start(); err != nil {
 			p.API.LogError("Unable to start the monitoring system", "error", err.Error())
@@ -295,7 +295,7 @@ func (p *Plugin) start(isRestart bool) {
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
 
-	if !p.getConfiguration().DisableCheckCredentials && p.configuration.EnableSyncJob {
+	if !p.getConfiguration().DisableCheckCredentials && !p.configuration.DisableSyncJob {
 		checkCredentialsJob, jobErr := cluster.Schedule(
 			p.API,
 			checkCredentialsJobName,

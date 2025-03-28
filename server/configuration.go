@@ -23,7 +23,7 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	EnableSyncJob                   bool   `json:"enableSyncJob"`
+	DisableSyncJob                  bool   `json:"disableSyncJob"`
 	TenantID                        string `json:"tenantid"`
 	ClientID                        string `json:"clientid"`
 	ClientSecret                    string `json:"clientsecret"`
