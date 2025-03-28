@@ -5,9 +5,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
@@ -56,11 +54,6 @@ func (m *Monitor) Start() error {
 	// Close the previous background job if exists.
 	m.Stop()
 
-	if !m.IsEnabled() {
-		m.api.LogInfo("Monitoring system job is disabled via env var.")
-		return nil
-	}
-
 	job, jobErr := cluster.Schedule(
 		m.api,
 		monitoringSystemJobName,
@@ -83,16 +76,6 @@ func (m *Monitor) Stop() {
 			m.api.LogError("Failed to close monitoring system background job", "error", err)
 		}
 	}
-}
-
-func (m *Monitor) IsEnabled() bool {
-	// The job can be disabled via an environment variable
-	val := os.Getenv("MM_TEAMS_SYNC_MONITORING_SYSTEM_DISABLED")
-	val = strings.ToLower(strings.TrimSpace(val))
-	if val == "true" || val == "1" {
-		return false
-	}
-	return true
 }
 
 // runMonitoringSystemJob is a callback to trigger the business logic of the Monitor job, being run
