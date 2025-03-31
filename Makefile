@@ -232,6 +232,7 @@ ifneq ($(wildcard NOTICE.txt),)
 endif
 ifneq ($(wildcard $(ASSETS_DIR)/.),)
 	cp -r $(ASSETS_DIR) dist/$(PLUGIN_ID)/
+	rm -f dist/$(PLUGIN_ID)/$(ASSETS_DIR)/assets.go
 endif
 ifneq ($(HAS_PUBLIC),)
 	cp -r public dist/$(PLUGIN_ID)/
