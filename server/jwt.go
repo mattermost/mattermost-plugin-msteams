@@ -43,7 +43,7 @@ func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
 	return k, cancelCtx
 }
 
-func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) (jwt.MapClaims, *validationError) {
+func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, _ []string, enableDeveloper bool) (jwt.MapClaims, *validationError) {
 	if token == "" && enableDeveloper {
 		logrus.Warn("Skipping token validation check for empty token since developer mode enabled")
 		return nil, nil
@@ -115,10 +115,9 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 	}
 
 	logger := logrus.WithFields(logrus.Fields{
-		"aud":                 claims["aud"],
-		"tid":                 claims["tid"],
-		"oid":                 claims["oid"],
-		"expected_tenant_ids": expectedTenantIDs,
+		"aud": claims["aud"],
+		"tid": claims["tid"],
+		"oid": claims["oid"],
 	})
 
 	// Verify the iat was present. The library is configured above to check
@@ -155,16 +154,6 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		return nil, &validationError{
 			StatusCode: http.StatusUnauthorized,
 			Message:    "Unexpected claims",
-		}
-	}
-
-	for _, expectedTenantID := range expectedTenantIDs {
-		if claims["tid"] == expectedTenantID {
-			logger.Info("Validated token, and authorized request from matching tenant")
-			return claims, nil
-		} else if enableDeveloper && expectedTenantID == "*" {
-			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode enabled")
-			return claims, nil
 		}
 	}
 
