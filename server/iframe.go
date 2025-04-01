@@ -234,13 +234,13 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props[getUserPropKey("sso_username")] = ssoUsername
-	mmUser.Props[getUserPropKey("oid")] = oid
+	mmUser.Props[getUserPropKey(TeamsPropertySSOUsername)] = ssoUsername
+	mmUser.Props[getUserPropKey(TeamsPropertyObjectID)] = oid
 	appID := r.URL.Query().Get("app_id")
 	if appID == "" {
 		logger.Error("App ID was not sent with the authentication request")
 	} else {
-		mmUser.Props[getUserPropKey("app_id")] = appID
+		mmUser.Props[getUserPropKey(TeamsPropertyAppID)] = appID
 	}
 
 	// Update the user with the claims

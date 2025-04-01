@@ -15,6 +15,12 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
+const (
+	TeamsPropertyObjectID    = "oid"
+	TeamsPropertyAppID       = "app_id"
+	TeamsPropertySSOUsername = "sso_username"
+)
+
 type UserNotification struct {
 	Trigger    string
 	Post       *model.Post
@@ -260,20 +266,14 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 	var appID string
 	msteamsUserIDs := []string{}
 	for _, user := range userActivity.Users {
-		u, err := p.PAPI.GetUser(user.Id)
-		if err != nil {
-			p.PAPI.LogError("Failed to get user", "error", err.Error())
-			continue
-		}
-
-		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
+		msteamsUserID, exists := user.GetProp(getUserPropKey(TeamsPropertyObjectID))
 		if !exists {
 			continue
 		}
 		msteamsUserIDs = append(msteamsUserIDs, msteamsUserID)
 
 		if appID == "" {
-			appID, _ = u.GetProp(getUserPropKey("app_id"))
+			appID, _ = user.GetProp(getUserPropKey(TeamsPropertyAppID))
 		}
 	}
 
