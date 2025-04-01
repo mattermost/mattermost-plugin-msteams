@@ -8,6 +8,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -115,7 +116,7 @@ func TestValidateToken(t *testing.T) {
 			token := ""
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {
@@ -129,7 +130,7 @@ func TestValidateToken(t *testing.T) {
 			token := "invalid"
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusInternalServerError, validationErr.StatusCode)
 		})
@@ -139,7 +140,7 @@ func TestValidateToken(t *testing.T) {
 			token := "invalid"
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -149,7 +150,7 @@ func TestValidateToken(t *testing.T) {
 			token := newToken(t, priv, nil)
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -163,7 +164,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			jwtToken.Header[jwkset.HeaderKID] = keyWithoutAlgID
@@ -172,7 +173,7 @@ func TestValidateToken(t *testing.T) {
 
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -184,12 +185,12 @@ func TestValidateToken(t *testing.T) {
 			token := newToken(t, priv, jwt.MapClaims{
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -202,12 +203,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": "invalid",
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -220,12 +221,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": future(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -238,11 +239,11 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -256,11 +257,11 @@ func TestValidateToken(t *testing.T) {
 				"exp": "invalid",
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -274,11 +275,11 @@ func TestValidateToken(t *testing.T) {
 				"exp": past(),
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -291,11 +292,11 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -309,11 +310,11 @@ func TestValidateToken(t *testing.T) {
 				"exp": future(),
 				"nbf": "invalid",
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -327,11 +328,11 @@ func TestValidateToken(t *testing.T) {
 				"exp": future(),
 				"nbf": future(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -349,7 +350,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {
@@ -366,12 +367,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -385,12 +386,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{expectedTid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -405,12 +406,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{expectedTid1, expectedTid2}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -423,12 +424,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			assert.Nil(t, validationErr)
 		})
 
@@ -441,12 +442,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": expectedTid1,
 			})
 			expectedTenantIDs := []string{expectedTid1, expectedTid2}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			assert.Nil(t, validationErr)
 		})
 
@@ -458,12 +459,12 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": developerTid,
 			})
 			expectedTenantIDs := []string{"*"}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {
