@@ -177,7 +177,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the token in the request, handling all errors if invalid.
 	expectedTenantIDs := []string{a.p.getConfiguration().TenantID}
-	claims, validationErr := validateToken(a.p.tabAppJWTKeyFunc, token, expectedTenantIDs, enableDeveloper != nil && *enableDeveloper)
+	claims, validationErr := validateToken(a.p.tabAppJWTKeyFunc, token, expectedTenantIDs, enableDeveloper != nil && *enableDeveloper, *config.ServiceSettings.SiteURL, a.p.configuration.ClientID)
 	if validationErr != nil {
 		handleErrorWithCode(logger, w, validationErr.StatusCode, validationErr.Message, validationErr.Err)
 		return

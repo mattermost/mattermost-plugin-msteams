@@ -5,7 +5,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/google/uuid"
 
@@ -17,7 +19,7 @@ import (
 
 const (
 	MicrosoftOnlineJWKSURL = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-	ExpectedAudience       = "api://community.mattermost.com/4ef56ea2-4a2f-4817-a6e0-a7cd760e2034"
+	ExpectedAudienceFmt    = "api://%s/%s"
 )
 
 type validationError struct {
@@ -43,7 +45,7 @@ func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
 	return k, cancelCtx
 }
 
-func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) (jwt.MapClaims, *validationError) {
+func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool, siteURL, clientID string) (jwt.MapClaims, *validationError) {
 	if token == "" && enableDeveloper {
 		logrus.Warn("Skipping token validation check for empty token since developer mode enabled")
 		return nil, nil
@@ -82,11 +84,20 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		// There's no WithNotBefore() helper, but the library always verifies if the claim is present.
 	}
 
+	mmServerURL, err := url.Parse(siteURL)
+	if err != nil {
+		logrus.WithError(err).WithField("site_url", siteURL).Warn("Failed to parse site URL, check your system console")
+		return nil, &validationError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Failed to authenticate due to Mattermost server missconfiguration. Contact your system administrator.",
+		}
+	}
+
 	// Verify that this token was signed for the expected app, unless developer mode is enabled.
 	if enableDeveloper {
 		logrus.Warn("Skipping aud claim check for token since developer mode enabled")
 	} else {
-		options = append(options, jwt.WithAudience(ExpectedAudience))
+		options = append(options, jwt.WithAudience(fmt.Sprintf(ExpectedAudienceFmt, mmServerURL.Host, clientID)))
 	}
 
 	parsed, err := jwt.Parse(
@@ -161,6 +172,7 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 	for _, expectedTenantID := range expectedTenantIDs {
 		if claims["tid"] == expectedTenantID {
 			logger.Info("Validated token, and authorized request from matching tenant")
+			logger.Info("Claim tenant id: ", claims["tid"])
 			return claims, nil
 		} else if enableDeveloper && expectedTenantID == "*" {
 			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode enabled")
