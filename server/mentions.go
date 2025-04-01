@@ -76,7 +76,7 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 			}
 
 			if m.User == nil && m.Group == nil {
-				p.PAPI.LogDebug("Failed to find user or group for metnion", "mention", mention)
+				p.PAPI.LogDebug("Failed to find user or group for mention", "mention", mention)
 				continue
 			}
 		}
@@ -84,6 +84,8 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 		p.Notifications = append(p.Notifications, m)
 	}
 
+	// Handle messages in direct and group channels, since those are not mentions.
+	// TODO: Avoid repeating notifications if the message contains a mention.
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
 		p.Notifications = append(p.Notifications, &UserNotification{
 			Trigger: post.Message,
@@ -209,6 +211,7 @@ func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onli
 
 	users := []*model.User{}
 	for _, member := range channelMembers {
+		// Avoid sending notifications to the user who posted the message even if it's part of the channel
 		if member.UserId == un.Post.UserId {
 			continue
 		}
