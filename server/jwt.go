@@ -172,7 +172,6 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 	for _, expectedTenantID := range expectedTenantIDs {
 		if claims["tid"] == expectedTenantID {
 			logger.Info("Validated token, and authorized request from matching tenant")
-			logger.Info("Claim tenant id: ", claims["tid"])
 			return claims, nil
 		} else if enableDeveloper && expectedTenantID == "*" {
 			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode enabled")
