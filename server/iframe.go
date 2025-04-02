@@ -350,10 +350,6 @@ func getCookieDomain(config *model.Config) string {
 	return ""
 }
 
-func getUserPropKey(key string) string {
-	return "com.mattermost.plugin-msteams-devsecops." + key
-}
-
 // getRedirectPathFromUser generates a redirect path for the user based on the subEntityID.
 // This is used to redirect the user to the correct URL when they click on a notification in Microsoft Teams.
 func (p *Plugin) getRedirectPathFromUser(logger logrus.FieldLogger, user *model.User, subEntityID string) string {
