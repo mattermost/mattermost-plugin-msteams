@@ -291,7 +291,7 @@ func (p *Plugin) start(isRestart bool) {
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
 
-	if !p.getConfiguration().DisableCheckCredentials && p.monitor.IsEnabled() {
+	if !p.getConfiguration().DisableCheckCredentials {
 		checkCredentialsJob, jobErr := cluster.Schedule(
 			p.API,
 			checkCredentialsJobName,
