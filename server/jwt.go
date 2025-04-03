@@ -5,9 +5,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/google/uuid"
 
@@ -19,7 +17,7 @@ import (
 
 const (
 	MicrosoftOnlineJWKSURL = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-	ExpectedAudienceFmt    = "api://%s/%s"
+	ExpectedAudience       = "api://community.mattermost.com/4ef56ea2-4a2f-4817-a6e0-a7cd760e2034"
 )
 
 type validationError struct {
@@ -84,20 +82,11 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		// There's no WithNotBefore() helper, but the library always verifies if the claim is present.
 	}
 
-	mmServerURL, err := url.Parse(siteURL)
-	if err != nil {
-		logrus.WithError(err).WithField("site_url", siteURL).Warn("Failed to parse site URL, check your system console")
-		return nil, &validationError{
-			StatusCode: http.StatusUnauthorized,
-			Message:    "Failed to authenticate due to Mattermost server missconfiguration. Contact your system administrator.",
-		}
-	}
-
 	// Verify that this token was signed for the expected app, unless developer mode is enabled.
 	if enableDeveloper {
 		logrus.Warn("Skipping aud claim check for token since developer mode enabled")
 	} else {
-		options = append(options, jwt.WithAudience(fmt.Sprintf(ExpectedAudienceFmt, mmServerURL.Host, clientID)))
+		options = append(options, jwt.WithAudience(ExpectedAudience))
 	}
 
 	parsed, err := jwt.Parse(
