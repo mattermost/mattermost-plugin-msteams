@@ -30,13 +30,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const noRoute = urlParams.has('noroute');
 
-    // bypass routing if `noroute` parameter is present in the URL
-    if (noRoute) {
-      console.log('noroute parameter is present, bypassing routing.');
-      iframe.src = '{{.SiteURL}}';
-      return;
-    }
-
     // Define a map of tenant IDs to their corresponding domain roots
     const tenantMap = {
       'd2888234-d303-4c94-8f45-c7348f089048': 'https://msteams-sync-test.test.mattermost.cloud',
@@ -54,7 +47,8 @@
 
       // If there's an explicit match in the tenant map, try to get auth token
       if (tenantMap[tenantId]) {
-        const domainRoot = tenantMap[tenantId];
+        // if `noroute` param is present, then stay on this server, otherwise redirect based on tenant map.
+        const domainRoot = noRoute ? '{{.SiteURL}}' : tenantMap[tenantId];
         
         // Build query params to be sent to the iframe.
         const params = new URLSearchParams()
