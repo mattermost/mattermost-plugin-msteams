@@ -111,8 +111,8 @@ func TestValidateToken(t *testing.T) {
 		TestClientID = "app-id"
 	)
 
-	makeValidateTokenParams := func(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) validateTokenParams {
-		return validateTokenParams{
+	makeValidateTokenParams := func(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) *validateTokenParams {
+		return &validateTokenParams{
 			jwtKeyFunc:        jwtKeyFunc,
 			token:             token,
 			expectedTenantIDs: expectedTenantIDs,

@@ -182,7 +182,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the token in the request, handling all errors if invalid.
 	expectedTenantIDs := []string{a.p.getConfiguration().TenantID}
-	params := validateTokenParams{
+	params := &validateTokenParams{
 		jwtKeyFunc:        a.p.tabAppJWTKeyFunc,
 		token:             token,
 		expectedTenantIDs: expectedTenantIDs,
