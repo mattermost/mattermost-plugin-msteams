@@ -34,8 +34,6 @@ func (ve validationError) Error() string {
 }
 
 type validateTokenParams struct {
-	// JWT token to validate
-	Token             string
 	jwtKeyFunc        keyfunc.Keyfunc
 	token             string
 	expectedTenantIDs []string
