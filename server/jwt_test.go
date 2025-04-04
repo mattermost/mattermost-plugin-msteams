@@ -122,7 +122,12 @@ func TestValidateToken(t *testing.T) {
 		}
 	}
 
-	runPermutations(t, false, func(t *testing.T, enableDeveloper bool) {
+	type permutations struct {
+		EnableDeveloper bool
+	}
+
+	runPermutations(t, permutations{}, func(t *testing.T, permutation permutations) {
+		enableDeveloper := permutation.EnableDeveloper
 		t.Run("empty authorization header", func(t *testing.T) {
 			_, _, jwtKeyFunc := makeKeySet(t)
 			params := makeValidateTokenParams(jwtKeyFunc, "", []string{}, enableDeveloper)
