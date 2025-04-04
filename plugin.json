@@ -20,6 +20,13 @@
     "footer": "",
     "settings": [
       {
+        "key": "disableSyncJob",
+        "display_name": "Disable sync job",
+        "type": "bool",
+        "help_text": "When true, disables the sync job that creates and maintains chat and channel subscriptions",
+        "default": false
+      },
+      {
         "key": "tenantId",
         "display_name": "Tenant ID",
         "type": "text",
