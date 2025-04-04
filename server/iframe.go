@@ -168,6 +168,10 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check if the `noroute` query param is set, which will skip the routing.
+	noroute := false
+	_, noroute = r.URL.Query()["noroute"]
+
 	config := a.p.apiClient.Configuration.GetConfig()
 
 	enableDeveloper := config.ServiceSettings.EnableDeveloper
@@ -178,7 +182,17 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the token in the request, handling all errors if invalid.
 	expectedTenantIDs := []string{a.p.getConfiguration().TenantID}
-	claims, validationErr := validateToken(a.p.tabAppJWTKeyFunc, token, expectedTenantIDs, enableDeveloper != nil && *enableDeveloper, *config.ServiceSettings.SiteURL, a.p.configuration.ClientID)
+	params := &validateTokenParams{
+		jwtKeyFunc:        a.p.tabAppJWTKeyFunc,
+		token:             token,
+		expectedTenantIDs: expectedTenantIDs,
+		enableDeveloper:   enableDeveloper != nil && *enableDeveloper,
+		siteURL:           *config.ServiceSettings.SiteURL,
+		clientID:          a.p.configuration.ClientID,
+		disableRouting:    noroute,
+	}
+
+	claims, validationErr := validateToken(params)
 	if validationErr != nil {
 		handleErrorWithCode(logger, w, validationErr.StatusCode, validationErr.Message, validationErr.Err)
 		return
