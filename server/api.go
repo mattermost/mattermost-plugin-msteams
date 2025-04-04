@@ -22,6 +22,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/sirupsen/logrus"
 
@@ -30,9 +31,10 @@ import (
 )
 
 type API struct {
-	p      *Plugin
-	store  store.Store
-	router *mux.Router
+	p           *Plugin
+	store       store.Store
+	pluginStore *pluginstore.PluginStore
+	router      *mux.Router
 }
 
 type Activities struct {
@@ -57,11 +59,11 @@ type UpdateWhitelistResult struct {
 	FailedLines []string `json:"failedLines"`
 }
 
-func NewAPI(p *Plugin, store store.Store) *API {
+func NewAPI(p *Plugin, store store.Store, pluginStore *pluginstore.PluginStore) *API {
 	router := mux.NewRouter()
 	p.handleStaticFiles(router)
 
-	api := &API{p: p, router: router, store: store}
+	api := &API{p: p, router: router, store: store, pluginStore: pluginStore}
 
 	if p.GetMetrics() != nil {
 		// set error counter middleware handler

@@ -115,7 +115,7 @@ func TestValidateToken(t *testing.T) {
 			token := ""
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {
@@ -129,7 +129,7 @@ func TestValidateToken(t *testing.T) {
 			token := "invalid"
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusInternalServerError, validationErr.StatusCode)
 		})
@@ -139,7 +139,7 @@ func TestValidateToken(t *testing.T) {
 			token := "invalid"
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -149,7 +149,7 @@ func TestValidateToken(t *testing.T) {
 			token := newToken(t, priv, nil)
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -172,7 +172,7 @@ func TestValidateToken(t *testing.T) {
 
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -189,7 +189,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -207,7 +207,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -225,7 +225,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -242,7 +242,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -260,7 +260,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -278,7 +278,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -295,7 +295,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -313,7 +313,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -331,7 +331,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -349,7 +349,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {
@@ -371,7 +371,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -390,7 +390,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{expectedTid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -410,7 +410,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{expectedTid1, expectedTid2}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			require.NotNil(t, validationErr)
 			assert.Equal(t, http.StatusUnauthorized, validationErr.StatusCode)
 		})
@@ -428,7 +428,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{tid}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			assert.Nil(t, validationErr)
 		})
 
@@ -446,7 +446,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{expectedTid1, expectedTid2}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			assert.Nil(t, validationErr)
 		})
 
@@ -463,7 +463,7 @@ func TestValidateToken(t *testing.T) {
 			})
 			expectedTenantIDs := []string{"*"}
 
-			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper)
+			_, validationErr := validateToken(jwtKeyFunc, token, expectedTenantIDs, params.EnableDeveloper, "https://example.com", "app-id")
 			if params.EnableDeveloper {
 				assert.Nil(t, validationErr)
 			} else {

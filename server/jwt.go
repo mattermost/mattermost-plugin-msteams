@@ -43,7 +43,7 @@ func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
 	return k, cancelCtx
 }
 
-func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) (jwt.MapClaims, *validationError) {
+func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool, siteURL, clientID string) (jwt.MapClaims, *validationError) {
 	if token == "" && enableDeveloper {
 		logrus.Warn("Skipping token validation check for empty token since developer mode enabled")
 		return nil, nil

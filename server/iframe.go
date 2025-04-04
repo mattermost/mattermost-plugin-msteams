@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -177,7 +178,7 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the token in the request, handling all errors if invalid.
 	expectedTenantIDs := []string{a.p.getConfiguration().TenantID}
-	claims, validationErr := validateToken(a.p.tabAppJWTKeyFunc, token, expectedTenantIDs, enableDeveloper != nil && *enableDeveloper)
+	claims, validationErr := validateToken(a.p.tabAppJWTKeyFunc, token, expectedTenantIDs, enableDeveloper != nil && *enableDeveloper, *config.ServiceSettings.SiteURL, a.p.configuration.ClientID)
 	if validationErr != nil {
 		handleErrorWithCode(logger, w, validationErr.StatusCode, validationErr.Message, validationErr.Err)
 		return
@@ -234,19 +235,22 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Keep track of the unique_name and oid in the user's properties to support
 	// notifications in the future.
-	mmUser.Props[getUserPropKey("sso_username")] = ssoUsername
-	mmUser.Props[getUserPropKey("oid")] = oid
+	storedUser := pluginstore.NewUser(mmUser.Id, oid, ssoUsername)
+	err = a.p.pluginStore.StoreUser(storedUser)
+	if err != nil {
+		logger.WithError(err).Error("Failed to store user")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	appID := r.URL.Query().Get("app_id")
 	if appID == "" {
 		logger.Error("App ID was not sent with the authentication request")
-	} else {
-		mmUser.Props[getUserPropKey("app_id")] = appID
 	}
 
-	// Update the user with the claims
-	err = a.p.apiClient.User.Update(mmUser)
+	err = a.p.pluginStore.StoreAppID(appID)
 	if err != nil {
-		logger.WithError(err).Error("Failed to update Mattermost user with claims")
+		logger.WithError(err).Error("Failed to store app ID")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -326,7 +330,7 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 		return
 	}
 
-	parser := NewNotificationsParser(p.API, p.msteamsAppClient)
+	parser := NewNotificationsParser(p.API, p.pluginStore, p.msteamsAppClient)
 	if err := parser.ProcessPost(post); err != nil {
 		p.API.LogError("Failed to process mentions", "error", err.Error())
 		return
@@ -344,10 +348,6 @@ func getCookieDomain(config *model.Config) string {
 		}
 	}
 	return ""
-}
-
-func getUserPropKey(key string) string {
-	return "com.mattermost.plugin-msteams-devsecops." + key
 }
 
 // getRedirectPathFromUser generates a redirect path for the user based on the subEntityID.
