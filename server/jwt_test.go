@@ -8,6 +8,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -163,7 +164,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			jwtToken.Header[jwkset.HeaderKID] = keyWithoutAlgID
@@ -184,7 +185,7 @@ func TestValidateToken(t *testing.T) {
 			token := newToken(t, priv, jwt.MapClaims{
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
@@ -202,7 +203,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": "invalid",
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
@@ -220,7 +221,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": future(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": tid,
 			})
 			expectedTenantIDs := []string{tid}
@@ -238,7 +239,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -256,7 +257,7 @@ func TestValidateToken(t *testing.T) {
 				"exp": "invalid",
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -274,7 +275,7 @@ func TestValidateToken(t *testing.T) {
 				"exp": past(),
 				"nbf": past(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -291,7 +292,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -309,7 +310,7 @@ func TestValidateToken(t *testing.T) {
 				"exp": future(),
 				"nbf": "invalid",
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -327,7 +328,7 @@ func TestValidateToken(t *testing.T) {
 				"exp": future(),
 				"nbf": future(),
 				"tid": tid,
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 			})
 			expectedTenantIDs := []string{tid}
 
@@ -366,7 +367,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{}
@@ -385,7 +386,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{expectedTid}
@@ -405,7 +406,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": wrongTid,
 			})
 			expectedTenantIDs := []string{expectedTid1, expectedTid2}
@@ -458,7 +459,7 @@ func TestValidateToken(t *testing.T) {
 				"iat": past(),
 				"exp": future(),
 				"nbf": past(),
-				"aud": ExpectedAudience,
+				"aud": fmt.Sprintf(ExpectedAudienceFmt, "example.com", "app-id"),
 				"tid": developerTid,
 			})
 			expectedTenantIDs := []string{"*"}
