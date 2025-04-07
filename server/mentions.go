@@ -11,8 +11,15 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+)
+
+const (
+	TeamsPropertyObjectID    = "oid"
+	TeamsPropertyAppID       = "app_id"
+	TeamsPropertySSOUsername = "sso_username"
 )
 
 type UserNotification struct {
@@ -26,13 +33,15 @@ type UserNotification struct {
 
 type NotificationsParser struct {
 	PAPI             plugin.API
+	pluginStore      *pluginstore.PluginStore
 	Notifications    []*UserNotification
 	msteamsAppClient msteams.Client
 }
 
-func NewNotificationsParser(api plugin.API, msteamsAppClient msteams.Client) *NotificationsParser {
+func NewNotificationsParser(api plugin.API, pluginStore *pluginstore.PluginStore, msteamsAppClient msteams.Client) *NotificationsParser {
 	return &NotificationsParser{
 		PAPI:             api,
+		pluginStore:      pluginStore,
 		msteamsAppClient: msteamsAppClient,
 	}
 }
@@ -70,7 +79,7 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 			}
 
 			if m.User == nil && m.Group == nil {
-				p.PAPI.LogDebug("Failed to find user or group for metnion", "mention", mention)
+				p.PAPI.LogDebug("Failed to find user or group for mention", "mention", mention)
 				continue
 			}
 		}
@@ -78,6 +87,8 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 		p.Notifications = append(p.Notifications, m)
 	}
 
+	// Handle messages in direct and group channels, since those are not mentions.
+	// TODO: Avoid repeating notifications if the message contains a mention.
 	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
 		p.Notifications = append(p.Notifications, &UserNotification{
 			Trigger: post.Message,
@@ -203,6 +214,7 @@ func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onli
 
 	users := []*model.User{}
 	for _, member := range channelMembers {
+		// Avoid sending notifications to the user who posted the message even if it's part of the channel
 		if member.UserId == un.Post.UserId {
 			continue
 		}
@@ -232,10 +244,10 @@ func (p *NotificationsParser) sendChannelNotification(un *UserNotification, onli
 }
 
 func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error {
-	sender, err := p.PAPI.GetUser(userActivity.UserNotification.Post.UserId)
-	if err != nil {
-		p.PAPI.LogError("Failed to get sender", "error", err.Error())
-		return err
+	sender, appErr := p.PAPI.GetUser(userActivity.UserNotification.Post.UserId)
+	if appErr != nil {
+		p.PAPI.LogError("Failed to get sender", "error", appErr.Error())
+		return appErr
 	}
 
 	// Extract post message to use in notification
@@ -257,29 +269,21 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 	urlParams := url.Values{}
 	urlParams.Set("context", string(jsonContext))
 
-	var appID string
-	msteamsUserIDs := []string{}
-	for _, user := range userActivity.Users {
-		u, err := p.PAPI.GetUser(user.Id)
-		if err != nil {
-			p.PAPI.LogError("Failed to get user", "error", err.Error())
-			continue
-		}
-
-		msteamsUserID, exists := u.GetProp(getUserPropKey("user_id"))
-		if !exists {
-			continue
-		}
-		msteamsUserIDs = append(msteamsUserIDs, msteamsUserID)
-
-		if appID == "" {
-			appID, _ = u.GetProp(getUserPropKey("app_id"))
-		}
+	appID, err := p.pluginStore.GetAppID()
+	if err != nil {
+		p.PAPI.LogError("Failed to get app ID", "error", err.Error())
+		return fmt.Errorf("failed to get app ID: %w", err)
 	}
 
-	if appID == "" {
-		p.PAPI.LogError("No app ID found for user activity notification", "user_ids", msteamsUserIDs)
-		return fmt.Errorf("no app ID found for user activity notification")
+	msteamsUserIDs := []string{}
+	for _, user := range userActivity.Users {
+		storedUser, err := p.pluginStore.GetUser(user.Id)
+		if err != nil {
+			p.PAPI.LogError("Failed to get stored user", "error", err.Error())
+			continue
+		}
+
+		msteamsUserIDs = append(msteamsUserIDs, storedUser.TeamsObjectID)
 	}
 
 	if err := p.msteamsAppClient.SendUserActivity(msteamsUserIDs, "mattermost_mention_with_name", message, url.URL{

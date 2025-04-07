@@ -27,6 +27,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_disconnectionlayer"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -91,6 +92,8 @@ type Plugin struct {
 	cancelKeyFunc     context.CancelFunc
 	cancelKeyFuncLock sync.Mutex
 	tabAppJWTKeyFunc  keyfunc.Keyfunc
+
+	pluginStore *pluginstore.PluginStore
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -486,7 +489,9 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	p.apiHandler = NewAPI(p, p.store)
+	p.pluginStore = pluginstore.NewPluginStore(p.API)
+
+	p.apiHandler = NewAPI(p, p.store, p.pluginStore)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err
