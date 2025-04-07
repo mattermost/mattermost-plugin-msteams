@@ -5,7 +5,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/google/uuid"
 
@@ -18,6 +20,7 @@ import (
 const (
 	MicrosoftOnlineJWKSURL = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 	ExpectedAudience       = "api://community.mattermost.com/4ef56ea2-4a2f-4817-a6e0-a7cd760e2034"
+	ExpectedAudienceFmt    = "api://%s/%s"
 )
 
 type validationError struct {
@@ -28,6 +31,16 @@ type validationError struct {
 
 func (ve validationError) Error() string {
 	return ve.Message
+}
+
+type validateTokenParams struct {
+	jwtKeyFunc        keyfunc.Keyfunc
+	token             string
+	expectedTenantIDs []string
+	enableDeveloper   bool
+	siteURL           string
+	clientID          string
+	disableRouting    bool
 }
 
 func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
@@ -43,13 +56,13 @@ func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
 	return k, cancelCtx
 }
 
-func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool, siteURL, clientID string) (jwt.MapClaims, *validationError) {
-	if token == "" && enableDeveloper {
+func validateToken(params *validateTokenParams) (jwt.MapClaims, *validationError) {
+	if params.token == "" && params.enableDeveloper {
 		logrus.Warn("Skipping token validation check for empty token since developer mode enabled")
 		return nil, nil
 	}
 
-	if jwtKeyFunc == nil {
+	if params.jwtKeyFunc == nil {
 		return nil, &validationError{
 			StatusCode: http.StatusInternalServerError,
 			Message:    "Failed to initialize token validation",
@@ -82,16 +95,29 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		// There's no WithNotBefore() helper, but the library always verifies if the claim is present.
 	}
 
+	mmServerURL, err := url.Parse(params.siteURL)
+	if err != nil {
+		logrus.WithError(err).WithField("site_url", params.siteURL).Warn("Failed to parse site URL, check your system console")
+		return nil, &validationError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Failed to authenticate due to Mattermost server missconfiguration. Contact your system administrator.",
+		}
+	}
+
 	// Verify that this token was signed for the expected app, unless developer mode is enabled.
-	if enableDeveloper {
+	// If routing is disabled, then use this server's domain and client to verify the audience,
+	// otherwise use Community's domain and client, as it will route to the correct server.
+	if params.enableDeveloper {
 		logrus.Warn("Skipping aud claim check for token since developer mode enabled")
+	} else if params.disableRouting {
+		options = append(options, jwt.WithAudience(fmt.Sprintf(ExpectedAudienceFmt, mmServerURL.Host, params.clientID)))
 	} else {
 		options = append(options, jwt.WithAudience(ExpectedAudience))
 	}
 
 	parsed, err := jwt.Parse(
-		token,
-		jwtKeyFunc.Keyfunc,
+		params.token,
+		params.jwtKeyFunc.Keyfunc,
 		options...,
 	)
 	if err != nil {
@@ -118,7 +144,7 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		"aud":                 claims["aud"],
 		"tid":                 claims["tid"],
 		"oid":                 claims["oid"],
-		"expected_tenant_ids": expectedTenantIDs,
+		"expected_tenant_ids": params.expectedTenantIDs,
 	})
 
 	// Verify the iat was present. The library is configured above to check
@@ -158,11 +184,11 @@ func validateToken(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs [
 		}
 	}
 
-	for _, expectedTenantID := range expectedTenantIDs {
+	for _, expectedTenantID := range params.expectedTenantIDs {
 		if claims["tid"] == expectedTenantID {
 			logger.Info("Validated token, and authorized request from matching tenant")
 			return claims, nil
-		} else if enableDeveloper && expectedTenantID == "*" {
+		} else if params.enableDeveloper && expectedTenantID == "*" {
 			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode enabled")
 			return claims, nil
 		}
