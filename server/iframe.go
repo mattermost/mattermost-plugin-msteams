@@ -174,7 +174,11 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	config := a.p.apiClient.Configuration.GetConfig()
 
-	enableDeveloper := config.ServiceSettings.EnableDeveloper
+	enableDeveloperAndTesting := false
+	if config.ServiceSettings.EnableDeveloper != nil && *config.ServiceSettings.EnableDeveloper &&
+		config.ServiceSettings.EnableTesting != nil && *config.ServiceSettings.EnableTesting {
+		enableDeveloperAndTesting = true
+	}
 
 	// Ideally we'd accept the token via an Authorization header, but for now get it from the query string.
 	// token := r.Header.Get("Authorization")
@@ -183,13 +187,13 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 	// Validate the token in the request, handling all errors if invalid.
 	expectedTenantIDs := []string{a.p.getConfiguration().TenantID}
 	params := &validateTokenParams{
-		jwtKeyFunc:        a.p.tabAppJWTKeyFunc,
-		token:             token,
-		expectedTenantIDs: expectedTenantIDs,
-		enableDeveloper:   enableDeveloper != nil && *enableDeveloper,
-		siteURL:           *config.ServiceSettings.SiteURL,
-		clientID:          a.p.configuration.ClientID,
-		disableRouting:    noroute,
+		jwtKeyFunc:                a.p.tabAppJWTKeyFunc,
+		token:                     token,
+		expectedTenantIDs:         expectedTenantIDs,
+		enableDeveloperAndTesting: enableDeveloperAndTesting,
+		siteURL:                   *config.ServiceSettings.SiteURL,
+		clientID:                  a.p.configuration.ClientID,
+		disableRouting:            noroute,
 	}
 
 	claims, validationErr := validateToken(params)

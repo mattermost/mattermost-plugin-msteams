@@ -113,21 +113,21 @@ func TestValidateToken(t *testing.T) {
 
 	makeValidateTokenParams := func(jwtKeyFunc keyfunc.Keyfunc, token string, expectedTenantIDs []string, enableDeveloper bool) *validateTokenParams {
 		return &validateTokenParams{
-			jwtKeyFunc:        jwtKeyFunc,
-			token:             token,
-			expectedTenantIDs: expectedTenantIDs,
-			enableDeveloper:   enableDeveloper,
-			siteURL:           TestSiteURL,
-			clientID:          TestClientID,
+			jwtKeyFunc:                jwtKeyFunc,
+			token:                     token,
+			expectedTenantIDs:         expectedTenantIDs,
+			enableDeveloperAndTesting: enableDeveloper,
+			siteURL:                   TestSiteURL,
+			clientID:                  TestClientID,
 		}
 	}
 
 	type permutations struct {
-		EnableDeveloper bool
+		EnableDeveloperAndTesting bool
 	}
 
 	runPermutations(t, permutations{}, func(t *testing.T, permutation permutations) {
-		enableDeveloper := permutation.EnableDeveloper
+		enableDeveloper := permutation.EnableDeveloperAndTesting
 		t.Run("empty authorization header", func(t *testing.T) {
 			_, _, jwtKeyFunc := makeKeySet(t)
 			params := makeValidateTokenParams(jwtKeyFunc, "", []string{}, enableDeveloper)

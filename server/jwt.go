@@ -34,13 +34,13 @@ func (ve validationError) Error() string {
 }
 
 type validateTokenParams struct {
-	jwtKeyFunc        keyfunc.Keyfunc
-	token             string
-	expectedTenantIDs []string
-	enableDeveloper   bool
-	siteURL           string
-	clientID          string
-	disableRouting    bool
+	jwtKeyFunc                keyfunc.Keyfunc
+	token                     string
+	expectedTenantIDs         []string
+	enableDeveloperAndTesting bool
+	siteURL                   string
+	clientID                  string
+	disableRouting            bool
 }
 
 func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
@@ -57,8 +57,8 @@ func setupJWKSet() (keyfunc.Keyfunc, context.CancelFunc) {
 }
 
 func validateToken(params *validateTokenParams) (jwt.MapClaims, *validationError) {
-	if params.token == "" && params.enableDeveloper {
-		logrus.Warn("Skipping token validation check for empty token since developer mode enabled")
+	if params.token == "" && params.enableDeveloperAndTesting {
+		logrus.Warn("Skipping token validation check for empty token since developer mode and testing enabled")
 		return nil, nil
 	}
 
@@ -104,11 +104,11 @@ func validateToken(params *validateTokenParams) (jwt.MapClaims, *validationError
 		}
 	}
 
-	// Verify that this token was signed for the expected app, unless developer mode is enabled.
+	// Verify that this token was signed for the expected app, unless developer mode and testing is enabled.
 	// If routing is disabled, then use this server's domain and client to verify the audience,
 	// otherwise use Community's domain and client, as it will route to the correct server.
-	if params.enableDeveloper {
-		logrus.Warn("Skipping aud claim check for token since developer mode enabled")
+	if params.enableDeveloperAndTesting {
+		logrus.Warn("Skipping aud claim check for token since developer mode and testing enabled")
 	} else if params.disableRouting {
 		options = append(options, jwt.WithAudience(fmt.Sprintf(ExpectedAudienceFmt, mmServerURL.Host, params.clientID)))
 	} else {
@@ -188,8 +188,8 @@ func validateToken(params *validateTokenParams) (jwt.MapClaims, *validationError
 		if claims["tid"] == expectedTenantID {
 			logger.Info("Validated token, and authorized request from matching tenant")
 			return claims, nil
-		} else if params.enableDeveloper && expectedTenantID == "*" {
-			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode enabled")
+		} else if params.enableDeveloperAndTesting && expectedTenantID == "*" {
+			logger.Warn("Validated token, but authorized request from wildcard tenant since developer mode and testing enabled")
 			return claims, nil
 		}
 	}
