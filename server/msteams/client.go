@@ -1485,14 +1485,28 @@ func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, e
 	if err != nil {
 		return 0, "", NormalizeGraphAPIError(err)
 	}
-	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+
+	// Check for nil additional data
+	additionalData := item.GetAdditionalData()
+	if additionalData == nil {
+		return 0, "", errors.New("additional data is nil")
+	}
+
+	downloadURL, ok := additionalData["@microsoft.graph.downloadUrl"]
 	if !ok || downloadURL == nil {
 		return 0, "", errors.New("downloadUrl not found")
 	}
 
 	resultDownloadURL := ""
-	if downloadURL.(*string) != nil {
-		resultDownloadURL = *(downloadURL.(*string))
+	// Safely type assert and dereference
+	if downloadURLStrPtr, ok := downloadURL.(*string); ok && downloadURLStrPtr != nil {
+		resultDownloadURL = *downloadURLStrPtr
+	} else if downloadURLStr, ok := downloadURL.(string); ok {
+		resultDownloadURL = downloadURLStr
+	}
+
+	if resultDownloadURL == "" {
+		return 0, "", errors.New("unable to extract download URL")
 	}
 
 	fileSize := item.GetSize()
