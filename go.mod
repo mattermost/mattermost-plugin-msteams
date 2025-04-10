@@ -1,6 +1,7 @@
 module github.com/mattermost/mattermost-plugin-msteams
 
 go 1.23.1
+toolchain go1.24.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
@@ -10,7 +11,7 @@ require (
 	github.com/MicahParks/jwkset v0.8.0
 	github.com/MicahParks/keyfunc/v3 v3.3.10
 	github.com/enescakir/emoji v1.0.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-plugin v1.6.3
