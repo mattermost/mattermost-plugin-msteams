@@ -282,6 +282,11 @@ func (p *NotificationsParser) sendUserActivity(userActivity *UserActivity) error
 		msteamsUserIDs = append(msteamsUserIDs, storedUser.TeamsObjectID)
 	}
 
+	if len(msteamsUserIDs) == 0 {
+		p.PAPI.LogDebug("No users to notify")
+		return nil
+	}
+
 	if err := p.msteamsAppClient.SendUserActivity(msteamsUserIDs, "mattermost_mention_with_name", message, url.URL{
 		Scheme:   "https",
 		Host:     "teams.microsoft.com",

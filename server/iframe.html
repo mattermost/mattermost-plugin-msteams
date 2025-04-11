@@ -54,18 +54,22 @@
       if (tenantMap[tenantId]) {
         // if `noroute` param is present, then stay on this server, otherwise redirect based on tenant map.
         const domainRoot = noRoute ? '{{.SiteURL}}' : tenantMap[tenantId];
-        
+
         // Build query params to be sent to the iframe.
         const params = new URLSearchParams()
         params.set('app_id', context.app.appId.appIdAsString);
-  
+
+        if (noroute) {
+          params.set('noroute', 'true');
+        }
+
         // Extract the subPageId (subEntityId coming from the Microsoft Teams SDK User Activity notification)
         // and send it to the iframe to redirect the user to what triggered the notification.
         if (context && context.page && context.page.subPageId) {
           params.set('sub_entity_id', context.page.subPageId);
 
           // Since we received a sub_entity_id, redirect to the subEntityId page manually using the Microsoft Teams SDK.
-          // This is a workaround so we send the user to the tab application when opening the link from the 
+          // This is a workaround so we send the user to the tab application when opening the link from the
           // Microsoft Teams User Activity notifications page.
           // Trying to navigate to the app within the app seems to be a no-op from the SDK, which is good for us.
           // microsoftTeams.pages.navigateToApp({
@@ -81,7 +85,7 @@
         microsoftTeams.authentication.getAuthToken()
           .then((token) => {
             params.set('token', token);
-            iframe.src = `${domainRoot}/plugins/{{.PluginID}}/iframe/authenticate?${params.toString()}&sub_entity_id=${context.page.subPageId}`;
+            iframe.src = `${domainRoot}/plugins/{{.PluginID}}/iframe/authenticate?${params.toString()}`;
           })
           .catch((error) => {
             console.error('Failed to get auth token:', error);
