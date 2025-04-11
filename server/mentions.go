@@ -97,10 +97,6 @@ func (p *NotificationsParser) ProcessPost(post *model.Post) error {
 		})
 	}
 
-	for _, notification := range p.Notifications {
-		p.PAPI.LogDebug("Processed mention", "notification", *notification)
-	}
-
 	return nil
 }
 
