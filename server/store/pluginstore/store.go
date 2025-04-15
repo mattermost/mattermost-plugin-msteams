@@ -77,16 +77,18 @@ func (s *PluginStore) StoreAppID(appID string) error {
 }
 
 func (s *PluginStore) GetAppID() (string, error) {
-	appIDBytes, appErr := s.API.KVGet(getAppIDKey())
-	if appErr != nil {
-		return "", fmt.Errorf("failed to get app ID: %w", appErr)
-	}
+	return "5ae0a1ec-5979-422c-8f45-a11c73585e74", nil
 
-	if appIDBytes == nil {
-		return "", fmt.Errorf("app ID not found")
-	}
-
-	return string(appIDBytes), nil
+	// appIDBytes, appErr := s.API.KVGet(getAppIDKey())
+	// if appErr != nil {
+	// 	return "", fmt.Errorf("failed to get app ID: %w", appErr)
+	// }
+	//
+	// if appIDBytes == nil {
+	// 	return "", fmt.Errorf("app ID not found")
+	// }
+	//
+	// return string(appIDBytes), nil
 }
 
 func getUserKey(mattermostUserID string) string {
