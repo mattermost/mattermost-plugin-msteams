@@ -2290,5 +2290,7 @@ func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message s
 		return fmt.Errorf("failed to send user activity: %w", err)
 	}
 
+	tc.logService.Debug("Sent user activity notification", "recipients", userIDs, "post_id", params["post_id"])
+
 	return nil
 }
