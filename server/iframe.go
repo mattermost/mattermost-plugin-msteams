@@ -261,6 +261,8 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Debug("Stored user in plugin store", "ssoUsername", ssoUsername)
+
 	appID := r.URL.Query().Get("app_id")
 	if appID == "" {
 		logger.Error("App ID was not sent with the authentication request")
