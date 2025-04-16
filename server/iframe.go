@@ -259,9 +259,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) {
 		logger.WithError(err).Error("Failed to store user")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
-	} else {
-		logger.Debug("Stored user in plugin store", "ssoUsername", ssoUsername)
 	}
+
+	logger.Debug("Stored user in plugin store", "ssoUsername", ssoUsername)
 
 	appID := r.URL.Query().Get("app_id")
 	if appID == "" {
