@@ -8,80 +8,113 @@
         integrity="sha384-brW9AazbKR2dYw2DucGgWCCcmrm2oBFV4HQidyuyZRI/TnAkmOOnTARSTdps3Hwt"
         crossorigin="anonymous"
     ></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
 
     <style>
+        :root {
+            /* Base colors */
+            --color-white: #ffffff;
+            --color-black: #1a1a1a;
+            
+            /* Text colors */
+            --color-text-primary: #3d3c40;
+            --color-text-secondary: #666666;
+            
+            /* UI colors */
+            --color-border: #e9ecef;
+            --color-background: #f5f5f5;
+            
+            /* Brand colors */
+            --color-primary: #6c5cc3;
+            --color-primary-hover: #5a4ba8;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.5;            color: #3d3c40;
+            font-family: "Open Sans", sans-serif;
+            line-height: 1.5;
+            color: var(--color-text-primary);
             margin: 0;
             padding: 20px;
-            background-color: #ffffff;
+            background-color: var(--color-background);
         }
         .notification-container {
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #ffffff;
+            background-color: var(--color-white);
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
         }
-        h1 {
-            color: #1a1a1a;
-            font-size: 24px;
-            margin-bottom: 16px;
+        .notification-header {
+            padding: 16px 20px;
+            font-size: 1.1em;
             font-weight: 600;
         }
-        .message {
-            background-color: #f7f7f7;
-            padding: 16px;
+        .notification-content {
+            padding: 12px 20px;
+            border: 1px solid var(--color-border);
             border-radius: 4px;
-            margin: 16px 0;
-            border-left: 4px solid #2389d7;
+            margin: 12px;
         }
-        .message strong {
-            color: #1a1a1a;
-            font-weight: 500;
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 12px;
+            overflow: hidden;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .message-meta {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+        .author-name {
+            color: var(--color-black);
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .timestamp {
+            color: var(--color-text-secondary);
+        }
+        .message-body {
+            color: var(--color-text-primary);
+        }
+        .message-footer {
+            padding: 20px 20px;
+            color: var(--color-text-secondary);
+            font-size: 0.8em;
         }
         .view-link {
-            display: inline-block;
-            background-color: #2389d7;
-            color: #ffffff;
+            background-color: var(--color-primary);
+            color: var(--color-white);
             padding: 8px 16px;
             border-radius: 4px;
             text-decoration: none;
             font-weight: 500;
             transition: background-color 0.2s ease;
             cursor: pointer;
+            float: right;
+            font-size: 1.2em;
+            margin-top: -10px;
         }
         .view-link:hover {
-            background-color: #1b6fb3;
-        }
-        .message-meta {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        .message-meta span {
-            margin-right: 12px;
-        }
-        .message-meta .channel {
-            color: #2389d7;
-            font-weight: 500;
-        }
-        .message-meta .author {
-            color: #1a1a1a;
-            font-weight: 500;
-        }
-        .message-content {
-            margin-top: 8px;
-            white-space: pre-wrap;
+            background-color: var(--color-primary-hover);
         }
         .loading {
             display: inline-block;
             width: 12px;
             height: 12px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #2389d7;
+            border: 2px solid var(--color-border);
+            border-top: 2px solid var(--color-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
@@ -91,15 +124,79 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Markdown styles */
+         /* Markdown styles */
+         .message-content h1, .message-content h2, .message-content h3, 
+        .message-content h4, .message-content h5, .message-content h6 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        .message-content h1 { font-size: 1.5em; }
+        .message-content h2 { font-size: 1.3em; }
+        .message-content h3 { font-size: 1.1em; }
+        .message-content p {
+            margin-top: 0;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .message-content ul, .message-content ol {
+            margin-top: 0;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        .message-content li {
+            margin-bottom: 4px;
+        }
+        .message-content pre {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 12px;
+            overflow: auto;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        .message-content code {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+        .message-content blockquote {
+            margin: 0 0 10px;
+            padding: 0 10px;
+            color: #6a737d;
+            border-left: 3px solid #dfe2e5;
+        }
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+        }
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .message-content table th, .message-content table td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+        }
+        .message-content table th {
+            background-color: #f6f8fa;
+        }
+        .message-content hr {
+            height: 1px;
+            background-color: #dfe2e5;
+            border: none;
+            margin: 16px 0;
+        }
     </style>
 </head>
 <body>
     <script>
         let context;
-        let channelInfo = null;
-        let userInfo = null;
-        let participants = [];
-        let post = JSON.parse("{{.PostJSON}}");
         let currentUserId = "{{.UserID}}";
 
         async function initializeTeams() {
@@ -111,97 +208,15 @@
             }
         }
 
-        async function fetchChannelMembers(channelId) {
-            try {
-                const response = await fetch(`${window.location.origin}/api/v4/channels/${channelId}/members`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Failed to fetch channel members');
-                const members = await response.json();
-                return members;
-            } catch (error) {
-                console.error('Error fetching channel members:', error);
-                return [];
-            }
-        }
-
-        async function fetchUserInfo(userId) {
-            try {
-                const response = await fetch(`${window.location.origin}/api/v4/users/${userId}`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Failed to fetch user info');
-                return await response.json();
-            } catch (error) {
-                console.error('Error fetching user info:', error);
-                return null;
-            }
-        }
-
-        async function fetchChannelInfo(channelId) {
-            try {
-                const response = await fetch(`${window.location.origin}/api/v4/channels/${channelId}`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Failed to fetch channel info');
-                channelInfo = await response.json();
-                
-                // If it's a DM or GM, fetch participants
-                if (channelInfo.type === 'D' || channelInfo.type === 'G') {
-                    const members = await fetchChannelMembers(channelId);
-
-                    // Filter out the current user and fetch other participants
-                    const otherMembers = members.filter(member => member.user_id !== currentUserId);
-                    participants = await Promise.all(
-                        otherMembers.map(member => fetchUserInfo(member.user_id))
-                    );
-                    participants = participants.filter(user => user !== null);
-                }
-                
-                updateMessageMeta();
-            } catch (error) {
-                console.error('Error fetching channel info:', error);
-            }
-        }
-
         function formatDate(timestamp) {
             const date = new Date(timestamp);
             return date.toLocaleString();
         }
 
-        function updateMessageMeta() {
-            const metaElement = document.getElementById('message-meta');
-            if (!metaElement) return;
-
-            let metaHtml = '';
-            
-            if (channelInfo) {
-                if (channelInfo.type === 'D' || channelInfo.type === 'G') {
-                    const participantNames = participants
-                        .map(user => `@${user.username}`)
-                        .join(', ');
-                    metaHtml += `<span class="channel">${participantNames}</span>`;
-                } else {
-                    metaHtml += `<span class="channel">#${channelInfo.name}</span>`;
-                }
-            } else {
-                metaHtml += '<span class="channel"><span class="loading"></span>Loading channel...</span>';
-            }
-
-            if (userInfo) {
-                metaHtml += `<span class="author">${userInfo.username}</span>`;
-            } else {
-                metaHtml += '<span class="author"><span class="loading"></span>Loading user...</span>';
-            }
-
-            metaHtml += `<span>${formatDate(post.create_at)}</span>`;
-            metaElement.innerHTML = metaHtml;
-        }
-
         function goToMattermost() {
             microsoftTeams.pages.navigateToApp({
                 appId: context.app.appId.appIdAsString,
-                subPageId: 'post_' + post.id
+                subPageId: 'post_{{.Post.Id}}' 
             });
         }
 
@@ -210,28 +225,39 @@
         microsoftTeams.app.getContext().then((c) => {
             context = c;
         });
-
-        // Fetch additional information
-        fetchChannelInfo(post.channel_id);
-        fetchUserInfo(post.user_id).then(user => {
-            userInfo = user;
-            updateMessageMeta();
-        });
     </script>
 
     <div class="notification-container">
-        <h1>You received a Mattermost notification</h1>
-        <div class="message">
-            <div id="message-meta" class="message-meta">
-                <span class="loading"></span>Loading...
+        <div class="notification-header">
+            {{.NotificationPreviewContext.PostAuthorDisplay}} mentioned you in Mattermost
+        </div>
+        <div class="notification-content">
+            <div class="message-header">
+                <div class="avatar">
+                    <img id="user-avatar" src="/api/v4/users/{{.NotificationPreviewContext.PostAuthor.Id}}/image" alt="User avatar">
+                </div>
+                <div class="message-meta">
+                    <span id="message-meta">
+                        <span class="author-name">{{.NotificationPreviewContext.PostAuthorDisplay}}</span>
+                        <span class="timestamp">{{.NotificationPreviewContext.PostCreateAtDisplay}}</span>
+                    </span>
+                </div>
             </div>
-            <div class="message-content">
-                <strong>{{.Post.Message}}</strong>
+            <div class="message-body" id="message-content">
+                {{.Post.Message}}
             </div>
         </div>
-        <a class="view-link" onclick="goToMattermost();">
-            View in Mattermost
-        </a>
+        <div class="message-footer">
+            <a class="view-link" onclick="goToMattermost();">
+                View in Mattermost
+            </a>
+            Originally posted in <span>{{.NotificationPreviewContext.ChannelNameDisplay}}</span>
+        </div>
     </div>
+    <script>
+        // Render the message as markdown
+        const messageContent = `{{.Post.Message}}`;
+        document.getElementById('message-content').innerHTML = marked.parse(messageContent);
+    </script>
 </body>
 </html>

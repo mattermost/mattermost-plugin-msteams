@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -33,8 +34,18 @@ type iFrameContext struct {
 	TenantID string
 	UserID   string
 
-	Post     *model.Post
-	PostJSON string
+	Post                       *model.Post
+	PostJSON                   string
+	NotificationPreviewContext iFrameNotificationPreviewContext
+}
+
+type iFrameNotificationPreviewContext struct {
+	PostAuthor *model.User
+	Channel    *model.Channel
+
+	ChannelNameDisplay  string
+	PostAuthorDisplay   string
+	PostCreateAtDisplay string
 }
 
 // iFrame returns the iFrame HTML needed to host Mattermost within a MS Teams app.
@@ -92,10 +103,38 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	author, err := a.p.API.GetUser(post.UserId)
+	if err != nil {
+		http.Error(w, "failed to get author", http.StatusInternalServerError)
+		return
+	}
+
+	channel, err := a.p.API.GetChannel(post.ChannelId)
+	if err != nil {
+		http.Error(w, "failed to get channel", http.StatusInternalServerError)
+		return
+	}
+
 	iframeCtx := iFrameContext{
 		Post:   post,
 		UserID: userID,
+
+		NotificationPreviewContext: iFrameNotificationPreviewContext{
+			PostAuthor: author,
+			Channel:    channel,
+		},
 	}
+
+	if channel.Type == model.ChannelTypeDirect || channel.Type == model.ChannelTypeGroup {
+		iframeCtx.NotificationPreviewContext.ChannelNameDisplay = "Direct Message"
+	} else {
+		iframeCtx.NotificationPreviewContext.ChannelNameDisplay = channel.Name
+	}
+
+	iframeCtx.NotificationPreviewContext.PostAuthorDisplay = author.GetDisplayName(model.ShowNicknameFullName)
+
+	// Format date in this way: "April 4, 2025 • 10:43 AM"
+	iframeCtx.NotificationPreviewContext.PostCreateAtDisplay = time.Unix(post.CreateAt/1000, 0).Format("January 2, 2006 • 15:04")
 
 	html, appErr := a.formatTemplate(iFrameNotificationPreviewHTML, iframeCtx)
 	if appErr != nil {
