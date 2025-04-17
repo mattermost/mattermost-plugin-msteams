@@ -22,6 +22,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	mmModel "github.com/mattermost/mattermost/server/public/model"
+	"github.com/wiggin77/merror"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -39,7 +40,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
-	"github.com/microsoftgraph/msgraph-sdk-go/teamwork"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/oauth2"
 )
@@ -2271,26 +2271,25 @@ func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message s
 	previewText := models.NewItemBody()
 	previewText.SetContent(mmModel.NewPointer(message))
 
-	var recipients []models.TeamworkNotificationRecipientable
+	merr := merror.New()
+
 	for _, userID := range userIDs {
-		recipient := models.NewAadUserNotificationRecipient()
-		recipient.SetUserId(mmModel.NewPointer(userID))
-		recipients = append(recipients, recipient)
+		activity := users.NewItemTeamworkSendActivityNotificationPostRequestBody()
+		activity.SetTopic(topic)
+		activity.GetActivityType()
+		activity.SetActivityType(mmModel.NewPointer(activityType))
+		activity.SetPreviewText(previewText)
+		activity.SetTemplateParameters(keyValuePairs)
+
+		err = tc.client.Users().ByUserId(userID).Teamwork().SendActivityNotification().Post(context.Background(), activity, nil)
+		if err != nil {
+			merr.Append(fmt.Errorf("failed to send user activity for user %s: %w", userID, err))
+		}
 	}
 
-	activity := teamwork.NewSendActivityNotificationToRecipientsPostRequestBody()
-	activity.SetRecipients(recipients)
-	activity.SetActivityType(mmModel.NewPointer(activityType))
-	activity.SetPreviewText(previewText)
-	activity.SetTopic(topic)
-	activity.SetTemplateParameters(keyValuePairs)
-
-	err = tc.client.Teamwork().SendActivityNotificationToRecipients().Post(context.Background(), activity, nil)
-	if err != nil {
-		return fmt.Errorf("failed to send user activity: %w", err)
+	if merr.Len() == 0 {
+		tc.logService.Debug("Sent user activity notification", "webUrl", webURL.String(), "recipients", userIDs, "post_id", params["post_id"])
 	}
 
-	tc.logService.Debug("Sent user activity notification", "webUrl", webURL.String(), "recipients", userIDs, "post_id", params["post_id"])
-
-	return nil
+	return merr.ErrorOrNil()
 }

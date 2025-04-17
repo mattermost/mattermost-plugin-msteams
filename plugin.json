@@ -6,7 +6,7 @@
   "support_url": "https://github.com/mattermost/mattermost-plugin-msteams/issues",
   "icon_path": "assets/icon.svg",
   "min_server_version": "9.8.0",
-  "version": "2.2.0-rc16",
+  "version": "2.2.0-rc17",
   "server": {
     "executables": {
       "linux-amd64": "server/dist/plugin-linux-amd64",
