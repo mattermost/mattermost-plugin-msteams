@@ -2276,7 +2276,6 @@ func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message s
 	for _, userID := range userIDs {
 		activity := users.NewItemTeamworkSendActivityNotificationPostRequestBody()
 		activity.SetTopic(topic)
-		activity.GetActivityType()
 		activity.SetActivityType(mmModel.NewPointer(activityType))
 		activity.SetPreviewText(previewText)
 		activity.SetTemplateParameters(keyValuePairs)
