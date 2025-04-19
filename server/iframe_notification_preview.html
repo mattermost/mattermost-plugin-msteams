@@ -8,6 +8,7 @@
         integrity="sha384-brW9AazbKR2dYw2DucGgWCCcmrm2oBFV4HQidyuyZRI/TnAkmOOnTARSTdps3Hwt"
         crossorigin="anonymous"
     ></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
 
     <style>
         body {
@@ -74,7 +75,73 @@
         }
         .message-content {
             margin-top: 8px;
-            white-space: pre-wrap;
+            white-space: normal;
+        }
+        /* Markdown styles */
+        .message-content h1, .message-content h2, .message-content h3, 
+        .message-content h4, .message-content h5, .message-content h6 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        .message-content h1 { font-size: 1.5em; }
+        .message-content h2 { font-size: 1.3em; }
+        .message-content h3 { font-size: 1.1em; }
+        .message-content p {
+            margin-top: 0;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .message-content ul, .message-content ol {
+            margin-top: 0;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        .message-content li {
+            margin-bottom: 4px;
+        }
+        .message-content pre {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 12px;
+            overflow: auto;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        .message-content code {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+        .message-content blockquote {
+            margin: 0 0 10px;
+            padding: 0 10px;
+            color: #6a737d;
+            border-left: 3px solid #dfe2e5;
+        }
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+        }
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .message-content table th, .message-content table td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+        }
+        .message-content table th {
+            background-color: #f6f8fa;
+        }
+        .message-content hr {
+            height: 1px;
+            background-color: #dfe2e5;
+            border: none;
+            margin: 16px 0;
         }
         .loading {
             display: inline-block;
@@ -225,9 +292,14 @@
             <div id="message-meta" class="message-meta">
                 <span class="loading"></span>Loading...
             </div>
-            <div class="message-content">
-                <strong>{{.Post.Message}}</strong>
+            <div class="message-content" id="message-content">
+                <!-- Message content will be rendered here -->
             </div>
+            <script>
+                // Render the message as markdown
+                const messageContent = `{{.Post.Message}}`;
+                document.getElementById('message-content').innerHTML = marked.parse(messageContent);
+            </script>
         </div>
         <a class="view-link" onclick="goToMattermost();">
             View in Mattermost
