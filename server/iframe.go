@@ -112,8 +112,8 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 
 	channel, err := a.p.API.GetChannel(post.ChannelId)
 	if err != nil {
-		http.Error(w, "failed to get channel", http.StatusInternalServerError)
-		return
+		logrus.Errorf("failed to get channel for channel ID %s: %v", post.ChannelId, err)
+		http.Error(w, fmt.Sprintf("failed to get channel: %v", err), http.StatusInternalServerError)
 	}
 
 	iframeCtx := iFrameContext{
