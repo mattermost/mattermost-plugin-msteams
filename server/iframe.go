@@ -105,6 +105,7 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 
 	author, err := a.p.API.GetUser(post.UserId)
 	if err != nil {
+		a.p.API.LogError("Failed to get author", "user_id", post.UserId, "error", err.Error())
 		http.Error(w, "failed to get author", http.StatusInternalServerError)
 		return
 	}
