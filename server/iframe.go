@@ -43,9 +43,9 @@ type iFrameNotificationPreviewContext struct {
 	PostAuthor *model.User
 	Channel    *model.Channel
 
-	ChannelNameDisplay  string
-	PostAuthorDisplay   string
-	PostCreateAtDisplay string
+	ChannelNameDisplay   string
+	PostAuthorDisplay    string
+	PostCreatedAtDisplay string
 }
 
 // iFrame returns the iFrame HTML needed to host Mattermost within a MS Teams app.
@@ -135,7 +135,7 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 	iframeCtx.NotificationPreviewContext.PostAuthorDisplay = author.GetDisplayName(model.ShowNicknameFullName)
 
 	// Format date in this way: "April 4, 2025 • 10:43 AM"
-	iframeCtx.NotificationPreviewContext.PostCreateAtDisplay = time.Unix(post.CreateAt/1000, 0).Format("January 2, 2006 • 03:04 PM")
+	iframeCtx.NotificationPreviewContext.PostCreatedAtDisplay = time.Unix(post.CreateAt/1000, 0).Format("January 2, 2006 • 03:04 PM")
 
 	html, appErr := a.formatTemplate(iFrameNotificationPreviewHTML, iframeCtx)
 	if appErr != nil {
