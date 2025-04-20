@@ -47,7 +47,7 @@ func (s *PluginStore) StoreUser(user *User) error {
 
 	appErr := s.API.KVSet(getUserKey(user.MattermostUserID), value)
 	if appErr != nil {
-		return fmt.Errorf("failed to store user: %w", appErr)
+		return fmt.Errorf("failed to store user %s: %w", user.MattermostUserID, appErr)
 	}
 
 	return nil
@@ -56,13 +56,17 @@ func (s *PluginStore) StoreUser(user *User) error {
 func (s *PluginStore) GetUser(mattermostUserID string) (*User, error) {
 	userBytes, appErr := s.API.KVGet(getUserKey(mattermostUserID))
 	if appErr != nil {
-		return nil, fmt.Errorf("failed to get user: %w", appErr)
+		return nil, fmt.Errorf("failed to get user %s: %w", mattermostUserID, appErr)
+	}
+
+	if len(userBytes) == 0 {
+		return nil, fmt.Errorf("user %s not found", mattermostUserID)
 	}
 
 	var user User
 	err := json.Unmarshal(userBytes, &user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal user: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal user %s: %w", mattermostUserID, err)
 	}
 	return &user, nil
 }
@@ -77,18 +81,16 @@ func (s *PluginStore) StoreAppID(appID string) error {
 }
 
 func (s *PluginStore) GetAppID() (string, error) {
-	return "5ae0a1ec-5979-422c-8f45-a11c73585e74", nil
+	appIDBytes, appErr := s.API.KVGet(getAppIDKey())
+	if appErr != nil {
+		return "", fmt.Errorf("failed to get app ID: %w", appErr)
+	}
 
-	// appIDBytes, appErr := s.API.KVGet(getAppIDKey())
-	// if appErr != nil {
-	// 	return "", fmt.Errorf("failed to get app ID: %w", appErr)
-	// }
-	//
-	// if appIDBytes == nil {
-	// 	return "", fmt.Errorf("app ID not found")
-	// }
-	//
-	// return string(appIDBytes), nil
+	if appIDBytes == nil {
+		return "", fmt.Errorf("app ID not found")
+	}
+
+	return string(appIDBytes), nil
 }
 
 func getUserKey(mattermostUserID string) string {
