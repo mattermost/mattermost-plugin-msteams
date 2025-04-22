@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.1.11
+	github.com/mattermost/mattermost/server/public v0.1.12-0.20250422210843-94bc32b50cc7
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20250422202733-b095ba22b8ef
 	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.8.1
