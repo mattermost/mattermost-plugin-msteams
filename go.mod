@@ -3,7 +3,7 @@ module github.com/mattermost/mattermost-plugin-msteams
 go 1.23.1
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/Masterminds/squirrel v1.5.4
@@ -20,9 +20,9 @@ require (
 	github.com/mattermost/mattermost/server/v8 v8.0.0-20250422202733-b095ba22b8ef
 	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.9.2
-	github.com/microsoft/kiota-http-go v1.4.7
+	github.com/microsoft/kiota-http-go v1.5.2
 	github.com/microsoftgraph/msgraph-sdk-go v1.59.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
+	github.com/microsoftgraph/msgraph-sdk-go-core v1.3.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0
 	github.com/prometheus/client_model v0.6.1
@@ -41,9 +41,9 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.3 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2 // indirect
 	github.com/JalfResi/justext v0.0.0-20221106200834-be571e3e3052 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -154,9 +154,9 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mholt/archiver/v3 v3.5.1 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
-	github.com/microsoft/kiota-authentication-azure-go v1.1.0 // indirect
+	github.com/microsoft/kiota-authentication-azure-go v1.3.0 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v1.0.9 // indirect
+	github.com/microsoft/kiota-serialization-json-go v1.1.2 // indirect
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
