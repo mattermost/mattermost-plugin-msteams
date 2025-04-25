@@ -105,7 +105,7 @@ func (a *API) iframeNotificationPreview(w http.ResponseWriter, r *http.Request) 
 
 	// Check user has access to the post
 	if !a.p.API.HasPermissionToChannel(userID, post.ChannelId, model.PermissionReadChannel) {
-		logrus.Errorf("blocking notification preview: user %s does not have access to post %s", userID, post.Id)
+		logrus.Errorf("Blocking notification preview: user %s does not have access to post %s", userID, post.Id)
 		http.Error(w, "user does not have access to the post", http.StatusForbidden)
 		return
 	}
