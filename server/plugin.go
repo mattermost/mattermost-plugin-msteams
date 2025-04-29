@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MicahParks/keyfunc/v3"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -27,7 +26,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_disconnectionlayer"
 	client_timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/msteams/client_timerlayer"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -88,12 +86,6 @@ type Plugin struct {
 
 	subCommands      []string
 	subCommandsMutex sync.RWMutex
-
-	cancelKeyFunc     context.CancelFunc
-	cancelKeyFuncLock sync.Mutex
-	tabAppJWTKeyFunc  keyfunc.Keyfunc
-
-	pluginStore *pluginstore.PluginStore
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
@@ -285,20 +277,16 @@ func (p *Plugin) start(isRestart bool) {
 		return
 	}
 
-	if !p.configuration.DisableSyncJob {
-		p.monitor = NewMonitor(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
-		if err = p.monitor.Start(); err != nil {
-			p.API.LogError("Unable to start the monitoring system", "error", err.Error())
-		}
-	} else {
-		p.API.LogInfo("Sync job disabled via config")
+	p.monitor = NewMonitor(p.GetClientForApp(), p.store, p.API, p.GetMetrics(), p.GetURL()+"/", p.getConfiguration().WebhookSecret, p.getConfiguration().EvaluationAPI)
+	if err = p.monitor.Start(); err != nil {
+		p.API.LogError("Unable to start the monitoring system", "error", err.Error())
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
 	p.stopSubscriptions = stop
 	p.stopContext = ctx
 
-	if !p.getConfiguration().DisableCheckCredentials && !p.configuration.DisableSyncJob {
+	if !p.getConfiguration().DisableCheckCredentials {
 		checkCredentialsJob, jobErr := cluster.Schedule(
 			p.API,
 			checkCredentialsJobName,
@@ -322,13 +310,6 @@ func (p *Plugin) start(isRestart bool) {
 	if err = p.API.RegisterCommand(p.createCommand()); err != nil {
 		p.API.LogError("Failed to register command", "error", err)
 	}
-
-	p.cancelKeyFuncLock.Lock()
-	if !isRestart && p.cancelKeyFunc == nil {
-		p.tabAppJWTKeyFunc, p.cancelKeyFunc = setupJWKSet()
-	}
-	p.cancelKeyFuncLock.Unlock()
-
 	p.API.LogDebug("plugin started")
 }
 
@@ -363,15 +344,6 @@ func (p *Plugin) stop(isRestart bool) {
 		if err := p.apiClient.Store.Close(); err != nil {
 			p.API.LogError("failed to close db connection", "error", err)
 		}
-	}
-
-	if !isRestart {
-		p.cancelKeyFuncLock.Lock()
-		if p.cancelKeyFunc != nil {
-			p.cancelKeyFunc()
-			p.cancelKeyFunc = nil
-		}
-		p.cancelKeyFuncLock.Unlock()
 	}
 }
 
@@ -489,9 +461,7 @@ func (p *Plugin) onActivate() error {
 		}
 	}
 
-	p.pluginStore = pluginstore.NewPluginStore(p.API)
-
-	p.apiHandler = NewAPI(p, p.store, p.pluginStore)
+	p.apiHandler = NewAPI(p, p.store)
 
 	if err := p.validateConfiguration(p.getConfiguration()); err != nil {
 		return err

@@ -21,7 +21,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	mmModel "github.com/mattermost/mattermost/server/public/model"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -39,7 +38,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
-	"github.com/microsoftgraph/msgraph-sdk-go/teamwork"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/oauth2"
 )
@@ -1487,28 +1485,14 @@ func (tc *ClientImpl) GetFileSizeAndDownloadURL(weburl string) (int64, string, e
 	if err != nil {
 		return 0, "", NormalizeGraphAPIError(err)
 	}
-
-	// Check for nil additional data
-	additionalData := item.GetAdditionalData()
-	if additionalData == nil {
-		return 0, "", errors.New("additional data is nil")
-	}
-
-	downloadURL, ok := additionalData["@microsoft.graph.downloadUrl"]
+	downloadURL, ok := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 	if !ok || downloadURL == nil {
 		return 0, "", errors.New("downloadUrl not found")
 	}
 
 	resultDownloadURL := ""
-	// Safely type assert and dereference
-	if downloadURLStrPtr, ok := downloadURL.(*string); ok && downloadURLStrPtr != nil {
-		resultDownloadURL = *downloadURLStrPtr
-	} else if downloadURLStr, ok := downloadURL.(string); ok {
-		resultDownloadURL = downloadURLStr
-	}
-
-	if resultDownloadURL == "" {
-		return 0, "", errors.New("unable to extract download URL")
+	if downloadURL.(*string) != nil {
+		resultDownloadURL = *(downloadURL.(*string))
 	}
 
 	fileSize := item.GetSize()
@@ -2242,55 +2226,6 @@ func checkGroupChat(c models.Chatable, userIDs []string) *clientmodels.Chat {
 			}
 		}
 	}
-
-	return nil
-}
-
-func (tc *ClientImpl) SendUserActivity(userIDs []string, activityType, message string, webURL url.URL, params map[string]string) error {
-	keyValuePairs := []models.KeyValuePairable{}
-	for k, v := range params {
-		key := k
-		value := v
-		keyPair := models.NewKeyValuePair()
-		keyPair.SetName(&key)
-		keyPair.SetValue(&value)
-		keyValuePairs = append(keyValuePairs, keyPair)
-	}
-
-	topic := models.NewTeamworkActivityTopic()
-	topicSource, err := models.ParseTeamworkActivityTopicSource("text")
-	if err != nil {
-		return err
-	}
-	topic.SetSource(topicSource.(*models.TeamworkActivityTopicSource))
-	topic.SetValue(mmModel.NewPointer("Mattermost"))
-	topic.SetWebUrl(mmModel.NewPointer(webURL.String()))
-
-	tc.logService.Info("Sending user activity", "webUrl", webURL.String())
-
-	previewText := models.NewItemBody()
-	previewText.SetContent(mmModel.NewPointer(message))
-
-	var recipients []models.TeamworkNotificationRecipientable
-	for _, userID := range userIDs {
-		recipient := models.NewAadUserNotificationRecipient()
-		recipient.SetUserId(mmModel.NewPointer(userID))
-		recipients = append(recipients, recipient)
-	}
-
-	activity := teamwork.NewSendActivityNotificationToRecipientsPostRequestBody()
-	activity.SetRecipients(recipients)
-	activity.SetActivityType(mmModel.NewPointer(activityType))
-	activity.SetPreviewText(previewText)
-	activity.SetTopic(topic)
-	activity.SetTemplateParameters(keyValuePairs)
-
-	err = tc.client.Teamwork().SendActivityNotificationToRecipients().Post(context.Background(), activity, nil)
-	if err != nil {
-		return fmt.Errorf("failed to send user activity: %w", err)
-	}
-
-	tc.logService.Debug("Sent user activity notification", "recipients", userIDs, "post_id", params["post_id"])
 
 	return nil
 }

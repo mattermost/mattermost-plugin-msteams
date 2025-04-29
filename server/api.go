@@ -22,19 +22,16 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/pluginstore"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/sirupsen/logrus"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/oauth2"
 )
 
 type API struct {
-	p           *Plugin
-	store       store.Store
-	pluginStore *pluginstore.PluginStore
-	router      *mux.Router
+	p      *Plugin
+	store  store.Store
+	router *mux.Router
 }
 
 type Activities struct {
@@ -59,11 +56,11 @@ type UpdateWhitelistResult struct {
 	FailedLines []string `json:"failedLines"`
 }
 
-func NewAPI(p *Plugin, store store.Store, pluginStore *pluginstore.PluginStore) *API {
+func NewAPI(p *Plugin, store store.Store) *API {
 	router := mux.NewRouter()
 	p.handleStaticFiles(router)
 
-	api := &API{p: p, router: router, store: store, pluginStore: pluginStore}
+	api := &API{p: p, router: router, store: store}
 
 	if p.GetMetrics() != nil {
 		// set error counter middleware handler
@@ -85,42 +82,7 @@ func NewAPI(p *Plugin, store store.Store, pluginStore *pluginstore.PluginStore) 
 	router.HandleFunc("/account-connected", api.accountConnectedPage).Methods(http.MethodGet)
 	router.HandleFunc("/stats/site", api.siteStats).Methods("GET")
 
-	// iFrame support
-	router.HandleFunc("/iframe/mattermostTab", api.iFrame).Methods("GET")
-	router.HandleFunc("/iframe/authenticate", api.authenticate).Methods("GET")
-	router.HandleFunc("/iframe/notification_preview", api.iframeNotificationPreview).Methods("GET")
-
 	return api
-}
-
-// handleErrorWithCode logs the internal error and sends the public facing error
-// message as JSON in a response with the provided code.
-func handleErrorWithCode(logger logrus.FieldLogger, w http.ResponseWriter, code int, publicErrorMsg string, internalErr error) {
-	if internalErr != nil {
-		logger = logger.WithError(internalErr)
-	}
-
-	if code >= http.StatusInternalServerError {
-		logger.Error(publicErrorMsg)
-	} else {
-		logger.Warn(publicErrorMsg)
-	}
-
-	handleResponseWithCode(w, code, publicErrorMsg)
-}
-
-// handleResponseWithCode logs the internal error and sends the public facing error
-// message as JSON in a response with the provided code.
-func handleResponseWithCode(w http.ResponseWriter, code int, publicMsg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-
-	responseMsg, _ := json.Marshal(struct {
-		Error string `json:"error"` // A public facing message providing details about the error.
-	}{
-		Error: publicMsg,
-	})
-	_, _ = w.Write(responseMsg)
 }
 
 // returnJSON writes the given data as json with the provided httpStatus

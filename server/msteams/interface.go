@@ -7,7 +7,6 @@ package msteams
 
 import (
 	"io"
-	"net/url"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
@@ -62,5 +61,4 @@ type Client interface {
 	ListChatMessages(chatID string, since time.Time) ([]*clientmodels.Message, error)
 	GetApp(applicationID string) (*clientmodels.App, error)
 	GetPresencesForUsers(userIDs []string) (map[string]clientmodels.Presence, error)
-	SendUserActivity(userIDs []string, activityType, message string, webURL url.URL, params map[string]string) error
 }
