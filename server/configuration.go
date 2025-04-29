@@ -23,7 +23,6 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	DisableSyncJob                  bool   `json:"disableSyncJob"`
 	TenantID                        string `json:"tenantid"`
 	ClientID                        string `json:"clientid"`
 	ClientSecret                    string `json:"clientsecret"`
@@ -36,7 +35,6 @@ type configuration struct {
 	ConnectedUsersRestricted        bool   `json:"connectedUsersRestricted"`
 	ConnectedUsersMaxPendingInvites int    `json:"connectedUsersMaxPendingInvites"`
 	DisableCheckCredentials         bool   `json:"internalDisableCheckCredentials"`
-	EnableUserActivityNotifications bool   `json:"enableUserActivityNotifications"`
 }
 
 func (c *configuration) ProcessConfiguration() {

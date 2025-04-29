@@ -159,7 +159,7 @@ apply:
 ## Install go tools
 install-go-tools:
 	@echo Installing go tools
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.7
+	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 	$(GO) install gotest.tools/gotestsum@v1.7.0
 	$(GO) install github.com/mattermost/mattermost-govet/v2@3f08281c344327ac09364f196b15f9a81c7eff08
 
@@ -232,7 +232,6 @@ ifneq ($(wildcard NOTICE.txt),)
 endif
 ifneq ($(wildcard $(ASSETS_DIR)/.),)
 	cp -r $(ASSETS_DIR) dist/$(PLUGIN_ID)/
-	rm -f dist/$(PLUGIN_ID)/$(ASSETS_DIR)/assets.go
 endif
 ifneq ($(HAS_PUBLIC),)
 	cp -r public dist/$(PLUGIN_ID)/
@@ -411,7 +410,7 @@ endif
 ## Build the generated code
 generate: export PATH := $(GOBIN):$(PATH)
 generate:
-	$(GO) install github.com/vektra/mockery/v2/...@v2.42.2
+	$(GO) install github.com/vektra/mockery/v2/...@v2.18.0
 	cd server && $(GO) generate ./...
 
 # Help documentation à la https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
