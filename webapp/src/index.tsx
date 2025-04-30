@@ -1,25 +1,25 @@
 // Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Store, Dispatch} from 'redux';
-import {GlobalState} from 'mattermost-redux/types/store';
+import type {Store, Action, Dispatch} from 'redux';
+
+import type {GlobalState} from '@mattermost/types/store';
+
 import {getCurrentUserRoles} from 'mattermost-redux/selectors/entities/users';
 import {isGuest} from 'mattermost-redux/utils/user_utils';
 
-import ListConnectedUsers from 'components/admin_console/get_connected_users_setting';
-import ConnectedUsersWhitelistSetting from 'components/admin_console/connected_users_whitelist_setting';
-import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from 'types/websocket';
-import {userConnectedWsHandler, userDisconnectedWsHandler} from 'websocket_handler';
-import {userConnected, userDisconnected} from 'actions';
-import {isUserConnected} from 'selectors';
-import getUserSettings from 'user_settings';
-
+import {userConnected, userDisconnected} from './actions';
 import Client from './client';
+import ConnectedUsersWhitelistSetting from './components/admin_console/connected_users_whitelist_setting';
+import ListConnectedUsers from './components/admin_console/get_connected_users_setting';
 import manifest from './manifest';
 import reducer from './reducer';
-// eslint-disable-next-line import/no-unresolved
-import {PluginRegistry} from './types/mattermost-webapp';
-import {getServerRoute} from './selectors';
+import {getServerRoute, isUserConnected} from './selectors';
+import {WS_EVENT_USER_CONNECTED, WS_EVENT_USER_DISCONNECTED} from './types/websocket';
+import getUserSettings from './user_settings';
+import {userConnectedWsHandler, userDisconnectedWsHandler} from './websocket_handler';
+
+import type {PluginRegistry} from '@/types/mattermost-webapp';
 
 const MINUTE = 60 * 1000;
 const randomInt = (max: number) => Math.floor(Math.random() * max);
@@ -28,7 +28,7 @@ export default class Plugin {
     removeStoreSubscription?: () => void;
     activityFunc?: () => void;
 
-    public async initialize(registry: PluginRegistry, store: Store<GlobalState>) {
+    public async initialize(registry: PluginRegistry, store: Store<GlobalState, Action<Record<string, unknown>>>) {
         const state = store.getState();
         registry.registerReducer(reducer);
 
@@ -125,7 +125,7 @@ export default class Plugin {
 
 declare global {
     interface Window {
-        registerPlugin(id: string, plugin: Plugin): void
+        registerPlugin(pluginId: string, plugin: Plugin): void;
     }
 }
 
