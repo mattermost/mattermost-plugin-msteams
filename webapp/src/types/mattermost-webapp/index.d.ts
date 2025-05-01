@@ -50,12 +50,12 @@ export type PluginConfigurationSection = {
     disabled?: boolean;
 
     /**
- * This function will be called whenever a section is saved.
- *
- * The configuration will be automatically saved in the user preferences,
- * so use this function only in case you want to add some side effect
- * to the change.
-*/
+     * This function will be called whenever a section is saved.
+     *
+     * The configuration will be automatically saved in the user preferences,
+     * so use this function only in case you want to add some side effect
+     * to the change.
+    */
     onSubmit?: (changes: {[name: string]: string}) => void;
 }
 
