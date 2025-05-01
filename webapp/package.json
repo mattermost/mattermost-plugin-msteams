@@ -78,9 +78,6 @@
     "transformIgnorePatterns": [
       "node_modules/(?!react-native|react-router)"
     ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.tsx"
-    ],
     "testEnvironmentOptions": {
       "url": "http://localhost:8065"
     }
