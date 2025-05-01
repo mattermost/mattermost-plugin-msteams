@@ -11,8 +11,5 @@
       " Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.\n See LICENSE.txt for license information.",
       2
     ]
-  },
-  "ignorePatterns": [
-    "src/manifest.ts"
-  ]
+  }
 }
