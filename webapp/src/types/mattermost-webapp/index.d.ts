@@ -1,7 +1,7 @@
 // Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Reducer} from 'redux';
+import type {Reducer} from 'redux';
 
 export type BasePluginConfigurationSetting = {
 
@@ -81,14 +81,14 @@ export type PluginConfiguration = {
 }
 
 export interface PluginRegistry {
-    registerPostTypeComponent(typeName: string, component: React.ElementType)
-    registerRootComponent(component: React.ElementType)
-    registerAdminConsoleCustomSetting(key: string, component: React.ElementType)
-    registerUserSettings?(setting: PluginConfiguration)
-    registerSiteStatisticsHandler(handler: any)
-    registerWebSocketEventHandler(event: string, handler: any)
-    registerReconnectHandler(handler: any)
-    registerReducer(reducer: Reducer)
+    registerPostTypeComponent(typeName: string, component: React.ElementType);
+    registerRootComponent(component: React.ElementType);
+    registerAdminConsoleCustomSetting(key: string, component: React.ElementType);
+    registerUserSettings?(setting: PluginConfiguration);
+    registerSiteStatisticsHandler(handler: any);
+    registerWebSocketEventHandler(event: string, handler: any);
+    registerReconnectHandler(handler: any);
+    registerReducer(reducer: Reducer);
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }

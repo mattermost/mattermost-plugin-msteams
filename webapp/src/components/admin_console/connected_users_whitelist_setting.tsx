@@ -1,16 +1,16 @@
 // Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {ChangeEvent, useRef, useState} from 'react';
+import type {ChangeEvent} from 'react';
+import React, {useRef, useState} from 'react';
 
-import Client from 'client';
+import Client from '../../client';
 
 type Props = {
     label: string;
-    disabled: boolean;
 };
 
-const ConnectedUsersWhitelistSetting = ({label, disabled}: Props) => {
+const ConnectedUsersWhitelistSetting = ({label}: Props) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pendingFile, setPendingFile] = useState<File>();
     const [statusMsg, setStatusMsg] = useState('');

@@ -1,12 +1,12 @@
 // Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {GlobalState} from 'mattermost-redux/types/store';
+import type {GlobalState} from '@mattermost/types/store';
 
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
 
-import {pluginId} from 'manifest';
-import {PluginState} from 'reducer';
+import {pluginId} from './manifest';
+import type {PluginState} from './reducer';
 
 export const getServerRoute = (state: GlobalState) => {
     const config = getConfig(state);

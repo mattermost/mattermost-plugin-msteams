@@ -1,32 +1,24 @@
 // Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {exec} from 'child_process';
+const exec = require('child_process').exec;
+const path = require('path');
 
-import path from 'path';
-
-import plugin from '../plugin.json';
-
-const PLUGIN_ID = plugin.id;
+const PLUGIN_ID = require('../plugin.json').id;
 
 const NPM_TARGET = process.env.npm_lifecycle_event; //eslint-disable-line no-process-env
-let mode = 'production';
-let devtool: string|undefined;
-if (NPM_TARGET === 'debug' || NPM_TARGET === 'debug:watch') {
-    mode = 'development';
-    devtool = 'source-map';
-}
+const isDev = NPM_TARGET === 'debug' || NPM_TARGET === 'debug:watch';
 
 const plugins = [];
 if (NPM_TARGET === 'build:watch' || NPM_TARGET === 'debug:watch') {
     plugins.push({
-        apply: (compiler: any) => {
+        apply: (compiler) => {
             compiler.hooks.watchRun.tap('WatchStartPlugin', () => {
                 // eslint-disable-next-line no-console
                 console.log('Change detected. Rebuilding webapp.');
             });
             compiler.hooks.afterEmit.tap('AfterEmitPlugin', () => {
-                exec('cd .. && make deploy-from-watch', (err: any, stdout: any, stderr: any) => {
+                exec('cd .. && make deploy-from-watch', (err, stdout, stderr) => {
                     if (stdout) {
                         process.stdout.write(stdout);
                     }
@@ -39,11 +31,14 @@ if (NPM_TARGET === 'build:watch' || NPM_TARGET === 'debug:watch') {
     });
 }
 
-module.exports = {
+const config = {
     entry: [
         './src/index.tsx',
     ],
     resolve: {
+        alias: {
+            'mattermost-redux': path.resolve(__dirname, 'node_modules/mattermost-redux/lib'),
+        },
         modules: [
             'src',
             'node_modules',
@@ -56,13 +51,22 @@ module.exports = {
             {
                 test: /\.(js|jsx|ts|tsx)$/,
                 exclude: /node_modules/,
-                use: 'ts-loader',
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        cacheDirectory: true,
+
+                        // Babel configuration is in babel.config.js because jest requires it to be there.
+                    },
+                },
             },
             {
                 test: /\.(scss|css)$/,
                 use: [
                     'style-loader',
-                    'css-loader',
+                    {
+                        loader: 'css-loader',
+                    },
                     {
                         loader: 'sass-loader',
                         options: {
@@ -90,7 +94,12 @@ module.exports = {
         publicPath: '/',
         filename: 'main.js',
     },
-    devtool,
-    mode,
+    mode: (isDev) ? 'eval-source-map' : 'production',
     plugins,
 };
+
+if (isDev) {
+    Object.assign(config, {devtool: 'eval-source-map'});
+}
+
+module.exports = config;
