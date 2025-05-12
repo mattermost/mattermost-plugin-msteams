@@ -13,8 +13,8 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
-	github.com/mattermost/mattermost/server/public v0.1.11
-	github.com/mattermost/mattermost/server/v8 v8.0.0-20250328134909-59cd90a36ffc
+	github.com/mattermost/mattermost/server/public v0.1.12
+	github.com/mattermost/mattermost/server/v8 v8.0.0-20250508153915-3be58f5f3418
 	github.com/mattermost/morph v1.1.0
 	github.com/microsoft/kiota-abstractions-go v1.9.2
 	github.com/microsoft/kiota-http-go v1.5.3
@@ -55,6 +55,7 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beevik/etree v1.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bep/imagemeta v0.11.0 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.7.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -198,7 +199,6 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible // indirect
 	github.com/russellhaering/goxmldsig v1.4.0 // indirect
-	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/segmentio/backo-go v1.1.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.1 // indirect
 	github.com/splitio/go-client/v6 v6.7.0 // indirect
