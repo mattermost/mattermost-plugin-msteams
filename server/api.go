@@ -268,7 +268,15 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state := fmt.Sprintf("%s_%s_%s", model.NewId(), userID, stateSuffix)
+	stateKey := model.NewId()
+	stateMetadataKey := fmt.Sprintf("oauth_state_%s_%s", userID, stateKey)
+	if appErr := a.p.API.KVSet(stateMetadataKey, []byte(stateSuffix)); appErr != nil {
+		a.p.API.LogWarn("Error in storing the OAuth state metadata", "error", appErr.Message)
+		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+		return
+	}
+
+	state := fmt.Sprintf("%s_%s", stateKey, userID)
 	if err := a.store.StoreOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
@@ -366,17 +374,42 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 
 	stateArr := strings.Split(state, "_")
-	if len(stateArr) != 3 {
+	if len(stateArr) != 2 {
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
+	}
+
+	stateKey := stateArr[0]
+	mmUserID := stateArr[1]
+
+	// Retrieve state metadata from KV store
+	stateMetadataKey := fmt.Sprintf("oauth_state_%s_%s", mmUserID, stateKey)
+	stateSuffixBytes, appErr := a.p.API.KVGet(stateMetadataKey)
+	if appErr != nil {
+		a.p.API.LogWarn("Unable to get OAuth state metadata", "error", appErr.Error())
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+	if stateSuffixBytes == nil {
+		a.p.API.LogWarn("OAuth state metadata not found", "state_key", stateKey)
+		http.Error(w, "Invalid state", http.StatusBadRequest)
+		return
+	}
+
+	stateSuffix := string(stateSuffixBytes)
+
+	// Clean up state metadata from KV store
+	appErr = a.p.API.KVDelete(stateMetadataKey)
+	if appErr != nil {
+		a.p.API.LogWarn("Unable to delete OAuth state metadata", "error", appErr.Error())
 	}
 
 	// determine origin of the connect request
 	// if the state is fromPreferences, the user is connecting from the preferences page
 	// if the state is fromBotMessage, the user is connecting from a bot message
-	originInfo := strings.Split(stateArr[2], ":")
+	originInfo := strings.Split(stateSuffix, ":")
 	if len(originInfo) != 2 {
-		a.p.API.LogWarn("unable to get origin info from state", "state", stateArr[2])
+		a.p.API.LogWarn("unable to get origin info from state", "state", stateSuffix)
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
@@ -399,8 +432,6 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
-
-	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Unable to verify OAuth state", "user_id", mmUserID, "error", err.Error())
 		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
@@ -544,6 +575,11 @@ func (a *API) handleSyncNotificationsWelcomeMessage(originInfo string, mmUserID,
 		var originalPost *model.Post
 		originalPost, appErr := a.p.GetAPI().GetPost(postID)
 		if appErr == nil {
+			// Verify that the post is authored by the MS Teams bot
+			if originalPost.UserId != a.p.GetBotUserID() {
+				a.p.API.LogWarn("Attempted to update post not authored by MS Teams bot", "post_id", postID, "post_user_id", originalPost.UserId, "bot_user_id", a.p.GetBotUserID())
+				return
+			}
 			originalPost.Message = welcomePost.Message
 			originalPost.SetProps(welcomePost.Props)
 			_, appErr = a.p.GetAPI().UpdatePost(originalPost)
