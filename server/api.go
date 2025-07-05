@@ -48,6 +48,7 @@ const (
 	QueryParamChannelID                       = "channel_id"
 	QueryParamPostID                          = "post_id"
 	QueryParamFromPreferences                 = "from_preferences"
+	QueryParamStateID                         = "state_id"
 )
 
 type UpdateWhitelistResult struct {
@@ -248,16 +249,27 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	userID := r.Header.Get("Mattermost-User-ID")
 
-	stateSuffix := ""
 	fromPreferences := query.Get(QueryParamFromPreferences)
 	channelID := query.Get(QueryParamChannelID)
 	postID := query.Get(QueryParamPostID)
+	stateID := query.Get(QueryParamStateID)
+
+	var state string
 	if fromPreferences == "true" {
-		stateSuffix = "fromPreferences:true"
-	} else if channelID != "" && postID != "" {
-		stateSuffix = fmt.Sprintf("fromBotMessage:%s|%s", channelID, postID)
+		// For preferences flow, create new state since there's no pre-stored state
+		stateSuffix := "fromPreferences:true"
+		state = fmt.Sprintf("%s_%s_%s", model.NewId(), userID, stateSuffix)
+		if err := a.store.StoreOAuth2State(state); err != nil {
+			a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
+			http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
+			return
+		}
+	} else if channelID != "" && postID != "" && stateID != "" {
+		// For bot message flow, reconstruct the state using the provided stateID
+		stateSuffix := fmt.Sprintf("fromBotMessage:%s|%s", channelID, postID)
+		state = fmt.Sprintf("%s_%s_%s", stateID, userID, stateSuffix)
 	} else {
-		a.p.API.LogWarn("could not determine origin of the connect request", "channel_id", channelID, "post_id", postID, "from_preferences", fromPreferences)
+		a.p.API.LogWarn("could not determine origin of the connect request", "channel_id", channelID, "post_id", postID, "from_preferences", fromPreferences, "state_id", stateID)
 		http.Error(w, "Missing required query parameters.", http.StatusBadRequest)
 		return
 	}
@@ -265,21 +277,6 @@ func (a *API) connect(w http.ResponseWriter, r *http.Request) {
 	if storedToken, _ := a.p.store.GetTokenForMattermostUser(userID); storedToken != nil {
 		a.p.API.LogWarn("The account is already connected to MS Teams", "user_id", userID)
 		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusForbidden)
-		return
-	}
-
-	stateKey := model.NewId()
-	stateMetadataKey := fmt.Sprintf("oauth_state_%s_%s", userID, stateKey)
-	if appErr := a.p.API.KVSet(stateMetadataKey, []byte(stateSuffix)); appErr != nil {
-		a.p.API.LogWarn("Error in storing the OAuth state metadata", "error", appErr.Message)
-		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
-		return
-	}
-
-	state := fmt.Sprintf("%s_%s", stateKey, userID)
-	if err := a.store.StoreOAuth2State(state); err != nil {
-		a.p.API.LogWarn("Error in storing the OAuth state", "error", err.Error())
-		http.Error(w, "Error in trying to connect the account, please try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -374,42 +371,17 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 
 	stateArr := strings.Split(state, "_")
-	if len(stateArr) != 2 {
+	if len(stateArr) != 3 {
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
-	}
-
-	stateKey := stateArr[0]
-	mmUserID := stateArr[1]
-
-	// Retrieve state metadata from KV store
-	stateMetadataKey := fmt.Sprintf("oauth_state_%s_%s", mmUserID, stateKey)
-	stateSuffixBytes, appErr := a.p.API.KVGet(stateMetadataKey)
-	if appErr != nil {
-		a.p.API.LogWarn("Unable to get OAuth state metadata", "error", appErr.Error())
-		http.Error(w, "Invalid state", http.StatusBadRequest)
-		return
-	}
-	if stateSuffixBytes == nil {
-		a.p.API.LogWarn("OAuth state metadata not found", "state_key", stateKey)
-		http.Error(w, "Invalid state", http.StatusBadRequest)
-		return
-	}
-
-	stateSuffix := string(stateSuffixBytes)
-
-	// Clean up state metadata from KV store
-	appErr = a.p.API.KVDelete(stateMetadataKey)
-	if appErr != nil {
-		a.p.API.LogWarn("Unable to delete OAuth state metadata", "error", appErr.Error())
 	}
 
 	// determine origin of the connect request
 	// if the state is fromPreferences, the user is connecting from the preferences page
 	// if the state is fromBotMessage, the user is connecting from a bot message
-	originInfo := strings.Split(stateSuffix, ":")
+	originInfo := strings.Split(stateArr[2], ":")
 	if len(originInfo) != 2 {
-		a.p.API.LogWarn("unable to get origin info from state", "state", stateSuffix)
+		a.p.API.LogWarn("unable to get origin info from state", "state", stateArr[2])
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
@@ -432,6 +404,8 @@ func (a *API) oauthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid state", http.StatusBadRequest)
 		return
 	}
+
+	mmUserID := stateArr[1]
 	if err := a.store.VerifyOAuth2State(state); err != nil {
 		a.p.API.LogWarn("Unable to verify OAuth state", "user_id", mmUserID, "error", err.Error())
 		http.Error(w, "Unable to complete authentication.", http.StatusInternalServerError)
