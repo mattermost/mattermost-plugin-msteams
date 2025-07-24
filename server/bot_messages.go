@@ -28,9 +28,23 @@ func (p *Plugin) botSendDirectPost(userID string, post *model.Post) error {
 	return p.apiClient.Post.CreatePost(post)
 }
 
+// createAndStoreOAuthState creates an OAuth state for a bot message connect URL and stores it
+func (p *Plugin) createAndStoreOAuthState(userID, channelID, postID string) string {
+	stateSuffix := fmt.Sprintf("fromBotMessage:%s|%s", channelID, postID)
+	stateID := model.NewId()
+	state := fmt.Sprintf("%s_%s_%s", stateID, userID, stateSuffix)
+
+	if err := p.store.StoreOAuth2State(state); err != nil {
+		p.GetAPI().LogWarn("Error in storing the OAuth state", "error", err.Error())
+	}
+
+	return fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s&state_id=%s", postID, channelID, stateID)
+}
+
 func (p *Plugin) SendEphemeralConnectMessage(channelID string, userID string, message string) {
 	postID := model.NewId()
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", postID, channelID)
+
+	connectURL := p.createAndStoreOAuthState(userID, channelID, postID)
 	connectMessage := fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
 	if len(message) > 0 {
 		connectMessage = message + " " + connectMessage
@@ -57,7 +71,7 @@ func (p *Plugin) SendConnectMessage(channelID string, userID string, message str
 		return
 	}
 
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", post.Id, channelID)
+	connectURL := p.createAndStoreOAuthState(userID, channelID, post.Id)
 	connectMessage := fmt.Sprintf("[Click here to connect your account](%s)", connectURL)
 	if len(message) > 0 {
 		connectMessage = message + " " + connectMessage
@@ -169,7 +183,8 @@ func (p *Plugin) SendInviteMessage(user *model.User) error {
 		return errors.Wrapf(err, "error sending invitation bot message")
 	}
 
-	connectURL := fmt.Sprintf(p.GetURL()+"/connect?post_id=%s&channel_id=%s", invitePost.Id, invitePost.ChannelId)
+	connectURL := p.createAndStoreOAuthState(user.Id, invitePost.ChannelId, invitePost.Id)
+
 	invitePost.Message = fmt.Sprintf("%s [Click here to connect your account](%s).", invitePost.Message, connectURL)
 	if err := p.apiClient.Post.UpdatePost(invitePost); err != nil {
 		p.GetAPI().LogWarn("Failed to update invitation message", "user_id", user.Id, "error", err)

@@ -594,6 +594,10 @@ func TestConnect(t *testing.T) {
 		if postID != "" {
 			values["post_id"] = []string{postID}
 		}
+		if channelID != "" && postID != "" {
+			// Add a dummy state_id for bot message flow tests
+			values["state_id"] = []string{model.NewId()}
+		}
 		if len(values) > 0 {
 			u += "?" + values.Encode()
 		}

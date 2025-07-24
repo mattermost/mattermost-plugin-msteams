@@ -153,7 +153,7 @@ func TestExecuteConnectCommand(t *testing.T) {
 		assertNoCommandResponse(t, commandResponse)
 		ephemeralPost := th.retrieveEphemeralPost(t, args.UserId, args.ChannelId)
 
-		expectedMessage := fmt.Sprintf(`\[Click here to connect your account\]\(%s/connect\?post_id=(.*)&channel_id=%s\)`, th.p.GetURL(), args.ChannelId)
+		expectedMessage := fmt.Sprintf(`\[Click here to connect your account\]\(%s/connect\?post_id=(.*)&channel_id=%s&state_id=(.*)\)`, th.p.GetURL(), args.ChannelId)
 		assert.Regexp(t, expectedMessage, ephemeralPost.Message)
 	})
 }
