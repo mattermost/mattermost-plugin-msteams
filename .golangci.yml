@@ -11,7 +11,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: github.com/mattermost/mattermost-plugin-matterbridge
+    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
   govet:
     enable-all: true
     disable:
@@ -90,8 +90,17 @@ linters:
           - staticcheck
         text: QF1007
       - linters:
+          - gocritic
+        text: ifElseChain
+      - linters:
           - gosec
         text: G104
+      - linters:
+          - gosec
+        text: G107
+      - linters:
+          - gosec
+        text: G115
       - linters:
           - gosec
         text: G304
@@ -108,19 +117,16 @@ formatters:
 issues:
   exclude-rules:
     - path: server/manifest.go
-issues:
-  exclude-rules:
+      linters:
+        - deadcode
+        - unused
+        - varcheck
     - path: server/configuration.go
       linters:
         - unused
-
-    - linters:
-      - revive
-      text: "var-naming|error-naming|exported|increment-decrement|error-strings|if-return|unused-parameter|blank-imports|empty-block"
-      # We need to fix the unused parameter issues and remove the exception.
-
-    - path: _test\.go
+    - path: _test\.go$
       linters:
         - bodyclose
+        - goconst
         - scopelint # https://github.com/kyoh86/scopelint/issues/4
         - gosec
