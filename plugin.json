@@ -38,19 +38,22 @@
         "display_name": "Client Secret",
         "type": "text",
         "help_text": "Microsoft Teams Client Secret",
+        "secret": true,
         "default": ""
       },
       {
         "key": "encryptionKey",
         "display_name": "At Rest Encryption Key:",
         "type": "generated",
-        "help_text": "The AES encryption key used to encrypt stored access tokens"
+        "help_text": "The AES encryption key used to encrypt stored access tokens",
+        "secret": true
       },
       {
         "key": "webhookSecret",
         "display_name": "Webhook secret",
         "type": "generated",
-        "help_text": "Microsoft Teams will use this secret to send messages to Mattermost"
+        "help_text": "Microsoft Teams will use this secret to send messages to Mattermost",
+        "secret": true
       },
       {
         "key": "evaluationAPI",
