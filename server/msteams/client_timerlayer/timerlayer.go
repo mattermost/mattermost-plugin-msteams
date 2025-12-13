@@ -299,7 +299,6 @@ func (c *ClientTimerLayer) GetFileContentStream(downloadURL string, writer *io.P
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 
 	c.metrics.ObserveMSGraphClientMethodDuration("Client.GetFileContentStream", success, statusCode, elapsed)
-
 }
 
 func (c *ClientTimerLayer) GetFileSizeAndDownloadURL(weburl string) (int64, string, error) {

@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 //go:build msteamsMock
-// +build msteamsMock
 
 package msteams
 
