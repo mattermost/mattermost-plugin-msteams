@@ -27,7 +27,7 @@ func TestProcessActivity(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "changes")
 
-	sendRequest := func(t *testing.T, activities []msteams.Activity) (*http.Response, string) {
+	sendRequest := func(t *testing.T, activities []msteams.Activity) (int, string) {
 		t.Helper()
 
 		data, err := json.Marshal(Activities{Value: activities})
@@ -35,12 +35,13 @@ func TestProcessActivity(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/json", bytes.NewReader(data))
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 		bodyString := string(bodyBytes)
 
-		return response, bodyString
+		return response.StatusCode, bodyString
 	}
 
 	t.Run("validation token", func(t *testing.T) {
@@ -48,6 +49,7 @@ func TestProcessActivity(t *testing.T) {
 
 		response, err := http.Post(apiURL+"?validationToken=test", "text/plain", nil)
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -62,6 +64,7 @@ func TestProcessActivity(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/plain", nil)
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -76,6 +79,7 @@ func TestProcessActivity(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/plain", bytes.NewReader([]byte("{")))
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -97,8 +101,8 @@ func TestProcessActivity(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, statusCode)
 		assert.Equal(t, "Invalid webhook secret\n", bodyString)
 	})
 
@@ -114,8 +118,8 @@ func TestProcessActivity(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, statusCode)
 		assert.Empty(t, bodyString)
 	})
 
@@ -131,8 +135,8 @@ func TestProcessActivity(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, statusCode)
 		assert.Empty(t, bodyString)
 	})
 
@@ -148,8 +152,8 @@ func TestProcessActivity(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusAccepted, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusAccepted, statusCode)
 		assert.Empty(t, bodyString)
 	})
 }
@@ -158,7 +162,7 @@ func TestProcessLifecycle(t *testing.T) {
 	th := setupTestHelper(t)
 	apiURL := th.pluginURL(t, "lifecycle")
 
-	sendRequest := func(t *testing.T, activities []msteams.Activity) (*http.Response, string) {
+	sendRequest := func(t *testing.T, activities []msteams.Activity) (int, string) {
 		t.Helper()
 
 		data, err := json.Marshal(Activities{Value: activities})
@@ -166,12 +170,13 @@ func TestProcessLifecycle(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/json", bytes.NewReader(data))
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 		bodyString := string(bodyBytes)
 
-		return response, bodyString
+		return response.StatusCode, bodyString
 	}
 
 	t.Run("validation token", func(t *testing.T) {
@@ -179,6 +184,7 @@ func TestProcessLifecycle(t *testing.T) {
 
 		response, err := http.Post(apiURL+"?validationToken=test", "text/plain", nil)
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -193,6 +199,7 @@ func TestProcessLifecycle(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/plain", nil)
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -207,6 +214,7 @@ func TestProcessLifecycle(t *testing.T) {
 
 		response, err := http.Post(apiURL, "text/plain", bytes.NewReader([]byte("{")))
 		require.NoError(t, err)
+		defer response.Body.Close()
 
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
@@ -228,8 +236,8 @@ func TestProcessLifecycle(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusBadRequest, statusCode)
 		assert.Equal(t, "Invalid webhook secret\n", bodyString)
 	})
 
@@ -246,8 +254,8 @@ func TestProcessLifecycle(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, bodyString)
 
 		assert.Eventually(t, func() bool {
@@ -287,8 +295,8 @@ func TestProcessLifecycle(t *testing.T) {
 			},
 		}
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, bodyString)
 
 		assert.Eventually(t, func() bool {
@@ -331,8 +339,8 @@ func TestProcessLifecycle(t *testing.T) {
 		expiresOn := time.Now().Add(1 * time.Hour)
 		th.appClientMock.On("RefreshSubscription", subscription.SubscriptionID).Return(&expiresOn, nil).Times(1)
 
-		response, bodyString := sendRequest(t, activities)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, activities)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, bodyString)
 
 		assert.Eventually(t, func() bool {
@@ -358,7 +366,7 @@ func TestAutocompleteTeams(t *testing.T) {
 	user1 := th.SetupUser(t, team)
 	client1 := th.SetupClient(t, user1.Id)
 
-	sendRequest := func(t *testing.T, user *model.User) (*http.Response, []model.AutocompleteListItem) {
+	sendRequest := func(t *testing.T, user *model.User) (int, []model.AutocompleteListItem) {
 		t.Helper()
 
 		request, err := http.NewRequest(http.MethodGet, apiURL, nil)
@@ -378,14 +386,14 @@ func TestAutocompleteTeams(t *testing.T) {
 			require.Nil(t, err)
 		}
 
-		return response, list
+		return response.StatusCode, list
 	}
 
 	t.Run("no client for user", func(t *testing.T) {
 		th.Reset(t)
 
-		response, list := sendRequest(t, user1)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, list)
 	})
 
@@ -395,8 +403,8 @@ func TestAutocompleteTeams(t *testing.T) {
 		th.ConnectUser(t, user1.Id)
 		th.clientMock.On("ListTeams").Return(nil, errors.New("unable to get the teams list")).Times(1)
 
-		response, list := sendRequest(t, user1)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, list)
 	})
 
@@ -412,8 +420,8 @@ func TestAutocompleteTeams(t *testing.T) {
 			},
 		}, nil).Times(1)
 
-		response, list := sendRequest(t, user1)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []model.AutocompleteListItem{
 			{
 				Item:     "mockTeamsTeamID-1",
@@ -440,8 +448,8 @@ func TestAutocompleteTeams(t *testing.T) {
 			},
 		}, nil).Times(1)
 
-		response, list := sendRequest(t, user1)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []model.AutocompleteListItem{
 			{
 				Item:     "mockTeamsTeamID-1",
@@ -464,7 +472,7 @@ func TestAutocompleteChannels(t *testing.T) {
 	user1 := th.SetupUser(t, team)
 	client1 := th.SetupClient(t, user1.Id)
 
-	sendRequest := func(t *testing.T, user *model.User, queryParams string) (*http.Response, []model.AutocompleteListItem) {
+	sendRequest := func(t *testing.T, user *model.User, queryParams string) (int, []model.AutocompleteListItem) {
 		t.Helper()
 
 		u := apiURL
@@ -489,22 +497,22 @@ func TestAutocompleteChannels(t *testing.T) {
 			require.Nil(t, err)
 		}
 
-		return response, list
+		return response.StatusCode, list
 	}
 
 	t.Run("no query parameters", func(t *testing.T) {
 		th.Reset(t)
 
-		response, list := sendRequest(t, user1, "")
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1, "")
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, list)
 	})
 
 	t.Run("no client for user", func(t *testing.T) {
 		th.Reset(t)
 
-		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, list)
 	})
 
@@ -514,8 +522,8 @@ func TestAutocompleteChannels(t *testing.T) {
 		th.ConnectUser(t, user1.Id)
 		th.clientMock.On("ListChannels", "mockData-3").Return(nil, errors.New("unable to get the channels list")).Times(1)
 
-		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, list)
 	})
 
@@ -531,8 +539,8 @@ func TestAutocompleteChannels(t *testing.T) {
 			},
 		}, nil).Times(1)
 
-		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []model.AutocompleteListItem{
 			{
 				Item:     "mockTeamsChannelID-1",
@@ -559,8 +567,8 @@ func TestAutocompleteChannels(t *testing.T) {
 			},
 		}, nil).Times(1)
 
-		response, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, list := sendRequest(t, user1, "mockData-1 mockData-2 mockData-3")
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []model.AutocompleteListItem{
 			{
 				Item:     "mockTeamsChannelID-1",
@@ -581,7 +589,7 @@ func TestConnect(t *testing.T) {
 	apiURL := th.pluginURL(t, "/connect")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User, channelID, postID string) *http.Response {
+	sendRequest := func(t *testing.T, user *model.User, channelID, postID string) (int, string) {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
@@ -619,7 +627,7 @@ func TestConnect(t *testing.T) {
 			require.NoError(t, response.Body.Close())
 		})
 
-		return response
+		return response.StatusCode, response.Header.Get("Location")
 	}
 
 	t.Run("missing channel parameter", func(t *testing.T) {
@@ -628,8 +636,8 @@ func TestConnect(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		response := sendRequest(t, user1, "", "post_id")
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		statusCode, _ := sendRequest(t, user1, "", "post_id")
+		assert.Equal(t, http.StatusBadRequest, statusCode)
 	})
 
 	t.Run("missing post parameter", func(t *testing.T) {
@@ -638,8 +646,8 @@ func TestConnect(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		response := sendRequest(t, user1, "channel_id", "")
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		statusCode, _ := sendRequest(t, user1, "channel_id", "")
+		assert.Equal(t, http.StatusBadRequest, statusCode)
 	})
 
 	t.Run("missing channel and post parameters", func(t *testing.T) {
@@ -648,8 +656,8 @@ func TestConnect(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		response := sendRequest(t, user1, "", "")
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+		statusCode, _ := sendRequest(t, user1, "", "")
+		assert.Equal(t, http.StatusBadRequest, statusCode)
 	})
 
 	t.Run("user already connected", func(t *testing.T) {
@@ -658,18 +666,18 @@ func TestConnect(t *testing.T) {
 		user1 := th.SetupUser(t, team)
 		th.ConnectUser(t, user1.Id)
 
-		response := sendRequest(t, user1, "channel_id", "post_id")
-		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		statusCode, _ := sendRequest(t, user1, "channel_id", "post_id")
+		assert.Equal(t, http.StatusForbidden, statusCode)
 	})
 
 	t.Run("user connected", func(t *testing.T) {
 		th.Reset(t)
 
 		user1 := th.SetupUser(t, team)
-		response := sendRequest(t, user1, "channel_id", "post_id")
-		assert.Equal(t, http.StatusSeeOther, response.StatusCode)
+		statusCode, location := sendRequest(t, user1, "channel_id", "post_id")
+		assert.Equal(t, http.StatusSeeOther, statusCode)
 
-		actualURL, err := url.Parse(response.Header.Get("Location"))
+		actualURL, err := url.Parse(location)
 		require.NoError(t, err)
 		assert.Equal(t, "login.microsoftonline.com", actualURL.Host)
 		assert.Regexp(t, "oauth2/v2.0/authorize$", actualURL.Path)
@@ -685,7 +693,7 @@ func TestGetConnectedUsers(t *testing.T) {
 	apiURL := th.pluginURL(t, "/connected-users")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User) (*http.Response, []storemodels.ConnectedUser) {
+	sendRequest := func(t *testing.T, user *model.User) (int, []storemodels.ConnectedUser) {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
@@ -706,15 +714,15 @@ func TestGetConnectedUsers(t *testing.T) {
 			require.Nil(t, err)
 		}
 
-		return response, list
+		return response.StatusCode, list
 	}
 
 	t.Run("insufficient permissions", func(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		response, connectedUsers := sendRequest(t, user)
-		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, statusCode)
 		assert.Empty(t, connectedUsers)
 	})
 
@@ -722,8 +730,8 @@ func TestGetConnectedUsers(t *testing.T) {
 		th.Reset(t)
 		sysadmin := th.SetupSysadmin(t, team)
 
-		response, connectedUsers := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Empty(t, connectedUsers)
 	})
 
@@ -740,8 +748,8 @@ func TestGetConnectedUsers(t *testing.T) {
 		user4 := th.SetupUser(t, team)
 		th.ConnectUser(t, user4.Id)
 
-		response, connectedUsers := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []storemodels.ConnectedUser{
 			{
 				MattermostUserID: user1.Id,
@@ -780,7 +788,7 @@ func TestGetConnectedUsersFile(t *testing.T) {
 	apiURL := th.pluginURL(t, "/connected-users/download")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User) (*http.Response, [][]string) {
+	sendRequest := func(t *testing.T, user *model.User) (int, [][]string) {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
@@ -805,15 +813,15 @@ func TestGetConnectedUsersFile(t *testing.T) {
 			require.Nil(t, err)
 		}
 
-		return response, records
+		return response.StatusCode, records
 	}
 
 	t.Run("insufficient permissions", func(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		response, connectedUsers := sendRequest(t, user)
-		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, statusCode)
 		assert.Empty(t, connectedUsers)
 	})
 
@@ -821,8 +829,8 @@ func TestGetConnectedUsersFile(t *testing.T) {
 		th.Reset(t)
 		sysadmin := th.SetupSysadmin(t, team)
 
-		response, connectedUsers := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, [][]string{
 			{"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id"},
 		}, connectedUsers)
@@ -841,8 +849,8 @@ func TestGetConnectedUsersFile(t *testing.T) {
 		user4 := th.SetupUser(t, team)
 		th.ConnectUser(t, user4.Id)
 
-		response, connectedUsers := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, connectedUsers := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, []string{
 			"First Name", "Last Name", "Email", "Mattermost User Id", "Teams User Id",
 		}, connectedUsers[0])
@@ -868,7 +876,7 @@ func TestNotifyConnect(t *testing.T) {
 	apiURL := th.pluginURL(t, "/notify-connect")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User) *http.Response {
+	sendRequest := func(t *testing.T, user *model.User) int {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
@@ -885,7 +893,7 @@ func TestNotifyConnect(t *testing.T) {
 			require.NoError(t, response.Body.Close())
 		})
 
-		return response
+		return response.StatusCode
 	}
 
 	t.Run("not authorized", func(t *testing.T) {
@@ -908,8 +916,8 @@ func TestNotifyConnect(t *testing.T) {
 
 		user1 := th.SetupUser(t, team)
 
-		response := sendRequest(t, user1)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode := sendRequest(t, user1)
+		assert.Equal(t, http.StatusOK, statusCode)
 	})
 }
 
@@ -918,7 +926,7 @@ func TestGetSiteStats(t *testing.T) {
 	apiURL := th.pluginURL(t, "/stats/site")
 	team := th.SetupTeam(t)
 
-	sendRequest := func(t *testing.T, user *model.User) (*http.Response, string) {
+	sendRequest := func(t *testing.T, user *model.User) (int, string) {
 		t.Helper()
 		client1 := th.SetupClient(t, user.Id)
 
@@ -937,15 +945,15 @@ func TestGetSiteStats(t *testing.T) {
 		require.NoError(t, err)
 		bodyString := string(bodyBytes)
 
-		return response, bodyString
+		return response.StatusCode, bodyString
 	}
 
 	t.Run("insufficient permissions", func(t *testing.T) {
 		th.Reset(t)
 		user := th.SetupUser(t, team)
 
-		response, bodyString := sendRequest(t, user)
-		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, user)
+		assert.Equal(t, http.StatusForbidden, statusCode)
 		assert.Equal(t, "not able to authorize the user\n", bodyString)
 	})
 
@@ -953,8 +961,8 @@ func TestGetSiteStats(t *testing.T) {
 		th.Reset(t)
 		sysadmin := th.SetupSysadmin(t, team)
 
-		response, bodyString := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":0, "total_active_users":0}`, bodyString)
 	})
 
@@ -968,8 +976,8 @@ func TestGetSiteStats(t *testing.T) {
 		err := th.p.store.SetUserLastChatReceivedAt(user1.Id, time.Now().Add(-4*24*time.Hour).UnixMicro())
 		require.NoError(t, err)
 
-		response, bodyString := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":1,"total_active_users":1}`, bodyString)
 	})
 
@@ -985,8 +993,8 @@ func TestGetSiteStats(t *testing.T) {
 		th.MarkUserWhitelisted(t, user2.Id)
 		th.MarkUserInvited(t, user3.Id)
 
-		response, bodyString := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.JSONEq(t, `{"current_whitelist_users":2, "pending_invited_users":1, "total_connected_users":0,"total_active_users":0}`, bodyString)
 	})
 
@@ -1007,8 +1015,8 @@ func TestGetSiteStats(t *testing.T) {
 			}
 		}
 
-		response, bodyString := sendRequest(t, sysadmin)
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+		statusCode, bodyString := sendRequest(t, sysadmin)
+		assert.Equal(t, http.StatusOK, statusCode)
 		assert.JSONEq(t, `{"current_whitelist_users":0, "pending_invited_users":0, "total_connected_users":10,"total_active_users":5}`, bodyString)
 	})
 }
