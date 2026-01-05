@@ -1,6 +1,6 @@
 module github.com/mattermost/mattermost-plugin-msteams
 
-go 1.23.1
+go 1.24.6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
