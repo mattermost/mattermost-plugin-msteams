@@ -5,18 +5,27 @@ run:
   modules-download-mode: readonly
 
 linters-settings:
+  goconst:
+    min-len: 3
+    min-occurrences: 2
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
   govet:
     enable-all: true
     disable:
       - fieldalignment
   misspell:
     locale: US
+  revive:
 
 linters:
   disable-all: true
   enable:
     - bodyclose
     - errcheck
+    - gocritic
     - gosec
     - govet
     - ineffassign
@@ -27,6 +36,83 @@ linters:
     - unconvert
     - unused
     - whitespace
+  exclusions:
+    rules:
+      - linters:
+          - revive
+        text: var-naming|error-naming|exported|increment-decrement|error-strings|if-return|unused-parameter|blank-imports|empty-block|package-comments
+      - linters:
+          - errcheck
+        text: Error return value
+      - linters:
+          - staticcheck
+        text: SA1019
+      - linters:
+          - staticcheck
+        text: ST1023
+      - linters:
+          - staticcheck
+        text: ST1012
+      - linters:
+          - staticcheck
+        text: ST1005
+      - linters:
+          - staticcheck
+        text: QF1011
+      - linters:
+          - staticcheck
+        text: QF1001
+      - linters:
+          - staticcheck
+        text: QF1003
+      - linters:
+          - staticcheck
+        text: QF1012
+      - linters:
+          - staticcheck
+        text: QT1019
+      - linters:
+          - staticcheck
+        text: QF1008
+      - linters:
+          - staticcheck
+        text: QF1004
+      - linters:
+          - staticcheck
+        text: ST1019
+      - linters:
+          - staticcheck
+        text: QF1006
+      - linters:
+          - staticcheck
+        text: QF1002
+      - linters:
+          - staticcheck
+        text: QF1007
+      - linters:
+          - gocritic
+        text: ifElseChain
+      - linters:
+          - gosec
+        text: G104
+      - linters:
+          - gosec
+        text: G107
+      - linters:
+          - gosec
+        text: G115
+      - linters:
+          - gosec
+        text: G304
+      - linters:
+          - gosec
+        text: G301
+
+formatters:
+  disable-all: true
+  enable:
+    - gofmt
+    - goimports
 
 formatters:
   enable:
@@ -39,17 +125,17 @@ formatters:
 
 issues:
   exclude-rules:
+    - path: server/manifest.go
+      linters:
+        - deadcode
+        - unused
+        - varcheck
     - path: server/configuration.go
       linters:
         - unused
-
-    - linters:
-      - revive
-      text: "var-naming|error-naming|exported|increment-decrement|error-strings|if-return|unused-parameter|blank-imports|empty-block"
-      # We need to fix the unused parameter issues and remove the exception.
-
-    - path: _test\.go
+    - path: _test\.go$
       linters:
         - bodyclose
+        - goconst
         - scopelint # https://github.com/kyoh86/scopelint/issues/4
         - gosec
