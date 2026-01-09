@@ -1,12 +1,10 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
 
 linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/mattermost/mattermost-plugin-matterbridge
   govet:
     enable-all: true
     disable:
@@ -19,21 +17,25 @@ linters:
   enable:
     - bodyclose
     - errcheck
-    - gofmt
-    - goimports
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
     - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unused
     - whitespace
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
 
 issues:
   exclude-rules:
