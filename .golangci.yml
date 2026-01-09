@@ -1,4 +1,4 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
@@ -113,6 +113,15 @@ formatters:
   enable:
     - gofmt
     - goimports
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
 
 issues:
   exclude-rules:
