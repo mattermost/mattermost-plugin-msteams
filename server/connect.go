@@ -6,8 +6,9 @@ package main
 import (
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/pkg/errors"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func (p *Plugin) MaybeSendInviteMessage(userID string, currentTime time.Time) (bool, error) {

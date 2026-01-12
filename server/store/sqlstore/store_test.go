@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func makeGlobalSubscription(subscriptionID string, expiresOn time.Time) storemodels.GlobalSubscription {

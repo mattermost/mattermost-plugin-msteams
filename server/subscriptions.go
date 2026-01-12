@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
-	"github.com/pkg/errors"
 )
 
 func isExpired(expiresOn time.Time) bool {

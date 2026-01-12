@@ -6,8 +6,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 const (

@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 func TestSendMessageAndReplyToMSTeamsLinkedChannel(t *testing.T) {

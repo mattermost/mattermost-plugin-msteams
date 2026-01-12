@@ -8,8 +8,9 @@ package store
 import (
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 type Store interface {

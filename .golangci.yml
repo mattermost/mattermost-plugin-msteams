@@ -8,10 +8,6 @@ linters-settings:
   goconst:
     min-len: 3
     min-occurrences: 2
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
   govet:
     enable-all: true
     disable:
@@ -109,19 +105,14 @@ linters:
         text: G301
 
 formatters:
-  disable-all: true
   enable:
     - gofmt
     - goimports
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/mattermost/mattermost-plugin-msteams
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes: github.com/mattermost/mattermost-plugin-msteams
 
 issues:
   exclude-rules:

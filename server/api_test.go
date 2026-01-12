@@ -13,14 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func TestProcessActivity(t *testing.T) {

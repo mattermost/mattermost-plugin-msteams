@@ -20,6 +20,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
+	"github.com/mattermost/mattermost/server/v8/channels/utils"
+
 	"github.com/mattermost/mattermost-plugin-msteams/assets"
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
@@ -28,11 +34,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-msteams/server/store"
 	sqlstore "github.com/mattermost/mattermost-plugin-msteams/server/store/sqlstore"
 	timerlayer "github.com/mattermost/mattermost-plugin-msteams/server/store/timerlayer"
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/plugin"
-	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
-	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
-	"github.com/mattermost/mattermost/server/v8/channels/utils"
 )
 
 const (

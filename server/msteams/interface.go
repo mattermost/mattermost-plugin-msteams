@@ -9,9 +9,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 type Client interface {

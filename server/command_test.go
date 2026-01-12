@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
