@@ -11,12 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func TestHandleCodeSnippet(t *testing.T) {

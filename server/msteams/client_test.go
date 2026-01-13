@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 func TestConvertToMessage(t *testing.T) {

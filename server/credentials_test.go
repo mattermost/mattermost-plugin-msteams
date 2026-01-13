@@ -6,9 +6,10 @@ package main
 import (
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 func TestDescribeResourceAccessType(t *testing.T) {

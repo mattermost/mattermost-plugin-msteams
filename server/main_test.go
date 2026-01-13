@@ -126,7 +126,7 @@ func setupServer(mt *mainT) error {
 	config.ServiceSettings.ListenAddress = model.NewPointer("localhost:0")
 	config.TeamSettings.MaxUsersPerTeam = model.NewPointer(10000)
 	config.LocalizationSettings.SetDefaults()
-	config.SqlSettings = *storetest.MakeSqlSettings("postgres", false)
+	config.SqlSettings = *storetest.MakeSqlSettings("postgres")
 	config.ServiceSettings.SiteURL = model.NewPointer("http://example.com/")
 	config.LogSettings.EnableConsole = model.NewPointer(true)
 	config.LogSettings.EnableFile = model.NewPointer(false)

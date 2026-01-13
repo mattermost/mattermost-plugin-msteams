@@ -6,9 +6,10 @@ package main
 import (
 	"testing"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 func TestGetNotificationStatus(t *testing.T) {

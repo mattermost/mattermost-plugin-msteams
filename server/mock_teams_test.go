@@ -7,9 +7,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 // mockTeams is an abstraction over directly mocking the client calls made by the plugin to instead

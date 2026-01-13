@@ -15,9 +15,6 @@ import (
 	"time"
 
 	goPlugin "github.com/hashicorp/go-plugin"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
-	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
@@ -25,6 +22,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/mocks"
+	"github.com/mattermost/mattermost-plugin-msteams/server/store/storemodels"
 )
 
 type testHelper struct {

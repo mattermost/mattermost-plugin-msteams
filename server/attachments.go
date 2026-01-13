@@ -17,11 +17,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/v8/channels/app/imaging"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/v8/channels/app/imaging"
 )
 
 func GetResourceIDsFromURL(weburl string) (*clientmodels.ActivityIds, error) {

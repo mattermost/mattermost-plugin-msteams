@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/enescakir/emoji"
+
 	"github.com/mattermost/mattermost-plugin-msteams/server/metrics"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"

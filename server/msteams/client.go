@@ -23,7 +23,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	azidentity "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -40,6 +39,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/oauth2"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams/clientmodels"
 )
 
 const (

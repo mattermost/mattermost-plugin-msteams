@@ -14,11 +14,12 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 	"github.com/mattermost/mattermost/server/public/model"
 	pluginapi "github.com/mattermost/mattermost/server/public/pluginapi"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost-plugin-msteams/server/msteams"
 )
 
 type TestConfig struct {
