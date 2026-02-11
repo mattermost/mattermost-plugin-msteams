@@ -90,6 +90,17 @@ func TestProcessActivity(t *testing.T) {
 		assert.Equal(t, "unable to get the activities from the message\n", bodyString)
 	})
 
+	t.Run("oversized body", func(t *testing.T) {
+		th.Reset(t)
+
+		oversizedBody := bytes.Repeat([]byte("a"), 1<<20+1)
+		response, err := http.Post(apiURL, "text/json", bytes.NewReader(oversizedBody))
+		require.NoError(t, err)
+		defer response.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	})
+
 	t.Run("invalid webhook secret", func(t *testing.T) {
 		th.Reset(t)
 
@@ -223,6 +234,17 @@ func TestProcessLifecycle(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
 		assert.Equal(t, "unable to get the lifecycle events from the message\n", bodyString)
+	})
+
+	t.Run("oversized body", func(t *testing.T) {
+		th.Reset(t)
+
+		oversizedBody := bytes.Repeat([]byte("a"), 1<<20+1)
+		response, err := http.Post(apiURL, "text/json", bytes.NewReader(oversizedBody))
+		require.NoError(t, err)
+		defer response.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
 	})
 
 	t.Run("invalid webhook secret", func(t *testing.T) {
