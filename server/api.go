@@ -50,6 +50,8 @@ const (
 	QueryParamPostID                          = "post_id"
 	QueryParamFromPreferences                 = "from_preferences"
 	QueryParamStateID                         = "state_id"
+
+	maxWebhookBodySize int64 = 1 << 20 // 1 MB
 )
 
 type UpdateWhitelistResult struct {
@@ -108,6 +110,7 @@ func (a *API) processActivity(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	req.Body = http.MaxBytesReader(w, req.Body, maxWebhookBodySize)
 	activities := Activities{}
 	err := json.NewDecoder(req.Body).Decode(&activities)
 	if err != nil {
@@ -146,6 +149,7 @@ func (a *API) processLifecycle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	req.Body = http.MaxBytesReader(w, req.Body, maxWebhookBodySize)
 	lifecycleEvents := Activities{}
 	err := json.NewDecoder(req.Body).Decode(&lifecycleEvents)
 	if err != nil {
